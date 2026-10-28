@@ -84,66 +84,67 @@ var statusCmd = &cobra.Command{
 			return nil
 		}
 
-		effectiveLang := i18n.Resolve(globalLang, "")
-		msg := i18n.Get(effectiveLang)
+		lang := i18n.Resolve(globalLang, "")
+		t := func(id string, data ...i18n.P) string { return i18n.T(lang, id, data...) }
+		field := func(id string) string { return i18n.Pad(t(id), i18n.StatusWidth) }
 
-		fmt.Println(msg.StatusTitle)
+		fmt.Println(t("status.title"))
 		fmt.Println(strings.Repeat("=", 60))
 
 		// 1. Three-tier status
-		tier1 := msg.StatusOfflineCore
+		tier1 := t("status.core_offline")
 		if st.ThreeTier.CoreReachable {
-			tier1 = msg.StatusReadyCore
+			tier1 = t("status.core_ready")
 		}
-		tier2 := fmt.Sprintf(msg.StatusDisabledTakeover, st.ThreeTier.TakeoverMode)
+		tier2 := t("status.takeover_disabled", i18n.P{"mode": st.ThreeTier.TakeoverMode})
 		if st.ThreeTier.TrafficIntercepted {
-			tier2 = fmt.Sprintf(msg.StatusActiveTakeover, st.ThreeTier.TakeoverMode)
+			tier2 = t("status.takeover_active", i18n.P{"mode": st.ThreeTier.TakeoverMode})
 		} else if st.ThreeTier.InterceptNote != "" {
-			tier2 = fmt.Sprintf(msg.StatusDisabledTakeover, st.ThreeTier.InterceptNote)
+			tier2 = t("status.takeover_disabled", i18n.P{"mode": st.ThreeTier.InterceptNote})
 		}
-		tier3 := msg.StatusUnverifiedEgress
+		tier3 := t("status.egress_unverified")
 		if st.ThreeTier.EgressVerified {
-			tier3 = fmt.Sprintf(msg.StatusVerifiedEgress, st.ThreeTier.EgressLatencyMs)
+			tier3 = t("status.egress_verified", i18n.P{"ms": st.ThreeTier.EgressLatencyMs})
 		}
 
-		fmt.Printf("%s %s\n", strings.TrimRight(msg.CoreReachability, " "), tier1)
-		fmt.Printf("%s %s\n", strings.TrimRight(msg.TrafficTakeover, " "), tier2)
-		fmt.Printf("%s %s\n", strings.TrimRight(msg.NetworkEgress, " "), tier3)
+		fmt.Printf("%s %s\n", t("status.core_reachability"), tier1)
+		fmt.Printf("%s %s\n", t("status.traffic_takeover"), tier2)
+		fmt.Printf("%s %s\n", t("status.network_egress"), tier3)
 		fmt.Println(strings.Repeat("-", 60))
 
 		// 2. Preferences & Strategy
-		allowLanStr := msg.AllowLanFalse
+		allowLanStr := t("status.off")
 		if st.Preferences.AllowLan {
-			allowLanStr = msg.AllowLanTrue
+			allowLanStr = t("status.on")
 		}
-		fmt.Printf("%s%s\n", msg.TakeoverModeLabel, st.Preferences.TakeoverMode)
-		fmt.Printf("%s%s\n", msg.RoutingModeLabel, st.Preferences.RoutingMode)
-		allowLanName := strings.TrimRight(strings.TrimSpace(msg.AllowLanLabel), ":")
-		fmt.Printf("%s%d (%s: %s)\n", msg.LocalMixedPortLabel, st.Preferences.MixedPort, allowLanName, allowLanStr)
+		fmt.Printf("%s%s\n", field("status.label.takeover_mode"), st.Preferences.TakeoverMode)
+		fmt.Printf("%s%s\n", field("status.label.routing_mode"), st.Preferences.RoutingMode)
+		allowLanName := strings.TrimSuffix(t("status.label.allow_lan"), ":")
+		fmt.Printf("%s%d (%s: %s)\n", field("status.label.mixed_port"), st.Preferences.MixedPort, allowLanName, allowLanStr)
 		if len(st.ThreeTier.StrategyChain) > 0 {
-			fmt.Printf("%s%s\n", msg.ActiveEgressChain, strings.Join(st.ThreeTier.StrategyChain, " -> "))
+			fmt.Printf("%s%s\n", field("status.label.egress_chain"), strings.Join(st.ThreeTier.StrategyChain, " -> "))
 		}
 		fmt.Println(strings.Repeat("-", 60))
 
 		// 3. Active Subscription
 		if st.ActiveSub != nil {
-			fmt.Printf("%s%s (%s)\n", msg.ActiveSubLabel, st.ActiveSub.Name, st.ActiveSub.Type)
+			fmt.Printf("%s%s (%s)\n", field("status.label.active_sub"), st.ActiveSub.Name, st.ActiveSub.Type)
 			healthStr := string(st.ActiveSub.Health)
 			if healthStr == "ok" {
-				healthStr = msg.HealthOK
+				healthStr = t("status.health_ok")
 			}
-			fmt.Printf("%s%s\n", msg.HealthStateLabel, healthStr)
+			fmt.Printf("%s%s\n", field("status.label.health"), healthStr)
 			if st.ActiveSub.Quota.TotalBytes > 0 {
 				usedGB := float64(st.ActiveSub.Quota.DownloadBytes+st.ActiveSub.Quota.UploadBytes) / (1024 * 1024 * 1024)
 				totalGB := float64(st.ActiveSub.Quota.TotalBytes) / (1024 * 1024 * 1024)
 				pct := (usedGB / totalGB) * 100
-				fmt.Printf("%s%.2f GB / %.2f GB (%.1f%%)\n", msg.QuotaUsageLabel, usedGB, totalGB, pct)
+				fmt.Printf("%s%.2f GB / %.2f GB (%.1f%%)\n", field("status.label.quota_usage"), usedGB, totalGB, pct)
 				if st.ActiveSub.Quota.ExpireUnix > 0 {
-					fmt.Printf("%s%s\n", msg.ServiceExpireLabel, time.Unix(st.ActiveSub.Quota.ExpireUnix, 0).Local().Format("2006-01-02 15:04"))
+					fmt.Printf("%s%s\n", field("status.label.service_expire"), time.Unix(st.ActiveSub.Quota.ExpireUnix, 0).Local().Format("2006-01-02 15:04"))
 				}
 			}
 		} else {
-			fmt.Printf("%s%s\n", msg.ActiveSubLabel, msg.NoActiveSub)
+			fmt.Printf("%s%s\n", field("status.label.active_sub"), t("status.no_active_sub"))
 		}
 		return nil
 	},

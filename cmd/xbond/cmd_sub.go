@@ -40,21 +40,21 @@ var (
 
 	logoutPurge bool
 
-	subAddOrigin    string
-	subAddFallback  string
-	subAddProtocol  string
-	subAddLang      string
-	subAddName      string
-	subAddInterval  int
-	subAddUse       bool
+	subAddOrigin   string
+	subAddFallback string
+	subAddProtocol string
+	subAddLang     string
+	subAddName     string
+	subAddInterval int
+	subAddUse      bool
 
 	subUpdForce    bool
 	subUpdViaProxy bool
 	subUpdAll      bool
 	subUpdJSON     bool
 
-	subListJSON    bool
-	subInfoJSON    bool
+	subListJSON bool
+	subInfoJSON bool
 
 	subExpRuntime  bool
 	subExpRedacted bool
@@ -155,7 +155,7 @@ var loginCmd = &cobra.Command{
 		}
 
 		effectiveLang := i18n.Resolve(globalLang, "")
-		msg := i18n.Get(effectiveLang)
+		t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
 
 		var meta *sub.SubscriptionMeta
 		if targetInput == "" && urlOrFile == "" {
@@ -174,12 +174,14 @@ var loginCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Printf("%s %s\n", msg.TagSuccess, fmt.Sprintf(msg.SubscriptionActive, meta.Name, meta.ID))
+		fmt.Printf("%s %s\n", t("tag.success"), t("pkce.subscription_active", i18n.P{"name": meta.Name, "id": meta.ID}))
 		if meta.Quota.TotalBytes > 0 {
 			usedGB := float64(meta.Quota.DownloadBytes+meta.Quota.UploadBytes) / (1024 * 1024 * 1024)
 			totalGB := float64(meta.Quota.TotalBytes) / (1024 * 1024 * 1024)
 			pct := (usedGB / totalGB) * 100
-			fmt.Printf("%s %s\n", msg.TagQuota, fmt.Sprintf(msg.QuotaUsage, usedGB, totalGB, pct))
+			fmt.Printf("%s %s\n", t("tag.quota"), t("pkce.quota_usage", i18n.P{
+				"used": fmt.Sprintf("%.2f", usedGB), "total": fmt.Sprintf("%.2f", totalGB), "pct": fmt.Sprintf("%.1f", pct),
+			}))
 		}
 		return nil
 	},
@@ -207,7 +209,7 @@ func runPkceLogin(
 	noBrowser bool,
 ) (*sub.SubscriptionMeta, error) {
 	effectiveLang := i18n.Resolve(lang, "")
-	msg := i18n.Get(effectiveLang)
+	t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
 
 	if origin == "" {
 		origin = "https://www.xbond.net"
@@ -235,7 +237,7 @@ func runPkceLogin(
 	// 4. 監聽本機隨機可用端口 (RFC 8252 Loopback Interface)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		fmt.Printf("%s %s\n", msg.TagInfo, fmt.Sprintf(msg.PortConflictHint, err))
+		fmt.Printf("%s %s\n", t("tag.info"), t("pkce.listen_failed", i18n.P{"err": err}))
 		return runDeviceLogin(ctx, client, origin, fallbacks, protocol, effectiveLang, name, noBrowser)
 	}
 	defer listener.Close()
@@ -321,18 +323,18 @@ func runPkceLogin(
 	)
 
 	fmt.Println(strings.Repeat("=", 66))
-	fmt.Println(msg.PkceTitleBanner)
+	fmt.Println(t("pkce.banner"))
 	fmt.Println(strings.Repeat("=", 66))
 	if !noBrowser {
-		fmt.Println(msg.OpeningBrowser)
+		fmt.Println(t("pkce.opening_browser"))
 		if err := openBrowser(authURL); err != nil {
-			fmt.Printf(msg.BrowserOpenFailed+"\n", err)
+			fmt.Println(t("pkce.browser_open_failed", i18n.P{"err": err}))
 		}
 	}
-	fmt.Println(msg.VisitURLPrompt)
+	fmt.Println(t("pkce.visit_url"))
 	fmt.Printf("  %s\n\n", authURL)
-	fmt.Println(msg.WaitingAuth)
-	fmt.Println(msg.HeadlessTokenHint)
+	fmt.Println(t("pkce.waiting"))
+	fmt.Println(t("pkce.headless_hint"))
 	fmt.Print("> ")
 
 	inputChan := make(chan string, 1)
@@ -401,7 +403,7 @@ func runPkceLogin(
 		return nil, fmt.Errorf("received empty access token from server")
 	}
 
-	fmt.Printf("\n%s %s\n", msg.TagSuccess, msg.AuthSuccess)
+	fmt.Printf("\n%s %s\n", t("tag.success"), t("pkce.success"))
 	return client.Login(ctx, tokenData.AccessToken, origin, fallbacks, protocol, effectiveLang, name, "")
 }
 
@@ -414,7 +416,7 @@ func runDeviceLogin(
 	noBrowser bool,
 ) (*sub.SubscriptionMeta, error) {
 	effectiveLang := i18n.Resolve(lang, "")
-	msg := i18n.Get(effectiveLang)
+	t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
 
 	if origin == "" {
 		origin = "https://www.xbond.net"
@@ -451,23 +453,23 @@ func runDeviceLogin(
 
 	// 2. 顯示終端授權指引
 	fmt.Println(strings.Repeat("=", 66))
-	fmt.Println(msg.DeviceTitleBanner)
+	fmt.Println(t("device.banner"))
 	fmt.Println(strings.Repeat("=", 66))
 	if !noBrowser && !isDockerEnvironment() {
-		fmt.Println(msg.DeviceOpenBrowser)
+		fmt.Println(t("device.opening_browser"))
 		if err := openBrowser(deviceResp.VerificationURIComplete); err != nil {
 			// In headless environments, openBrowser might fail silently or error
 		}
 	}
-	fmt.Println(msg.DeviceVisitPrompt)
+	fmt.Println(t("device.visit_url"))
 	fmt.Printf("  %s\n\n", deviceResp.VerificationURI)
-	fmt.Println(msg.DeviceCodePrompt)
+	fmt.Println(t("device.code_prompt"))
 	fmt.Printf("  >>>  %s  <<<\n\n", deviceResp.UserCode)
 	if deviceResp.VerificationURIComplete != "" {
-		fmt.Println(msg.DeviceQuickLink)
+		fmt.Println(t("device.quick_link"))
 		fmt.Printf("  %s\n\n", deviceResp.VerificationURIComplete)
 	}
-	fmt.Println(msg.DeviceWaiting)
+	fmt.Println(t("device.waiting"))
 	fmt.Print("> ")
 
 	inputChan := make(chan string, 1)
@@ -502,7 +504,7 @@ func runDeviceLogin(
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-timeout:
-			return nil, fmt.Errorf(msg.DeviceTimedOut, expiresIn)
+			return nil, fmt.Errorf("%s", t("device.timed_out", i18n.P{"seconds": expiresIn}))
 		case input := <-inputChan:
 			targetInput := ""
 			urlOrFile := ""
@@ -535,7 +537,7 @@ func runDeviceLogin(
 			tResp.Body.Close()
 
 			if tResp.StatusCode == http.StatusOK && tokenData.AccessToken != "" {
-				fmt.Printf("\n%s %s\n", msg.TagSuccess, msg.DeviceApproved)
+				fmt.Printf("\n%s %s\n", t("tag.success"), t("device.approved"))
 				return client.Login(ctx, tokenData.AccessToken, origin, fallbacks, protocol, effectiveLang, name, "")
 			}
 
@@ -549,9 +551,9 @@ func runDeviceLogin(
 				ticker.Reset(time.Duration(pollInterval) * time.Second)
 				continue
 			case "expired_token":
-				return nil, errors.New(msg.DeviceExpired)
+				return nil, errors.New(t("device.expired"))
 			case "access_denied":
-				return nil, errors.New(msg.DeviceDenied)
+				return nil, errors.New(t("device.denied"))
 			default:
 				if tokenData.Error != "" {
 					return nil, fmt.Errorf("oauth error: %s (%s)", tokenData.Error, tokenData.ErrorDescription)

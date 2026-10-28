@@ -1,6 +1,10 @@
 package i18n
 
 import (
+	"embed"
+	"encoding/json"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -37,50 +41,109 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
-func TestGetMessages(t *testing.T) {
-	langs := []string{"zh-HK", "zh-CN", "en", "ko", "fa"}
-	for _, l := range langs {
-		msg := Get(l)
-		if msg == nil {
-			t.Fatalf("Get(%q) returned nil", l)
+func TestDir(t *testing.T) {
+	if Dir("fa") != "rtl" {
+		t.Errorf("Dir(fa) = %q; want rtl", Dir("fa"))
+	}
+	for _, l := range []string{"en", "zh-CN", "zh-HK", "ko"} {
+		if Dir(l) != "ltr" {
+			t.Errorf("Dir(%q) = %q; want ltr", l, Dir(l))
 		}
-		if msg.Lang != l {
-			t.Errorf("Get(%q).Lang = %q; want %q", l, msg.Lang, l)
+	}
+}
+
+//go:embed locales/*.json
+var localeFiles embed.FS
+
+// Every locale must define the same message ids, so a missing translation
+// fails the build instead of falling back silently.
+func TestLocalesCoverSameMessageIDs(t *testing.T) {
+	var ids map[string]bool
+	for _, tag := range locales {
+		buf, err := localeFiles.ReadFile("locales/" + tag + ".json")
+		if err != nil {
+			t.Fatalf("read %s: %v", tag, err)
 		}
-		if l == "fa" && msg.Dir != "rtl" {
-			t.Errorf("expected rtl for fa, got %q", msg.Dir)
+		var messages map[string]any
+		if err := json.Unmarshal(buf, &messages); err != nil {
+			t.Fatalf("parse %s: %v", tag, err)
 		}
-		if l != "fa" && msg.Dir != "ltr" {
-			t.Errorf("expected ltr for %s, got %q", l, msg.Dir)
+		keys := slices.Sorted(maps.Keys(messages))
+		if ids == nil {
+			ids = make(map[string]bool, len(keys))
+			for _, k := range keys {
+				ids[k] = true
+			}
+			continue
 		}
-		if msg.TagSuccess == "" || msg.PkceTitleBanner == "" || msg.PageTitle == "" {
-			t.Errorf("missing key message fields in language %s", l)
+		for _, k := range keys {
+			if !ids[k] {
+				t.Errorf("%s defines unexpected message %q", tag, k)
+			}
+		}
+		for _, k := range slices.Collect(maps.Keys(ids)) {
+			if !slices.Contains(keys, k) {
+				t.Errorf("%s is missing message %q", tag, k)
+			}
+		}
+	}
+}
+
+func TestTInterpolates(t *testing.T) {
+	msg := T("en", "engine.started", P{"mode": "sysproxy", "routing": "rule", "port": 7890})
+	for _, part := range []string{"sysproxy", "rule", "7890"} {
+		if !strings.Contains(msg, part) {
+			t.Errorf("engine.started = %q; want it to contain %q", msg, part)
+		}
+	}
+}
+
+func TestTMissingIDReturnsID(t *testing.T) {
+	if got := T("en", "test.missing_id"); got != "test.missing_id" {
+		t.Errorf("T with unknown id = %q; want the id itself", got)
+	}
+}
+
+func TestTAllLocalesBasicMessages(t *testing.T) {
+	for _, tag := range locales {
+		for _, id := range []string{"tag.success", "pkce.banner", "device.approved", "engine.started", "status.title", "callback.title"} {
+			if msg := T(tag, id); msg == id {
+				t.Errorf("%s: message %q fell back to its id", tag, id)
+			}
 		}
 	}
 }
 
 func TestRenderCallbackHTML(t *testing.T) {
-	// English rendering
-	enHTML := RenderCallbackHTML("en")
-	if !strings.Contains(enHTML, `<title id="page-title">XBond CLI Authorization Successful</title>`) {
-		t.Errorf("expected English title in rendered HTML")
+	html := RenderCallbackHTML("fa")
+	for _, want := range []string{`lang="fa"`, `dir="rtl"`, "کلاینت ترمینال آماده است"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("fa callback html missing %q", want)
+		}
 	}
-	if !strings.Contains(enHTML, `lang="en"`) {
-		t.Errorf("expected lang=\"en\" in rendered HTML")
+	html = RenderCallbackHTML("zh-CN")
+	for _, want := range []string{`lang="zh-CN"`, `dir="ltr"`, "终端客户端已就绪"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("zh-CN callback html missing %q", want)
+		}
 	}
+}
 
-	// Persian (RTL) rendering
-	faHTML := RenderCallbackHTML("fa")
-	if !strings.Contains(faHTML, `dir="rtl"`) {
-		t.Errorf("expected dir=\"rtl\" in Persian rendered HTML")
+func TestPadCountsCJKAsTwoColumns(t *testing.T) {
+	width := func(s string) int {
+		w := 0
+		for _, r := range s {
+			w += runeWidth(r)
+		}
+		return w
 	}
-	if !strings.Contains(faHTML, `<title id="page-title">احراز هویت XBond CLI با موفقیت انجام شد</title>`) {
-		t.Errorf("expected Persian title in rendered HTML")
+	if got := Pad("端口:", 10); width(got) != 10 {
+		t.Errorf("Pad(%q, 10) display width = %d; want 10", "端口:", width(got))
 	}
-
-	// Simplified Chinese rendering
-	cnHTML := RenderCallbackHTML("zh-CN")
-	if !strings.Contains(cnHTML, `<title id="page-title">XBond CLI 授权成功</title>`) {
-		t.Errorf("expected Simplified Chinese title in rendered HTML")
+	if got := Pad("Port:", 10); width(got) != 10 {
+		t.Errorf("Pad(%q, 10) display width = %d; want 10", "Port:", width(got))
+	}
+	if got := Pad("本机混合端口:", 8); got != "本机混合端口:" {
+		t.Errorf("Pad beyond width must not truncate, got %q", got)
 	}
 }

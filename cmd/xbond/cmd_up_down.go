@@ -57,7 +57,7 @@ var upCmd = &cobra.Command{
 	Use:   "up",
 	Short: "Start or reload the embedded sing-box engine",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		msg := i18n.Get(i18n.Resolve(globalLang, ""))
+		lang := i18n.Resolve(globalLang, "")
 		ctx := context.Background()
 		client, err := daemon.EnsureRunning(ctx)
 		if err != nil {
@@ -75,17 +75,20 @@ var upCmd = &cobra.Command{
 				if port == 0 {
 					port = 7890
 				}
-				return fmt.Errorf("%w\n\n%s: %s\n%s", err, msg.TagError, fmt.Sprintf(msg.PortConflictError, port), msg.PortConflictHint)
+				return fmt.Errorf("%w\n\n%s: %s\n%s", err, i18n.T(lang, "tag.error"),
+					i18n.T(lang, "engine.port_conflict", i18n.P{"port": port}),
+					i18n.T(lang, "engine.port_conflict_hint"))
 			}
 			return err
 		}
 
 		st, _ := client.GetStatus(ctx)
 		if st != nil {
-			fmt.Printf("%s %s\n", msg.TagSuccess, fmt.Sprintf(msg.EngineStarted,
-				st.Preferences.TakeoverMode, st.Preferences.RoutingMode, st.Preferences.MixedPort))
+			fmt.Printf("%s %s\n", i18n.T(lang, "tag.success"), i18n.T(lang, "engine.started", i18n.P{
+				"mode": st.Preferences.TakeoverMode, "routing": st.Preferences.RoutingMode, "port": st.Preferences.MixedPort,
+			}))
 		} else {
-			fmt.Printf("%s %s\n", msg.TagSuccess, fmt.Sprintf(msg.EngineStarted, upMode, upRouting, upPort))
+			fmt.Printf("%s %s\n", i18n.T(lang, "tag.success"), i18n.T(lang, "engine.started", i18n.P{"mode": upMode, "routing": upRouting, "port": upPort}))
 		}
 		return nil
 	},
@@ -95,7 +98,7 @@ var downCmd = &cobra.Command{
 	Use:   "down",
 	Short: "Stop the engine and revert system proxy settings",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		msg := i18n.Get(i18n.Resolve(globalLang, ""))
+		lang := i18n.Resolve(globalLang, "")
 		ctx := context.Background()
 		client, err := daemon.NewClient()
 		if err != nil {
@@ -104,7 +107,7 @@ var downCmd = &cobra.Command{
 		if err := client.Down(ctx); err != nil {
 			return err
 		}
-		fmt.Printf("%s %s\n", msg.TagSuccess, msg.EngineStopped)
+		fmt.Printf("%s %s\n", i18n.T(lang, "tag.success"), i18n.T(lang, "engine.stopped"))
 		return nil
 	},
 }
@@ -113,7 +116,7 @@ var restartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restart the engine with current subscription and preferences",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		msg := i18n.Get(i18n.Resolve(globalLang, ""))
+		lang := i18n.Resolve(globalLang, "")
 		ctx := context.Background()
 		client, err := daemon.EnsureRunning(ctx)
 		if err != nil {
@@ -122,7 +125,7 @@ var restartCmd = &cobra.Command{
 		if err := client.Restart(ctx); err != nil {
 			return err
 		}
-		fmt.Printf("%s %s\n", msg.TagSuccess, msg.EngineRestarted)
+		fmt.Printf("%s %s\n", i18n.T(lang, "tag.success"), i18n.T(lang, "engine.restarted"))
 		return nil
 	},
 }
