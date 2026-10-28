@@ -1,0 +1,90 @@
+.activity-page {
+  gap: 22px;
+}
+.activity-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 40px;
+  padding: 22px 0 26px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.activity-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.activity-summary dt {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.activity-summary dd {
+  font-size: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.activity-tabs {
+  display: flex;
+  width: fit-content;
+  gap: 4px;
+  background: var(--surface-inset);
+  padding: 4px;
+  border-radius: 8px;
+}
+.activity-tabs button {
+  border: 0;
+  background: transparent;
+  padding: 10px 24px;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.activity-tabs button[aria-selected="true"] {
+  background: var(--foreground);
+  color: var(--background);
+}
+.activity-content {
+  min-width: 0;
+  width: 100%;
+}
+.activity-content .page {
+  padding: 0;
+  min-height: 0;
+  gap: 12px;
+}
+.activity-content .header {
+  margin: 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.activity-content .header h1 {
+  font-size: 16px;
+}
+.connections-page .connections-card {
+  min-height: 360px;
+  height: calc(100dvh - 440px);
+  flex: initial;
+}
+.activity-content .log-table {
+  overflow: hidden;
+  border-radius: 12px;
+}
+@media (max-width: 768px) {
+  .activity-summary {
+    gap: 22px 28px;
+  }
+  .activity-summary dd {
+    font-size: 17px;
+  }
+  .activity-tabs {
+    width: 100%;
+  }
+  .activity-tabs button {
+    flex: 1;
+  }
+  .activity-content .header .connections-filter {
+    margin-left: 0;
+  }
+}

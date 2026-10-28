@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Bundled client UI; no native shell, filesystem, or core process access.",
+  "windows": ["main"],
+  "permissions": []
+}

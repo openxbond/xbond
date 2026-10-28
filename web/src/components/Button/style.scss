@@ -1,0 +1,88 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: 0;
+  padding: 0 15px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-out-expo);
+  user-select: none;
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  &:active:not(.button-disabled) {
+    transform: scale(0.98);
+  }
+}
+
+.button-primary {
+  color: var(--primary-foreground);
+  background: var(--primary);
+
+  &:hover {
+    background: color-mix(in srgb, var(--primary) 90%, transparent);
+  }
+}
+
+.button-normal {
+  color: var(--foreground);
+  background: var(--card);
+  border-color: var(--input);
+
+  &:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+}
+
+.button-danger {
+  color: var(--destructive-foreground);
+  background: var(--destructive);
+
+  &:hover {
+    background: color-mix(in srgb, var(--destructive) 90%, transparent);
+  }
+}
+
+.button-success {
+  color: var(--success-foreground);
+  background: var(--success);
+
+  &:hover {
+    background: color-mix(in srgb, var(--success) 90%, transparent);
+  }
+}
+
+.button-warning {
+  color: var(--warning-foreground);
+  background: var(--warning);
+
+  &:hover {
+    background: color-mix(in srgb, var(--warning) 90%, transparent);
+  }
+}
+
+.button.button-disabled {
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-color: transparent;
+  cursor: not-allowed;
+}

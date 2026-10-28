@@ -1,0 +1,52 @@
+.message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: stretch;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  box-shadow: var(--elevation-raised), var(--highlight);
+  opacity: 0;
+  transition:
+    transform var(--duration-base) var(--ease-out-expo),
+    opacity var(--duration-base) ease;
+  transform: translateX(12px);
+  overflow: hidden;
+
+  .message-icon {
+    width: 36px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .message-content {
+    padding: 10px 15px;
+    font-size: 13px;
+    color: var(--foreground);
+  }
+}
+
+.message-info .message-icon {
+  color: var(--info);
+}
+
+.message-success .message-icon {
+  color: var(--success);
+}
+
+.message-warning .message-icon {
+  color: var(--warning);
+}
+
+.message-error .message-icon {
+  color: var(--destructive);
+}
+
+.message-show {
+  opacity: 1;
+  transform: translateX(0);
+}

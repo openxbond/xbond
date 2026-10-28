@@ -1,0 +1,33 @@
+// Segmented control: sunken inset track carrying the active item as a card
+// face — isomorphic in both themes, per the XBond console pattern.
+.button-select {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--surface-inset);
+  border-radius: calc(var(--radius) - 2px);
+
+  .button-select-options {
+    height: 26px;
+    padding: 0 12px;
+    color: var(--muted-foreground);
+    font-size: 12px;
+    line-height: 26px;
+    background: transparent;
+    border: none;
+    border-radius: calc(var(--radius) - 4px);
+    font-family: inherit;
+    transition:
+      background-color var(--duration-fast) ease,
+      color var(--duration-fast) ease;
+    cursor: pointer;
+    outline: 0;
+    display: block;
+  }
+
+  .button-select-options.actived {
+    background: var(--card);
+    color: var(--foreground);
+    font-weight: 500;
+    box-shadow: 0 1px 2px oklch(0.145 0 0 / 10%);
+  }
+}

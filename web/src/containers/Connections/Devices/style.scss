@@ -1,0 +1,23 @@
+.connections-devices-item {
+  margin-right: 12px;
+  padding: 3px 10px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  border-radius: 999px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+
+  &:hover {
+    color: var(--foreground);
+    background: var(--accent);
+  }
+
+  &.selected {
+    color: var(--accent-foreground);
+    background: var(--accent);
+    font-weight: 500;
+  }
+}

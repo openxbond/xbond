@@ -1,0 +1,64 @@
+.rule-item {
+  line-height: 30px;
+  padding: 5px 0;
+  height: 50px;
+  overflow: hidden;
+  list-style: none;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+
+  .drag-handler {
+    cursor: row-resize;
+    margin: 0 10px;
+    display: flex;
+    justify-content: center;
+
+    > i {
+      font-weight: bold;
+      color: var(--muted-foreground);
+    }
+  }
+
+  .rule-type {
+    font-size: 13px;
+    color: var(--muted-foreground);
+
+    > i {
+      margin-left: 5px;
+      color: var(--muted-foreground);
+    }
+  }
+
+  .payload {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--foreground);
+    cursor: pointer;
+  }
+
+  .rule-proxy {
+    font-size: 13px;
+    color: var(--foreground);
+  }
+
+  .delete-btn {
+    opacity: 0;
+    transition: opacity var(--duration-base) ease;
+
+    span {
+      font-size: 14px;
+      color: var(--destructive);
+      cursor: pointer;
+    }
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    .delete-btn {
+      opacity: 1;
+    }
+  }
+}

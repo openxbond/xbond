@@ -1,0 +1,5 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>.right-wing { fill: #18181B; } @media (prefers-color-scheme: dark) { .right-wing { fill: #FFFFFF; } }</style>
+  <path d="M14 14H35.5L58 50L35.5 86H14L36.5 50L14 14Z" fill="#F38020" />
+  <path class="right-wing" d="M64.5 14H86L65.25 47.2L54.5 30Z M54.5 70L65.25 52.8L86 86H64.5Z" />
+</svg>

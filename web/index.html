@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <meta name="theme-color" content="#f7f7f7" />
+    <meta name="description" content="XBond proxy dashboard" />
+    <title>XBond</title>
+    <script>
+      // Anti-flash: resolve the stored theme before first paint. The store
+      // (jotai atomWithStorage) keeps the preference under the same key.
+      (function () {
+        try {
+          var pref = JSON.parse(localStorage.getItem("theme") || "null");
+          var dark =
+            pref === "dark" ||
+            (pref !== "light" &&
+              matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) {
+            document.documentElement.classList.add("dark");
+            document
+              .querySelector('meta[name="theme-color"]')
+              .setAttribute("content", "#0a0a0a");
+          }
+        } catch (e) {
+          /* storage unavailable — system default already applied */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>

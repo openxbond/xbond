@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["dom", "es2022"],
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["vite/client", "node"],
+    "jsx": "react-jsx",
+    "paths": {
+      "@assets": ["./web/src/assets"],
+      "@assets/*": ["./web/src/assets/*"],
+      "@lib": ["./web/src/lib"],
+      "@lib/*": ["./web/src/lib/*"],
+      "@components": ["./web/src/components"],
+      "@components/*": ["./web/src/components/*"],
+      "@containers": ["./web/src/containers"],
+      "@containers/*": ["./web/src/containers/*"],
+      "@i18n": ["./web/src/i18n"],
+      "@i18n/*": ["./web/src/i18n/*"],
+      "@stores": ["./web/src/stores"],
+      "@stores/*": ["./web/src/stores/*"],
+      "@models": ["./web/src/models"],
+      "@models/*": ["./web/src/models/*"],
+      "@styles": ["./web/src/styles"],
+      "@styles/*": ["./web/src/styles/*"]
+    }
+  },
+  "include": ["web/src", "scripts", "vite.config.ts", "uno.config.ts"]
+}

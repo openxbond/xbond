@@ -1,0 +1,234 @@
+// The instrument rail: constant near-black in BOTH themes (sidebar-* tokens),
+// never theme-swapped, so it reads as resident hardware.
+.sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-shrink: 0;
+  width: 224px;
+  user-select: none;
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  z-index: 50;
+}
+
+.sidebar-brand {
+  margin-top: 36px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 0 28px;
+}
+
+.sidebar-logo {
+  width: 32px;
+  height: 32px;
+  color: var(--sidebar-foreground);
+}
+
+.sidebar-brand-name {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sidebar-foreground);
+}
+
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  width: 100%;
+  margin-top: 28px;
+  padding: 0 14px;
+  list-style: none;
+
+  .item {
+    display: flex;
+    justify-content: center;
+    margin-top: 6px;
+    width: 100%;
+
+    > a {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      font-size: 14px;
+      border-radius: calc(var(--radius) - 2px);
+      color: var(--sidebar-foreground-muted);
+      text-decoration: none;
+      transition:
+        background-color var(--duration-fast) ease,
+        color var(--duration-fast) ease;
+
+      .nav-icon {
+        flex-shrink: 0;
+        opacity: 0.8;
+      }
+
+      .nav-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &:hover {
+        background: var(--sidebar-accent);
+        color: var(--sidebar-accent-foreground);
+
+        .nav-icon {
+          opacity: 1;
+        }
+      }
+
+      &.active {
+        background: var(--sidebar-accent);
+        color: var(--sidebar-accent-foreground);
+        font-weight: 600;
+
+        .nav-icon {
+          opacity: 1;
+          color: var(--sidebar-primary);
+        }
+
+        // The gate light: the only orange on the rail.
+        &::before {
+          content: "";
+          position: absolute;
+          left: -8px;
+          top: 8px;
+          bottom: 8px;
+          width: 0;
+          border-radius: 2px;
+          background: var(--sidebar-primary);
+        }
+      }
+    }
+  }
+}
+
+.sidebar-version {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 20px;
+  width: 100%;
+}
+
+.sidebar-version-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.sidebar-version-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sidebar-foreground-muted);
+  letter-spacing: 0.02em;
+}
+
+.sidebar-version-text {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  margin-top: 3px;
+  padding: 2px 8px;
+  max-width: 132px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sidebar-foreground);
+  background: var(--sidebar-accent);
+  border-radius: calc(var(--radius) - 4px);
+}
+
+// Mobile bottom navigation bar
+@media (max-width: 768px) {
+  .sidebar {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: calc(68px + env(safe-area-inset-bottom));
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--sidebar-border);
+    background: var(--sidebar);
+    box-shadow: none;
+    z-index: 100;
+  }
+
+  .sidebar-brand {
+    display: none;
+  }
+
+  .sidebar-menu {
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+    margin-top: 0;
+    padding: 0;
+    overflow-x: hidden;
+
+    .item {
+      flex: 1;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+
+      > a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        width: 100%;
+        height: 48px;
+        padding: 4px 0;
+        font-size: 11px;
+
+        .nav-icon {
+          width: 18px;
+          height: 18px;
+        }
+
+        &.active::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          bottom: auto;
+          left: 25%;
+          right: 25%;
+          width: 0;
+          height: 0;
+          border-radius: 1px;
+          background: var(--sidebar-primary);
+        }
+      }
+    }
+
+    .item.no-mobile {
+      display: none;
+    }
+  }
+
+  .sidebar-version {
+    display: none;
+  }
+}

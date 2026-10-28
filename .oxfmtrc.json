@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  // Everything else is an Oxfmt default; only the deltas belong here.
+  "printWidth": 80,
+  // Import order belongs to the formatter, so it is identical for everyone.
+  "sortImports": true,
+  "ignorePatterns": ["package-lock.json", "web/public/**"],
+  "overrides": [
+    {
+      // Prose stays on one line per paragraph; structure comes from headings,
+      // lists and paragraphs. Re-wrapping would churn every edited sentence.
+      "files": ["**/*.md"],
+      "options": { "proseWrap": "never" }
+    }
+  ]
+}

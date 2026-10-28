@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  "categories": { "correctness": "error" },
+
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "react",
+    "jsx-a11y"
+  ],
+
+  "rules": {
+    // Vite injects the JSX runtime (esbuild.jsxInject); no component imports React.
+    "react/react-in-jsx-scope": "off",
+
+    // Not in `correctness`, but a violation is a bug by definition.
+    "react/rules-of-hooks": "error",
+
+    "typescript/no-explicit-any": "error",
+    "typescript/ban-ts-comment": "error",
+
+    // This is a `"type": "module"` bundle addressed through Vite aliases.
+    "typescript/no-require-imports": "error",
+
+    // Legacy-fork deltas, each an architecture its own project, not a lint
+    // fix: the custom controls (Checkbox/Switch/Tags/Select/Devices) are
+    // div/span with onClick, portals read their container ref during render
+    // by design, and Lists come from react-window v1.
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/no-static-element-interactions": "off",
+    "jsx-a11y/no-noninteractive-element-interactions": "off",
+    "jsx-a11y/no-autofocus": "off",
+    "react/refs": "off",
+    "react/incompatible-library": "off",
+
+    "no-unused-vars": [
+      "error",
+      {
+        // `const { password, ...rest } = user` is how a field is dropped, and
+        // naming the field is the point.
+        "ignoreRestSiblings": true,
+        // A leading underscore is the conventional "deliberately unused".
+        "varsIgnorePattern": "^_",
+        "argsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ]
+  },
+
+  // .gitignore is read automatically (node_modules, dist, .impeccable).
+  "ignorePatterns": ["web/src/**/*.jsx", "web/tests/**/*.jsx"]
+}

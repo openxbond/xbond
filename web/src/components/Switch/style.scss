@@ -1,0 +1,50 @@
+$height: 16px;
+$switch-radius: 18px;
+$switch-offset: 2px;
+$width: 32px;
+
+.switch {
+  display: inline-block;
+  width: $width;
+  height: $height;
+  border-radius: math.div($height, 2);
+  background-color: var(--input);
+  transition:
+    background-color var(--duration-fast) ease,
+    opacity var(--duration-fast) ease;
+  position: relative;
+  cursor: pointer;
+
+  &.checked {
+    background-color: var(--primary);
+
+    &::after {
+      transform: translateX($width - $switch-radius + $switch-offset);
+    }
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: math.div($switch-radius - $height, -2);
+    height: $switch-radius;
+    width: $switch-radius;
+    border-radius: math.div($switch-radius, 2);
+    background-color: oklch(1 0 0);
+    box-shadow: 0 1px 3px oklch(0.145 0 0 / 25%);
+    transition: transform var(--duration-fast) var(--ease-out-expo);
+    transform: translateX(-$switch-offset);
+  }
+}
+
+.switch-icon {
+  position: absolute;
+  transform: translateX(-1px) scale(0.4);
+  color: var(--primary-foreground);
+  line-height: $height;
+}

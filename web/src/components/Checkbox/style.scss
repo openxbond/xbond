@@ -1,0 +1,43 @@
+$length: 18px;
+$padding: 26px;
+
+.checkbox {
+  display: flex;
+  position: relative;
+  padding-left: $padding;
+  cursor: pointer;
+  line-height: $length;
+
+  &::before {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: $length;
+    height: $length;
+    border-radius: calc(var(--radius) - 6px);
+    transition:
+      background-color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease;
+    transform: translateY(math.div(-$length, 2));
+    background-color: var(--card);
+    border: 1px solid var(--border-strong);
+  }
+
+  &.checked::before {
+    background-color: var(--primary);
+    border-color: var(--primary);
+  }
+}
+
+.checkbox-icon {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  line-height: $length;
+  transform: translateY(math.div(-$length, 2)) scale(0.6);
+  font-weight: bold;
+  color: var(--primary-foreground);
+  pointer-events: none;
+}

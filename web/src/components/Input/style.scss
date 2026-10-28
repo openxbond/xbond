@@ -1,0 +1,32 @@
+$height: 30px;
+
+.input {
+  display: inline-block;
+  height: $height;
+  width: 100%;
+  padding: 0 10px;
+  font-size: 14px;
+  color: var(--foreground);
+  background: var(--surface-inset);
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid var(--input);
+  transition:
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
+
+  &::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  &:focus {
+    outline: 0;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 22%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

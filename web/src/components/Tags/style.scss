@@ -1,0 +1,60 @@
+$height: 22px;
+
+.tags {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  list-style: none;
+  flex-wrap: wrap;
+  box-sizing: content-box;
+
+  li {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    color: var(--muted-foreground);
+    background: var(--card);
+    height: $height;
+    border-radius: math.div($height, 2);
+    padding: 0 8px;
+    margin: 3px 4px;
+    font-size: 11px;
+    transition:
+      background-color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease,
+      color var(--duration-fast) ease;
+
+    &:not(.error):not(.tags-selected):hover {
+      border-color: var(--border-strong);
+      color: var(--foreground);
+    }
+  }
+
+  // Unreachable/untested nodes read as unavailable, not as an alarm: a
+  // muted dashed chip keeps the calm when a group holds many dead nodes.
+  // The destructive fill is reserved for a *selected* dead node.
+  li.error {
+    color: var(--muted-foreground);
+    background-color: var(--surface-inset);
+    border: 1px dashed var(--border-strong);
+  }
+
+  li.tags-selected {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+  }
+
+  // One selected treatment in every state: charcoal fill; a dead selection
+  // is flagged by a destructive ring, never a second fill color.
+  li.tags-selected.error {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+    box-shadow:
+      0 0 0 2px var(--card),
+      0 0 0 3px var(--destructive);
+  }
+}

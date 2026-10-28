@@ -1,0 +1,180 @@
+@import "./tokens.css";
+
+// styles initial
+html {
+  box-sizing: border-box;
+  background: var(--background);
+  overflow: hidden;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  color: var(--foreground);
+  font-feature-settings: "tnum" off;
+
+  // Browser chrome belongs to the design: numerals in data align, the caret
+  // and selection carry the brand, scrollbars follow the theme.
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 25%, transparent);
+  }
+
+  ::-webkit-scrollbar {
+    z-index: 11;
+    background: transparent;
+
+    &-thumb {
+      border-radius: 5px;
+      background: var(--border-strong);
+
+      &:hover {
+        background: var(--muted-foreground);
+      }
+    }
+  }
+
+  ::-webkit-scrollbar:vertical {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar:horizontal {
+    height: 6px;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.app {
+  min-height: 100vh;
+  padding-left: 224px;
+}
+
+.app.not-clashx {
+  background: var(--background);
+}
+
+.page-container {
+  width: 100%;
+  height: 100vh;
+  padding-left: 0;
+  overflow-y: scroll;
+}
+
+.page {
+  padding: 32px 40px 40px;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  max-width: 1560px;
+  gap: 16px;
+}
+
+button,
+input,
+select {
+  caret-color: var(--brand-text);
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.section-link {
+  color: var(--brand-text);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+.section-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.section-heading h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.client-message {
+  font-size: 13px;
+  padding: 12px 0;
+  color: var(--destructive);
+  overflow-wrap: anywhere;
+}
+
+.container {
+  margin: 20px 0;
+}
+
+input {
+  -webkit-appearance: none;
+  font-family: inherit;
+}
+
+// Empty-state next action: a quiet outlined button, shared by the
+// connections and logs empty states.
+.empty-state-action {
+  margin-top: 10px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--foreground);
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease;
+
+  &:hover {
+    border-color: var(--ring);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app {
+    padding-left: 0;
+    padding-top: 0;
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  }
+
+  .page-container {
+    width: 100%;
+    padding: 0 12px;
+    height: calc(100dvh - 68px - env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .page {
+    padding: 16px 4px 20px;
+    height: auto;
+    min-height: 100%;
+  }
+}

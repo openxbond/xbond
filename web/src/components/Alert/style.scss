@@ -1,0 +1,94 @@
+$iconSize: 20px;
+
+// Status colors follow the XBond semantic-token rules: the box variant is a
+// solid token fill (contrast is inherited from the palette's paired
+// foregrounds); the note variant tints only the border and icon at alpha,
+// while the message itself stays muted-foreground on the card.
+@mixin box($token, $token-foreground) {
+  background: var($token);
+  border-color: transparent;
+
+  .alert-icon > i {
+    color: var($token-foreground);
+  }
+
+  .alert-message {
+    color: var($token-foreground);
+  }
+}
+
+@mixin note($token) {
+  // The hue rides only the border and the icon; the message stays
+  // muted-foreground on the card — no full-box tint, no side stripe.
+  background: var(--card);
+  border-color: color-mix(in oklab, var($token) 30%, transparent);
+  box-shadow: none;
+
+  .alert-icon > i {
+    color: var($token);
+  }
+}
+
+.alert {
+  padding: 12px 15px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  box-shadow: var(--elevation-card);
+  font-size: 13px;
+  line-height: 1.6;
+  display: flex;
+  gap: 10px;
+
+  .alert-icon {
+    width: $iconSize;
+    height: $iconSize;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: none;
+
+    > i {
+      transform: scale(0.5);
+      font-weight: bold;
+    }
+  }
+
+  .alert-message {
+    width: 100%;
+    color: var(--muted-foreground);
+  }
+}
+
+.alert-box-success {
+  @include box(--success, --success-foreground);
+}
+
+.alert-box-info {
+  @include box(--info, --info-foreground);
+}
+
+.alert-box-warning {
+  @include box(--warning, --warning-foreground);
+}
+
+.alert-box-error {
+  @include box(--destructive, --destructive-foreground);
+}
+
+.alert-note-success {
+  @include note(--success);
+}
+
+.alert-note-info {
+  @include note(--info);
+}
+
+.alert-note-warning {
+  @include note(--warning);
+}
+
+.alert-note-error {
+  @include note(--destructive);
+}
