@@ -9,6 +9,8 @@ import {
   useGeneral,
   useProxyMapping,
   identityAtom,
+  useClient,
+  useLocalAPI,
 } from "@stores";
 import { LatencyProvider, useLatency } from "@stores/latency";
 import { useSetAtom } from "jotai";
@@ -249,7 +251,26 @@ function ProxyPage() {
   const { run, cancel, progress } = useLatency();
   const mapping = useProxyMapping();
   const { error, update } = useProxy();
+  const { general, update: updateGeneral } = useGeneral();
+  const { hasLocalAPI, status, setMode } = useLocalAPI();
+  const client = useClient();
   const setIdentity = useSetAtom(identityAtom);
+
+  const currentRouting =
+    (hasLocalAPI
+      ? status?.preferences.routingMode
+      : general.mode
+    )?.toLowerCase() || "rule";
+
+  const switchRouting = async (mode: "rule" | "global" | "direct") => {
+    if (hasLocalAPI) {
+      await setMode({ routing: mode });
+    } else {
+      await client.updateConfig({ mode });
+      await updateGeneral();
+    }
+  };
+
   const names = [...mapping.values()]
     .filter(
       (proxy) =>
@@ -265,6 +286,18 @@ function ProxyPage() {
           <Button onClick={() => setIdentity(false)}>{r("edit")}</Button>
         </Header>
         <div className="proxy-command-bar">
+          <div className="segmented-control" aria-label={ui("routing")}>
+            {(["rule", "global", "direct"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={currentRouting === mode}
+                onClick={() => void switchRouting(mode)}
+              >
+                {ui(mode)}
+              </button>
+            ))}
+          </div>
           <label className="proxy-search">
             {t("search")}
             <Input

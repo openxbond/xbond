@@ -64,17 +64,41 @@ export function Proxy(props: ProxyProps) {
         </span>
         <p className="proxy-name">{config.name}</p>
       </div>
-      <div className="h-full flex flex-col items-center justify-center text-xs md:h-[18px] md:flex-row md:justify-between space-y-3 md:space-y-0">
-        <button
-          className="tabular-nums cursor-pointer disabled:cursor-wait"
-          disabled={progress.running}
-          onClick={() => {
-            void run([config.name]);
-          }}
-          aria-label={`${t("start")}: ${config.name}`}
+      <div className="h-full flex items-center gap-2 text-xs">
+        <span
+          className={classnames(
+            "rounded py-[3px] px-1.5 text-xs font-medium tabular-nums",
+            toneClass,
+          )}
         >
           {delayText}
           {meanDelayText}
+        </span>
+        <button
+          type="button"
+          className={classnames("node-speed-btn", {
+            "is-testing": result?.status === "testing",
+          })}
+          disabled={progress.running || result?.status === "testing"}
+          onClick={() => {
+            void run([config.name]);
+          }}
+          title="單獨測速此節點"
+          aria-label={`${t("start")}: ${config.name}`}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill={result?.status === "testing" ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+          </svg>
         </button>
         {config.udp && (
           <p className="rounded bg-inset px-[3px] py-[2px] text-muted-foreground">

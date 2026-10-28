@@ -5,9 +5,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 28px 40px;
-  padding: 22px 0 26px;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  padding: 24px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
 }
 .activity-summary > div {
   display: flex;
@@ -42,8 +43,14 @@
   cursor: pointer;
 }
 .activity-tabs button[aria-selected="true"] {
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 3px oklch(0 0 0 / 8%);
+}
+@media (max-width: 768px) {
+  .activity-tabs button {
+    min-height: 44px;
+  }
 }
 .activity-content {
   min-width: 0;

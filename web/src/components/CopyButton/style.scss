@@ -1,0 +1,31 @@
+.copy-control {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.copy-control .button {
+  gap: 7px;
+}
+.copy-fallback {
+  flex-basis: 100%;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--destructive-text);
+}
+.copy-fallback input {
+  margin-top: 6px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px;
+  font-family: var(--font-mono);
+  color: var(--foreground);
+  background: var(--surface-inset);
+  border: 1px solid var(--input);
+  border-radius: 6px;
+}
+@media (max-width: 768px) {
+  .copy-fallback input {
+    min-height: 44px;
+  }
+}

@@ -1,0 +1,24 @@
+.controller-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.controller-picker select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--input);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 14px;
+}
+@media (max-width: 768px) {
+  .controller-picker select {
+    min-height: 44px;
+  }
+}

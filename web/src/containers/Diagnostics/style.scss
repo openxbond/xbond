@@ -1,0 +1,293 @@
+.diagnostics-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.diag-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
+}
+
+.diag-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.diag-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.diag-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Site Pings Grid */
+.site-pings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.site-ping-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  gap: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.site-ping-card:hover {
+  border-color: var(--brand-border);
+}
+
+.site-ping-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.site-ping-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.site-ping-desc {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+
+.site-ping-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.ping-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ping-badge.good {
+  background: oklch(0.92 0.08 145);
+  color: oklch(0.38 0.14 145);
+}
+
+.ping-badge.medium {
+  background: oklch(0.94 0.1 85);
+  color: oklch(0.48 0.14 85);
+}
+
+.ping-badge.slow {
+  background: oklch(0.92 0.09 45);
+  color: oklch(0.48 0.15 45);
+}
+
+.ping-badge.error {
+  background: oklch(0.92 0.08 25);
+  color: var(--destructive);
+}
+
+.ping-badge.untested {
+  background: var(--surface);
+  color: var(--muted-foreground);
+}
+
+/* DNS Tools */
+.dns-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.dns-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.dns-select {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+}
+
+.dns-results-table {
+  margin-top: 16px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.dns-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.dns-table th {
+  background: var(--surface-inset);
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+}
+
+.dns-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dns-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.cache-flush-group {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cache-flush-desc {
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+}
+
+.cache-flush-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Doctor Report */
+.doctor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.doctor-box {
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.doctor-box-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.status-pill {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+.status-pill.pass {
+  background: oklch(0.92 0.08 145);
+  color: oklch(0.38 0.14 145);
+}
+
+.status-pill.warn {
+  background: oklch(0.94 0.1 85);
+  color: oklch(0.48 0.14 85);
+}
+
+.status-pill.fail {
+  background: oklch(0.92 0.08 25);
+  color: var(--destructive);
+}
+
+.doctor-box-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doctor-box-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted-foreground);
+}
+
+.doctor-box-list strong {
+  color: var(--foreground);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.doctor-details-raw {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.doctor-details-raw summary {
+  cursor: pointer;
+  color: var(--brand-text);
+  margin-bottom: 8px;
+}
+
+.doctor-raw-pre {
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 240px;
+  overflow: auto;
+  font-family: monospace;
+  font-size: 11.5px;
+}

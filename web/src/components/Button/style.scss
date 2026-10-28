@@ -4,7 +4,7 @@
   justify-content: center;
   outline: 0;
   padding: 0 15px;
-  height: 32px;
+  min-height: 36px;
   border: 1px solid transparent;
   border-radius: calc(var(--radius) - 2px);
   font-size: 14px;
@@ -50,6 +50,35 @@
   &:hover {
     background: var(--accent);
     color: var(--accent-foreground);
+  }
+}
+
+.button-brand {
+  background: var(--brand-foreground);
+  color: var(--brand);
+  &:hover {
+    background: var(--foreground);
+  }
+}
+.dark .button-brand {
+  background: var(--brand);
+  color: var(--brand-foreground);
+  &:hover {
+    background: var(--brand-strong);
+  }
+}
+
+@media (max-width: 768px) {
+  .button {
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+  .button:active:not(.button-disabled) {
+    transform: none;
   }
 }
 

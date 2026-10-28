@@ -181,3 +181,21 @@
     align-items: flex-start;
   }
 }
+
+.proxy-command-bar {
+  background: var(--card);
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.proxy-directory button[aria-current="true"] strong {
+  color: var(--brand-text);
+}
+@media (max-width: 768px) {
+  .proxy-command-bar {
+    padding: 20px;
+  }
+  .mobile-group-picker select {
+    min-height: 44px;
+  }
+}

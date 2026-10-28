@@ -1,12 +1,16 @@
 import Activity from "@containers/Activity";
 import Connect from "@containers/Connect";
+import Connections from "@containers/Connections";
+import Diagnostics from "@containers/Diagnostics";
 import ExternalControllerModal from "@containers/ExternalControllerDrawer";
+import Logs from "@containers/Logs";
 import Proxies from "@containers/Proxies";
+import Rules from "@containers/Rules";
 import Settings from "@containers/Settings";
+import Subscriptions from "@containers/Subscriptions";
 import SideBar from "@containers/Sidebar";
 import { isClashX } from "@lib/jsBridge";
 import { detectLocalAPIConfig, isDesktopApp } from "@lib/localapi";
-import { workspaceLink } from "@lib/workspace";
 import { useClient, useTheme } from "@stores";
 import classnames from "classnames";
 import { Route, Navigate, Routes, useLocation, Outlet } from "react-router-dom";
@@ -22,16 +26,17 @@ export default function App() {
   const initialPage =
     detectLocalAPIConfig() || isDesktopApp() ? "/connect" : "/proxies";
 
-  const routes = [
-    { path: "/connect", name: "Connect", element: <Connect /> },
-    { path: "/proxies", name: "Proxies", element: <Proxies /> },
-    { path: "/activity", name: "Activity", element: <Activity /> },
-    { path: "/settings", name: "Settings", element: <Settings /> },
+  // Mobile bottom navigation targets (4 core destinations)
+  const mobileRoutes = [
+    { path: "/connect", name: "Connect" },
+    { path: "/proxies", name: "Proxies" },
+    { path: "/activity", name: "Activity" },
+    { path: "/settings", name: "Settings" },
   ];
 
   const layout = (
     <div className={classnames("app", { "not-clashx": !isClashX() })}>
-      <SideBar routes={routes} />
+      <SideBar routes={mobileRoutes} />
       <div className="page-container">
         <ControllerPage key={client.id} />
       </div>
@@ -54,11 +59,21 @@ export default function App() {
             />
           }
         />
-        {/* Four Primary Routes */}
-        {routes.map((route) => (
-          <Route path={route.path} key={route.path} element={route.element} />
-        ))}
-        {/* Backward Compatibility Redirects */}
+
+        {/* 8 Distinct Dedicated Routes */}
+        <Route path="/connect" element={<Connect />} />
+        <Route path="/proxies" element={<Proxies />} />
+        <Route path="/subscriptions" element={<Subscriptions />} />
+        <Route path="/connections" element={<Connections />} />
+        <Route path="/rules" element={<Rules />} />
+        <Route path="/logs" element={<Logs />} />
+        <Route path="/diagnostics" element={<Diagnostics />} />
+        <Route path="/settings" element={<Settings />} />
+
+        {/* Mobile Activity Hub */}
+        <Route path="/activity" element={<Activity />} />
+
+        {/* Fallback Redirects */}
         <Route
           path="/overview"
           element={
@@ -67,48 +82,6 @@ export default function App() {
                 pathname: "/connect",
                 search: location.search,
               }}
-              replace
-            />
-          }
-        />
-        <Route
-          path="/diagnostics"
-          element={
-            <Navigate
-              to={workspaceLink(location.search, "/settings", {
-                section: "diagnostics",
-              })}
-              replace
-            />
-          }
-        />
-        <Route
-          path="/connections"
-          element={
-            <Navigate
-              to={workspaceLink(location.search, "/activity", {
-                view: "connections",
-              })}
-              replace
-            />
-          }
-        />
-        <Route
-          path="/logs"
-          element={
-            <Navigate
-              to={workspaceLink(location.search, "/activity", { view: "logs" })}
-              replace
-            />
-          }
-        />
-        <Route
-          path="/rules"
-          element={
-            <Navigate
-              to={workspaceLink(location.search, "/settings", {
-                section: "rules",
-              })}
               replace
             />
           }

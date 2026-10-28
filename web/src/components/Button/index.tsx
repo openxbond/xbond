@@ -6,7 +6,7 @@ import { type MouseEventHandler } from "react";
 import "./style.scss";
 
 interface ButtonProps extends BaseComponentProps {
-  type?: "primary" | "normal" | "danger" | "success" | "warning";
+  type?: "primary" | "normal" | "danger" | "success" | "warning" | "brand";
   onClick?: MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
 }

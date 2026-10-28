@@ -1,15 +1,9 @@
 import { Button } from "@components";
-import { useAction } from "@lib/actions";
+import { CopyButton } from "@components/CopyButton";
+import { useNodeSelection } from "@lib/node-selection";
 import type { Group as IGroup } from "@lib/request";
 import { strategyPath } from "@lib/workspace";
-import {
-  useProxy,
-  useConfig,
-  useProxyMapping,
-  useClient,
-  useI18n,
-  useLocalAPI,
-} from "@stores";
+import { useProxyMapping, useI18n } from "@stores";
 import { useLatency } from "@stores/latency";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -22,8 +16,14 @@ interface MemberData {
   selected: string;
   canClick: boolean;
   pending: boolean;
+  switchingName: string;
+  switchingLabel: string;
   labels: Map<string, string>;
+  delays: Map<string, number | undefined>;
+  statuses: Map<string, string>;
+  canTests: Map<string, boolean>;
   onSelect: (name: string) => void;
+  onTest: (name: string) => void;
 }
 function MemberRow({
   index,
@@ -32,10 +32,21 @@ function MemberRow({
   selected,
   canClick,
   pending,
+  switchingName,
+  switchingLabel,
   labels,
+  delays,
+  statuses,
+  canTests,
   onSelect,
+  onTest,
 }: RowComponentProps<MemberData>) {
   const name = names[index];
+  const delay = delays.get(name);
+  const status = statuses.get(name);
+  const isTesting = status === "testing";
+  const canTest = canTests.get(name) ?? false;
+
   return (
     <div
       style={style}
@@ -44,19 +55,83 @@ function MemberRow({
       {canClick ? (
         <button
           type="button"
+          className="member-select-btn"
+          aria-label={name}
           disabled={pending}
           aria-pressed={selected === name}
           onClick={() => onSelect(name)}
         >
-          <span className="member-name">{name}</span>
-          <span className="member-result">{labels.get(name)}</span>
+          <span className="member-name">
+            <svg
+              className="member-check"
+              viewBox="0 0 18 18"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden="true"
+            >
+              <circle cx="9" cy="9" r="7" />
+              {selected === name && <path d="m5.5 9 2.3 2.5 4.7-5" />}
+            </svg>
+            <span className="member-text">{name}</span>
+          </span>
         </button>
       ) : (
         <div className="member-static">
-          <span className="member-name">{name}</span>
-          <span className="member-result">{labels.get(name)}</span>
+          <span className="member-name">
+            <span className="member-bullet" aria-hidden="true" />
+            <span className="member-text">{name}</span>
+          </span>
         </div>
       )}
+      <div className="member-actions">
+        <span className="member-result">
+          {pending && switchingName === name ? (
+            switchingLabel
+          ) : isTesting ? (
+            <span className="node-delay-pill testing">測速中…</span>
+          ) : delay !== undefined && delay > 0 ? (
+            <span
+              className={`node-delay-pill ${
+                delay < 150 ? "good" : delay <= 400 ? "medium" : "slow"
+              }`}
+            >
+              {delay} ms
+            </span>
+          ) : (
+            <span className="node-delay-pill untested">{labels.get(name)}</span>
+          )}
+        </span>
+        {canTest && (
+          <button
+            type="button"
+            className={`node-speed-btn ${isTesting ? "is-testing" : ""}`}
+            title="單獨測速此節點"
+            aria-label={`單獨測速: ${name}`}
+            disabled={isTesting}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTest(name);
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill={isTesting ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -69,13 +144,14 @@ export function Group({
   search?: string;
   initialOpen?: boolean;
 }) {
-  const { markProxySelected, update } = useProxy();
   const mapping = useProxyMapping();
-  const { data: preferences } = useConfig();
-  const client = useClient();
-  const { run: action, pending } = useAction();
+  const {
+    select: selectNode,
+    pending,
+    selectedName: switchingName,
+    result: selectionStatus,
+  } = useNodeSelection();
   const { run, results, progress } = useLatency();
-  const { hasLocalAPI, selectNode } = useLocalAPI();
   const { translation } = useI18n();
   const { t } = translation("Speed");
   const { t: ui } = translation("ClientUI");
@@ -101,26 +177,29 @@ export function Group({
           : delay
             ? delay + " ms"
             : t("untested");
-      return [name, (item?.type || "") + " · " + status];
+      return [name, (item?.type || "") + (status ? " · " + status : "")];
     }),
   );
-  async function select(name: string) {
-    await action(async () => {
-      if (hasLocalAPI) await selectNode(config.name, name);
-      else await client.changeProxySelected(config.name, name);
-      markProxySelected(config.name, name);
-      await update();
-      if (preferences.breakConnections) {
-        const snapshot = await client.getConnections();
-        const matches = snapshot.data.connections.filter((connection) =>
-          connection.chains.includes(config.name),
-        );
-        await Promise.all(
-          matches.map((connection) => client.closeConnection(connection.id)),
-        );
-      }
-    }, false);
-  }
+  const delays = new Map(
+    names.map((name) => {
+      const item = mapping.get(name);
+      const result = results[name];
+      return [name, result?.delay ?? item?.history?.at(-1)?.delay];
+    }),
+  );
+  const statuses = new Map(
+    names.map((name) => [name, results[name]?.status || ""]),
+  );
+  const canTests = new Map(
+    names.map((name) => {
+      const item = mapping.get(name);
+      return [
+        name,
+        Boolean(item && !["Direct", "Reject", "DNS"].includes(item.type)),
+      ];
+    }),
+  );
+  const select = (name: string) => selectNode(config.name, name);
   return (
     <details
       className="proxy-group"
@@ -145,6 +224,9 @@ export function Group({
       <div className="group-workspace">
         <div className="group-toolbar">
           <span>{path.join(" → ")}</span>
+          {config.now && (
+            <CopyButton value={config.now} label={ui("copyNode")} />
+          )}
           <Button
             disabled={progress.running || !names.length}
             onClick={() =>
@@ -161,21 +243,50 @@ export function Group({
             {t("groupTest")}
           </Button>
         </div>
+        {(pending || selectionStatus !== "idle") && (
+          <p
+            className={
+              "group-feedback" +
+              (selectionStatus === "failed"
+                ? " is-error"
+                : selectionStatus === "partial"
+                  ? " is-warning"
+                  : "")
+            }
+            role={selectionStatus === "failed" ? "alert" : "status"}
+          >
+            {ui(
+              pending
+                ? "switching"
+                : selectionStatus === "partial"
+                  ? "switchPartial"
+                  : selectionStatus === "success"
+                    ? "switched"
+                    : "switchFailed",
+            )}
+          </p>
+        )}
         <List
           rowComponent={MemberRow}
           rowCount={names.length}
-          rowHeight={42}
+          rowHeight={48}
           rowProps={{
             names,
             selected: config.now,
             canClick: config.type === "Selector",
             pending,
+            switchingName,
+            switchingLabel: ui("switching"),
             labels,
+            delays,
+            statuses,
+            canTests,
             onSelect: (name: string) => void select(name),
+            onTest: (name: string) => void run([name]),
           }}
           style={{
-            height: Math.min(10, names.length) * 42,
-            minHeight: names.length ? 42 : 0,
+            height: Math.min(10, names.length) * 48,
+            minHeight: names.length ? 48 : 0,
           }}
         />
       </div>

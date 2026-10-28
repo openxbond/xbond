@@ -57,6 +57,23 @@ export interface SubscriptionMeta {
   lastHash?: string;
 }
 
+export function subscriptionQuota(
+  meta: Pick<SubscriptionMeta, "upload" | "download" | "total"> | null,
+) {
+  if (
+    !meta ||
+    ![meta.upload, meta.download, meta.total].every(Number.isFinite) ||
+    meta.upload < 0 ||
+    meta.download < 0 ||
+    meta.total <= 0
+  )
+    return null;
+  const used = meta.upload + meta.download;
+  if (!Number.isFinite(used)) return null;
+  const remaining = Math.max(0, meta.total - used);
+  return { used, remaining, remainingPercent: (remaining / meta.total) * 100 };
+}
+
 interface SubscriptionWire extends Omit<
   SubscriptionMeta,
   "upload" | "download" | "total" | "expire" | "lastUpdated"
@@ -82,6 +99,7 @@ function normalizeSubscription(meta: SubscriptionWire): SubscriptionMeta {
     : 0;
   return {
     ...meta,
+    urlOrFile: meta.urlOrFile ?? meta.sourceUrl,
     upload: meta.quota?.uploadBytes ?? meta.upload ?? 0,
     download: meta.quota?.downloadBytes ?? meta.download ?? 0,
     total: meta.quota?.totalBytes ?? meta.total ?? 0,
