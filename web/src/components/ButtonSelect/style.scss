@@ -2,6 +2,7 @@
 // face — isomorphic in both themes, per the XBond console pattern.
 .button-select {
   display: inline-flex;
+  flex-wrap: wrap;
   padding: 2px;
   background: var(--surface-inset);
   border-radius: calc(var(--radius) - 2px);
@@ -22,6 +23,7 @@
     cursor: pointer;
     outline: 0;
     display: block;
+    white-space: nowrap;
   }
 
   .button-select-options.actived {

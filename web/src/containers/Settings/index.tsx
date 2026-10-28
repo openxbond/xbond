@@ -242,6 +242,8 @@ export default function Settings() {
                   { value: "zh_HK", label: "繁體中文" },
                   { value: "zh_CN", label: "简体中文" },
                   { value: "en_US", label: "English" },
+                  { value: "ko", label: "한국어" },
+                  { value: "fa", label: "فارسی" },
                 ]}
                 onSelect={setLang}
               />

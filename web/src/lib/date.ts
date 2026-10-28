@@ -1,12 +1,21 @@
 import { type Lang } from "@i18n";
 import dayjs from "dayjs";
+import "dayjs/locale/fa";
+import "dayjs/locale/ko";
 import "dayjs/locale/zh-cn";
 import "dayjs/locale/zh-hk";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 dayjs.extend(relativeTime);
 
+const dayjsLocales = {
+  en_US: "en",
+  zh_CN: "zh-cn",
+  zh_HK: "zh-hk",
+  ko: "ko",
+  fa: "fa",
+} as const satisfies Record<Lang, string>;
+
 export function fromNow(date: Date, lang: Lang): string {
-  const locale = lang === "en_US" ? "en" : lang === "zh_HK" ? "zh-hk" : "zh-cn";
-  return dayjs(date).locale(locale).from(dayjs());
+  return dayjs(date).locale(dayjsLocales[lang]).from(dayjs());
 }

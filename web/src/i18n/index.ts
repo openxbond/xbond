@@ -4,10 +4,12 @@ import { initReactI18next } from "react-i18next";
 import { type IsEqual } from "type-fest";
 
 import en_US from "./en_US";
+import fa from "./fa";
+import ko from "./ko";
 import zh_CN from "./zh_CN";
 import zh_HK from "./zh_HK";
 
-export const locales = ["en_US", "zh_CN", "zh_HK"] as const;
+export const locales = ["en_US", "zh_CN", "zh_HK", "ko", "fa"] as const;
 
 export type Lang = (typeof locales)[number];
 
@@ -26,6 +28,10 @@ export function getDefaultLanguage(): Lang {
       return "zh_HK";
     } else if (l.includes("zh")) {
       return "zh_CN";
+    } else if (l.includes("ko")) {
+      return "ko";
+    } else if (l.includes("fa") || l.includes("prs")) {
+      return "fa";
     } else if (l.includes("us") || l.includes("en")) {
       return "en_US";
     }
@@ -63,6 +69,8 @@ type KeyPaths = Infer<typeof en_US>;
 type TrueGuard<T extends true> = T;
 type _parityCN = TrueGuard<IsEqual<KeyPaths, Infer<typeof zh_CN>>>;
 type _parityHK = TrueGuard<IsEqual<KeyPaths, Infer<typeof zh_HK>>>;
+type _parityKO = TrueGuard<IsEqual<KeyPaths, Infer<typeof ko>>>;
+type _parityFA = TrueGuard<IsEqual<KeyPaths, Infer<typeof fa>>>;
 
 declare module "i18next" {
   interface CustomTypeOptions {
@@ -88,6 +96,8 @@ void i18next.use(initReactI18next).init({
     en_US: en_US,
     zh_CN: zh_CN,
     zh_HK: zh_HK,
+    ko: ko,
+    fa: fa,
   },
   lng: getStoredLanguage(),
   fallbackLng: "en_US",
