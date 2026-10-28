@@ -1,10 +1,10 @@
 import { Button } from "@components";
 import { noop } from "@lib/helper";
 import { type BaseComponentProps } from "@models";
-import { useI18n } from "@stores";
 import classnames from "classnames";
 import { useId, useRef, useLayoutEffect, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 
@@ -55,8 +55,7 @@ export function Modal(props: ModalProps) {
     children,
   } = props;
 
-  const { translation } = useI18n();
-  const { t } = translation("Modal");
+  const { t } = useTranslation("common");
 
   const portalRef = useRef<HTMLDivElement>(document.createElement("div"));
   const maskRef = useRef<HTMLDivElement>(null);

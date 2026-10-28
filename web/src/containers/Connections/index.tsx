@@ -7,6 +7,7 @@ import {
   Card,
   Button,
   Input,
+  EmptyState,
 } from "@components";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
@@ -17,8 +18,8 @@ import { useIntersectionObserver, useSyncedRef } from "@react-hookz/web";
 import {
   useClient,
   useConnectionStreamReader,
+  useLanguage,
   useStreamState,
-  useI18n,
   identityAtom,
 } from "@stores";
 import {
@@ -32,6 +33,7 @@ import {
 import classnames from "classnames";
 import { useSetAtom } from "jotai";
 import { useMemo, useLayoutEffect, useRef, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { groupBy } from "remeda";
 
 import { Devices } from "./Devices";
@@ -85,13 +87,13 @@ function formatSpeed(upload: number, download: number) {
 const columnHelper = createColumnHelper<FormatConnection>();
 
 export default function Connections() {
-  const { translation, lang } = useI18n();
-  const t = useMemo(() => translation("Connections").t, [translation]);
+  const { t } = useTranslation("connections");
+  const { lang } = useLanguage();
   const connStreamReader = useConnectionStreamReader();
   const streamState = useStreamState(connStreamReader);
   const { run, pending } = useAction();
-  const { t: r } = translation("Runtime");
-  const { t: s } = translation("Speed");
+  const { t: r } = useTranslation("runtime");
+  const { t: tc } = useTranslation("common");
   const [closeFiltered, setCloseFiltered] = useState(false);
   const [filters, setFilters] = useObject({
     host: "",
@@ -330,7 +332,7 @@ export default function Connections() {
     const id = column.id;
     return (
       <th
-        className={classnames("connections-th", {
+        className={classnames("connections-th table-header", {
           resizing: column.getIsResizing(),
           fixed: column.id === Columns.Host,
           shadow: scrolled && column.id === Columns.Host,
@@ -396,6 +398,12 @@ export default function Connections() {
             </td>
           );
         })}
+        <td
+          className={classnames("connections-block spacer", {
+            completed: row.original?.completed,
+          })}
+          aria-hidden="true"
+        />
       </tr>
     );
   });
@@ -403,11 +411,18 @@ export default function Connections() {
   return (
     <div className="page connections-page">
       <Header title={t("title")}>
-        <output className="ml-3 text-xs text-muted-foreground">
+        <span className="connections-live ml-3">
+          <span
+            className={`status-dot ${streamState === "open" ? "online" : ""}`}
+          />
           {r(streamState)}
-        </output>
-        <span className="connections-filter flex-1 cursor-default">
-          {`(${t("total.text")}: ${t("total.upload")} ${formatTraffic(traffic.uploadTotal)} ${t("total.download")} ${formatTraffic(traffic.downloadTotal)})`}
+        </span>
+        <span className="connections-total flex-1 cursor-default">
+          {t("total.upload")} <b>{formatTraffic(traffic.uploadTotal)}</b>
+          <span aria-hidden="true" className="total-divider">
+            ·
+          </span>
+          {t("total.download")} <b>{formatTraffic(traffic.downloadTotal)}</b>
         </span>
         <Checkbox
           className="connections-filter"
@@ -432,7 +447,7 @@ export default function Connections() {
             key={key}
             className="flex min-w-35 flex-1 flex-col gap-1 text-xs text-muted-foreground"
           >
-            {s(
+            {t(
               (
                 {
                   host: "filterHost",
@@ -443,7 +458,7 @@ export default function Connections() {
               )[key],
             )}
             <Input
-              aria-label={s(
+              aria-label={t(
                 (
                   {
                     host: "filterHost",
@@ -472,12 +487,12 @@ export default function Connections() {
             show();
           }}
         >
-          {s("closeFiltered")}
+          {t("closeFiltered")}
         </Button>
-        {save && <Button onClick={clearClosed}>{r("clear")}</Button>}
+        {save && <Button onClick={clearClosed}>{tc("clear")}</Button>}
       </div>
       {save && (
-        <p className="text-xs text-muted-foreground">{s("retention")}</p>
+        <p className="text-xs text-muted-foreground">{t("retention")}</p>
       )}
       {devices.length > 1 && (
         <Devices
@@ -498,9 +513,15 @@ export default function Connections() {
             )
           }
         >
-          <table style={{ width: instance.getTotalSize() }}>
+          <table style={{ width: instance.getTotalSize(), minWidth: "100%" }}>
             <thead>
-              <tr className="connections-header">{headers}</tr>
+              <tr className="connections-header">
+                {headers}
+                <th
+                  className="connections-th table-header spacer"
+                  aria-hidden="true"
+                />
+              </tr>
             </thead>
             <tbody>
               {start > 0 && (
@@ -520,26 +541,29 @@ export default function Connections() {
             </tbody>
           </table>
           {instance.getRowModel().rows.length === 0 && (
-            <div className="connections-empty">
-              <p>{t("empty")}</p>
-              <button
-                className="empty-state-action"
-                onClick={() => setIdentity(false)}
-              >
-                {t("emptyAction")}
-              </button>
-            </div>
+            <EmptyState
+              className="connections-empty"
+              message={t("empty")}
+              action={
+                <button
+                  className="empty-state-action"
+                  onClick={() => setIdentity(false)}
+                >
+                  {t("emptyAction")}
+                </button>
+              }
+            />
           )}
         </div>
       </Card>
       <Modal
-        title={t("closeAll.title")}
+        title={t("closeAllTitle")}
         show={visible}
         onClose={hide}
         onOk={handleCloseConnections}
         pending={pending}
       >
-        {closeFiltered ? s("filteredConfirm") : t("closeAll.content")}
+        {closeFiltered ? t("filteredConfirm") : t("closeAllMessage")}
       </Modal>
       <Drawer
         containerRef={cardRef}

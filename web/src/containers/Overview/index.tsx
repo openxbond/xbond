@@ -5,21 +5,20 @@ import type { Snapshot } from "@lib/request";
 import {
   useAPIInfo,
   useGeneral,
-  useI18n,
   useStreamReader,
   useStreamState,
   useCapabilities,
 } from "@stores";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Traffic {
   up: number;
   down: number;
 }
 export default function Overview() {
-  const { translation } = useI18n();
-  const { t } = translation("Overview");
-  const { t: r } = translation("Runtime");
+  const { t } = useTranslation("overview");
+  const { t: r } = useTranslation("runtime");
   const api = useAPIInfo();
   const { general, error, update } = useGeneral();
   const caps = useCapabilities();

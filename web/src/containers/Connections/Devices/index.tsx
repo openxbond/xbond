@@ -1,7 +1,6 @@
 import { type BaseComponentProps } from "@models";
-import { useI18n } from "@stores";
 import classnames from "classnames";
-import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 
@@ -12,8 +11,7 @@ interface DevicesProps extends BaseComponentProps {
 }
 
 export function Devices(props: DevicesProps) {
-  const { translation } = useI18n();
-  const t = useMemo(() => translation("Connections").t, [translation]);
+  const { t } = useTranslation("connections");
 
   const { className, style } = props;
   const classname = classnames("flex flex-wrap px-1", className);
@@ -29,7 +27,7 @@ export function Devices(props: DevicesProps) {
         })}
         onClick={() => handleSelected("")}
       >
-        {t("filter.all")}
+        {t("filterAll")}
       </div>
       {props.devices.map((device) => (
         <div

@@ -1,8 +1,8 @@
 import { noop } from "@lib/helper";
 import { type BaseComponentProps } from "@models";
-import { useI18n } from "@stores";
 import classnames from "classnames";
 import { useState, useRef, useLayoutEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 
@@ -27,8 +27,7 @@ export function Tags(props: TagsProps) {
     rowHeight: rawHeight,
   } = props;
 
-  const { translation } = useI18n();
-  const { t } = translation("Proxies");
+  const { t } = useTranslation("proxies");
   const [expand, setExpand] = useState(false);
   const [showExtend, setShowExtend] = useState(false);
 
@@ -83,7 +82,7 @@ export function Tags(props: TagsProps) {
           className="h-7 cursor-pointer select-none px-5 leading-7 text-muted-foreground"
           onClick={toggleExtend}
         >
-          {expand ? t("collapseText") : t("expandText")}
+          {expand ? t("collapse") : t("expand")}
         </span>
       )}
     </div>

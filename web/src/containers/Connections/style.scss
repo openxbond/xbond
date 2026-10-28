@@ -25,17 +25,12 @@
     $height: 32px;
 
     display: inline-block;
+    flex-shrink: 0;
     position: relative;
     text-align: center;
-    color: var(--muted-foreground);
-    background: var(--surface-inset);
     height: $height;
     line-height: $height;
-    font-weight: 500;
-    font-size: 12px;
     cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
 
     &.resizing .connections-resizer {
       opacity: 1;
@@ -83,6 +78,7 @@
   }
 
   .connections-header {
+    display: flex;
     position: sticky;
     top: 0;
     z-index: 999;
@@ -122,20 +118,22 @@
       color: var(--muted-foreground);
     }
   }
+
+  .connections-th.spacer,
+  .connections-block.spacer {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .connections-th.spacer {
+    cursor: default;
+  }
 }
 
 .connections-empty {
   position: absolute;
   inset: 32px 0 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 0 20px;
-  font-size: 13px;
-  color: var(--muted-foreground);
-  text-align: center;
-  user-select: none;
 }
 
 .connections-filter {
@@ -151,5 +149,31 @@
 
   &.dangerous {
     color: var(--destructive);
+  }
+}
+
+.connections-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--muted-foreground);
+}
+
+.connections-total {
+  margin-left: 15px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+
+  b {
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .total-divider {
+    margin: 0 8px;
   }
 }

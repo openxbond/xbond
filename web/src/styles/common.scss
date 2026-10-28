@@ -75,7 +75,10 @@ body {
 .page {
   padding: 32px 40px 40px;
   width: 100%;
-  min-height: 100dvh;
+  // Fill the page island exactly; the island (.page-container) is the sole
+  // page-level scroller, so a dvh-based minimum here would always overflow
+  // it by the app shell's padding and force a second scrollbar.
+  min-height: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -182,6 +185,43 @@ input {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
+}
+
+// Tiny circular live-state indicator. `.online` marks a ready state (success),
+// `.info` an active data stream (info); the glow keeps the dot legible on
+// both themes. Layout around the dot stays with the page.
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+  flex-shrink: 0;
+
+  &.online {
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+  }
+
+  &.info {
+    background: var(--info);
+    box-shadow: 0 0 6px var(--info);
+  }
+}
+
+// Centered empty-state bodies live with the EmptyState component.
+
+// Header strip above tabular lists (rules, logs, connections): quiet label
+// type on the inset surface with a hairline separator. Column layout,
+// sticky behavior and resizers stay with each table.
+.table-header {
+  min-height: 32px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  background: var(--surface-inset);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 @media (max-width: 768px) {

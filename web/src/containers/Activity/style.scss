@@ -55,9 +55,19 @@
 .activity-content {
   min-width: 0;
   width: 100%;
+  flex: 1;
+  min-height: 0;
 }
+
+// The embedded Logs/Connections pages fill the active tab panel; the inner
+// lists keep their own scroll so the activity page itself never scrolls.
+.activity-content [role="tabpanel"] {
+  height: 100%;
+}
+
 .activity-content .page {
   padding: 0;
+  height: 100%;
   min-height: 0;
   gap: 12px;
 }
@@ -69,10 +79,10 @@
 .activity-content .header h1 {
   font-size: 16px;
 }
-.connections-page .connections-card {
+// Scoped to the embedded view: the activity page has summary + tabs above
+// the table, so it needs a taller floor than the standalone page's 280px.
+.activity-content .connections-page .connections-card {
   min-height: 360px;
-  height: calc(100dvh - 440px);
-  flex: initial;
 }
 .activity-content .log-table {
   overflow: hidden;

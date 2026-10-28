@@ -1,144 +1,17 @@
-import { Button } from "@components";
+import { Button, renderNodeTitle } from "@components";
 import { CopyButton } from "@components/CopyButton";
 import { useNodeSelection } from "@lib/node-selection";
 import type { Group as IGroup } from "@lib/request";
 import { strategyPath } from "@lib/workspace";
-import { useProxyMapping, useI18n } from "@stores";
+import { useProxyMapping } from "@stores";
 import { useLatency } from "@stores/latency";
-import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { List, type RowComponentProps } from "react-window";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 
-interface MemberData {
-  names: string[];
-  selected: string;
-  canClick: boolean;
-  pending: boolean;
-  switchingName: string;
-  switchingLabel: string;
-  labels: Map<string, string>;
-  delays: Map<string, number | undefined>;
-  statuses: Map<string, string>;
-  canTests: Map<string, boolean>;
-  onSelect: (name: string) => void;
-  onTest: (name: string) => void;
-}
-function MemberRow({
-  index,
-  style,
-  names,
-  selected,
-  canClick,
-  pending,
-  switchingName,
-  switchingLabel,
-  labels,
-  delays,
-  statuses,
-  canTests,
-  onSelect,
-  onTest,
-}: RowComponentProps<MemberData>) {
-  const name = names[index];
-  const delay = delays.get(name);
-  const status = statuses.get(name);
-  const isTesting = status === "testing";
-  const canTest = canTests.get(name) ?? false;
-
-  return (
-    <div
-      style={style}
-      className={"group-member" + (selected === name ? " is-selected" : "")}
-    >
-      {canClick ? (
-        <button
-          type="button"
-          className="member-select-btn"
-          aria-label={name}
-          disabled={pending}
-          aria-pressed={selected === name}
-          onClick={() => onSelect(name)}
-        >
-          <span className="member-name">
-            <svg
-              className="member-check"
-              viewBox="0 0 18 18"
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              aria-hidden="true"
-            >
-              <circle cx="9" cy="9" r="7" />
-              {selected === name && <path d="m5.5 9 2.3 2.5 4.7-5" />}
-            </svg>
-            <span className="member-text">{name}</span>
-          </span>
-        </button>
-      ) : (
-        <div className="member-static">
-          <span className="member-name">
-            <span className="member-bullet" aria-hidden="true" />
-            <span className="member-text">{name}</span>
-          </span>
-        </div>
-      )}
-      <div className="member-actions">
-        <span className="member-result">
-          {pending && switchingName === name ? (
-            switchingLabel
-          ) : isTesting ? (
-            <span className="node-delay-pill testing">測速中…</span>
-          ) : delay !== undefined && delay > 0 ? (
-            <span
-              className={`node-delay-pill ${
-                delay < 150 ? "good" : delay <= 400 ? "medium" : "slow"
-              }`}
-            >
-              {delay} ms
-            </span>
-          ) : (
-            <span className="node-delay-pill untested">{labels.get(name)}</span>
-          )}
-        </span>
-        {canTest && (
-          <button
-            type="button"
-            className={`node-speed-btn ${isTesting ? "is-testing" : ""}`}
-            title="單獨測速此節點"
-            aria-label={`單獨測速: ${name}`}
-            disabled={isTesting}
-            onClick={(e) => {
-              e.stopPropagation();
-              onTest(name);
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill={isTesting ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 export function Group({
   config,
   search = "",
-  initialOpen = false,
 }: {
   config: IGroup;
   search?: string;
@@ -152,13 +25,9 @@ export function Group({
     result: selectionStatus,
   } = useNodeSelection();
   const { run, results, progress } = useLatency();
-  const { translation } = useI18n();
-  const { t } = translation("Speed");
-  const { t: ui } = translation("ClientUI");
-  const [params] = useSearchParams();
-  const [open, setOpen] = useState(
-    initialOpen || params.get("group") === config.name,
-  );
+  const { t } = useTranslation("proxies");
+  const { t: c } = useTranslation("connect");
+
   const path = strategyPath(config, mapping);
   const names = config.all.filter(
     (name) =>
@@ -166,20 +35,7 @@ export function Group({
       config.name.toLowerCase().includes(search.toLowerCase()) ||
       name.toLowerCase().includes(search.toLowerCase()),
   );
-  const labels = new Map(
-    names.map((name) => {
-      const item = mapping.get(name);
-      const result = results[name];
-      const delay = result?.delay ?? item?.history?.at(-1)?.delay;
-      const status =
-        result && result.status !== "ok"
-          ? t(result.status)
-          : delay
-            ? delay + " ms"
-            : t("untested");
-      return [name, (item?.type || "") + (status ? " · " + status : "")];
-    }),
-  );
+
   const delays = new Map(
     names.map((name) => {
       const item = mapping.get(name);
@@ -199,97 +55,237 @@ export function Group({
       ];
     }),
   );
+
   const select = (name: string) => selectNode(config.name, name);
+
   return (
-    <details
-      className="proxy-group"
-      open={open || Boolean(search)}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary className="proxy-group-summary">
-        <span className="group-name">
-          {config.name}
-          <small>
-            {config.type} · {config.all.length} {ui("members")}
-          </small>
-        </span>
-        <span className="group-selected">
-          <span>{ui("selected")}</span>
-          <strong>{config.now || "—"}</strong>
-        </span>
-        <span className="group-disclosure">
-          {open ? ui("collapse") : ui("expand")}
-        </span>
-      </summary>
-      <div className="group-workspace">
-        <div className="group-toolbar">
-          <span>{path.join(" → ")}</span>
-          {config.now && (
-            <CopyButton value={config.now} label={ui("copyNode")} />
-          )}
-          <Button
-            disabled={progress.running || !names.length}
-            onClick={() =>
-              void run(
-                names.filter((name) => {
-                  const item = mapping.get(name);
-                  return (
-                    item && !["Direct", "Reject", "DNS"].includes(item.type)
-                  );
-                }),
-              )
-            }
-          >
-            {t("groupTest")}
-          </Button>
+    <div className="group-workbench-panel">
+      {/* Group Header Banner */}
+      <div className="group-panel-header">
+        <div className="group-info-col">
+          <div className="group-heading-row">
+            <h3 className="group-title">{config.name}</h3>
+            <span className="group-type-pill">{config.type}</span>
+            <span className="group-count-pill">
+              {t("groupMembers", { count: config.all.length })}
+            </span>
+          </div>
+          <div className="group-chain-row" title={path.join(" → ")}>
+            <span>
+              {path.map((segment, idx) => (
+                <span key={idx}>
+                  {idx > 0 && " → "}
+                  {renderNodeTitle(segment)}
+                </span>
+              ))}
+            </span>
+          </div>
         </div>
-        {(pending || selectionStatus !== "idle") && (
-          <p
-            className={
-              "group-feedback" +
-              (selectionStatus === "failed"
-                ? " is-error"
-                : selectionStatus === "partial"
-                  ? " is-warning"
-                  : "")
-            }
-            role={selectionStatus === "failed" ? "alert" : "status"}
-          >
-            {ui(
-              pending
-                ? "switching"
-                : selectionStatus === "partial"
-                  ? "switchPartial"
-                  : selectionStatus === "success"
-                    ? "switched"
-                    : "switchFailed",
+
+        <div className="group-actions-col">
+          <div className="group-selected-status">
+            <span className="status-label">{t("selected")}</span>
+            <strong className="status-val">
+              {config.now ? renderNodeTitle(config.now) : "—"}
+            </strong>
+          </div>
+          <div className="group-btn-group">
+            {config.now && (
+              <CopyButton value={config.now} label={c("copyNode")} />
             )}
-          </p>
-        )}
-        <List
-          rowComponent={MemberRow}
-          rowCount={names.length}
-          rowHeight={48}
-          rowProps={{
-            names,
-            selected: config.now,
-            canClick: config.type === "Selector",
-            pending,
-            switchingName,
-            switchingLabel: ui("switching"),
-            labels,
-            delays,
-            statuses,
-            canTests,
-            onSelect: (name: string) => void select(name),
-            onTest: (name: string) => void run([name]),
-          }}
-          style={{
-            height: Math.min(10, names.length) * 48,
-            minHeight: names.length ? 48 : 0,
-          }}
-        />
+            <Button
+              disabled={progress.running || !names.length}
+              onClick={() =>
+                void run(
+                  names.filter((name) => {
+                    const item = mapping.get(name);
+                    return (
+                      item && !["Direct", "Reject", "DNS"].includes(item.type)
+                    );
+                  }),
+                )
+              }
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+                {t("groupTest")}
+              </span>
+            </Button>
+          </div>
+        </div>
       </div>
-    </details>
+
+      {(pending || selectionStatus !== "idle") && (
+        <p
+          className={
+            "group-feedback " +
+            (selectionStatus === "failed"
+              ? "is-error"
+              : selectionStatus === "partial"
+                ? "is-warning"
+                : "")
+          }
+          role={selectionStatus === "failed" ? "alert" : "status"}
+        >
+          {t(
+            pending
+              ? "switching"
+              : selectionStatus === "partial"
+                ? "switchPartial"
+                : selectionStatus === "success"
+                  ? "switched"
+                  : "switchFailed",
+          )}
+        </p>
+      )}
+
+      {/* Multi-column Compact Grid of Node Tiles */}
+      <ul className="group-nodes-grid">
+        {names.map((name) => {
+          const isSelected = config.now === name;
+          const delay = delays.get(name);
+          const status = statuses.get(name);
+          const isTesting = status === "testing";
+          const item = mapping.get(name);
+          const isBuiltin =
+            ["Direct", "Reject", "DNS", "Compatible"].includes(
+              item?.type ?? "",
+            ) ||
+            ["DIRECT", "REJECT", "GLOBAL", "COMPATIBLE"].includes(
+              name.toUpperCase(),
+            );
+          const canTest = !isBuiltin && (canTests.get(name) ?? false);
+          const canClick = config.type === "Selector";
+
+          const hasHistory = Boolean(item?.history?.length);
+          const isDead = item?.alive === false;
+          const isFailed =
+            !isBuiltin &&
+            (isDead ||
+              (Boolean(status) && status !== "ok" && status !== "testing") ||
+              (delay === 0 && hasHistory));
+
+          let delayTone = "untested";
+          let delayDisplay: string = t("untested");
+          if (isBuiltin) {
+            delayTone = "builtin";
+            delayDisplay = t("builtin");
+          } else if (isTesting) {
+            delayTone = "testing";
+            delayDisplay = t("testing");
+          } else if (isFailed) {
+            delayTone = "failed";
+            delayDisplay = status === "timedOut" ? t("timedOut") : t("failed");
+          } else if (delay !== undefined && delay > 0) {
+            if (delay < 150) delayTone = "good";
+            else if (delay <= 400) delayTone = "medium";
+            else delayTone = "slow";
+            delayDisplay = `${delay} ms`;
+          }
+
+          return (
+            <li
+              key={name}
+              className={`node-grid-tile ${isSelected ? "is-selected" : ""} ${
+                canClick ? "is-clickable" : "is-readonly"
+              } ${isFailed ? "is-failed" : ""}`}
+              onClick={() => {
+                if (canClick && !pending) {
+                  void select(name);
+                }
+              }}
+            >
+              <div className="tile-left">
+                <span
+                  className={`tile-radio ${isSelected ? "is-active" : ""}`}
+                  aria-hidden="true"
+                >
+                  {isSelected ? (
+                    <svg
+                      viewBox="0 0 16 16"
+                      width="13"
+                      height="13"
+                      fill="currentColor"
+                    >
+                      <circle cx="8" cy="8" r="7" />
+                      <path
+                        d="m4.8 8 2.2 2.2 4.2-4.2"
+                        fill="none"
+                        stroke="#fff"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      viewBox="0 0 16 16"
+                      width="13"
+                      height="13"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <circle cx="8" cy="8" r="6.5" />
+                    </svg>
+                  )}
+                </span>
+                <span className="tile-name" title={name}>
+                  {pending && switchingName === name
+                    ? t("switching")
+                    : renderNodeTitle(name)}
+                </span>
+              </div>
+
+              <div className="tile-right">
+                <span className={`node-delay-pill ${delayTone}`}>
+                  {delayDisplay}
+                </span>
+
+                {canTest && (
+                  <button
+                    type="button"
+                    className={`node-speed-btn ${isTesting ? "is-testing" : ""}`}
+                    title={t("testNode")}
+                    aria-label={t("testNodeAria", { name })}
+                    disabled={isTesting}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void run([name]);
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="13"
+                      height="13"
+                      fill={isTesting ? "currentColor" : "none"}
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

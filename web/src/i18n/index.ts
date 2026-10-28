@@ -1,30 +1,18 @@
 import { type Infer } from "@lib/type";
+import i18next from "i18next";
+import { initReactI18next } from "react-i18next";
 import { type IsEqual } from "type-fest";
 
 import en_US from "./en_US";
 import zh_CN from "./zh_CN";
 import zh_HK from "./zh_HK";
 
-export const Language = {
-  en_US,
-  zh_CN,
-  zh_HK,
-};
+export const locales = ["en_US", "zh_CN", "zh_HK"] as const;
 
-export type Lang = keyof typeof Language;
+export type Lang = (typeof locales)[number];
 
-type US = typeof Language.en_US;
-type CN = typeof Language.zh_CN;
-type HK = typeof Language.zh_HK;
-
-// type guard for US, CN, and HK
-type TrueGuard<T extends true> = T;
-type _equalGuard = TrueGuard<IsEqual<Infer<US>, Infer<CN>>>;
-type _equalGuardHK = TrueGuard<IsEqual<Infer<US>, Infer<HK>>>;
-
-export type LocalizedType = US;
-
-export const locales = Object.keys(Language);
+/** localStorage key shared with languageAtom in @stores. */
+export const LANG_STORAGE_KEY = "language";
 
 export function getDefaultLanguage(): Lang {
   for (const language of window.navigator.languages) {
@@ -42,6 +30,82 @@ export function getDefaultLanguage(): Lang {
       return "en_US";
     }
   }
-
   return "en_US";
 }
+
+export function getStoredLanguage(): Lang {
+  // languageAtom persists through jotai's JSON storage, so accept both the
+  // quoted form it writes and a bare code.
+  try {
+    const raw = localStorage.getItem(LANG_STORAGE_KEY);
+    if (!raw) return getDefaultLanguage();
+    let value: unknown = raw;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      // bare code — use as-is
+    }
+    if (
+      typeof value === "string" &&
+      (locales as readonly string[]).includes(value)
+    ) {
+      return value as Lang;
+    }
+  } catch {
+    // localStorage can throw in privacy modes; fall through to detection.
+  }
+  return getDefaultLanguage();
+}
+
+// Shape parity: every locale must cover the same key paths as en_US,
+// so a missing translation fails typecheck instead of rendering blank.
+type KeyPaths = Infer<typeof en_US>;
+type TrueGuard<T extends true> = T;
+type _parityCN = TrueGuard<IsEqual<KeyPaths, Infer<typeof zh_CN>>>;
+type _parityHK = TrueGuard<IsEqual<KeyPaths, Infer<typeof zh_HK>>>;
+
+declare module "i18next" {
+  interface CustomTypeOptions {
+    resources: {
+      common: typeof en_US.common;
+      sidebar: typeof en_US.sidebar;
+      overview: typeof en_US.overview;
+      connect: typeof en_US.connect;
+      proxies: typeof en_US.proxies;
+      connections: typeof en_US.connections;
+      logs: typeof en_US.logs;
+      rules: typeof en_US.rules;
+      diagnostics: typeof en_US.diagnostics;
+      subscriptions: typeof en_US.subscriptions;
+      settings: typeof en_US.settings;
+      runtime: typeof en_US.runtime;
+    };
+  }
+}
+
+void i18next.use(initReactI18next).init({
+  resources: {
+    en_US: en_US,
+    zh_CN: zh_CN,
+    zh_HK: zh_HK,
+  },
+  lng: getStoredLanguage(),
+  fallbackLng: "en_US",
+  defaultNS: "common",
+  // React escapes interpolated values itself.
+  interpolation: { escapeValue: false },
+  returnEmptyString: false,
+  parseMissingKeyHandler: (key) => {
+    if (import.meta.env.DEV) {
+      console.error(`[i18n] missing message: ${key}`);
+    }
+    return key;
+  },
+  react: { useSuspense: false },
+});
+
+export function setAppLanguage(lang: Lang) {
+  void i18next.changeLanguage(lang);
+}
+
+export default i18next;

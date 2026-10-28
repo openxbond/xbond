@@ -1,9 +1,9 @@
 import {
-  Language,
+  LANG_STORAGE_KEY,
   locales,
   type Lang,
   getDefaultLanguage,
-  type LocalizedType,
+  setAppLanguage,
 } from "@i18n";
 import { coreCapabilities } from "@lib/capabilities";
 import { streamURL } from "@lib/controller";
@@ -12,23 +12,20 @@ import { useWarpImmerSetter, type WritableDraft } from "@lib/jotai";
 import { isClashX, jsBridge } from "@lib/jsBridge";
 import type * as API from "@lib/request";
 import { StreamReader, type StreamState } from "@lib/streamer";
-import { type Infer } from "@lib/type";
 import { type Log } from "@models/Log";
 import { isAxiosError } from "axios";
 import { produce } from "immer";
 import { atom, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import * as R from "remeda";
 import useSWR from "swr";
-import { type Get } from "type-fest";
 
 import { useAPIInfo, useClient } from "./request";
 
 export const identityAtom = atom(true);
 
 export const languageAtom = atomWithStorage<Lang | undefined>(
-  "language",
+  LANG_STORAGE_KEY,
   undefined,
 );
 
@@ -75,28 +72,20 @@ export function useTheme() {
   return theme;
 }
 
-export function useI18n() {
-  const [defaultLang, setLang] = useAtom(languageAtom);
-  const lang = useMemo(
-    () => defaultLang ?? getDefaultLanguage(),
-    [defaultLang],
-  );
+/**
+ * Language preference. The persisted atom stays the single source of
+ * truth for the setting; the i18next instance follows it so every
+ * useTranslation() re-renders on change.
+ */
+export function useLanguage() {
+  const [stored, setLang] = useAtom(languageAtom);
+  const lang = stored ?? getDefaultLanguage();
 
-  const translation = useCallback(
-    function <Namespace extends keyof LocalizedType>(namespace: Namespace) {
-      function t<Path extends Infer<LocalizedType[Namespace]>>(path: Path) {
-        type returnType = Get<LocalizedType[Namespace], Path>;
-        const obj = Language[lang][namespace];
-        const objPath = R.stringToPath(path);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return R.pathOr(obj, objPath as any, "" as any) as returnType;
-      }
-      return { t };
-    },
-    [lang],
-  );
+  useEffect(() => {
+    setAppLanguage(lang);
+  }, [lang]);
 
-  return { lang, locales, setLang, translation };
+  return { lang, locales, setLang };
 }
 
 const emptyVersion = { version: "", premium: false, meta: false };

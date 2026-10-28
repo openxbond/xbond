@@ -1,13 +1,11 @@
-import { delayToneClass } from "@lib/latency";
+import { renderNodeTitle } from "@components";
 import { type Proxy as IProxy } from "@lib/request";
 import { type BaseComponentProps } from "@models";
-import { useI18n } from "@stores";
 import { useLatency } from "@stores/latency";
 import classnames from "classnames";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
-
-export { delayToneClass };
 
 interface ProxyProps extends BaseComponentProps {
   config: IProxy;
@@ -16,8 +14,7 @@ interface ProxyProps extends BaseComponentProps {
 export function Proxy(props: ProxyProps) {
   const { config, className } = props;
   const { results, progress, run } = useLatency();
-  const { translation } = useI18n();
-  const { t } = translation("Speed");
+  const { t } = useTranslation("proxies");
   const result = results[config.name];
 
   const delay = result
@@ -30,81 +27,108 @@ export function Proxy(props: ProxyProps) {
       ? config.history.slice(-1)[0].meanDelay
       : undefined;
 
-  const delayText =
-    result && result.status !== "ok"
-      ? t(result.status)
-      : delay > 0
-        ? `${delay}ms`
-        : config.history?.length
-          ? t("failed")
-          : t("untested");
-  const meanDelayText = !meanDelay ? "" : `(${meanDelay}ms)`;
+  const isBuiltin =
+    ["Direct", "Reject", "DNS", "Compatible"].includes(config.type) ||
+    ["DIRECT", "REJECT", "GLOBAL", "COMPATIBLE"].includes(
+      config.name.toUpperCase(),
+    );
+  const hasHistory = Boolean(config.history?.length);
+  const isTesting = result?.status === "testing";
+  const isFailed =
+    !isBuiltin &&
+    (config.alive === false ||
+      (result && result.status !== "ok" && result.status !== "testing") ||
+      (delay === 0 && hasHistory));
+  // Never measured and no history from the core: no connection data yet, so
+  // the card renders muted instead of competing with measured nodes.
+  const isUntested =
+    !isBuiltin && !isTesting && !isFailed && delay === 0 && !hasHistory;
 
-  const hasError = delay === 0;
-  const toneClass = hasError
-    ? "bg-muted text-muted-foreground"
-    : delayToneClass(meanDelay ?? delay);
+  const delayText = isBuiltin
+    ? t("builtin")
+    : isTesting
+      ? t("testing")
+      : result && result.status !== "ok"
+        ? t(result.status)
+        : delay > 0
+          ? `${delay} ms`
+          : hasHistory
+            ? t("failed")
+            : "—";
+  const meanDelayText = !meanDelay || isTesting ? "" : ` (${meanDelay}ms)`;
 
   return (
     <div
       className={classnames(
-        "proxy-item",
-        { "opacity-60": hasError },
+        "proxy-card-item",
+        {
+          "is-failed": isFailed,
+          "is-error": isFailed,
+          "is-untested": isUntested,
+        },
         className,
       )}
     >
-      <div className="flex-1">
-        <span
-          className={classnames(
-            "rounded py-[3px] px-1.5 text-xs font-medium",
-            toneClass,
-          )}
-        >
-          {config.type}
-        </span>
-        <p className="proxy-name">{config.name}</p>
-      </div>
-      <div className="h-full flex items-center gap-2 text-xs">
-        <span
-          className={classnames(
-            "rounded py-[3px] px-1.5 text-xs font-medium tabular-nums",
-            toneClass,
-          )}
-        >
-          {delayText}
-          {meanDelayText}
-        </span>
-        <button
-          type="button"
-          className={classnames("node-speed-btn", {
-            "is-testing": result?.status === "testing",
-          })}
-          disabled={progress.running || result?.status === "testing"}
-          onClick={() => {
-            void run([config.name]);
-          }}
-          title="單獨測速此節點"
-          aria-label={`${t("start")}: ${config.name}`}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill={result?.status === "testing" ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+      <div className="proxy-card-top">
+        <div className="proxy-card-badges">
+          <span className="proxy-protocol-tag">{config.type}</span>
+          {config.udp && <span className="proxy-udp-pill">UDP</span>}
+        </div>
+
+        <div className="proxy-card-latency-row">
+          <span
+            className={classnames("proxy-delay-badge", {
+              "is-fast": !isTesting && !isFailed && delay > 0 && delay < 150,
+              "is-medium":
+                !isTesting && !isFailed && delay >= 150 && delay <= 400,
+              "is-slow": !isTesting && !isFailed && delay > 400,
+              "is-testing": isTesting,
+              "is-failed": isFailed,
+              "is-untested": !isTesting && !isFailed && delay === 0,
+            })}
           >
-            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
-          </svg>
-        </button>
-        {config.udp && (
-          <p className="rounded bg-inset px-[3px] py-[2px] text-muted-foreground">
-            UDP
-          </p>
-        )}
+            {delay > 0 && !isTesting && !isFailed && (
+              <span className="latency-dot" aria-hidden="true" />
+            )}
+            {delayText}
+            {meanDelayText}
+          </span>
+
+          {!isBuiltin && (
+            <button
+              type="button"
+              className={classnames("proxy-single-ping-btn", {
+                "is-testing": isTesting,
+              })}
+              disabled={progress.running || isTesting}
+              onClick={() => {
+                void run([config.name]);
+              }}
+              title={t("testNode")}
+              aria-label={t("testNodeAria", { name: config.name })}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill={isTesting ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="proxy-card-bottom">
+        <p className="proxy-card-name" title={config.name}>
+          {renderNodeTitle(config.name)}
+        </p>
       </div>
     </div>
   );

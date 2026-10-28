@@ -1,11 +1,9 @@
 import { XBondIcon } from "@components";
 import { ControllerPicker } from "@components/ControllerPicker";
-import { type Lang, type Language } from "@i18n";
 import { formatRate } from "@lib/activity";
 import { DASHBOARD_VERSION, parseClientInfo } from "@lib/version";
 import { workspaceLink } from "@lib/workspace";
 import {
-  useI18n,
   useVersion,
   useClashXData,
   identityAtom,
@@ -14,9 +12,21 @@ import {
 } from "@stores";
 import { useSetAtom } from "jotai";
 import { useMemo, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
 import "./style.scss";
+
+/** Route display names map to sidebar message keys. */
+function navLabel(name: string) {
+  const keys = {
+    Connect: "connect",
+    Activity: "activity",
+    Proxies: "proxies",
+    Settings: "settings",
+  } as const;
+  return keys[name as keyof typeof keys] ?? "home";
+}
 
 interface SidebarProps {
   routes: Array<{
@@ -200,11 +210,10 @@ function getRouteIcon(name: string) {
 
 export default function Sidebar(props: SidebarProps) {
   const { routes } = props;
-  const { translation } = useI18n();
   const { version, premium, meta } = useVersion();
   const { data } = useClashXData();
-  const { t } = translation("SideBar");
-  const { t: ui } = translation("ClientUI");
+  const { t } = useTranslation("sidebar");
+  const { t: tc } = useTranslation("common");
   const location = useLocation();
   const setIdentity = useSetAtom(identityAtom);
 
@@ -226,14 +235,18 @@ export default function Sidebar(props: SidebarProps) {
   );
 
   const desktopItems = [
-    { path: "/connect", name: "Connect", label: ui("home") },
-    { path: "/proxies", name: "Proxies", label: t("Proxies") },
-    { path: "/subscriptions", name: "Subscriptions", label: ui("subscriptions") },
-    { path: "/connections", name: "Connections", label: t("Connections") },
-    { path: "/rules", name: "Rules", label: t("Rules") },
-    { path: "/logs", name: "Logs", label: t("Logs") },
-    { path: "/diagnostics", name: "Diagnostics", label: ui("testNavigation") },
-    { path: "/settings", name: "Settings", label: t("Settings") },
+    { path: "/connect", name: "Connect", label: t("home") },
+    { path: "/proxies", name: "Proxies", label: t("proxies") },
+    {
+      path: "/subscriptions",
+      name: "Subscriptions",
+      label: t("subscriptions"),
+    },
+    { path: "/connections", name: "Connections", label: t("connections") },
+    { path: "/rules", name: "Rules", label: t("rules") },
+    { path: "/logs", name: "Logs", label: t("logs") },
+    { path: "/diagnostics", name: "Diagnostics", label: t("diagnostics") },
+    { path: "/settings", name: "Settings", label: t("settings") },
   ];
 
   const desktopLinks = desktopItems.map((item) => {
@@ -262,13 +275,7 @@ export default function Sidebar(props: SidebarProps) {
           aria-current={isActive ? "page" : undefined}
         >
           {getRouteIcon(name)}
-          <span className="nav-label">
-            {name === "Connect"
-              ? ui("home")
-              : name === "Proxies"
-                ? ui("proxies")
-                : t(name as keyof (typeof Language)[Lang]["SideBar"])}
-          </span>
+          <span className="nav-label">{t(navLabel(name))}</span>
         </Link>
       </li>
     );
@@ -288,11 +295,15 @@ export default function Sidebar(props: SidebarProps) {
         {trafficState === "open" && speed && (
           <div className="sidebar-telemetry">
             <div className="telemetry-item down">
-              <span className="arrow" aria-hidden="true">&darr;</span>
+              <span className="arrow" aria-hidden="true">
+                &darr;
+              </span>
               <span className="rate">{formatRate(speed.down)}</span>
             </div>
             <div className="telemetry-item up">
-              <span className="arrow" aria-hidden="true">&uarr;</span>
+              <span className="arrow" aria-hidden="true">
+                &uarr;
+              </span>
               <span className="rate">{formatRate(speed.up)}</span>
             </div>
           </div>
@@ -303,7 +314,7 @@ export default function Sidebar(props: SidebarProps) {
           <button
             className="controller-edit"
             type="button"
-            aria-label={ui("editController")}
+            aria-label={tc("editController")}
             onClick={() => setIdentity(false)}
           >
             <svg

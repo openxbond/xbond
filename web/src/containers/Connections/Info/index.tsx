@@ -1,8 +1,7 @@
 import { basePath, formatTraffic } from "@lib/helper";
 import { type BaseComponentProps } from "@models";
-import { useI18n } from "@stores";
 import classnames from "classnames";
-import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { type Connection } from "../store";
 
@@ -11,8 +10,7 @@ interface ConnectionsInfoProps extends BaseComponentProps {
 }
 
 export function ConnectionInfo(props: ConnectionsInfoProps) {
-  const { translation } = useI18n();
-  const t = useMemo(() => translation("Connections").t, [translation]);
+  const { t } = useTranslation("connections");
 
   return (
     <div

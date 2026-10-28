@@ -1,0 +1,32 @@
+.quota-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.quota-ring svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  transform: rotate(-90deg);
+}
+
+.quota-ring-track {
+  stroke: var(--surface-inset);
+}
+
+.quota-ring-value {
+  stroke: var(--brand);
+}
+
+.quota-ring-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}

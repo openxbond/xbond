@@ -1,0 +1,17 @@
+// Centered empty-state body: one sentence plus an optional next action.
+// Positioning and any inset surface stay with the page.
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  text-align: center;
+  user-select: none;
+}
+
+.empty-state-description {
+  font-size: 12px;
+}

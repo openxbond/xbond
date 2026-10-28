@@ -1,8 +1,7 @@
-import { Header, Icon, Checkbox, Input, Button } from "@components";
+import { Header, Icon, Checkbox, Button, renderNodeTitle } from "@components";
 import { RequestStatus } from "@components/RequestStatus";
 import { useRound } from "@lib/hook";
 import {
-  useI18n,
   useConfig,
   useProxy,
   useProxyProviders,
@@ -15,6 +14,7 @@ import {
 import { LatencyProvider, useLatency } from "@stores/latency";
 import { useSetAtom } from "jotai";
 import { useMemo, useState, createContext, useContext } from "react";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 import { useSearchParams } from "react-router-dom";
@@ -43,9 +43,7 @@ function ProxyGroups() {
   const search = useContext(SearchContext).toLowerCase();
   const { data: config, set: setConfig } = useConfig();
   const { general } = useGeneral();
-  const { translation } = useI18n();
-  const { t } = translation("Proxies");
-  const { t: ui } = translation("ClientUI");
+  const { t } = useTranslation("proxies");
   const [params, setParams] = useSearchParams();
   const list = useMemo(
     () =>
@@ -75,16 +73,16 @@ function ProxyGroups() {
   return (
     <section className="proxy-groups-section">
       <div className="section-heading">
-        <h2>{ui("groups")}</h2>
+        <h2>{t("groups")}</h2>
         <Checkbox
           checked={config.breakConnections}
           onChange={(value) => setConfig("breakConnections", value)}
         >
-          {t("breakConnectionsText")}
+          {t("breakConnections")}
         </Checkbox>
       </div>
       <label className="mobile-group-picker">
-        {ui("chooseGroup")}
+        {t("groups")}
         <select
           value={selected.name}
           onChange={(event) => select(event.target.value)}
@@ -97,19 +95,26 @@ function ProxyGroups() {
         </select>
       </label>
       <div className="proxy-workbench">
-        <nav className="proxy-directory" aria-label={ui("groups")}>
+        <nav className="proxy-directory" aria-label={t("groups")}>
           {list.map((group) => (
             <button
               type="button"
               key={group.name}
+              className={`proxy-dir-item ${selected.name === group.name ? "is-active" : ""}`}
+              aria-label={group.name}
               aria-current={selected.name === group.name ? "true" : undefined}
               onClick={() => select(group.name)}
             >
-              <strong>{group.name}</strong>
-              <span>{group.now || "—"}</span>
-              <small>
-                {group.type} · {group.all.length} {ui("members")}
-              </small>
+              <div className="dir-item-top">
+                <strong className="dir-item-name">{group.name}</strong>
+                <span className="dir-item-badge">{group.type}</span>
+              </div>
+              <div className="dir-item-bottom">
+                <span className="dir-item-now" title={group.now || "—"}>
+                  {group.now ? renderNodeTitle(group.now) : "—"}
+                </span>
+                <span className="dir-item-count">{group.all.length}</span>
+              </div>
             </button>
           ))}
         </nav>
@@ -129,8 +134,7 @@ function ProxyGroups() {
 function ProxyProviders() {
   const search = useContext(SearchContext);
   const { providers, error, update } = useProxyProviders();
-  const { translation: useTranslation } = useI18n();
-  const { t } = useTranslation("Proxies");
+  const { t } = useTranslation("proxies");
 
   return (
     <>
@@ -171,8 +175,7 @@ function Proxies() {
   const { proxies } = useProxy();
   const mapping = useProxyMapping();
   const { results, run, progress } = useLatency();
-  const { translation: useTranslation } = useI18n();
-  const { t } = useTranslation("Proxies");
+  const { t } = useTranslation("proxies");
 
   const search = useContext(SearchContext).toLowerCase();
   const testNames = [...mapping.values()]
@@ -223,7 +226,7 @@ function Proxies() {
               <span aria-hidden="true">
                 <Icon type="speed" size={20} />
               </span>
-              {t("speedTestText")}
+              {t("speedTest")}
             </button>
           </Header>
           <ul className="proxies-list">
@@ -244,10 +247,8 @@ function Proxies() {
 function ProxyPage() {
   const [search, setSearch] = useState("");
   const { data, set } = useConfig();
-  const { translation } = useI18n();
-  const { t } = translation("Speed");
-  const { t: r } = translation("Runtime");
-  const { t: ui } = translation("ClientUI");
+  const { t } = useTranslation("proxies");
+  const { t: tc } = useTranslation("common");
   const { run, cancel, progress } = useLatency();
   const mapping = useProxyMapping();
   const { error, update } = useProxy();
@@ -282,72 +283,143 @@ function ProxyPage() {
   return (
     <SearchContext value={search}>
       <div className="page proxies-page">
-        <Header title={ui("proxies")}>
-          <Button onClick={() => setIdentity(false)}>{r("edit")}</Button>
-        </Header>
-        <div className="proxy-command-bar">
-          <div className="segmented-control" aria-label={ui("routing")}>
-            {(["rule", "global", "direct"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={currentRouting === mode}
-                onClick={() => void switchRouting(mode)}
-              >
-                {ui(mode)}
-              </button>
-            ))}
-          </div>
-          <label className="proxy-search">
-            {t("search")}
-            <Input
-              value={search}
-              align="left"
-              onChange={setSearch}
-              aria-label={t("search")}
-            />
-          </label>
-          <Button
-            disabled={!names.length || progress.running}
-            onClick={() => void run(names)}
-          >
-            {t("start")}
-          </Button>
-          {progress.running && <Button onClick={cancel}>{t("cancel")}</Button>}
-          {progress.total > 0 && (
-            <output>
-              {t("progress")} {progress.completed}/{progress.total}
-            </output>
-          )}
-          <details className="speed-options">
-            <summary>{ui("parameters")}</summary>
-            <div>
-              <label>
-                {t("target")}
-                <Input
-                  value={data.testURL}
-                  align="left"
-                  onChange={(value) => set("testURL", value)}
+        <Header title={t("title")} />
+        <div className="proxy-command-card">
+          <div className="command-card-main">
+            <div className="command-card-left">
+              <div className="proxy-search-wrapper">
+                <svg
+                  className="search-icon"
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+                <input
+                  className="search-input"
+                  value={search}
+                  placeholder={t("searchPlaceholder")}
+                  onChange={(e) => setSearch(e.target.value)}
+                  aria-label={t("searchPlaceholder")}
                 />
-              </label>
-              <label>
-                {t("timeout")}
-                <Input
-                  value={data.testTimeout}
-                  type="number"
-                  min={100}
-                  max={30000}
-                  onChange={(value) => set("testTimeout", Number(value))}
-                />
-              </label>
+                {search && (
+                  <button
+                    type="button"
+                    className="clear-search-btn"
+                    onClick={() => setSearch("")}
+                    aria-label={tc("clear")}
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
+              <div className="command-card-actions">
+                <Button
+                  disabled={!names.length || progress.running}
+                  onClick={() => void run(names)}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+                    </svg>
+                    {t("start")}
+                  </span>
+                </Button>
+                {progress.running && (
+                  <Button onClick={cancel}>{t("cancelTest")}</Button>
+                )}
+                {progress.total > 0 && (
+                  <output className="speed-progress-badge">
+                    {t("progress")} {progress.completed}/{progress.total}
+                  </output>
+                )}
+                <details className="speed-options-dropdown">
+                  <summary className="speed-options-summary">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    {t("parameters")}
+                  </summary>
+                  <div className="speed-options-drawer">
+                    <label className="speed-option-field">
+                      <span>{t("testUrl")}</span>
+                      <input
+                        className="speed-input"
+                        value={data.testURL}
+                        onChange={(e) => set("testURL", e.target.value)}
+                      />
+                    </label>
+                    <label className="speed-option-field">
+                      <span>{t("timeout")}</span>
+                      <input
+                        className="speed-input speed-timeout-input"
+                        value={data.testTimeout}
+                        type="number"
+                        min={100}
+                        max={30000}
+                        onChange={(e) =>
+                          set("testTimeout", Number(e.target.value))
+                        }
+                      />
+                    </label>
+                  </div>
+                </details>
+              </div>
             </div>
-          </details>
+
+            <div className="command-card-right">
+              <div
+                className="segmented-control"
+                aria-label={tc("routingMode.title")}
+              >
+                {(["rule", "global", "direct"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={currentRouting === mode}
+                    onClick={() => void switchRouting(mode)}
+                  >
+                    {tc(`routingMode.${mode}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
         <RequestStatus error={error} retry={update} />
         {!mapping.size && (
           <div className="proxy-empty">
-            <p>{r("empty")}</p>
-            <Button onClick={() => setIdentity(false)}>{r("edit")}</Button>
+            <p>{tc("empty")}</p>
+            <Button onClick={() => setIdentity(false)}>{tc("edit")}</Button>
           </div>
         )}
         <ProxyGroups />
@@ -356,7 +428,7 @@ function ProxyPage() {
         {search &&
           ![...mapping.keys()].some((name) =>
             name.toLowerCase().includes(search.toLowerCase()),
-          ) && <p className="py-8 text-muted-foreground">{r("empty")}</p>}
+          ) && <p className="py-8 text-muted-foreground">{tc("empty")}</p>}
       </div>
     </SearchContext>
   );

@@ -1,7 +1,7 @@
 import { error as showError, success } from "@components/Message";
-import { useI18n } from "@stores/jotai";
 import { isAxiosError } from "axios";
 import { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function errorKind(
   error: unknown,
@@ -18,8 +18,8 @@ export function errorKind(
 }
 
 export function useAction() {
-  const { translation } = useI18n();
-  const { t } = translation("Runtime");
+  const { t } = useTranslation("runtime");
+  const { t: tc } = useTranslation("common");
   const [pending, setPending] = useState(false);
   const locked = useRef(false);
   const run = useCallback(
@@ -29,7 +29,7 @@ export function useAction() {
       setPending(true);
       try {
         await work();
-        if (notify) success(t("saved"));
+        if (notify) success(tc("saved"));
         return true;
       } catch (error) {
         showError(t(errorKind(error)), 6000);
@@ -39,7 +39,7 @@ export function useAction() {
         setPending(false);
       }
     },
-    [t],
+    [t, tc],
   );
   return { run, pending };
 }

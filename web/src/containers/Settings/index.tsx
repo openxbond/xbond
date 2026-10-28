@@ -9,7 +9,7 @@ import {
   useCapabilities,
   useClient,
   useGeneral,
-  useI18n,
+  useLanguage,
   useLocalAPI,
   useVersion,
   identityAtom,
@@ -18,14 +18,16 @@ import {
 } from "@stores";
 import { useAtom, useSetAtom } from "jotai";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 
 export default function Settings() {
-  const { translation, lang, setLang } = useI18n();
-  const { t } = translation("Settings");
-  const { t: ui } = translation("ClientUI");
-  const { t: r } = translation("Runtime");
+  const { lang, setLang } = useLanguage();
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
+  const { t: r } = useTranslation("runtime");
+  const { t: c } = useTranslation("connect");
 
   const controller = useAPIInfo();
   const caps = useCapabilities();
@@ -47,7 +49,7 @@ export default function Settings() {
 
   async function savePort() {
     if (!validPort(Number(currentPort))) {
-      setPortValidation(r("invalidPort"));
+      setPortValidation(t("external.invalidPort"));
       return;
     }
     setPortValidation("");
@@ -87,7 +89,7 @@ export default function Settings() {
                 <line x1="6" y1="6" x2="6.01" y2="6" />
                 <line x1="6" y1="18" x2="6.01" y2="18" />
               </svg>
-              {ui("network")}
+              {t("network")}
             </h2>
           </div>
 
@@ -105,18 +107,16 @@ export default function Settings() {
                       disabled={pending}
                       onClick={() => void run(() => setMode({ mode }))}
                     >
-                      <strong>{ui(mode)}</strong>
-                      <span>
-                        {t(
-                          ("takeover." + mode + "Desc") as
-                            | "takeover.sysproxyDesc"
-                            | "takeover.tunDesc"
-                            | "takeover.portDesc",
-                        )}
-                      </span>
+                      <strong>{c(mode)}</strong>
+                      <span>{t(`takeover.${mode}Desc` as const)}</span>
                     </button>
                   ))}
                 </div>
+                {status?.preferences.takeoverMode === "tun" && (
+                  <p className="setting-note mt-2 text-warning">
+                    {t("takeover.tunPrivilegeNotice")}
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">{r("readonly")}</p>
@@ -125,7 +125,7 @@ export default function Settings() {
             <div className="setting-row">
               <div className="setting-label-col">
                 <strong>{t("takeover.mixedPort")}</strong>
-                <span>標準 HTTP / SOCKS 混合本地代理連接埠</span>
+                <span>{t("takeover.mixedPortDesc")}</span>
               </div>
               <div className="setting-inline">
                 <input
@@ -151,7 +151,7 @@ export default function Settings() {
                   }
                   onClick={() => void savePort()}
                 >
-                  {ui("confirm")}
+                  {tc("confirm")}
                 </Button>
               </div>
             </div>
@@ -164,7 +164,7 @@ export default function Settings() {
             <div className="setting-row">
               <div className="setting-label-col">
                 <strong>{t("takeover.allowLan")}</strong>
-                <span>允許同區域網絡的其他裝置連接本地代理</span>
+                <span>{t("takeover.allowLanDesc")}</span>
               </div>
               <Switch
                 checked={status?.preferences.allowLan ?? general.allowLan}
@@ -210,22 +210,22 @@ export default function Settings() {
                 <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
               </svg>
-              {ui("preferences")}
+              {t("preferences")}
             </h2>
           </div>
 
           <div className="settings-card-content">
             <div className="setting-row">
               <div className="setting-label-col">
-                <strong>{t("labels.theme")}</strong>
-                <span>自訂使用者介面的色彩明暗外觀</span>
+                <strong>{t("theme")}</strong>
+                <span>{t("themeDesc")}</span>
               </div>
               <ButtonSelect<ThemePreference>
                 value={theme ?? "system"}
                 options={[
-                  { value: "system", label: t("values.system") },
-                  { value: "light", label: t("values.light") },
-                  { value: "dark", label: t("values.dark") },
+                  { value: "system", label: t("system") },
+                  { value: "light", label: t("light") },
+                  { value: "dark", label: t("dark") },
                 ]}
                 onSelect={setTheme}
               />
@@ -233,8 +233,8 @@ export default function Settings() {
 
             <div className="setting-row">
               <div className="setting-label-col">
-                <strong>{t("labels.language")}</strong>
-                <span>切換用戶端顯示的介面語言</span>
+                <strong>{t("language")}</strong>
+                <span>{t("languageDesc")}</span>
               </div>
               <ButtonSelect<Lang>
                 value={lang}
@@ -266,14 +266,14 @@ export default function Settings() {
                 <line x1="2" y1="12" x2="22" y2="12" />
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               </svg>
-              {ui("controller")}
+              {tc("controller")}
             </h2>
-            <Button onClick={() => setIdentity(false)}>{r("edit")}</Button>
+            <Button onClick={() => setIdentity(false)}>{tc("edit")}</Button>
           </div>
 
           <div className="settings-card-content">
             <div className="setting-label-col">
-              <strong>切換已連接的控制器</strong>
+              <strong>{t("controller.switchController")}</strong>
               <div className="mt-2">
                 <ControllerPicker />
               </div>
@@ -281,21 +281,21 @@ export default function Settings() {
 
             <div className="controller-info-box">
               <div className="controller-info-row">
-                <span>控制器名稱</span>
+                <span>{t("controller.name")}</span>
                 <strong>
-                  {controller.name || (hasLocalAPI ? ui("local") : "—")}
+                  {controller.name || (hasLocalAPI ? tc("local") : "—")}
                 </strong>
               </div>
               <div className="controller-info-row">
-                <span>控制 API 位址</span>
+                <span>{t("controller.address")}</span>
                 <strong>{controller.url}</strong>
               </div>
               <div className="controller-info-row">
-                <span>接管服務型態</span>
+                <span>{t("controller.takeoverType")}</span>
                 <strong>
                   {hasLocalAPI
-                    ? "本機獨立服務 (Daemon)"
-                    : "外部核心 (External)"}
+                    ? t("controller.localDaemon")
+                    : t("controller.externalCore")}
                 </strong>
               </div>
             </div>
@@ -319,22 +319,22 @@ export default function Settings() {
                 <line x1="12" y1="16" x2="12" y2="12" />
                 <line x1="12" y1="8" x2="12.01" y2="8" />
               </svg>
-              系統與關於
+              {t("about.title")}
             </h2>
           </div>
 
           <div className="settings-card-content">
             <ul className="system-fact-list">
               <li>
-                <span>用戶端儀表板版本</span>
+                <span>{t("about.dashboardVersion")}</span>
                 <strong>v{DASHBOARD_VERSION}</strong>
               </li>
               <li>
-                <span>sing-box 核心版本</span>
+                <span>{t("about.coreVersion")}</span>
                 <strong>{version.version || "—"}</strong>
               </li>
               <li>
-                <span>記錄日誌等級 (Log Level)</span>
+                <span>{t("about.logLevel")}</span>
                 <ButtonSelect<string>
                   value={general.logLevel || "info"}
                   options={[
@@ -353,7 +353,7 @@ export default function Settings() {
                 />
               </li>
               <li>
-                <span>開放原始碼專案</span>
+                <span>{t("about.openSource")}</span>
                 <a
                   href="https://github.com/openxbond/xbond"
                   target="_blank"

@@ -1,133 +1,327 @@
 .proxies-page {
-  gap: 24px;
+  gap: 20px;
 }
-.proxy-command-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 14px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 24px;
-}
-.proxy-search {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  flex: 1;
-  min-width: 180px;
-  max-width: 420px;
-  font-size: 13px;
-  color: var(--muted-foreground);
-}
-.proxy-command-bar output {
-  align-self: center;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-.speed-options {
-  position: relative;
-  margin-left: auto;
-  font-size: 13px;
-}
-.speed-options summary {
-  cursor: pointer;
-  color: var(--brand-text);
-  padding: 10px 0;
-}
-.speed-options > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding-top: 14px;
-}
-.speed-options label {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-.proxy-groups-section > .section-heading {
-  margin-bottom: 18px;
-}
-.proxy-groups-section .checkbox {
-  font-size: 12px;
-}
-.proxy-workbench {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.85fr) minmax(0, 2fr);
+
+/* 1. Top Control Card */
+.proxy-command-card {
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
-  background: var(--card);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
 }
-.proxy-directory {
-  background: var(--surface-inset);
-  border-right: 1px solid var(--border);
-  max-height: 620px;
-  overflow-y: auto;
-}
-.proxy-directory button {
+
+.command-card-main {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 9px;
-  font: inherit;
-  padding: 18px 20px;
-  width: 100%;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  background: transparent;
-  color: var(--foreground);
-  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
-.proxy-directory button[aria-current="true"] {
-  background: var(--card);
-}
-.proxy-directory button:hover {
-  background: var(--row-hover);
-}
-.proxy-directory strong {
-  font-size: 14px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-.proxy-directory span {
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-.proxy-directory small {
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
-.proxy-members {
+
+.command-card-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  flex: 1;
   min-width: 0;
 }
-.proxy-members .proxy-group-summary {
-  grid-template-columns: 1fr auto;
-  gap: 14px;
+
+.proxy-search-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 260px;
+  min-width: 180px;
+  max-width: 320px;
 }
-.proxy-members .group-selected {
-  grid-row: 2;
-  grid-column: 1 / -1;
+
+.proxy-search-wrapper .search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--muted-foreground);
+  pointer-events: none;
 }
-.proxy-members .group-disclosure {
-  grid-column: 2;
-  grid-row: 1;
+
+.proxy-search-wrapper .search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 32px 0 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  transition: all 0.15s ease;
 }
+
+.proxy-search-wrapper .search-input:focus {
+  outline: none;
+  border-color: var(--brand);
+  background: var(--card);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.clear-search-btn:hover {
+  color: var(--foreground);
+}
+
+.command-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.command-card-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.speed-progress-badge {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--surface-inset);
+  color: var(--muted-foreground);
+}
+
+.speed-options-dropdown {
+  position: relative;
+}
+
+.speed-options-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.speed-options-summary:hover {
+  color: var(--foreground);
+  background: var(--surface-inset);
+}
+
+.speed-options-drawer {
+  position: absolute;
+  left: 0;
+  right: auto;
+  top: calc(100% + 8px);
+  z-index: 20;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 12px oklch(0 0 0 / 8%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 280px;
+}
+
+.speed-option-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.speed-input {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+/* 2. Strategy Groups Section */
+.proxy-groups-section > .section-heading {
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.proxy-groups-section .checkbox {
+  font-size: 12.5px;
+}
+
+.proxy-workbench {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  height: 680px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
+}
+
+@media (max-width: 900px) {
+  .proxy-workbench {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+}
+
+/* Left Strategy Group List - Pure white background, scrollable! */
+.proxy-directory {
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-sizing: border-box;
+}
+
+.proxy-dir-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 14px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.proxy-dir-item:hover {
+  background: var(--surface-inset);
+}
+
+.proxy-dir-item.is-active,
+.proxy-dir-item[aria-current="true"] {
+  background: var(--brand-soft);
+  border-color: var(--brand-border);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.dir-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dir-item-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proxy-dir-item.is-active .dir-item-name {
+  color: var(--brand-text);
+  font-weight: 650;
+}
+
+.dir-item-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-inset);
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.proxy-dir-item.is-active .dir-item-badge {
+  background: var(--card);
+  color: var(--brand-text);
+}
+
+.dir-item-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.dir-item-now {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 170px;
+}
+
+.dir-item-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--surface-inset);
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.proxy-members {
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--card);
+}
+
 .mobile-group-picker {
   display: none;
 }
+
+/* 3. Bottom Standalone Proxies List - Spacious, comfortable cards with room to breathe */
 .proxies-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
   list-style: none;
-  margin: 18px 0 28px;
+  margin: 20px 0 40px;
+  padding: 0;
 }
+
 .proxies-speed-test {
   font-size: 13px;
   color: var(--brand-text);
 }
+
 .proxy-empty {
   padding: 32px 0;
   display: flex;
@@ -136,17 +330,56 @@
   font-size: 14px;
   color: var(--muted-foreground);
 }
-@media (max-width: 1200px) {
-  .proxies-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .proxy-workbench {
-    grid-template-columns: minmax(180px, 0.8fr) minmax(0, 2fr);
-  }
-}
+
 @media (max-width: 768px) {
+  .proxies-page {
+    padding-bottom: 84px;
+  }
+  .command-card-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .command-card-left {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 10px;
+  }
+  .proxy-search-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+  .command-card-actions {
+    width: 100%;
+    justify-content: space-between;
+    position: relative;
+  }
+  .speed-options-drawer {
+    left: auto;
+    right: 0;
+    width: calc(100vw - 64px);
+    max-width: 320px;
+    min-width: 240px;
+  }
+  .command-card-right {
+    width: 100%;
+    margin-left: 0;
+  }
+  .command-card-right .segmented-control {
+    width: 100%;
+    display: flex;
+  }
+  .command-card-right .segmented-control button {
+    flex: 1;
+    padding: 8px 4px;
+    font-size: 13px;
+    text-align: center;
+    white-space: nowrap;
+  }
   .proxy-workbench {
     display: block;
+    height: auto;
   }
   .proxy-directory {
     display: none;
@@ -154,48 +387,22 @@
   .mobile-group-picker {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     font-size: 13px;
     margin-bottom: 16px;
   }
   .mobile-group-picker select {
     background: var(--card);
-    padding: 12px;
+    padding: 10px 14px;
     color: var(--foreground);
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     width: 100%;
     font: inherit;
+    min-height: 44px;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
   }
   .proxies-list {
     grid-template-columns: 1fr;
-  }
-  .speed-options {
-    margin: 0;
-    width: 100%;
-  }
-  .speed-options > div {
-    flex-direction: column;
-  }
-  .proxy-groups-section .section-heading {
-    align-items: flex-start;
-  }
-}
-
-.proxy-command-bar {
-  background: var(--card);
-  padding: 20px 24px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-}
-.proxy-directory button[aria-current="true"] strong {
-  color: var(--brand-text);
-}
-@media (max-width: 768px) {
-  .proxy-command-bar {
-    padding: 20px;
-  }
-  .mobile-group-picker select {
-    min-height: 44px;
   }
 }

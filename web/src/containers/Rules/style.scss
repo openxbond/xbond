@@ -1,3 +1,9 @@
+.rule-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .rule-item {
   line-height: 30px;
   padding: 5px 0;

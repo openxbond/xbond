@@ -4,22 +4,17 @@ import Logs from "@containers/Logs";
 import { formatRate } from "@lib/activity";
 import { formatTraffic } from "@lib/helper";
 import type { Snapshot } from "@lib/request";
-import {
-  useCapabilities,
-  useI18n,
-  useStreamReader,
-  useStreamState,
-} from "@stores";
+import { useCapabilities, useStreamReader, useStreamState } from "@stores";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import "./style.scss";
 
 export default function Activity() {
-  const { translation } = useI18n();
-  const { t: s } = translation("SideBar");
-  const { t: r } = translation("Runtime");
-  const { t: ui } = translation("ClientUI");
+  const { t: sb } = useTranslation("sidebar");
+  const { t: r } = useTranslation("runtime");
+  const { t: ov } = useTranslation("overview");
   const caps = useCapabilities();
   const [params, setParams] = useSearchParams();
   const activeTab =
@@ -64,20 +59,20 @@ export default function Activity() {
   }
   return (
     <div className="page activity-page">
-      <Header title={s("Activity")}>
+      <Header title={sb("activity")}>
         <output className="home-context">{r(state)}</output>
       </Header>
       <dl className="activity-summary">
         <div>
-          <dt>{ui("upload")}</dt>
+          <dt>{ov("upload")}</dt>
           <dd>{state === "open" ? formatRate(speed.up) : "—"}</dd>
         </div>
         <div>
-          <dt>{ui("download")}</dt>
+          <dt>{ov("download")}</dt>
           <dd>{state === "open" ? formatRate(speed.down) : "—"}</dd>
         </div>
         <div>
-          <dt>{s("Connections")}</dt>
+          <dt>{sb("connections")}</dt>
           <dd>
             {connectionState === "open"
               ? (snapshot?.connections.length ?? "—")
@@ -85,7 +80,7 @@ export default function Activity() {
           </dd>
         </div>
         <div>
-          <dt>{ui("total")}</dt>
+          <dt>{ov("total")}</dt>
           <dd>
             {connectionState === "open" && snapshot
               ? formatTraffic(snapshot.uploadTotal + snapshot.downloadTotal)
@@ -94,12 +89,12 @@ export default function Activity() {
         </div>
         {caps.memory && (
           <div>
-            <dt>{translation("Overview").t("memory")}</dt>
+            <dt>{ov("memory")}</dt>
             <dd>{memoryBytes === null ? "—" : formatTraffic(memoryBytes)}</dd>
           </div>
         )}
       </dl>
-      <div className="activity-tabs" role="tablist" aria-label={s("Activity")}>
+      <div className="activity-tabs" role="tablist" aria-label={sb("activity")}>
         {(["logs", "connections"] as const).map((view) => (
           <button
             type="button"
@@ -128,7 +123,7 @@ export default function Activity() {
               }
             }}
           >
-            {s(view === "logs" ? "Logs" : "Connections")}
+            {sb(view === "logs" ? "logs" : "connections")}
           </button>
         ))}
       </div>

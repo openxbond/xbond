@@ -1,6 +1,6 @@
 import { Button } from "@components/Button";
 import { errorKind } from "@lib/actions";
-import { useI18n } from "@stores/jotai";
+import { useTranslation } from "react-i18next";
 
 export function RequestStatus({
   error,
@@ -9,8 +9,8 @@ export function RequestStatus({
   error: unknown;
   retry: () => unknown;
 }) {
-  const { translation } = useI18n();
-  const { t } = translation("Runtime");
+  const { t } = useTranslation("runtime");
+  const { t: tc } = useTranslation("common");
   if (!error) return null;
   return (
     <div
@@ -23,7 +23,7 @@ export function RequestStatus({
           void retry();
         }}
       >
-        {t("retry")}
+        {tc("retry")}
       </Button>
     </div>
   );

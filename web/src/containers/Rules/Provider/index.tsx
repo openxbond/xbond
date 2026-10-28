@@ -2,8 +2,9 @@ import { Tag, Icon } from "@components";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
 import { type RuleProvider } from "@lib/request";
-import { useClient, useI18n, useRuleProviders } from "@stores";
+import { useClient, useLanguage, useRuleProviders } from "@stores";
 import classnames from "classnames";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 
@@ -13,11 +14,11 @@ interface ProvidersProps {
 
 export function Provider(props: ProvidersProps) {
   const { update } = useRuleProviders();
-  const { translation, lang } = useI18n();
+  const { lang } = useLanguage();
   const client = useClient();
 
   const { provider } = props;
-  const { t } = translation("Rules");
+  const { t } = useTranslation("rules");
 
   const { pending: visible, run } = useAction();
 

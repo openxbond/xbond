@@ -1,10 +1,10 @@
 import {
   selectedControllerAtom,
   useControllers,
-  useI18n,
   useSelectController,
 } from "@stores";
 import { useAtomValue } from "jotai";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 
@@ -12,8 +12,7 @@ export function ControllerPicker() {
   const [controllers] = useControllers();
   const selected = useAtomValue(selectedControllerAtom);
   const select = useSelectController();
-  const { translation } = useI18n();
-  const { t } = translation("ClientUI");
+  const { t } = useTranslation("common");
   return (
     <label className="controller-picker">
       <span>{t("controller")}</span>

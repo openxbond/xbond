@@ -4,7 +4,6 @@ import { normalizeControllerURL, createControllerId } from "@lib/controller";
 import { useObject } from "@lib/hook";
 import { Client } from "@lib/request";
 import {
-  useI18n,
   useAPIInfo,
   identityAtom,
   useControllers,
@@ -12,14 +11,13 @@ import {
 } from "@stores";
 import { useAtom } from "jotai";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useSWRConfig } from "swr";
 
 import "./style.scss";
 
 export default function ExternalController() {
-  const { translation } = useI18n();
-  const { t } = translation("Settings");
-  const { t: r } = translation("Runtime");
+  const { t } = useTranslation("settings");
   const controller = useAPIInfo();
   const [identity, setIdentity] = useAtom(identityAtom);
   const [value, set] = useObject({ name: "", url: "", secret: "" });
@@ -39,7 +37,7 @@ export default function ExternalController() {
     try {
       return { ...value, url: normalizeControllerURL(value.url.trim()) };
     } catch {
-      error(r("invalidURL"));
+      error(t("external.invalidURL"));
       return null;
     }
   }
@@ -74,14 +72,14 @@ export default function ExternalController() {
     if (!item) return;
     void run(async () => {
       await new Client(item.url, item.secret).getVersion();
-      success(r("testOK"));
+      success(t("external.testOK"));
     }, false);
   }
   return (
     <Modal
       className="!w-125 !max-w-[calc(100vw-32px)]"
       show={!identity}
-      title={t("externalControllerSetting.title")}
+      title={t("external.title")}
       bodyClassName="external-controller"
       onClose={() => setIdentity(true)}
       onOk={() => save()}
@@ -89,35 +87,35 @@ export default function ExternalController() {
       footerExtra={
         <div className="flex gap-2">
           <Button disabled={pending} onClick={() => save(true)}>
-            {t("externalControllerSetting.addText")}
+            {t("external.add")}
           </Button>
           <Button
             type="danger"
             disabled={pending || hosts.length < 2}
             onClick={remove}
           >
-            {t("externalControllerSetting.deleteText")}
+            {t("external.delete")}
           </Button>
         </div>
       }
     >
       <Alert type="info" inside>
-        <p>{t("externalControllerSetting.note")}</p>
+        <p>{t("external.note")}</p>
       </Alert>
       <div className="mt-4 flex flex-col gap-4">
         <label className="flex flex-col gap-2">
-          {r("name")}
+          {t("external.name")}
           <Input
-            aria-label={r("name")}
+            aria-label={t("external.name")}
             align="left"
             value={value.name}
             onChange={(name) => set("name", name)}
           />
         </label>
         <label className="flex flex-col gap-2">
-          {r("url")}
+          {t("external.url")}
           <Input
-            aria-label={r("url")}
+            aria-label={t("external.url")}
             align="left"
             value={value.url}
             placeholder="http://127.0.0.1:9090"
@@ -126,9 +124,9 @@ export default function ExternalController() {
           />
         </label>
         <label className="flex flex-col gap-2">
-          {t("externalControllerSetting.secret")}
+          {t("external.secret")}
           <Input
-            aria-label={t("externalControllerSetting.secret")}
+            aria-label={t("external.secret")}
             type="password"
             align="left"
             value={value.secret}
@@ -138,11 +136,11 @@ export default function ExternalController() {
         </label>
         <div>
           <Button disabled={pending} onClick={test}>
-            {pending ? r("connecting") : r("test")}
+            {pending ? t("external.connecting") : t("external.test")}
           </Button>
         </div>
         <p className="text-xs leading-5 text-muted-foreground break-words">
-          {r("privateNetwork")}
+          {t("external.privateNetwork")}
         </p>
       </div>
     </Modal>

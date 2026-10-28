@@ -1,4 +1,11 @@
-import { Header, Button, success } from "@components";
+import {
+  EmptyState,
+  Header,
+  Button,
+  success,
+  QuotaRing,
+  Stat,
+} from "@components";
 import { CopyButton } from "@components/CopyButton";
 import { useAction } from "@lib/actions";
 import { formatRate } from "@lib/activity";
@@ -12,7 +19,7 @@ import {
   useCapabilities,
   useClient,
   useGeneral,
-  useI18n,
+  useLanguage,
   useLocalAPI,
   useProxy,
   useProxyMapping,
@@ -25,6 +32,7 @@ import {
 import { useAtom, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import "./style.scss";
@@ -91,11 +99,13 @@ const focusAtom = atomWithStorage<Record<string, string>>(
 );
 
 export default function Connect() {
-  const { translation, lang } = useI18n();
-  const { t: ui } = translation("ClientUI");
-  const { t: r } = translation("Runtime");
-  const { t: c } = translation("Connect");
-  const { t: settingsText } = translation("Settings");
+  const { lang } = useLanguage();
+  const { t } = useTranslation("connect");
+  const { t: r } = useTranslation("runtime");
+  const { t: tc } = useTranslation("common");
+  const { t: sb } = useTranslation("sidebar");
+  const { t: px } = useTranslation("proxies");
+  const { t: st } = useTranslation("settings");
   const controller = useAPIInfo();
   const client = useClient();
   const { general, update } = useGeneral();
@@ -194,17 +204,17 @@ export default function Connect() {
   function copyTerminalCommand() {
     const cmd = `$env:all_proxy="http://127.0.0.1:${mixedPort}"`;
     navigator.clipboard.writeText(cmd).then(() => {
-      success(ui("copied"));
+      success(tc("copied"));
     });
   }
 
   return (
     <div className="page connect-page">
-      <Header title={ui("home")}>
+      <Header title={sb("home")}>
         <div className="home-header-badge">
           <span className={`status-dot ${active ? "online" : ""}`} />
           <span className="text-sm font-medium">
-            {isLocalTarget ? ui("local") : ui("remote")} ·{" "}
+            {isLocalTarget ? tc("local") : tc("remote")} ·{" "}
             {controller.name || new URL(controller.url).hostname}
           </span>
         </div>
@@ -215,13 +225,13 @@ export default function Connect() {
           className="home-status-notice card"
           role={localError ? "alert" : "status"}
         >
-          <span>{localError ? ui("statusReadFailed") : r("loading")}</span>
+          <span>{localError ? t("statusReadFailed") : tc("loading")}</span>
           {localError && (
             <Button
               disabled={pending}
               onClick={() => void run(() => refresh(), false)}
             >
-              {r("retry")}
+              {tc("retry")}
             </Button>
           )}
         </aside>
@@ -242,16 +252,18 @@ export default function Connect() {
                 <h2>
                   {hasLocalAPI
                     ? running
-                      ? ui("connected")
-                      : ui("stopped")
+                      ? t("connected")
+                      : t("stopped")
                     : r(trafficState)}
                 </h2>
                 <span className="master-subtext">
                   {hasLocalAPI
                     ? running
-                      ? `Uptime: ${status?.engine.uptime || "0m"}`
-                      : ui("noConfig")
-                    : ui("remoteNote")}
+                      ? t("uptime", {
+                          duration: status?.engine.uptime || "0m",
+                        })
+                      : t("noConfig")
+                    : t("remoteNote")}
                 </span>
               </div>
             </div>
@@ -267,24 +279,21 @@ export default function Connect() {
                   }
                 >
                   {pending
-                    ? r("loading")
+                    ? tc("loading")
                     : running
-                      ? ui("disconnect")
-                      : ui("connect")}
+                      ? t("disconnect")
+                      : t("connect")}
                 </Button>
               ) : (
-                <Button onClick={() => setIdentity(false)}>{r("edit")}</Button>
+                <Button onClick={() => setIdentity(false)}>{tc("edit")}</Button>
               )}
             </div>
           </div>
 
           <div className="port-info-bar">
-            <span className="port-label">{ui("port")}:</span>
+            <span className="port-label">{t("port")}:</span>
             <code className="port-val">127.0.0.1:{mixedPort}</code>
-            <CopyButton
-              value={`127.0.0.1:${mixedPort}`}
-              label={ui("copyLink")}
-            />
+            <CopyButton value={`127.0.0.1:${mixedPort}`} label={tc("copy")} />
           </div>
 
           {/* Three-Tier Status Row (Straightforward, Uncollapsed) */}
@@ -294,12 +303,12 @@ export default function Connect() {
             >
               <span className="tier-indicator" />
               <div className="tier-content">
-                <span className="tier-name">{c("tiers.core")}</span>
+                <span className="tier-name">{t("tiers.core")}</span>
                 <span className="tier-desc">
                   {hasLocalAPI
                     ? status?.engine.running
                       ? version.version || "sing-box"
-                      : ui("stopped")
+                      : t("stopped")
                     : r(trafficState)}
                 </span>
               </div>
@@ -310,9 +319,9 @@ export default function Connect() {
             >
               <span className="tier-indicator" />
               <div className="tier-content">
-                <span className="tier-name">{c("tiers.takeover")}</span>
+                <span className="tier-name">{t("tiers.takeover")}</span>
                 <span className="tier-desc">
-                  {takeover ? ui(takeover) : ui("unknown")}
+                  {takeover ? t(takeover) : tc("unknown")}
                 </span>
               </div>
             </div>
@@ -322,11 +331,11 @@ export default function Connect() {
             >
               <span className="tier-indicator" />
               <div className="tier-content">
-                <span className="tier-name">{c("tiers.egress")}</span>
+                <span className="tier-name">{t("tiers.egress")}</span>
                 <span className="tier-desc">
                   {status?.threeTier.egress.ok
-                    ? `${status?.threeTier.egress.detail || "已驗證"}`
-                    : ui("unknown")}
+                    ? status?.threeTier.egress.detail || t("egressVerified")
+                    : tc("unknown")}
                 </span>
               </div>
             </div>
@@ -337,19 +346,19 @@ export default function Connect() {
         <section className="bento-card card node-quick-card">
           <div className="card-header-line">
             <div className="card-title-group">
-              <h3 className="card-title">{c("strategy.title")}</h3>
+              <h3 className="card-title">{t("strategy.title")}</h3>
               <span className="strategy-chain-text">
-                {chain.join(" → ") || ui("noGroup")}
+                {chain.join(" → ") || t("noGroup")}
               </span>
             </div>
             <Link to="/proxies" className="section-link">
-              {ui("proxies")} &rarr;
+              {sb("proxies")} &rarr;
             </Link>
           </div>
 
           <div className="node-quick-controls">
             <div className="control-field">
-              <span className="control-label">{ui("chooseGroup")}</span>
+              <span className="control-label">{t("chooseGroup")}</span>
               <select
                 className="select-input"
                 value={group?.name || ""}
@@ -360,7 +369,7 @@ export default function Connect() {
                   }))
                 }
               >
-                <option value="">{ui("chooseGroup")}</option>
+                <option value="">{t("chooseGroup")}</option>
                 {available.map((item) => (
                   <option key={item.name} value={item.name}>
                     {item.name} ({item.all.length})
@@ -370,7 +379,7 @@ export default function Connect() {
             </div>
 
             <div className="control-field">
-              <span className="control-label">{ui("currentNode")}</span>
+              <span className="control-label">{t("currentNode")}</span>
               <div className="node-select-row">
                 <select
                   className="select-input flex-1"
@@ -391,7 +400,7 @@ export default function Connect() {
                       </option>
                     ))
                   ) : (
-                    <option value="">{c("strategy.noNodeSelected")}</option>
+                    <option value="">{t("strategy.noNodeSelected")}</option>
                   )}
                 </select>
                 <Button
@@ -404,8 +413,8 @@ export default function Connect() {
                     : pingDelay !== null
                       ? pingDelay > 0
                         ? `${pingDelay}ms`
-                        : "Timeout"
-                      : c("strategy.testDelay")}
+                        : px("timedOut")
+                      : t("strategy.testDelay")}
                 </Button>
               </div>
             </div>
@@ -416,12 +425,12 @@ export default function Connect() {
               <div className="active-node-name">
                 <span className="badge">{group.type}</span>
                 <span className="node-label-text">{group.now}</span>
-                <CopyButton value={group.now} label={ui("copyNode")} />
+                <CopyButton value={group.now} label={t("copyNode")} />
               </div>
             )}
             {(nodeSelection.pending || nodeSelection.result !== "idle") && (
               <span className="node-switch-notice">
-                {ui(
+                {px(
                   nodeSelection.pending
                     ? "switching"
                     : nodeSelection.result === "success"
@@ -437,13 +446,13 @@ export default function Connect() {
         <section className="bento-card card mode-control-card">
           <div className="mode-block">
             <div className="mode-label-row">
-              <h3 className="card-title">{ui("takeoverMode")}</h3>
+              <h3 className="card-title">{t("takeoverMode")}</h3>
               <span className="mode-desc-text">
                 {takeover === "tun"
-                  ? settingsText("takeover.tunDesc")
+                  ? st("takeover.tunDesc")
                   : takeover === "port"
-                    ? settingsText("takeover.portDesc")
-                    : settingsText("takeover.sysproxyDesc")}
+                    ? st("takeover.portDesc")
+                    : st("takeover.sysproxyDesc")}
               </span>
             </div>
             {hasLocalAPI ? (
@@ -456,26 +465,24 @@ export default function Connect() {
                     disabled={pending}
                     onClick={() => void run(() => setMode({ mode }))}
                   >
-                    {ui(mode)}
+                    {t(mode)}
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                {ui("remoteNote")}
-              </p>
+              <p className="text-xs text-muted-foreground">{t("remoteNote")}</p>
             )}
           </div>
 
           <div className="mode-block">
             <div className="mode-label-row">
-              <h3 className="card-title">{ui("routing")}</h3>
+              <h3 className="card-title">{tc("routingMode.title")}</h3>
               <span className="mode-desc-text">
                 {currentMode === "global"
-                  ? c("routingMode.global")
+                  ? tc("routingMode.global")
                   : currentMode === "direct"
-                    ? c("routingMode.direct")
-                    : c("routingMode.rule")}
+                    ? tc("routingMode.direct")
+                    : tc("routingMode.rule")}
               </span>
             </div>
             <div className="segmented-control">
@@ -496,7 +503,7 @@ export default function Connect() {
                     })
                   }
                 >
-                  {ui(mode)}
+                  {tc(`routingMode.${mode}`)}
                 </button>
               ))}
             </div>
@@ -507,63 +514,32 @@ export default function Connect() {
         <section className="bento-card card active-sub-card">
           <div className="card-header-line">
             <div className="card-title-group">
-              <h3 className="card-title">{c("quota.title")}</h3>
-              <span className="sub-source-text">
-                {sub ? sub.name : ui("noConfig")}
-              </span>
+              <h3 className="card-title">{t("quota.title")}</h3>
+              {sub && <span className="sub-source-text">{sub.name}</span>}
             </div>
-            <Link to="/subscriptions" className="section-link">
-              {ui("manage")} &rarr;
-            </Link>
+            {sub && (
+              <Link to="/subscriptions" className="section-link">
+                {t("manage")} &rarr;
+              </Link>
+            )}
           </div>
 
           {sub && quota ? (
             <div className="sub-quota-showcase">
-              <div className="quota-ring-wrap">
-                <svg viewBox="0 0 100 100" aria-hidden="true">
-                  <circle
-                    className="quota-track"
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    strokeWidth="8"
-                  />
-                  <circle
-                    className="quota-value"
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    strokeWidth="8"
-                    pathLength="100"
-                    strokeDasharray={`${quota.remainingPercent} 100`}
-                    strokeLinecap={
-                      quota.remainingPercent > 0 ? "round" : "butt"
-                    }
-                    transform="rotate(-90 50 50)"
-                  />
-                </svg>
-                <span className="quota-ring-num">
-                  {Math.round(quota.remainingPercent)}%
-                </span>
-              </div>
+              <QuotaRing percent={quota.remainingPercent} />
 
               <div className="quota-text-details">
-                <div className="quota-stat-primary">
-                  <span className="stat-label">{c("quota.remaining")}</span>
-                  <strong className="stat-value">
-                    {formatTraffic(quota.remaining)}
-                  </strong>
-                </div>
+                <Stat label={t("quota.remaining")}>
+                  {formatTraffic(quota.remaining)}
+                </Stat>
                 <div className="quota-stat-secondary">
                   <span>
-                    {ui("used")}: {formatTraffic(quota.used)} /{" "}
+                    {t("used")}: {formatTraffic(quota.used)} /{" "}
                     {formatTraffic(sub.total)}
                   </span>
                   {sub.expire > 0 && (
                     <span>
-                      {ui("expiry")}:{" "}
+                      {t("expiry")}:{" "}
                       {new Date(sub.expire * 1000).toLocaleDateString(
                         lang.replace("_", "-"),
                       )}
@@ -572,16 +548,38 @@ export default function Connect() {
                 </div>
               </div>
             </div>
+          ) : sub ? (
+            <EmptyState
+              className="sub-quota-unknown"
+              message={t("quota.unknown")}
+              description={t("quota.unknownDesc")}
+            />
           ) : (
-            <div className="sub-empty-hint">
-              <p>{ui("noConfig")}</p>
-              <Link
-                to="/subscriptions"
-                className="button button-brand mt-2 inline-block"
-              >
-                {ui("import")}
-              </Link>
-            </div>
+            <EmptyState
+              className="sub-empty-panel"
+              icon={
+                <svg
+                  className="sub-empty-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+                  <path d="M12 3v10" />
+                  <path d="m8 9 4 4 4-4" />
+                </svg>
+              }
+              message={t("noConfig")}
+              action={
+                <Link to="/subscriptions" className="button button-brand">
+                  {t("importConfig")}
+                </Link>
+              }
+            />
           )}
 
           {sub && (
@@ -595,10 +593,10 @@ export default function Connect() {
                   })
                 }
               >
-                {ui("updateSubscription")}
+                {t("updateSubscription")}
               </Button>
               {sub.urlOrFile && /^https?:\/\//i.test(sub.urlOrFile) && (
-                <CopyButton value={sub.urlOrFile} label={ui("copyLink")} />
+                <CopyButton value={sub.urlOrFile} label={t("copyLink")} />
               )}
             </div>
           )}
@@ -607,10 +605,10 @@ export default function Connect() {
         {/* CARD 5: 流量羅盤與即時走勢卡 (8 columns) */}
         <section className="bento-card card traffic-compass-card">
           <div className="card-header-line">
-            <h3 className="card-title">{ui("compass")}</h3>
+            <h3 className="card-title">{t("compass")}</h3>
             <span className="traffic-live-indicator">
               <span
-                className={`pulse-dot ${trafficState === "open" ? "online" : ""}`}
+                className={`status-dot ${trafficState === "open" ? "info" : ""}`}
               />
               {trafficState === "open" ? "Live" : r(trafficState)}
             </span>
@@ -619,46 +617,42 @@ export default function Connect() {
           <div className="traffic-chart-box">
             <TrafficChart
               samples={history}
-              title={ui("trafficHistory")}
-              empty={ui("collectingSamples")}
-              downloadLabel={ui("download")}
-              uploadLabel={ui("upload")}
+              title={t("trafficHistory")}
+              empty={t("collectingSamples")}
+              downloadLabel={t("download")}
+              uploadLabel={t("upload")}
             />
           </div>
 
           <div className="traffic-metrics-grid">
             <div className="metric-box">
-              <span className="metric-label">{ui("download")}</span>
-              <strong className="metric-value">
+              <Stat label={t("download")}>
                 {trafficState === "open" && speed
                   ? formatRate(speed.down)
                   : "—"}
-              </strong>
+              </Stat>
             </div>
             <div className="metric-box">
-              <span className="metric-label">{ui("upload")}</span>
-              <strong className="metric-value">
+              <Stat label={t("upload")}>
                 {trafficState === "open" && speed ? formatRate(speed.up) : "—"}
-              </strong>
+              </Stat>
             </div>
             <div className="metric-box">
-              <span className="metric-label">{ui("total")}</span>
-              <span className="metric-value font-mono text-sm">
+              <Stat label={t("total")}>
                 {connectionState === "open" && snapshot
                   ? formatTraffic(snapshot.uploadTotal + snapshot.downloadTotal)
                   : "—"}
-              </span>
+              </Stat>
             </div>
             <div className="metric-box">
-              <span className="metric-label">{ui("activeConnections")}</span>
-              <span className="metric-value font-mono text-sm">
+              <Stat label={t("activeConnections")}>
                 {connectionState === "open" && snapshot
                   ? snapshot.connections.length
                   : 0}
                 {caps.memory && memoryBytes
                   ? ` (${formatTraffic(memoryBytes)})`
                   : ""}
-              </span>
+              </Stat>
             </div>
           </div>
         </section>
@@ -666,15 +660,15 @@ export default function Connect() {
         {/* CARD 6: 環境與快捷工具卡 (4 columns) */}
         <section className="bento-card card quick-tools-card">
           <div className="card-header-line">
-            <h3 className="card-title">{ui("environment")}</h3>
+            <h3 className="card-title">{t("environment")}</h3>
             <Link to="/diagnostics" className="section-link">
-              {ui("testNavigation")} &rarr;
+              {sb("diagnostics")} &rarr;
             </Link>
           </div>
 
           <div className="tools-list">
             <div className="tool-item">
-              <span className="tool-label">{ui("allowLan")}</span>
+              <span className="tool-label">{t("allowLan")}</span>
               <input
                 type="checkbox"
                 checked={
@@ -701,28 +695,28 @@ export default function Connect() {
             </div>
 
             <div className="tool-item">
-              <span className="tool-label">{ui("port")}</span>
+              <span className="tool-label">{t("port")}</span>
               <code className="text-xs font-mono">{mixedPort}</code>
             </div>
 
             <div className="tool-action-box">
               <span className="text-xs text-muted-foreground block mb-1">
-                終端代理環境變數：
+                {t("terminalEnvHint")}
               </span>
               <Button onClick={copyTerminalCommand} className="w-full text-xs">
-                複製 PowerShell 代理命令
+                {t("copyProxyCommand")}
               </Button>
             </div>
 
             <div className="quick-links-group">
               <Link to="/connections" className="quick-link-pill">
-                連線明細
+                {t("quickLinks.connections")}
               </Link>
               <Link to="/rules" className="quick-link-pill">
-                分流規則
+                {t("quickLinks.rules")}
               </Link>
               <Link to="/logs" className="quick-link-pill">
-                核心日誌
+                {t("quickLinks.logs")}
               </Link>
             </div>
           </div>

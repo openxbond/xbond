@@ -1,52 +1,235 @@
-.proxy-item {
+.proxy-card-item {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  min-height: 80px;
-  height: 100%;
-  padding: 14px 16px;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 88px;
+  padding: 16px 18px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  position: relative;
 }
-.proxy-item > div {
-  min-width: 0;
+
+.proxy-card-item:hover {
+  border-color: var(--brand-border, oklch(0.7163 0.1706 53.45 / 35%));
+  box-shadow: 0 4px 14px oklch(0 0 0 / 5%);
+  transform: translateY(-2px);
 }
-.proxy-name {
-  margin-top: 8px;
-  font-size: 13px;
-  overflow-wrap: anywhere;
+
+.proxy-card-item.is-failed {
+  opacity: 0.52;
+  background: var(--surface-inset);
+  border-color: var(--border);
+  box-shadow: none;
+
+  .proxy-card-name {
+    color: var(--muted-foreground);
+  }
+
+  .proxy-protocol-tag,
+  .proxy-udp-pill {
+    opacity: 0.65;
+    background: transparent;
+    border-color: var(--border);
+    color: var(--muted-foreground);
+  }
+
+  .proxy-single-ping-btn {
+    opacity: 0.75;
+  }
 }
-.proxy-item button {
+
+.proxy-card-item.is-failed:hover {
+  opacity: 0.85;
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.proxy-card-item.is-error {
+  border-color: var(--destructive);
+}
+
+// No connection data yet: keep the card surface quiet-white but mute every
+// text element, so measured nodes stand out first.
+.proxy-card-item.is-untested {
+  .proxy-card-name {
+    color: var(--muted-foreground);
+  }
+
+  .proxy-protocol-tag,
+  .proxy-udp-pill {
+    background: transparent;
+    color: var(--muted-foreground);
+    border-color: var(--border);
+  }
+
+  .proxy-single-ping-btn {
+    opacity: 0.75;
+  }
+}
+
+.proxy-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.proxy-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.proxy-protocol-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2.5px 7px;
+  border-radius: 5px;
+  background: var(--surface-inset);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  line-height: 1.2;
+}
+
+.proxy-udp-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-inset);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  line-height: 1.2;
+}
+
+.proxy-card-latency-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.proxy-delay-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
   font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  background: var(--surface-inset);
+  color: var(--muted-foreground);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
-.proxy-item button:hover {
-  text-decoration: underline;
-  text-underline-offset: 4px;
+
+.proxy-delay-badge .latency-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
-.proxy-item .node-speed-btn {
+
+.proxy-delay-badge.is-fast {
+  background: oklch(0.92 0.08 145);
+  color: oklch(0.38 0.14 145);
+}
+
+.proxy-delay-badge.is-fast .latency-dot {
+  background: oklch(0.48 0.16 145);
+}
+
+.proxy-delay-badge.is-medium {
+  background: oklch(0.94 0.1 85);
+  color: oklch(0.48 0.14 85);
+}
+
+.proxy-delay-badge.is-medium .latency-dot {
+  background: oklch(0.58 0.16 85);
+}
+
+.proxy-delay-badge.is-slow {
+  background: oklch(0.92 0.09 45);
+  color: oklch(0.48 0.15 45);
+}
+
+.proxy-delay-badge.is-slow .latency-dot {
+  background: oklch(0.58 0.17 45);
+}
+
+.proxy-delay-badge.is-failed {
+  background: oklch(0.92 0.08 25);
+  color: var(--destructive);
+}
+
+.proxy-delay-badge.is-testing {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  animation: pulse 1.5s infinite;
+}
+
+.proxy-delay-badge.is-untested {
+  background: var(--surface-inset);
+  color: var(--muted-foreground);
+}
+
+.proxy-single-ping-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   border: 1px solid var(--border);
   background: var(--surface-inset);
   color: var(--muted-foreground);
   cursor: pointer;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
   padding: 0;
+  transition: all 0.15s ease;
 }
-.proxy-item .node-speed-btn:hover {
+
+.proxy-single-ping-btn:hover {
   background: var(--brand-soft);
-  border-color: var(--brand-border);
+  border-color: var(--brand-border, var(--brand));
   color: var(--brand-text);
-  text-decoration: none;
+  transform: scale(1.06);
 }
-.proxy-item .node-speed-btn.is-testing {
-  opacity: 0.7;
+
+.proxy-single-ping-btn.is-testing {
   color: var(--brand-text);
+  opacity: 0.8;
   animation: pulse 1s infinite;
+}
+
+.proxy-card-bottom {
+  margin-top: 12px;
+  min-width: 0;
+}
+
+.proxy-card-name {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--foreground);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
 }

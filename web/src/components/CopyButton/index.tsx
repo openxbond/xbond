@@ -1,12 +1,11 @@
 import { Button } from "@components/Button";
-import { useI18n } from "@stores";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 
 export function CopyButton({ value, label }: { value: string; label: string }) {
-  const { translation } = useI18n();
-  const { t } = translation("ClientUI");
+  const { t } = useTranslation("common");
   const [feedback, setFeedback] = useState<{
     value: string;
     status: "pending" | "copied" | "failed";

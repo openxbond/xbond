@@ -1,14 +1,14 @@
-import { Select, Card, Header, Button, Input } from "@components";
+import { Select, Card, Header, Button, Input, EmptyState } from "@components";
 import type { Log } from "@models/Log";
 import {
   useConfig,
   useGeneral,
-  useI18n,
   useLogsStreamReader,
   useStreamState,
 } from "@stores";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   List,
   type RowComponentProps,
@@ -40,11 +40,9 @@ function LogRow({ index, style, logs }: RowComponentProps<{ logs: Log[] }>) {
   );
 }
 export default function Logs() {
-  const { translation } = useI18n();
-  const { t } = translation("Logs");
-  const { t: r } = translation("Runtime");
-  const { t: s } = translation("Speed");
-  const { t: ui } = translation("ClientUI");
+  const { t } = useTranslation("logs");
+  const { t: r } = useTranslation("runtime");
+  const { t: tc } = useTranslation("common");
   const {
     data: { logLevel },
     set,
@@ -113,7 +111,7 @@ export default function Logs() {
       <Header title={t("title")}>
         <output className="text-sm text-muted-foreground">
           {logLevel === "silent" || general.logLevel === "silent"
-            ? s("paused")
+            ? t("silent")
             : r(state)}
         </output>
       </Header>
@@ -124,22 +122,22 @@ export default function Logs() {
             value={logLevel ?? ""}
             options={levels.map((level) => ({
               value: level,
-              label: level === "silent" ? s("paused") : level || "Default",
+              label: level === "silent" ? t("silent") : level || "Default",
             }))}
             onSelect={(level) => set("logLevel", level)}
             disabled={general.logLevel?.toLowerCase() === "silent"}
           />
         </label>
         <Input
-          aria-label={s("filterLogs")}
-          placeholder={s("filterLogs")}
+          aria-label={t("filterLogs")}
+          placeholder={t("filterLogs")}
           value={search}
           onChange={setSearch}
           align="left"
           className="min-w-40 flex-1"
         />
         <Button onClick={togglePause}>
-          {paused ? s("resume") : s("paused")}
+          {paused ? t("resume") : t("paused")}
         </Button>
         <Button
           onClick={() => {
@@ -151,46 +149,61 @@ export default function Logs() {
               });
           }}
         >
-          {ui("follow")}
+          {t("follow")}
         </Button>
-        <Button onClick={clear}>{r("clear")}</Button>
+        <Button onClick={clear}>{tc("clear")}</Button>
         <Button disabled={!filtered.length} onClick={download}>
-          {s("export")}
+          {t("export")}
         </Button>
-        <span className="text-xs text-muted-foreground">{s("logLimit")}</span>
+        <span className="text-xs text-muted-foreground">{t("logLimit")}</span>
       </div>
       <Card className="log-table min-h-80 flex flex-1 flex-col p-0">
         {filtered.length ? (
-          <List
-            listRef={list}
-            rowCount={filtered.length}
-            rowHeight={34}
-            rowComponent={LogRow}
-            rowProps={{ logs: filtered }}
-            style={{
-              height: "calc(100dvh - 390px)",
-              minHeight: 320,
-              overflow: "auto",
-            }}
-            onScroll={() => {
-              const el = list.current?.element;
-              if (el)
-                follow.current =
-                  el.scrollHeight - el.scrollTop - el.clientHeight < 90;
-            }}
-          />
+          <>
+            <div className="table-header log-header">
+              <span>{t("columns.time")}</span>
+              <span>{t("columns.level")}</span>
+              <span>{t("columns.message")}</span>
+            </div>
+            {/* CSS-only bounds: the box's height comes from flex layout
+                (basis 0), never from content, so the list can never grow to
+                render the whole buffer. No JS measurement in the loop. */}
+            <div className="log-list-box">
+              <List
+                listRef={list}
+                rowCount={filtered.length}
+                rowHeight={34}
+                rowComponent={LogRow}
+                rowProps={{ logs: filtered }}
+                style={{
+                  height: "100%",
+                  width: "100%",
+                  overflow: "auto",
+                }}
+                onScroll={() => {
+                  const el = list.current?.element;
+                  if (el)
+                    follow.current =
+                      el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+                }}
+              />
+            </div>
+          </>
         ) : (
-          <div className="logs-empty min-h-80">
-            <p>{search ? r("empty") : t("empty")}</p>
-            {!search && (
-              <button
-                className="empty-state-action"
-                onClick={() => set("logLevel", "debug")}
-              >
-                {t("emptyAction")}
-              </button>
-            )}
-          </div>
+          <EmptyState
+            className="min-h-80 flex-1"
+            message={search ? tc("empty") : t("empty")}
+            action={
+              !search && (
+                <button
+                  className="empty-state-action"
+                  onClick={() => set("logLevel", "debug")}
+                >
+                  {t("emptyAction")}
+                </button>
+              )
+            }
+          />
         )}
       </Card>
     </div>

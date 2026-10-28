@@ -4,9 +4,10 @@ import { Proxy } from "@containers/Proxies/components/Proxy";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
 import { type Provider as IProvider, type Proxy as IProxy } from "@lib/request";
-import { useClient, useI18n, useProxyProviders } from "@stores";
+import { useClient, useLanguage, useProxyProviders } from "@stores";
 import { useLatency } from "@stores/latency";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import "./style.scss";
 
@@ -17,11 +18,11 @@ interface ProvidersProps {
 
 export function Provider(props: ProvidersProps) {
   const { update } = useProxyProviders();
-  const { translation, lang } = useI18n();
+  const { lang } = useLanguage();
   const client = useClient();
 
   const { provider } = props;
-  const { t } = translation("Proxies");
+  const { t } = useTranslation("proxies");
 
   const { pending: visible, run } = useAction();
   const { invalidate } = useLatency();

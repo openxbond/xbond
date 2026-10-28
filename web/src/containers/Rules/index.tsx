@@ -1,8 +1,9 @@
 import { Header, Card, Input } from "@components";
 import { RequestStatus } from "@components/RequestStatus";
 import type * as API from "@lib/request";
-import { useI18n, useRule, useRuleProviders, useCapabilities } from "@stores";
+import { useRule, useRuleProviders, useCapabilities } from "@stores";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AutoSizer } from "react-virtualized-auto-sizer";
 import { List, type RowComponentProps } from "react-window";
 
@@ -12,8 +13,7 @@ import "./style.scss";
 
 function RuleProviders() {
   const { providers, error, update } = useRuleProviders();
-  const { translation } = useI18n();
-  const { t } = translation("Rules");
+  const { t } = useTranslation("rules");
 
   return (
     <>
@@ -60,8 +60,7 @@ export default function Rules() {
       ),
   );
   const capabilities = useCapabilities();
-  const { translation } = useI18n();
-  const { t } = translation("Rules");
+  const { t } = useTranslation("rules");
   return (
     <div className="page">
       <RequestStatus error={error} retry={update} />
@@ -71,7 +70,12 @@ export default function Rules() {
       <RuleProviders />
       <RuleSearch value={search} onChange={setSearch} />
       <Header className="not-first:mt-7.5" title={t("title")} />
-      <Card className="mt-2.5 flex flex-1 flex-col p-0 md:mt-4 focus:outline-none">
+      <Card className="mt-2.5 flex flex-1 flex-col overflow-hidden p-0 md:mt-4 focus:outline-none">
+        <div className="table-header rule-header">
+          <div className="w-40 text-center">{t("columns.type")}</div>
+          <div className="flex-1 text-center">{t("columns.payload")}</div>
+          <div className="w-40 text-center">{t("columns.proxy")}</div>
+        </div>
         <AutoSizer
           className="min-h-120"
           renderProp={({ height, width }) => (
@@ -90,8 +94,7 @@ export default function Rules() {
 }
 
 function ProviderNote() {
-  const { translation } = useI18n();
-  const { t } = translation("Runtime");
+  const { t } = useTranslation("runtime");
   return (
     <p className="my-3 text-sm text-muted-foreground">
       {t("providerUnavailable")}
@@ -105,12 +108,11 @@ function RuleSearch({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const { translation } = useI18n();
-  const { t } = translation("Runtime");
+  const { t: tc } = useTranslation("common");
   return (
     <Input
-      aria-label={t("search")}
-      placeholder={t("search")}
+      aria-label={tc("search")}
+      placeholder={tc("search")}
       align="left"
       className="my-3"
       value={value}

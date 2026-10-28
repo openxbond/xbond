@@ -71,10 +71,10 @@ test("resolveDesktopLocalAPIConfig resolves credentials from desktop IPC", async
 });
 
 test("Takeover TUN privilege notice exists across all locale dictionaries", () => {
-  assert.ok(HK.Settings.takeover.tunPrivilegeNotice);
-  assert.ok(CN.Settings.takeover.tunPrivilegeNotice);
-  assert.ok(EN.Settings.takeover.tunPrivilegeNotice);
-  assert.match(HK.Settings.takeover.tunPrivilegeNotice, /管理員/);
-  assert.match(CN.Settings.takeover.tunPrivilegeNotice, /管理员/);
-  assert.match(EN.Settings.takeover.tunPrivilegeNotice, /administrator/i);
+  assert.ok(HK.settings.takeover.tunPrivilegeNotice);
+  assert.ok(CN.settings.takeover.tunPrivilegeNotice);
+  assert.ok(EN.settings.takeover.tunPrivilegeNotice);
+  assert.match(HK.settings.takeover.tunPrivilegeNotice, /管理員/);
+  assert.match(CN.settings.takeover.tunPrivilegeNotice, /管理员/);
+  assert.match(EN.settings.takeover.tunPrivilegeNotice, /administrator/i);
 });

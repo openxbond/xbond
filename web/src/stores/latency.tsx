@@ -14,15 +14,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useConfig, useI18n, useProxy, useProxyProviders } from "./jotai";
+import { useConfig, useProxy, useProxyProviders } from "./jotai";
 import { useClient } from "./request";
 
 function useLatencyRunner() {
   const client = useClient();
   const { data } = useConfig();
-  const { translation } = useI18n();
-  const { t } = translation("Speed");
+  const { t } = useTranslation("proxies");
   const { update } = useProxy();
   const { update: updateProviders } = useProxyProviders();
   const [results, setResults] = useState<Record<string, LatencyResult>>({});

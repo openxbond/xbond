@@ -15,18 +15,6 @@
   border: 1px solid var(--border);
 }
 
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--muted-foreground);
-}
-
-.status-dot.online {
-  background: var(--success);
-  box-shadow: 0 0 8px var(--success);
-}
-
 .home-status-notice {
   display: flex;
   justify-content: space-between;
@@ -55,7 +43,9 @@
   flex-direction: column;
   justify-content: space-between;
   box-shadow: var(--elevation-card, 0 1px 3px oklch(0 0 0 / 4%));
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .bento-card:hover {
@@ -69,7 +59,11 @@
 
 .connect-master-card.is-running {
   border-color: var(--brand);
-  background: linear-gradient(180deg, var(--card) 0%, var(--surface-inset) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--card) 0%,
+    var(--surface-inset) 100%
+  );
 }
 
 .node-quick-card {
@@ -151,7 +145,8 @@
 }
 
 @keyframes breathing {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 4px var(--brand-soft);
   }
   50% {
@@ -421,6 +416,33 @@
   color: var(--muted-foreground);
 }
 
+.sub-empty-panel {
+  flex: 1;
+  gap: 12px;
+  min-height: 140px;
+  margin-top: 12px;
+  padding: 24px 20px;
+  background: var(--surface-inset);
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+}
+
+.sub-empty-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--brand-text);
+}
+
+.sub-quota-unknown {
+  flex: 1;
+  gap: 2px;
+  margin-top: 12px;
+  padding: 20px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
 .sub-quota-showcase {
   display: flex;
   align-items: center;
@@ -428,56 +450,11 @@
   margin: 10px 0;
 }
 
-.quota-ring-wrap {
-  position: relative;
-  width: 64px;
-  height: 64px;
-  flex-shrink: 0;
-}
-
-.quota-ring-wrap svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
-.quota-track {
-  stroke: var(--surface-inset);
-}
-
-.quota-value {
-  stroke: var(--brand);
-}
-
-.quota-ring-num {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--foreground);
-}
-
 .quota-text-details {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-}
-
-.quota-stat-primary .stat-label {
-  display: block;
-  font-size: 11px;
-  color: var(--muted-foreground);
-}
-
-.quota-stat-primary .stat-value {
-  font-size: 17px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--foreground);
 }
 
 .quota-stat-secondary {
@@ -503,18 +480,6 @@
   font-size: 11.5px;
   font-family: var(--font-mono);
   color: var(--muted-foreground);
-}
-
-.pulse-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--muted-foreground);
-}
-
-.pulse-dot.online {
-  background: var(--info);
-  box-shadow: 0 0 6px var(--info);
 }
 
 .traffic-chart-box {
@@ -608,18 +573,6 @@
   background: var(--surface-inset);
   border-radius: 8px;
   border: 1px solid var(--border);
-}
-
-.metric-label {
-  font-size: 11px;
-  color: var(--muted-foreground);
-}
-
-.metric-value {
-  font-size: 14px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--foreground);
 }
 
 /* Card 6 Quick Tools */
