@@ -20,10 +20,10 @@ const HK = {
     copying: "正在複製…",
     copyFailed: "無法複製，請選取下方文字手動複製。",
     edit: "編輯",
-    editController: "編輯控制器",
+    editController: "編輯控制端",
     local: "此裝置",
     remote: "遠端控制器",
-    controller: "控制器",
+    controller: "控制端",
     routingMode: {
       title: "路由模式",
       rule: "規則",

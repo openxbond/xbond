@@ -20,10 +20,10 @@ const CN = {
     copying: "正在复制…",
     copyFailed: "无法复制，请选中下方文字手动复制。",
     edit: "编辑",
-    editController: "编辑控制器",
+    editController: "编辑控制端",
     local: "此设备",
     remote: "远程控制器",
-    controller: "控制器",
+    controller: "控制端",
     routingMode: {
       title: "路由模式",
       rule: "规则",
