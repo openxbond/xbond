@@ -131,19 +131,30 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 16px;
+  gap: 12px;
 }
 
 .dns-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--muted-foreground);
 }
 
+.dns-field-domain {
+  flex: 1 1 260px;
+  min-width: 200px;
+}
+
+.dns-form .input,
+.dns-select,
+.dns-submit {
+  height: 34px;
+}
+
 .dns-select {
-  height: 36px;
   padding: 0 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -151,6 +162,32 @@
   color: var(--foreground);
   font: inherit;
   font-size: 13px;
+}
+
+.dns-result {
+  margin-top: 20px;
+  transition: opacity 0.15s ease;
+
+  > p {
+    margin-top: 8px;
+  }
+}
+
+.dns-result.is-busy {
+  opacity: 0.55;
+}
+
+.dns-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.dns-query-spec {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted-foreground);
 }
 
 .dns-results-table {

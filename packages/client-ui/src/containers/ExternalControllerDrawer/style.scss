@@ -1,14 +1,154 @@
-.external-controller {
-  .alert {
-    margin: 10px 0;
-  }
+// Extra air between the form and the footer actions; the Modal default keeps
+// the body a fixed 10px from the footer.
+.external-controller-dialog > div:last-child {
+  margin-top: 22px;
 }
 
-@media (max-width: 768px) {
-  .external-controller {
-    // hack <Alert />
-    .alert {
-      display: none;
+.external-controller {
+  // The caveat reads as the dialog's intro line; the full copy stays intact.
+  .ec-note {
+    margin: 0 0 20px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted-foreground);
+  }
+
+  .ec-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ec-row {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+  }
+
+  // Fields breathe a little more inside this dialog than the 30px default.
+  .ec-row .input {
+    height: 34px;
+  }
+
+  .ec-label {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 34px;
+    color: var(--muted-foreground);
+  }
+
+  .ec-field-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .ec-row .input[aria-invalid="true"] {
+    border-color: var(--destructive);
+  }
+
+  .ec-error {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--destructive);
+  }
+
+  .ec-secret {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .ec-test {
+    flex-shrink: 0;
+    height: 34px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  // Shown only after a failed connection test: first the prompt, details on
+  // request.
+  .ec-help {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--muted-foreground);
+
+    p {
+      margin: 0;
+      overflow-wrap: anywhere;
     }
+  }
+
+  .ec-help-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand-text);
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+  }
+
+  .ec-help-chevron {
+    transition: transform 0.15s ease;
+  }
+
+  .ec-help-trigger[aria-expanded="true"] .ec-help-chevron {
+    transform: rotate(180deg);
+  }
+
+  .ec-help-body {
+    margin-top: 10px;
+  }
+
+  .ec-help p.ec-help-sub {
+    margin-top: 10px;
+  }
+
+  // chrome:// addresses cannot be opened from page content; ship the exact
+  // text for the current browser plus one-tap copy instead of a dead link.
+  .ec-flag-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .ec-flag-label {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+
+  .ec-flag {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-inset);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    user-select: all;
   }
 }

@@ -322,8 +322,8 @@ export default function Sidebar(props: SidebarProps) {
             </span>
           </div>
           <div className="sidebar-version-item">
-            <span className="sidebar-version-label">Dashboard</span>
-            <span className="sidebar-version-text">v{DASHBOARD_VERSION}</span>
+            <span className="sidebar-version-label">app</span>
+            <span className="sidebar-version-text">{DASHBOARD_VERSION}</span>
           </div>
         </div>
       </div>

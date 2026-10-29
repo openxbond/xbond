@@ -14,6 +14,8 @@ interface InputProps extends BaseComponentProps {
   disabled?: boolean;
   id?: string;
   "aria-label"?: string;
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
   placeholder?: string;
   min?: number;
   max?: number;
@@ -54,6 +56,8 @@ export function Input(props: InputProps) {
     <input
       id={props.id}
       aria-label={props["aria-label"]}
+      aria-invalid={props["aria-invalid"]}
+      aria-describedby={props["aria-describedby"]}
       placeholder={props.placeholder}
       min={props.min}
       max={props.max}

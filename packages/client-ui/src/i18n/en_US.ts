@@ -456,8 +456,8 @@ const EN = {
     },
     about: {
       title: "System & about",
-      dashboardVersion: "Dashboard version",
-      coreVersion: "sing-box core version",
+      appVersion: "App version",
+      coreVersion: "Core version",
       logLevel: "Log level",
       openSource: "Open-source project",
     },
@@ -465,17 +465,23 @@ const EN = {
       title: "External controller",
       add: "Add",
       delete: "Delete",
-      note: "This changes the dashboard connection only. The controller address must match the external-controller setting in the core configuration file, otherwise the dashboard cannot connect.",
+      note: "The address must match external-controller in the core configuration, or the connection fails.",
       secret: "Secret",
       name: "Name",
       url: "URL",
       test: "Test connection",
       testOK: "Connection successful",
       invalidURL: "Enter a valid HTTP or HTTPS controller URL.",
+      invalidPortRange: "Use a port between 1 and 65535.",
       invalidPort: "Use an integer from 0 to 65535 (0 disables the listener).",
       connecting: "Connecting",
-      privateNetwork:
-        "To reach a private controller from this public page, allow this origin in access_control_allow_origin and enable access_control_allow_private_network. HTTPS pages also require a browser-trusted certificate on the controller.",
+      browserNote:
+        "An HTTPS page connecting to an HTTP controller is blocked by the browser:",
+      helpTrigger: "Can't connect? Look here",
+      allowInsecure: "Insecure content",
+      localNetworkNote:
+        "Local network access: choose Allow when the browser asks; if it was denied, open the site icon in the address bar → Site settings → Local network access and allow it again.",
+      copyFlag: "Copy",
     },
   },
   runtime: {

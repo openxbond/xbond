@@ -448,7 +448,7 @@ const FA = {
     },
     about: {
       title: "سیستم و درباره",
-      dashboardVersion: "نسخه داشبورد",
+      appVersion: "نسخه داشبورد",
       coreVersion: "نسخه هسته sing-box",
       logLevel: "سطح لاگ",
       openSource: "پروژه متن‌باز",
@@ -464,10 +464,16 @@ const FA = {
       test: "تست اتصال",
       testOK: "اتصال موفق",
       invalidURL: "نشانی معتبر HTTP یا HTTPS کنترلر وارد کنید.",
+      invalidPortRange: "شماره درگاه باید بین ۱ تا ۶۵۵۳۵ باشد.",
       invalidPort: "عددی صحیح بین ۰ تا ۶۵۵۳۵ وارد کنید (۰ یعنی خاموش).",
       connecting: "در حال اتصال",
-      privateNetwork:
-        "برای دسترسی به کنترلر خصوصی از این صفحه عمومی، این مبدأ را در access_control_allow_origin مجاز و access_control_allow_private_network را فعال کنید. صفحات HTTPS همچنین به گواهی مورد اعتماد مرورگر روی کنترلر نیاز دارند.",
+      browserNote:
+        "اتصال صفحه HTTPS به کنترلر HTTP توسط مرورگر مسدود می‌شود:",
+      helpTrigger: "وصل نمی‌شوید؟ اینجا را ببینید",
+      allowInsecure: "محتوای ناامن",
+      localNetworkNote:
+        "دسترسی به شبکه محلی: وقتی مرورگر پرسید «اجازه دادن» را انتخاب کنید؛ اگر رد شده باشد، از نماد کنار نوار آدرس → تنظیمات سایت → دسترسی به شبکه محلی دوباره اجازه دهید.",
+      copyFlag: "کپی",
     },
   },
   runtime: {

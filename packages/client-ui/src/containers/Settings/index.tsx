@@ -328,8 +328,8 @@ export default function Settings() {
           <div className="settings-card-content">
             <ul className="system-fact-list">
               <li>
-                <span>{t("about.dashboardVersion")}</span>
-                <strong>v{DASHBOARD_VERSION}</strong>
+                <span>{t("about.appVersion")}</span>
+                <strong>{DASHBOARD_VERSION}</strong>
               </li>
               <li>
                 <span>{t("about.coreVersion")}</span>

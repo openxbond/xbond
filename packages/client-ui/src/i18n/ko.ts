@@ -445,7 +445,7 @@ const KO = {
     },
     about: {
       title: "시스템과 정보",
-      dashboardVersion: "대시보드 버전",
+      appVersion: "대시보드 버전",
       coreVersion: "sing-box 코어 버전",
       logLevel: "로그 레벨",
       openSource: "오픈소스 프로젝트",
@@ -461,10 +461,16 @@ const KO = {
       test: "연결 테스트",
       testOK: "연결 성공",
       invalidURL: "유효한 HTTP 또는 HTTPS 컨트롤러 URL을 입력하세요.",
+      invalidPortRange: "포트 번호는 1~65535 사이여야 합니다.",
       invalidPort: "0~65535 사이의 정수를 입력하세요 (0은 리스너 끄기).",
       connecting: "연결 중",
-      privateNetwork:
-        "공개 페이지에서 사설 컨트롤러에 연결하려면 access_control_allow_origin에 이 출처를 허용하고 access_control_allow_private_network를 활성화해야 합니다. HTTPS 페이지는 컨트롤러에 브라우저가 신뢰하는 인증서도 필요합니다.",
+      browserNote:
+        "HTTPS 페이지에서 HTTP 컨트롤러에 연결하면 브라우저가 차단합니다:",
+      helpTrigger: "연결할 수 없나요? 여기를 보세요",
+      allowInsecure: "안전하지 않은 콘텐츠",
+      localNetworkNote:
+        "로컬 네트워크 액세스: 브라우저가 물으면 허용을 선택하세요. 이미 거부했다면 주소 표시줄 왼쪽 아이콘 → 사이트 설정 → 로컬 네트워크 액세스에서 다시 허용하세요.",
+      copyFlag: "복사",
     },
   },
   runtime: {

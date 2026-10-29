@@ -1,4 +1,4 @@
-import { Button, Header, Input, Modal } from "@components";
+import { Button, Header, Input, Modal, Stat } from "@components";
 import { useAction } from "@lib/actions";
 import {
   useCapabilities,
@@ -161,7 +161,8 @@ export default function Diagnostics() {
     setValidation("");
     void run(async () => {
       const start = performance.now();
-      setDnsResult(null);
+      // Keep the previous result mounted while the new query runs: clearing it
+      // first collapsed the card and made the whole section flicker.
       const { data } = await client.queryDNS(
         new URL(`https://${name}`).hostname,
         type,
@@ -378,14 +379,18 @@ export default function Diagnostics() {
             queryDNS();
           }}
         >
-          <label className="dns-field flex-1 min-w-[200px]">
+          <label className="dns-field dns-field-domain">
             {t("domain")}
             <Input
               aria-label={t("domain")}
+              aria-invalid={Boolean(validation)}
               align="left"
               value={domain}
               placeholder="example.com"
-              onChange={setDomain}
+              onChange={(value) => {
+                setValidation("");
+                setDomain(value);
+              }}
               disabled={pending}
             />
           </label>
@@ -415,11 +420,11 @@ export default function Diagnostics() {
             </select>
           </label>
           <button
-            className={`button button-brand ${pending || !caps.dns ? "button-disabled" : ""}`}
+            className={`button button-brand dns-submit ${pending || !caps.dns ? "button-disabled" : ""}`}
             disabled={pending || !caps.dns}
             type="submit"
           >
-            {pending ? tc("loading") : t("query")}
+            {t("query")}
           </button>
         </form>
 
@@ -430,19 +435,20 @@ export default function Diagnostics() {
         )}
 
         {dnsResult && (
-          <div aria-live="polite" className="mt-5">
-            <p className="mb-3 flex flex-wrap gap-4 font-mono text-sm tabular-nums">
-              <span>
+          <div
+            aria-live="polite"
+            aria-busy={pending}
+            className={`dns-result ${pending ? "is-busy" : ""}`}
+          >
+            <div className="dns-result-meta">
+              <span className="dns-query-spec">
                 {dnsResult.name} · {dnsResult.type}
               </span>
-              <span>
-                {t("elapsed")}: {dnsResult.elapsed} ms
-              </span>
-              <span>
-                {t("response")}:{" "}
+              <Stat label={t("elapsed")}>{dnsResult.elapsed} ms</Stat>
+              <Stat label={t("response")}>
                 {responseCodes[dnsResult.dns.Status] ?? dnsResult.dns.Status}
-              </span>
-            </p>
+              </Stat>
+            </div>
             {dnsResult.dns.Answer?.length ? (
               <div className="dns-results-table">
                 <table className="dns-table">
