@@ -102,7 +102,6 @@ export default function Connections() {
     chains: "",
   });
   const client = useClient();
-  const cardRef = useRef<HTMLDivElement>(null);
   const setIdentity = useSetAtom(identityAtom);
 
   // total
@@ -159,6 +158,11 @@ export default function Connections() {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [connections]);
 
+  // Process paths are static per connection, so an all-empty column can be
+  // hidden. Speed is live data that comes and goes with traffic — its column
+  // always stays, showing "-" for idle rows.
+  const hasProcess = data.some((row) => row.process);
+
   // table
   const pinRef = useRef<HTMLDivElement>(null);
   const intersection = useIntersectionObserver(pinRef, { threshold: [1] });
@@ -189,12 +193,17 @@ export default function Connections() {
         size: 150,
         header: t(`columns.${Columns.Rule}`),
       }),
-      columnHelper.accessor(Columns.Process, {
-        minSize: 90,
-        size: 90,
-        header: t(`columns.${Columns.Process}`),
-        cell: (cell) => (cell.getValue() ? basePath(cell.getValue()!) : "-"),
-      }),
+      ...(hasProcess
+        ? [
+            columnHelper.accessor(Columns.Process, {
+              minSize: 90,
+              size: 90,
+              header: t(`columns.${Columns.Process}`),
+              cell: (cell) =>
+                cell.getValue() ? basePath(cell.getValue()!) : "-",
+            }),
+          ]
+        : []),
       columnHelper.accessor((row) => [row.speed.upload, row.speed.download], {
         id: Columns.Speed,
         header: t(`columns.${Columns.Speed}`),
@@ -243,7 +252,7 @@ export default function Connections() {
           (rowB.original?.time ?? 0) - (rowA.original?.time ?? 0),
       }),
     ],
-    [lang, t],
+    [lang, t, hasProcess],
   );
 
   useLayoutEffect(() => {
@@ -384,6 +393,10 @@ export default function Connections() {
       >
         {row.getAllCells().map((cell) => {
           const size = cell.column.getSize();
+          const monospace =
+            cell.column.id === Columns.Host ||
+            cell.column.id === Columns.Rule ||
+            cell.column.id === Columns.SourceIP;
           return (
             <div
               role="cell"
@@ -394,6 +407,7 @@ export default function Connections() {
                   completed: row.original?.completed,
                   fixed: cell.column.id === Columns.Host,
                   shadow: scrolled && cell.column.id === Columns.Host,
+                  "is-mono": monospace,
                 },
               )}
               style={{ flex: `${size} 0 ${size}px` }}
@@ -500,7 +514,7 @@ export default function Connections() {
           onChange={handleDeviceSelected}
         />
       )}
-      <Card ref={cardRef} className="connections-card relative">
+      <Card className="connections-card relative">
         <div
           className="connections-scroll"
           onScroll={(event) =>
@@ -557,10 +571,10 @@ export default function Connections() {
         {closeFiltered ? t("filteredConfirm") : t("closeAllMessage")}
       </Modal>
       <Drawer
-        containerRef={cardRef}
         bodyClassName="flex flex-col"
         visible={drawerState.visible}
         width={450}
+        onClose={() => setDrawerState("visible", false)}
       >
         <div className="h-8 flex items-center justify-between">
           <span className="pl-3 font-bold">{t("info.title")}</span>
