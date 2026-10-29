@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/openxbond/xbond/version"
+	"github.com/openxbond/xbond/internal/version"
 	"github.com/spf13/cobra"
 )
 

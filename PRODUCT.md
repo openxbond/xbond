@@ -29,7 +29,7 @@ XBond 是網絡代理用戶端，協助用戶匯入連線配置、建立連線�
 
 ## 現有依據
 
-產品能力可從 `web/src/containers/`、`web/src/lib/`、本機服務及平台接入程式碼核對。`.impeccable/` 內的歷史預覽與模擬控制器只供介面驗證使用，不構成真實網絡效能、服務覆蓋或平台交付的證據。
+產品能力可從 `packages/client-ui/src/containers/`、`packages/client-ui/src/lib/`、本機服務及平台接入程式碼核對。`.impeccable/` 內的歷史預覽與模擬控制器只供介面驗證使用，不構成真實網絡效能、服務覆蓋或平台交付的證據。
 
 ## 產品原則
 

@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/openxbond/xbond/daemon"
+	"github.com/openxbond/xbond/internal/daemon"
 	"github.com/spf13/cobra"
 )
 

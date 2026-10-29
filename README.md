@@ -21,3 +21,9 @@ Web 可作遠端控制器介面；完整本機能力依賴本機服務及權限�
 - [Code-first 決策](docs/adr/001-dev-pipeline.md)：理念及取捨。
 
 命令入口是根 `package.json`。目前倉庫沒有提交 GitHub Actions 工作流；上述命令需由開發者或 Agent 執行，不能視為已自動執行的 CI。
+
+## 工程與擴展
+
+宿主入口在 `apps/`，共享畫面在 `packages/client-ui/`，無 React 的控制器與傳輸在 `packages/client/`。CLI 保留 `cmd/xbond/`，Go implementation 在 `internal/`，gomobile 公開入口保留 `mobile/`。新增平台、帳號或購買能力時，從[用戶端體系](docs/architecture/client-system.md)核對責任及跨倉庫契約。
+
+`pnpm check:architecture` 檢查 package 依賴方向、公開 exports 及宿主探測；`pnpm test:client` 可單獨執行共享 client 行為測試。完整的登入、原生支付與 Extension 是各自的後續功能，不由工程歸位推定已支援。

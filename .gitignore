@@ -1,12 +1,12 @@
 .idea/
 dist/
 dist-desktop/
-tauri/target/
-tauri/gen/schemas/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/schemas/
 node_modules/
-web/src/**/*.jsx
-web/tests/__coverage__/
-web/tests/**/*.jsx
+packages/client-ui/src/**/*.jsx
+packages/*/tests/__coverage__/
+packages/*/tests/**/*.jsx
 .impeccable
 __pycache__/
 release-assets/
@@ -17,9 +17,17 @@ release-assets/
 *.db
 *.db-*
 *.log
-subscriptions/
-subscriptions.json
-runtime_state.json
-sysproxy.snapshot.json
-localapi.token
-localapi.addr
+
+docs\tasks\*
+!docs\tasks\README.md
+
+# Runtime state when the repo root is used as XBOND_DATA_DIR. Anchor these:
+# an unanchored `subscriptions/` also hides packages/client-ui/src/containers/Subscriptions
+# on case-insensitive filesystems.
+/subscriptions/
+/subscriptions.json
+/runtime_state.json
+/sysproxy.snapshot.json
+/localapi.token
+/localapi.addr
+

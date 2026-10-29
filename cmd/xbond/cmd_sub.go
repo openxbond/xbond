@@ -19,11 +19,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openxbond/xbond/daemon"
-	"github.com/openxbond/xbond/diag"
-	"github.com/openxbond/xbond/i18n"
-	"github.com/openxbond/xbond/paths"
-	"github.com/openxbond/xbond/sub"
+	"github.com/openxbond/xbond/internal/daemon"
+	"github.com/openxbond/xbond/internal/diag"
+	"github.com/openxbond/xbond/internal/i18n"
+	"github.com/openxbond/xbond/internal/platform/paths"
+	"github.com/openxbond/xbond/internal/sub"
 	"github.com/spf13/cobra"
 )
 

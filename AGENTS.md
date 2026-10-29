@@ -1,14 +1,18 @@
 # XBond 客戶端開發約定
 
+項目狀態：目前處於開發階段，唔需要做舊版本兼容處理。
+
 ## 專案與入口
 
 本倉庫是 XBond 客戶端；Cloud 控制面在另一個倉庫。本倉庫使用 pnpm、Go 及 Rust，命令以根目錄 `package.json` 為準。
 
-- `cmd/xbond/`：CLI；`daemon/`：本機服務與 LocalAPI。
-- `engine/`：內嵌 sing-box 核心；`sub/`：訂閱與配置；`sysproxy/`：系統代理；`diag/`：診斷與脫敏。
-- `web/`：React 19、Vite、React Router、Jotai、UnoCSS；共用 Web 與桌面介面。
-- `tauri/`：Tauri 2 桌面殼；`mobile/`、`android/`、`ios/`：Go 行動端接口及平台接入。
+- `cmd/xbond/`：CLI；`internal/daemon/`：本機服務與 LocalAPI。
+- `internal/engine/`：sing-box；`internal/sub/`：訂閱與配置；`internal/platform/`：資料位置與系統代理；`internal/diag/`：診斷與脫敏。
+- `apps/dashboard/`：網頁入口及靜態資源；`apps/desktop/`：桌面入口與 `src-tauri/` 原生殼；`apps/mobile/android/`、`apps/mobile/ios/`：原生接入；`mobile/` 保留 gomobile 公開入口。
+- `packages/client/`：無 React 的控制器、配置及傳輸；`packages/client-ui/`：React 19、React Router、Jotai、UnoCSS 共用畫面。
 - `scripts/`：移動端檢查、Web 產物封裝及發佈轉交。
+
+新增宿主、共享能力或跨倉庫契約時，讀 [用戶端體系](docs/architecture/client-system.md)。依賴方向為 apps → client-ui → client；跨 package 走已宣告的 exports，宿主啟動探測留在 client 外。執行 `pnpm check:architecture` 驗證方向與依賴宣告。
 
 ## Code-first 入口
 
@@ -18,7 +22,7 @@
 
 ## 開發與驗證
 
-- 安裝：`pnpm install --frozen-lockfile`；版本以 `package.json`、`go.mod`、`tauri/Cargo.toml` 為準。
+- 安裝：`pnpm install --frozen-lockfile`；版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準。
 - Web：`pnpm dev`（預設 3000）；`pnpm test`、`pnpm typecheck`、`pnpm lint`、`pnpm build`。
 - Go：`pnpm cli:check`（帶專案 build tags 的 vet、test、build）。
 - 桌面：`pnpm desktop`；`pnpm desktop:fmt:check`、`pnpm desktop:check`、`pnpm build:desktop`。開發介面固定 127.0.0.1:1420。

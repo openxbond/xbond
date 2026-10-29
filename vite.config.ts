@@ -11,7 +11,8 @@ const pkg = JSON.parse(
 );
 
 export default defineConfig((env) => ({
-  root: "web",
+  root: env.mode === "tauri" ? "apps/desktop" : "apps/dashboard",
+  publicDir: path.resolve("apps/dashboard/public"),
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
@@ -53,7 +54,7 @@ export default defineConfig((env) => ({
   server: {
     port: env.mode === "tauri" ? 1420 : 3000,
     strictPort: env.mode === "tauri",
-    watch: { ignored: ["**/tauri/**"] },
+    watch: { ignored: ["**/src-tauri/**"] },
   },
   clearScreen: false,
   base: "./",
@@ -70,7 +71,7 @@ export default defineConfig((env) => ({
         // mixin unnamespaced. The modern sass compiler resolves loads
         // against loadPaths only — no CWD fallback.
         additionalData: '@use "sass:math"; @use "styles/variables.scss" as *;',
-        loadPaths: [path.resolve("web/src")],
+        loadPaths: [path.resolve("packages/client-ui/src")],
       },
     },
   },

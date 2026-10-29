@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/openxbond/xbond/engine"
-	"github.com/openxbond/xbond/paths"
-	"github.com/openxbond/xbond/sub"
+	"github.com/openxbond/xbond/internal/engine"
+	"github.com/openxbond/xbond/internal/platform/paths"
+	"github.com/openxbond/xbond/internal/sub"
 )
 
 type TunnelService struct {

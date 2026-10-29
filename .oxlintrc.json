@@ -52,5 +52,8 @@
   },
 
   // .gitignore is read automatically (node_modules, dist, .impeccable).
-  "ignorePatterns": ["web/src/**/*.jsx", "web/tests/**/*.jsx"]
+  "ignorePatterns": [
+    "packages/client-ui/src/**/*.jsx",
+    "packages/*/tests/**/*.jsx"
+  ]
 }

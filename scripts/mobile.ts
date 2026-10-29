@@ -37,7 +37,9 @@ export function runMobileCheck(): { ok: boolean; message: string } {
   return { ok: true, message: "Mobile Go package passed vet and unit tests" };
 }
 
-export function buildAndroidAAR(outputPath = "android/xbond-mobile.aar"): {
+export function buildAndroidAAR(
+  outputPath = "apps/mobile/android/xbond-mobile.aar",
+): {
   ok: boolean;
   message: string;
 } {
@@ -83,7 +85,9 @@ export function buildAndroidAAR(outputPath = "android/xbond-mobile.aar"): {
   return { ok: true, message: `Successfully built ${outputPath}` };
 }
 
-export function buildIOSFramework(outputPath = "ios/XBondMobile.xcframework"): {
+export function buildIOSFramework(
+  outputPath = "apps/mobile/ios/XBondMobile.xcframework",
+): {
   ok: boolean;
   message: string;
 } {

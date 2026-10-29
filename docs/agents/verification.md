@@ -16,7 +16,7 @@
 | LocalAPI／跨端契約 | Go 生產者、Web 消費者及相關宿主測試 | 合併本表各受影響層的檢查 | 單側 mock 可能同時重複錯誤契約 |
 | 封裝／轉交腳本 | `node --experimental-strip-types --test scripts/artifact.test.ts scripts/transfer.test.ts`（移動腳本另選相應測試） | `pnpm test`、型別／lint、實際本機封裝與驗證 | 測試通過不構成公開發佈授權 |
 
-所有有改動的支援格式檔案另做最窄 Oxfmt 檢查。用實際檔案、套件及測試名稱替換尖括號；測試檔可從 `web/tests/`、`scripts/` 及各 Go 套件選取。Go 使用同一組 build tags；不要以未帶 tags 的局部綠燈代替交付命令。
+所有有改動的支援格式檔案另做最窄 Oxfmt 檢查。用實際檔案、套件及測試名稱替換尖括號；測試檔可從 `packages/client/tests/ 或 packages/client-ui/tests/`、`scripts/` 及各 Go 套件選取。Go 使用同一組 build tags；不要以未帶 tags 的局部綠燈代替交付命令。
 
 ## 需要實際運行的邊界
 

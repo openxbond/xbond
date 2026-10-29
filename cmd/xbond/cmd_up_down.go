@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/openxbond/xbond/daemon"
-	"github.com/openxbond/xbond/engine"
-	"github.com/openxbond/xbond/i18n"
+	"github.com/openxbond/xbond/internal/daemon"
+	"github.com/openxbond/xbond/internal/engine"
+	"github.com/openxbond/xbond/internal/i18n"
 	"github.com/spf13/cobra"
 )
 

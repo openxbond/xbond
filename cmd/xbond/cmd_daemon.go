@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/openxbond/xbond/daemon"
-	"github.com/openxbond/xbond/paths"
-	"github.com/openxbond/xbond/version"
+	"github.com/openxbond/xbond/internal/daemon"
+	"github.com/openxbond/xbond/internal/platform/paths"
+	"github.com/openxbond/xbond/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -56,11 +56,9 @@ var daemonCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		webDir := daemonWebDir
 		if webDir == "" {
-			// Try dist or web/dist
+			// Web builds are emitted into the workspace distribution directory.
 			if _, err := os.Stat("dist"); err == nil {
 				webDir = "dist"
-			} else if _, err := os.Stat("web/dist"); err == nil {
-				webDir = "web/dist"
 			} else {
 				exe, err := os.Executable()
 				if err == nil {

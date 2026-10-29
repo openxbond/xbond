@@ -4,7 +4,7 @@
   "printWidth": 80,
   // Import order belongs to the formatter, so it is identical for everyone.
   "sortImports": true,
-  "ignorePatterns": ["package-lock.json", "web/public/**"],
+  "ignorePatterns": ["package-lock.json", "apps/dashboard/public/**"],
   "overrides": [
     {
       // Prose stays on one line per paragraph; structure comes from headings,

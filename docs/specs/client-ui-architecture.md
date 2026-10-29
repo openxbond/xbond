@@ -4,7 +4,7 @@
 
 ## 範圍與入口
 
-本規格適用於共享前端（`web/src/`）及其承載的桌面殼層（`tauri/`）、本機守護進程接口（`daemon/` 的 `/localapi/v0/*`）、核心控制接口（Clash 相容 REST／WebSocket API）與流動端橋接層（`mobile/`）。
+本規格適用於共享前端（`packages/client-ui/src/`）及其承載的桌面殼層（`apps/desktop/src-tauri/`）、本機守護進程接口（`internal/daemon/` 的 `/localapi/v0/*`）、核心控制接口（Clash 相容 REST／WebSocket API）與流動端橋接層（`mobile/`）。
 
 ### 現有問題診斷與重構原則
 
