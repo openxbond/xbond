@@ -18,8 +18,8 @@ release-assets/
 *.db-*
 *.log
 
-docs\tasks\*
-!docs\tasks\README.md
+/docs/tasks/*
+!/docs/tasks/README.md
 
 # Runtime state when the repo root is used as XBOND_DATA_DIR. Anchor these:
 # an unanchored `subscriptions/` also hides packages/client-ui/src/containers/Subscriptions
