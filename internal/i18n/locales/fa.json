@@ -14,6 +14,7 @@
   "pkce.success": "تأیید مرورگر کامل شد و توکن اشتراک دریافت گردید!",
   "pkce.subscription_active": "ورود موفق؛ اشتراک فعال شد: {{.name}} ({{.id}})",
   "pkce.quota_usage": "مصرف داده: {{.used}} گیگابایت از {{.total}} گیگابایت ({{.pct}}%)",
+  "login.link_unprovisioned": "لینک اشتراک هنوز تولید نشده است: ابتدا لینک اشتراک را در داشبورد بازنشانی کنید، سپس دوباره xbond login را اجرا کنید.",
   "pkce.listen_failed": "باز کردن درگاه محلی ممکن نشد؛ به ورود دستگاهی برمی‌گردیم ({{.err}})",
 
   "device.banner": "  ورود دستگاه XBond (OAuth 2.0 Device Flow)",

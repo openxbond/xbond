@@ -14,6 +14,7 @@
   "pkce.success": "Browser authorization complete — subscription token acquired!",
   "pkce.subscription_active": "Signed in; subscription active: {{.name}} ({{.id}})",
   "pkce.quota_usage": "Data used: {{.used}} GB / {{.total}} GB ({{.pct}}%)",
+  "login.link_unprovisioned": "Subscription link not provisioned yet: reset the subscription link in the dashboard, then run xbond login again.",
   "pkce.listen_failed": "Could not open a local callback port, falling back to device sign-in ({{.err}})",
 
   "device.banner": "  XBond Device Sign-in (OAuth 2.0 Device Flow)",

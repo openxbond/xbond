@@ -14,6 +14,7 @@
   "pkce.success": "浏览器授权完成，已获取订阅凭据！",
   "pkce.subscription_active": "登录成功，订阅已启用：{{.name}} ({{.id}})",
   "pkce.quota_usage": "已用流量：{{.used}} GB / {{.total}} GB（{{.pct}}%）",
+  "login.link_unprovisioned": "订阅链接尚未生成：请先在控制台重置订阅链接，再重新执行 xbond login。",
   "pkce.listen_failed": "无法打开本地回调端口，将改用设备授权登录（{{.err}}）",
 
   "device.banner": "  XBond 设备授权登录 (OAuth 2.0 Device Flow)",

@@ -14,6 +14,7 @@
   "pkce.success": "브라우저 인증이 완료되어 구독 토큰을 발급받았습니다!",
   "pkce.subscription_active": "로그인 완료, 구독이 활성화되었습니다: {{.name}} ({{.id}})",
   "pkce.quota_usage": "사용량: {{.used}} GB / {{.total}} GB ({{.pct}}%)",
+  "login.link_unprovisioned": "구독 링크가 아직 생성되지 않았습니다: 대시보드에서 구독 링크를 재설정한 후 xbond login을 다시 실행하세요.",
   "pkce.listen_failed": "로컬 콜백 포트를 열 수 없어 기기 인증 로그인으로 전환합니다 ({{.err}})",
 
   "device.banner": "  XBond 기기 인증 로그인 (OAuth 2.0 Device Flow)",

@@ -2,29 +2,26 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/openxbond/xbond/internal/clientapi"
 	"github.com/openxbond/xbond/internal/daemon"
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/i18n"
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/sub"
 	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
 )
 
 var (
@@ -200,6 +197,10 @@ func isDockerEnvironment() bool {
 	return false
 }
 
+// defaultOrigin 是未显式指定 --origin 时的 OAuth 端点基址；登录成功后配置
+// 拉取的线路会按服务端返回的 fallbackDomains 重新落位（completeOAuthLogin）。
+const defaultOrigin = "https://www.xbond.net"
+
 func runPkceLogin(
 	ctx context.Context,
 	client *daemon.Client,
@@ -212,27 +213,18 @@ func runPkceLogin(
 	t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
 
 	if origin == "" {
-		origin = "https://www.xbond.net"
+		origin = defaultOrigin
 	}
 	origin = strings.TrimSuffix(origin, "/")
 
-	// 1. 生成 PKCE code_verifier (32 字節高熵隨機數，Base64URL 編碼無補位，符合 RFC 7636)
-	verifierBytes := make([]byte, 32)
-	if _, err := rand.Read(verifierBytes); err != nil {
-		return nil, fmt.Errorf("failed to generate pkce verifier: %w", err)
-	}
-	codeVerifier := base64.RawURLEncoding.EncodeToString(verifierBytes)
-
-	// 2. 計算 code_challenge = Base64URL(SHA256(code_verifier))
-	hash := sha256.Sum256([]byte(codeVerifier))
-	codeChallenge := base64.RawURLEncoding.EncodeToString(hash[:])
-
-	// 3. 生成 CSRF state
+	// 1. PKCE verifier + CSRF state（challenge 由 x/oauth2 按 RFC 7636 派生）
+	codeVerifier := oauth2.GenerateVerifier()
 	stateBytes := make([]byte, 16)
 	if _, err := rand.Read(stateBytes); err != nil {
 		return nil, fmt.Errorf("failed to generate state: %w", err)
 	}
 	cliState := hex.EncodeToString(stateBytes)
+	conf := clientapi.NewConfig(origin)
 
 	// 4. 監聽本機隨機可用端口 (RFC 8252 Loopback Interface)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -313,13 +305,11 @@ func runPkceLogin(
 		_ = server.Shutdown(shutdownCtx)
 	}()
 
-	authURL := fmt.Sprintf(
-		"%s/api/oauth/authorize?client_id=xbond-cli&response_type=code&code_challenge=%s&code_challenge_method=S256&redirect_uri=%s&state=%s&lang=%s",
-		origin,
-		url.QueryEscape(codeChallenge),
-		url.QueryEscape(redirectURI),
-		url.QueryEscape(cliState),
-		url.QueryEscape(effectiveLang),
+	authURL := conf.AuthCodeURL(
+		cliState,
+		oauth2.S256ChallengeOption(codeVerifier),
+		oauth2.SetAuthURLParam("redirect_uri", redirectURI),
+		clientapi.ResourceOption(),
 	)
 
 	fmt.Println(strings.Repeat("=", 66))
@@ -369,42 +359,55 @@ func runPkceLogin(
 		return nil, ctx.Err()
 	}
 
-	// 5. 憑授權碼向 Token 端點兌換訂閱憑據
-	form := url.Values{
-		"grant_type":    {"authorization_code"},
-		"client_id":     {"xbond-cli"},
-		"code":          {authCode},
-		"code_verifier": {codeVerifier},
-		"redirect_uri":  {redirectURI},
-	}
-	tokenURL := fmt.Sprintf("%s/api/oauth/token", origin)
-	resp, err := http.PostForm(tokenURL, form)
+	// 5. 憑授權碼向 Token 端點兌換 OAuth token set
+	token, err := conf.Exchange(
+		ctx,
+		authCode,
+		oauth2.VerifierOption(codeVerifier),
+		oauth2.SetAuthURLParam("redirect_uri", redirectURI),
+		clientapi.ResourceOption(),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to exchange authorization code: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var tokenData struct {
-		AccessToken      string `json:"access_token"`
-		TokenType        string `json:"token_type"`
-		ExpiresIn        int    `json:"expires_in"`
-		Scope            string `json:"scope"`
-		Error            string `json:"error"`
-		ErrorDescription string `json:"error_description"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&tokenData); err != nil {
-		return nil, fmt.Errorf("failed to decode token response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("token exchange failed: %s (%s)", tokenData.Error, tokenData.ErrorDescription)
-	}
-	if tokenData.AccessToken == "" {
-		return nil, fmt.Errorf("received empty access token from server")
+		return nil, err
 	}
 
 	fmt.Printf("\n%s %s\n", t("tag.success"), t("pkce.success"))
-	return client.Login(ctx, tokenData.AccessToken, origin, fallbacks, protocol, effectiveLang, name, "")
+	return completeOAuthLogin(ctx, client, origin, fallbacks, protocol, effectiveLang, name, token)
+}
+
+// completeOAuthLogin turns a fresh OAuth token set into a bound subscription:
+// the subscription URL and its gateway line domains are dynamic, so they come
+// from user.credentials.subscriptionLink over tRPC (same procedure as the
+// dashboard) instead of being constructed client-side. Config fetching then
+// rides the classic ?token= URL channel on the discovered lines.
+func completeOAuthLogin(
+	ctx context.Context,
+	client *daemon.Client,
+	origin string,
+	flagFallbacks []string,
+	protocol, lang, name string,
+	token *oauth2.Token,
+) (*sub.SubscriptionMeta, error) {
+	link, err := clientapi.FetchSubscriptionLinkWithRefresh(ctx, origin, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve subscription link: %w", err)
+	}
+	if link.SubscriptionToken == "" {
+		return nil, errors.New(i18n.T(lang, "login.link_unprovisioned"))
+	}
+
+	// 線路發現：用戶顯式指定的 origin/fallback 優先；缺省時採用服務端線路表
+	// （默認線路 = fallbackDomains[0]）。
+	finalFallbacks := flagFallbacks
+	finalOrigin := origin
+	if len(finalFallbacks) == 0 && len(link.FallbackDomains) > 0 {
+		finalFallbacks = link.FallbackDomains
+		if origin == defaultOrigin {
+			finalOrigin = link.FallbackDomains[0]
+		}
+	}
+
+	return client.Login(ctx, link.SubscriptionToken, finalOrigin, finalFallbacks, protocol, lang, name, "")
 }
 
 func runDeviceLogin(
@@ -419,36 +422,15 @@ func runDeviceLogin(
 	t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
 
 	if origin == "" {
-		origin = "https://www.xbond.net"
+		origin = defaultOrigin
 	}
 	origin = strings.TrimSuffix(origin, "/")
 
-	// 1. 請求設備授權碼 (POST /api/oauth/device/code)
-	reqBody, _ := json.Marshal(map[string]string{
-		"client_id": "xbond-cli",
-	})
-	codeURL := fmt.Sprintf("%s/api/oauth/device/code", origin)
-	resp, err := http.Post(codeURL, "application/json", bytes.NewReader(reqBody))
+	// 1. 請求設備授權碼 (POST /api/auth/device/code, RFC 8628)
+	conf := clientapi.NewConfig(origin)
+	deviceResp, err := conf.DeviceAuth(ctx, clientapi.ResourceOption())
 	if err != nil {
-		return nil, fmt.Errorf("failed to request device authorization code: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("device authorization request failed (status %d): %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	var deviceResp struct {
-		DeviceCode              string `json:"device_code"`
-		UserCode                string `json:"user_code"`
-		VerificationURI         string `json:"verification_uri"`
-		VerificationURIComplete string `json:"verification_uri_complete"`
-		ExpiresIn               int    `json:"expires_in"`
-		Interval                int    `json:"interval"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&deviceResp); err != nil {
-		return nil, fmt.Errorf("failed to decode device authorization response: %w", err)
+		return nil, err
 	}
 
 	// 2. 顯示終端授權指引
@@ -483,83 +465,53 @@ func runDeviceLogin(
 		}
 	}()
 
-	// 3. 輪詢 Token 端點 (RFC 8628)
-	pollInterval := deviceResp.Interval
-	if pollInterval < 3 {
-		pollInterval = 5
+	// 3. 輪詢 Token 端點（RFC 8628）：DeviceAccessToken 內置 pending 靜默與
+	// slow_down 退避，截止時間取設備碼有效期；輪詢走後台 goroutine，保留
+	// 手動輸入 sub-…/URL 的逃生通道。
+	pollCtx, cancelPoll := context.WithCancel(ctx)
+	defer cancelPoll()
+	type pollResult struct {
+		token *oauth2.Token
+		err   error
 	}
-	expiresIn := deviceResp.ExpiresIn
-	if expiresIn <= 0 {
-		expiresIn = 900
-	}
+	tokenCh := make(chan pollResult, 1)
+	go func() {
+		token, err := conf.DeviceAccessToken(pollCtx, deviceResp, clientapi.ResourceOption())
+		tokenCh <- pollResult{token, err}
+	}()
 
-	ticker := time.NewTicker(time.Duration(pollInterval) * time.Second)
-	defer ticker.Stop()
-
-	timeout := time.After(time.Duration(expiresIn) * time.Second)
-	tokenURL := fmt.Sprintf("%s/api/oauth/token", origin)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-timeout:
-			return nil, fmt.Errorf("%s", t("device.timed_out", i18n.P{"seconds": expiresIn}))
-		case input := <-inputChan:
-			targetInput := ""
-			urlOrFile := ""
-			if strings.HasPrefix(input, "sub-") {
-				targetInput = input
-			} else {
-				urlOrFile = input
-			}
-			return client.Login(ctx, targetInput, origin, fallbacks, protocol, effectiveLang, name, urlOrFile)
-		case <-ticker.C:
-			form := url.Values{
-				"grant_type":  {"urn:ietf:params:oauth:grant-type:device_code"},
-				"client_id":   {"xbond-cli"},
-				"device_code": {deviceResp.DeviceCode},
-			}
-			tResp, err := http.PostForm(tokenURL, form)
-			if err != nil {
-				continue // 網絡暫時抖動，繼續重試
-			}
-
-			var tokenData struct {
-				AccessToken      string `json:"access_token"`
-				TokenType        string `json:"token_type"`
-				ExpiresIn        int    `json:"expires_in"`
-				Scope            string `json:"scope"`
-				Error            string `json:"error"`
-				ErrorDescription string `json:"error_description"`
-			}
-			_ = json.NewDecoder(tResp.Body).Decode(&tokenData)
-			tResp.Body.Close()
-
-			if tResp.StatusCode == http.StatusOK && tokenData.AccessToken != "" {
-				fmt.Printf("\n%s %s\n", t("tag.success"), t("device.approved"))
-				return client.Login(ctx, tokenData.AccessToken, origin, fallbacks, protocol, effectiveLang, name, "")
-			}
-
-			switch tokenData.Error {
-			case "authorization_pending":
-				// 用戶尚未點擊確認，保持靜默輪詢
-				continue
-			case "slow_down":
-				// RFC 8628: 增加 5 秒間隔
-				pollInterval += 5
-				ticker.Reset(time.Duration(pollInterval) * time.Second)
-				continue
-			case "expired_token":
-				return nil, errors.New(t("device.expired"))
-			case "access_denied":
-				return nil, errors.New(t("device.denied"))
-			default:
-				if tokenData.Error != "" {
-					return nil, fmt.Errorf("oauth error: %s (%s)", tokenData.Error, tokenData.ErrorDescription)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case result := <-tokenCh:
+		if result.err != nil {
+			var retrieveErr *oauth2.RetrieveError
+			if errors.As(result.err, &retrieveErr) {
+				switch retrieveErr.ErrorCode {
+				case "expired_token":
+					return nil, errors.New(t("device.expired"))
+				case "access_denied":
+					return nil, errors.New(t("device.denied"))
 				}
 			}
+			if errors.Is(result.err, context.DeadlineExceeded) {
+				seconds := int(time.Until(deviceResp.Expiry).Seconds()) + 1
+				return nil, fmt.Errorf("%s", t("device.timed_out", i18n.P{"seconds": seconds}))
+			}
+			return nil, result.err
 		}
+
+		fmt.Printf("\n%s %s\n", t("tag.success"), t("device.approved"))
+		return completeOAuthLogin(ctx, client, origin, fallbacks, protocol, effectiveLang, name, result.token)
+	case input := <-inputChan:
+		targetInput := ""
+		urlOrFile := ""
+		if strings.HasPrefix(input, "sub-") {
+			targetInput = input
+		} else {
+			urlOrFile = input
+		}
+		return client.Login(ctx, targetInput, origin, fallbacks, protocol, effectiveLang, name, urlOrFile)
 	}
 }
 

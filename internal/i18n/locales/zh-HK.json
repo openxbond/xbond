@@ -14,6 +14,7 @@
   "pkce.success": "瀏覽器授權完成，已取得訂閱憑據！",
   "pkce.subscription_active": "登入成功，訂閱已啟用：{{.name}} ({{.id}})",
   "pkce.quota_usage": "已用流量：{{.used}} GB / {{.total}} GB（{{.pct}}%）",
+  "login.link_unprovisioned": "訂閱連結尚未生成：請先在控制台重置訂閱連結，再重新執行 xbond login。",
   "pkce.listen_failed": "無法開啟本機回呼連接埠，將改用裝置授權登入（{{.err}}）",
 
   "device.banner": "  XBond 裝置授權登入 (OAuth 2.0 Device Flow)",
