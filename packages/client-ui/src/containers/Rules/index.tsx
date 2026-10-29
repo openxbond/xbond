@@ -4,7 +4,6 @@ import { useRule, useRuleProviders, useCapabilities } from "@stores";
 import type * as API from "@xbond/client/request";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AutoSizer } from "react-virtualized-auto-sizer";
 import { List, type RowComponentProps } from "react-window";
 
 import { Provider } from "./Provider";
@@ -40,10 +39,14 @@ function RuleRow({
   const rule = rules[index];
   return (
     <div className="rule-item" style={style}>
-      <div className="flex py-1">
-        <div className="rule-type w-40 text-center">{rule.type}</div>
-        <div className="payload flex-1 text-center">{rule.payload}</div>
-        <div className="rule-proxy w-40 text-center">{rule.proxy}</div>
+      <div className="rule-row">
+        <div className="rule-type w-44">{rule.type}</div>
+        <div className="payload flex-1" title={rule.payload}>
+          {rule.payload}
+        </div>
+        <div className="rule-proxy w-56" title={rule.proxy}>
+          {rule.proxy}
+        </div>
       </div>
     </div>
   );
@@ -72,22 +75,21 @@ export default function Rules() {
       <Header className="not-first:mt-7.5" title={t("title")} />
       <Card className="mt-2.5 flex flex-1 flex-col overflow-hidden p-0 md:mt-4 focus:outline-none">
         <div className="table-header rule-header">
-          <div className="w-40 text-center">{t("columns.type")}</div>
-          <div className="flex-1 text-center">{t("columns.payload")}</div>
-          <div className="w-40 text-center">{t("columns.proxy")}</div>
+          <div className="w-44">{t("columns.type")}</div>
+          <div className="flex-1">{t("columns.payload")}</div>
+          <div className="w-56 text-right">{t("columns.proxy")}</div>
         </div>
-        <AutoSizer
-          className="min-h-120"
-          renderProp={({ height, width }) => (
-            <List
-              style={{ height: height ?? 0, width: width ?? 0 }}
-              rowCount={rules.length}
-              rowHeight={50}
-              rowComponent={RuleRow}
-              rowProps={{ rules }}
-            />
-          )}
-        />
+        {/* CSS-only bounds: flex basis 0 sizes the box from the card's
+            remaining space after the header, never from row content. */}
+        <div className="rule-list-box">
+          <List
+            style={{ height: "100%", width: "100%" }}
+            rowCount={rules.length}
+            rowHeight={50}
+            rowComponent={RuleRow}
+            rowProps={{ rules }}
+          />
+        </div>
       </Card>
     </div>
   );
