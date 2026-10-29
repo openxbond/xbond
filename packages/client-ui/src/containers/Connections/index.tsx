@@ -60,16 +60,16 @@ const Columns = {
   Time: "time",
 } as const;
 
-const shouldCenter = new Set<string>([
-  Columns.Network,
-  Columns.Type,
-  Columns.Speed,
-  Columns.Upload,
-  Columns.Download,
-  Columns.SourceIP,
-  Columns.Time,
-  Columns.Process,
-]);
+// Numbers read right-aligned; short enums stay centered; everything else
+// (hosts, chains, rules, paths, timestamps) reads left-aligned.
+const columnAlignments: Partial<Record<string, "left" | "center" | "right">> = {
+  [Columns.Network]: "center",
+  [Columns.Type]: "center",
+  [Columns.Speed]: "center",
+  [Columns.Upload]: "right",
+  [Columns.Download]: "right",
+};
+const alignClass = (id: string) => `text-${columnAlignments[id] ?? "left"}`;
 
 function formatSpeed(upload: number, download: number) {
   switch (true) {
@@ -160,7 +160,7 @@ export default function Connections() {
   }, [connections]);
 
   // table
-  const pinRef = useRef<HTMLTableCellElement>(null);
+  const pinRef = useRef<HTMLDivElement>(null);
   const intersection = useIntersectionObserver(pinRef, { threshold: [1] });
   const columns = useMemo(
     () => [
@@ -175,8 +175,8 @@ export default function Connections() {
         header: t(`columns.${Columns.Network}`),
       }),
       columnHelper.accessor(Columns.Type, {
-        minSize: 100,
-        size: 100,
+        minSize: 90,
+        size: 90,
         header: t(`columns.${Columns.Type}`),
       }),
       columnHelper.accessor(Columns.Chains, {
@@ -185,21 +185,21 @@ export default function Connections() {
         header: t(`columns.${Columns.Chains}`),
       }),
       columnHelper.accessor(Columns.Rule, {
-        minSize: 140,
-        size: 140,
+        minSize: 150,
+        size: 150,
         header: t(`columns.${Columns.Rule}`),
       }),
       columnHelper.accessor(Columns.Process, {
-        minSize: 100,
-        size: 100,
+        minSize: 90,
+        size: 90,
         header: t(`columns.${Columns.Process}`),
         cell: (cell) => (cell.getValue() ? basePath(cell.getValue()!) : "-"),
       }),
       columnHelper.accessor((row) => [row.speed.upload, row.speed.download], {
         id: Columns.Speed,
         header: t(`columns.${Columns.Speed}`),
-        minSize: 200,
-        size: 200,
+        minSize: 180,
+        size: 180,
         sortDescFirst: true,
         sortingFn(rowA, rowB) {
           const speedA = rowA.original?.speed ?? {
@@ -217,26 +217,26 @@ export default function Connections() {
         cell: (cell) => formatSpeed(cell.getValue()[0], cell.getValue()[1]),
       }),
       columnHelper.accessor(Columns.Upload, {
-        minSize: 100,
-        size: 100,
+        minSize: 90,
+        size: 90,
         header: t(`columns.${Columns.Upload}`),
         cell: (cell) => formatTraffic(cell.getValue()),
       }),
       columnHelper.accessor(Columns.Download, {
-        minSize: 100,
-        size: 100,
+        minSize: 90,
+        size: 90,
         header: t(`columns.${Columns.Download}`),
         cell: (cell) => formatTraffic(cell.getValue()),
       }),
       columnHelper.accessor(Columns.SourceIP, {
-        minSize: 140,
-        size: 140,
+        minSize: 170,
+        size: 170,
         header: t(`columns.${Columns.SourceIP}`),
         filterFn: "equals",
       }),
       columnHelper.accessor(Columns.Time, {
-        minSize: 120,
-        size: 120,
+        minSize: 100,
+        size: 100,
         header: t(`columns.${Columns.Time}`),
         cell: (cell) => fromNow(new Date(cell.getValue()), lang),
         sortingFn: (rowA, rowB) =>
@@ -331,13 +331,18 @@ export default function Connections() {
     const column = header.column;
     const id = column.id;
     return (
-      <th
-        className={classnames("connections-th table-header", {
-          resizing: column.getIsResizing(),
-          fixed: column.id === Columns.Host,
-          shadow: scrolled && column.id === Columns.Host,
-        })}
-        style={{ width: header.getSize() }}
+      <div
+        role="columnheader"
+        className={classnames(
+          "connections-th table-header",
+          alignClass(id),
+          {
+            resizing: column.getIsResizing(),
+            fixed: column.id === Columns.Host,
+            shadow: scrolled && column.id === Columns.Host,
+          },
+        )}
+        style={{ flex: `${header.getSize()} 0 ${header.getSize()}px` }}
         ref={column.id === Columns.Host ? pinRef : undefined}
         key={id}
       >
@@ -356,7 +361,7 @@ export default function Connections() {
             className="connections-resizer"
           />
         )}
-      </th>
+      </div>
     );
   });
 
@@ -366,7 +371,8 @@ export default function Connections() {
   const end = Math.min(rows.length, start + 80);
   const content = rows.slice(start, end).map((row) => {
     return (
-      <tr
+      <div
+        role="row"
         className="connections-data-row cursor-default select-none"
         key={row.original?.id}
         onClick={() =>
@@ -377,34 +383,27 @@ export default function Connections() {
         }
       >
         {row.getAllCells().map((cell) => {
-          const classname = classnames(
-            "connections-block",
-            {
-              "text-center": shouldCenter.has(cell.column.id),
-              completed: row.original?.completed,
-            },
-            {
-              fixed: cell.column.id === Columns.Host,
-              shadow: scrolled && cell.column.id === Columns.Host,
-            },
-          );
+          const size = cell.column.getSize();
           return (
-            <td
-              className={classname}
-              style={{ width: cell.column.getSize() }}
+            <div
+              role="cell"
+              className={classnames(
+                "connections-block",
+                alignClass(cell.column.id),
+                {
+                  completed: row.original?.completed,
+                  fixed: cell.column.id === Columns.Host,
+                  shadow: scrolled && cell.column.id === Columns.Host,
+                },
+              )}
+              style={{ flex: `${size} 0 ${size}px` }}
               key={cell.column.id}
             >
               {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            </td>
+            </div>
           );
         })}
-        <td
-          className={classnames("connections-block spacer", {
-            completed: row.original?.completed,
-          })}
-          aria-hidden="true"
-        />
-      </tr>
+      </div>
     );
   });
 
@@ -513,33 +512,25 @@ export default function Connections() {
             )
           }
         >
-          <table style={{ width: instance.getTotalSize(), minWidth: "100%" }}>
-            <thead>
-              <tr className="connections-header">
-                {headers}
-                <th
-                  className="connections-th table-header spacer"
-                  aria-hidden="true"
-                />
-              </tr>
-            </thead>
-            <tbody>
-              {start > 0 && (
-                <tr aria-hidden="true" style={{ height: start * 37 }}>
-                  <td colSpan={columns.length} aria-hidden="true" />
-                </tr>
-              )}
-              {content}
-              {end < rows.length && (
-                <tr
-                  aria-hidden="true"
-                  style={{ height: (rows.length - end) * 37 }}
-                >
-                  <td colSpan={columns.length} aria-hidden="true" />
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <div
+            role="table"
+            className="connections-table"
+            style={{ minWidth: instance.getTotalSize() }}
+          >
+            <div role="row" className="connections-header">
+              {headers}
+            </div>
+            {start > 0 && (
+              <div aria-hidden="true" style={{ height: start * 37 }} />
+            )}
+            {content}
+            {end < rows.length && (
+              <div
+                aria-hidden="true"
+                style={{ height: (rows.length - end) * 37 }}
+              />
+            )}
+          </div>
           {instance.getRowModel().rows.length === 0 && (
             <EmptyState
               className="connections-empty"

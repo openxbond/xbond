@@ -17,7 +17,9 @@
     height: 37px;
   }
 
-  table {
+  .connections-table {
+    display: flex;
+    flex-direction: column;
     font-variant-numeric: tabular-nums;
   }
 
@@ -27,10 +29,13 @@
     display: inline-block;
     flex-shrink: 0;
     position: relative;
-    text-align: center;
+    min-width: 0;
     height: $height;
     line-height: $height;
     cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     &.resizing .connections-resizer {
       opacity: 1;
@@ -117,17 +122,6 @@
       background-color: var(--surface-inset);
       color: var(--muted-foreground);
     }
-  }
-
-  .connections-th.spacer,
-  .connections-block.spacer {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 0;
-  }
-
-  .connections-th.spacer {
-    cursor: default;
   }
 }
 
