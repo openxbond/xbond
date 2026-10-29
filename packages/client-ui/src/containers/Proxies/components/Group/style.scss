@@ -64,33 +64,119 @@
 .group-actions-col {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
-.group-selected-status {
+// Search stays collapsed until toggled; width/opacity transition keeps the
+// header calm in its resting state.
+.group-filter-box {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    width 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.18s ease;
+
+  &.is-open {
+    width: 180px;
+    opacity: 1;
+  }
+}
+
+.group-filter-input {
+  width: 180px;
+  height: 30px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--foreground);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+
+  &::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  // Single focus ring: the global :focus-visible outline doubles up with the
+  // border here and gets clipped by the collapsing box's overflow.
+  &:focus {
+    border-color: var(--brand);
+    outline: none;
+  }
+}
+
+.group-icon-actions {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
 }
 
-.status-label {
-  color: var(--muted-foreground);
-}
-
-.status-val {
-  font-weight: 600;
-  color: var(--foreground);
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.group-btn-group {
-  display: flex;
+.group-icon-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    color: var(--brand-text);
+    border-color: var(--brand);
+    background: var(--brand-soft);
+  }
+
+  &.is-active {
+    color: var(--brand-text);
+    background: var(--brand-soft);
+    border-color: var(--brand);
+  }
+}
+
+.sort-az {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+// Locate feedback: a fading wash instead of an outline, so it never stacks a
+// second ring on the selected tile's own border.
+.node-grid-tile.is-located::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--brand);
+  opacity: 0;
+  pointer-events: none;
+  animation: located-pulse 1.4s ease-out;
+}
+
+@keyframes located-pulse {
+  0% {
+    opacity: 0.16;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-grid-tile.is-located::after {
+    animation: none;
+    opacity: 0.16;
+  }
 }
 
 .group-feedback {
@@ -125,6 +211,7 @@
 }
 
 .node-grid-tile {
+  position: relative;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -323,37 +410,18 @@
   }
 
   .group-actions-col {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     gap: 10px;
   }
 
-  .group-selected-status {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 6px 10px;
-    background: var(--surface-inset);
-    border-radius: 8px;
+  .group-filter-box.is-open {
+    width: 140px;
   }
 
-  .group-selected-status .status-val {
-    max-width: 200px;
-    text-align: right;
-  }
-
-  .group-btn-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: 100%;
-    gap: 8px;
-  }
-
-  .group-btn-group button,
-  .group-btn-group .copy-btn {
-    width: 100%;
-    justify-content: center;
+  .group-filter-input {
+    width: 140px;
     min-height: 40px;
   }
 
