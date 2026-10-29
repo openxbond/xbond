@@ -1,5 +1,4 @@
 import { XBondIcon } from "@components";
-import { ControllerPicker } from "@components/ControllerPicker";
 import { DASHBOARD_VERSION, parseClientInfo } from "@lib/version";
 import {
   useVersion,
@@ -14,6 +13,8 @@ import { useSetAtom } from "jotai";
 import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
+
+import { ControllerSwitcher } from "./ControllerSwitcher";
 
 import "./style.scss";
 
@@ -213,7 +214,6 @@ export default function Sidebar(props: SidebarProps) {
   const { version, premium, meta } = useVersion();
   const { data } = useClashXData();
   const { t } = useTranslation("sidebar");
-  const { t: tc } = useTranslation("common");
   const location = useLocation();
   const setIdentity = useSetAtom(identityAtom);
 
@@ -309,27 +309,10 @@ export default function Sidebar(props: SidebarProps) {
           </div>
         )}
 
-        <div className="sidebar-target">
-          <ControllerPicker />
-          <button
-            className="controller-edit"
-            type="button"
-            aria-label={tc("editController")}
-            onClick={() => setIdentity(false)}
-          >
-            <svg
-              viewBox="0 0 20 20"
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              aria-hidden="true"
-            >
-              <path d="m13 3 4 4-9 9-5 1 1-5Z" />
-            </svg>
-          </button>
-        </div>
+        <ControllerSwitcher
+          connected={trafficState === "open"}
+          onEdit={() => setIdentity(false)}
+        />
 
         <div className="sidebar-version">
           <div className="sidebar-version-item">

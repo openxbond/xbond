@@ -1,0 +1,229 @@
+.controller-switcher {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.controller-switch-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+}
+
+// Inline count badge, shown only when there is more than one controller to
+// switch between; a lone "1" on the far edge was pure noise.
+.controller-switch-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 15px;
+  padding: 0 5px;
+  border-radius: 7px;
+  background: var(--surface-inset);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 9.5px;
+  line-height: 1;
+  color: var(--muted-foreground);
+}
+
+.controller-switch-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 11px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 1px 2px oklch(0 0 0 / 4%);
+  transition:
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
+
+  &:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 2px 6px oklch(0 0 0 / 6%);
+  }
+
+  &[aria-expanded="true"] {
+    border-color: var(--brand);
+  }
+}
+
+.controller-switch-icon {
+  position: relative;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+
+// Presence dot: traffic stream state, ringed against the card surface.
+.controller-switch-status {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--card);
+  background: var(--muted-foreground);
+
+  &.is-online {
+    background: var(--success);
+  }
+}
+
+.controller-switch-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+}
+
+.controller-switch-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.controller-switch-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// The centred composition gives the address the full card width, so the host
+// never truncates; ellipsis only guards against pathological values.
+.controller-switch-host {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.controller-switch-chevron {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  transition: transform 0.15s ease;
+}
+
+.controller-switch-btn[aria-expanded="true"] .controller-switch-chevron {
+  transform: rotate(180deg);
+}
+
+// Opens upward: the switcher lives in the footer, so the list belongs above it.
+.controller-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px oklch(0 0 0 / 12%);
+}
+
+.controller-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease;
+
+  &:hover {
+    background: var(--surface-inset);
+  }
+
+  &.is-active {
+    background: var(--brand-soft);
+  }
+}
+
+.controller-menu-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.controller-menu-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.controller-menu-host {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.controller-menu-check {
+  flex-shrink: 0;
+  color: var(--brand-text);
+}
+
+.controller-menu-divider {
+  height: 1px;
+  margin: 3px 2px;
+  background: var(--border);
+}
+
+.controller-menu-edit {
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+
+  &:hover {
+    color: var(--foreground);
+  }
+}
