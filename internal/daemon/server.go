@@ -5,13 +5,14 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/openxbond/xbond/internal/diag"
@@ -22,7 +23,6 @@ import (
 )
 
 type Server struct {
-	mu         sync.RWMutex
 	httpServer *http.Server
 	listener   net.Listener
 	token      string
@@ -30,7 +30,7 @@ type Server struct {
 
 	engineMgr *engine.Manager
 	subMgr    *sub.Manager
-	prefs     RuntimePreferences
+	runtime   *runtimeController
 
 	webDir string
 	done   chan struct{}
@@ -41,9 +41,14 @@ func NewServer(addr string, webDir string) (*Server, error) {
 		return nil, err
 	}
 
-	_ = sysproxy.AutoRecoverOnStartup()
+	if err := sysproxy.AutoRecoverOnStartup(); err != nil {
+		return nil, err
+	}
 
-	prefs := LoadPreferences()
+	prefs, err := LoadPreferences()
+	if err != nil {
+		return nil, err
+	}
 
 	subMgr, err := sub.NewManager()
 	if err != nil {
@@ -54,13 +59,18 @@ func NewServer(addr string, webDir string) (*Server, error) {
 	_, _ = rand.Read(tokenBytes)
 	token := hex.EncodeToString(tokenBytes)
 
+	core := engine.NewManager(1000)
 	s := &Server{
 		token:     token,
-		engineMgr: engine.NewManager(1000),
+		engineMgr: core,
 		subMgr:    subMgr,
-		prefs:     prefs,
+		runtime:   newRuntimeController(core, subMgr, prefs),
 		webDir:    webDir,
 		done:      make(chan struct{}),
+	}
+
+	if s.webDir == "" {
+		s.webDir = "dist"
 	}
 
 	if addr == "" {
@@ -103,14 +113,12 @@ func (s *Server) Start() error {
 func (s *Server) Stop(ctx context.Context) error {
 	close(s.done)
 
-	// Clean rollback
-	_ = s.engineMgr.Stop()
-	_ = sysproxy.Disable()
+	runtimeErr := s.runtime.Down()
 
 	_ = os.Remove(paths.LocalAPITokenPath())
 	_ = os.Remove(paths.LocalAPIAddrPath())
 
-	return s.httpServer.Shutdown(ctx)
+	return errors.Join(runtimeErr, s.httpServer.Shutdown(ctx))
 }
 
 func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -164,9 +172,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	s.mu.RLock()
-	prefs := s.prefs
-	s.mu.RUnlock()
+	prefs := s.runtime.Preferences()
 
 	status := s.engineMgr.Status()
 	threeTier := diag.EvaluateThreeTier(ctx, s.engineMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
@@ -187,150 +193,47 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUp(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Mode     engine.TakeoverMode `json:"mode"`
-		Routing  engine.RoutingMode  `json:"routing"`
-		Port     int                 `json:"port"`
-		AllowLan *bool               `json:"allowLan"`
-		SubID    string              `json:"subId"`
-	}
-
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&req)
-	}
-
-	s.mu.Lock()
-	if req.Mode != "" {
-		s.prefs.TakeoverMode = req.Mode
-	}
-	if req.Routing != "" {
-		s.prefs.RoutingMode = req.Routing
-	}
-	if req.Port > 0 {
-		s.prefs.MixedPort = req.Port
-	}
-	if req.AllowLan != nil {
-		s.prefs.AllowLan = *req.AllowLan
-	}
-	if req.SubID != "" {
-		_ = s.subMgr.Use(req.SubID)
-	}
-	prefs := s.prefs
-	_ = SavePreferences(prefs)
-	s.mu.Unlock()
-
-	activeID := s.subMgr.ActiveID()
-	if activeID == "" {
-		writeError(w, http.StatusBadRequest, "no active subscription; please login or add a subscription first")
+	var options runtimeOptions
+	if !decodeRuntimeRequest(w, r, &options) {
 		return
 	}
-
-	sourceData, err := os.ReadFile(paths.SubSourcePath(activeID))
-	if err != nil {
-		// A subscription that never downloaded (or whose cache was removed)
-		// cannot derive a runtime config; refresh it before giving up.
-		if _, updateErr := s.subMgr.Update(activeID, true, false, 0); updateErr != nil {
-			writeError(w, http.StatusBadRequest, fmt.Sprintf("active subscription has no downloaded config and refresh failed: %v", updateErr))
-			return
-		}
-		sourceData, err = os.ReadFile(paths.SubSourcePath(activeID))
-		if err != nil {
-			writeError(w, http.StatusBadRequest, fmt.Sprintf("active subscription has no downloaded config: %v", err))
-			return
-		}
-	}
-
-	runtimeJSON, err := engine.DeriveRuntimeConfig(
-		sourceData,
-		prefs.TakeoverMode,
-		prefs.RoutingMode,
-		prefs.MixedPort,
-		prefs.AllowLan,
-		prefs.ClashPort,
-		prefs.ClashSecret,
-	)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to derive runtime config: %v", err))
+	if err := s.runtime.Up(r.Context(), options); err != nil {
+		writeRuntimeError(w, err)
 		return
 	}
-
-	_ = os.WriteFile(paths.SubRuntimePath(activeID), runtimeJSON, 0o600)
-
-	subMeta, _ := s.subMgr.Get(activeID)
-	var savedSelections map[string]string
-	if subMeta != nil {
-		savedSelections = subMeta.SavedSelections
-	}
-
-	if err := s.engineMgr.Reload(runtimeJSON, savedSelections); err != nil {
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to start engine: %v", err))
-		return
-	}
-
-	// Apply OS takeover mode
-	if prefs.TakeoverMode == engine.ModeSysproxy {
-		_ = sysproxy.Set(fmt.Sprintf("127.0.0.1:%d", prefs.MixedPort), "")
-	} else {
-		_ = sysproxy.Disable()
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "preferences": prefs})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": s.engineMgr.Status(), "preferences": s.runtime.Preferences()})
 }
 
 func (s *Server) handleDown(w http.ResponseWriter, r *http.Request) {
-	_ = s.engineMgr.Stop()
-	_ = sysproxy.Disable()
+	if err := s.runtime.Down(); err != nil {
+		writeRuntimeError(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "stopped": true})
 }
 
 func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
-	s.handleUp(w, r)
+	if err := s.runtime.Up(r.Context(), runtimeOptions{}); err != nil {
+		writeRuntimeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": s.engineMgr.Status(), "preferences": s.runtime.Preferences()})
 }
 
 func (s *Server) handleMode(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		s.mu.RLock()
-		prefs := s.prefs
-		s.mu.RUnlock()
-		writeJSON(w, http.StatusOK, prefs)
+		writeJSON(w, http.StatusOK, s.runtime.Preferences())
 		return
 	}
-
-	var req struct {
-		Mode     engine.TakeoverMode `json:"mode"`
-		Routing  engine.RoutingMode  `json:"routing"`
-		Port     int                 `json:"port"`
-		AllowLan *bool               `json:"allowLan"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	var options runtimeOptions
+	if !decodeRuntimeRequest(w, r, &options) {
 		return
 	}
-
-	s.mu.Lock()
-	if req.Mode != "" {
-		s.prefs.TakeoverMode = req.Mode
-	}
-	if req.Routing != "" {
-		s.prefs.RoutingMode = req.Routing
-	}
-	if req.Port > 0 {
-		s.prefs.MixedPort = req.Port
-	}
-	if req.AllowLan != nil {
-		s.prefs.AllowLan = *req.AllowLan
-	}
-	prefs := s.prefs
-	_ = SavePreferences(prefs)
-	s.mu.Unlock()
-
-	if s.engineMgr.IsRunning() {
-		s.handleUp(w, r)
+	if err := s.runtime.Configure(r.Context(), options); err != nil {
+		writeRuntimeError(w, err)
 		return
 	}
-
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "preferences": prefs})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "preferences": s.runtime.Preferences()})
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -353,9 +256,9 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if req.Token != "" {
-		meta, err = s.subMgr.AddXBond(req.Token, req.Origin, req.FallbackOrigins, req.Protocol, req.Lang, req.Name, 24, true)
+		meta, err = s.subMgr.AddXBond(req.Token, req.Origin, req.FallbackOrigins, req.Protocol, req.Lang, req.Name, 24, false)
 	} else if req.URLOrFile != "" {
-		meta, err = s.subMgr.AddUniversal(req.URLOrFile, req.Name, 24, true)
+		meta, err = s.subMgr.AddUniversal(req.URLOrFile, req.Name, 24, false)
 	} else {
 		writeError(w, http.StatusBadRequest, "must provide token or urlOrFile")
 		return
@@ -367,9 +270,17 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch initial config
-	res, updateErr := s.subMgr.Update(meta.ID, true, false, 0)
+	res, updateErr := s.runtime.Update(r.Context(), meta.ID, true, false)
 	if updateErr != nil {
+		if s.runtime.engine.IsRunning() {
+			writeRuntimeError(w, updateErr)
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "meta": meta, "updateError": updateErr.Error()})
+		return
+	}
+	if err := s.runtime.Use(r.Context(), meta.ID); err != nil {
+		writeRuntimeError(w, err)
 		return
 	}
 
@@ -380,14 +291,12 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Purge bool `json:"purge"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
-
-	_ = s.engineMgr.Stop()
-	_ = sysproxy.Disable()
-
-	activeID := s.subMgr.ActiveID()
-	if req.Purge && activeID != "" {
-		_ = s.subMgr.Remove(activeID)
+	if !decodeRuntimeRequest(w, r, &req) {
+		return
+	}
+	if err := s.runtime.Logout(req.Purge); err != nil {
+		writeRuntimeError(w, err)
+		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "loggedOut": true})
@@ -435,9 +344,9 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 		var meta *sub.SubscriptionMeta
 		var err error
 		if req.Type == sub.SubTypeXBond || req.Token != "" {
-			meta, err = s.subMgr.AddXBond(req.Token, req.Origin, req.FallbackOrigins, req.Protocol, req.Lang, req.Name, req.IntervalHours, req.Use)
+			meta, err = s.subMgr.AddXBond(req.Token, req.Origin, req.FallbackOrigins, req.Protocol, req.Lang, req.Name, req.IntervalHours, false)
 		} else {
-			meta, err = s.subMgr.AddUniversal(req.URLOrFile, req.Name, req.IntervalHours, req.Use)
+			meta, err = s.subMgr.AddUniversal(req.URLOrFile, req.Name, req.IntervalHours, false)
 		}
 
 		if err != nil {
@@ -446,7 +355,17 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Initial update
-		res, _ := s.subMgr.Update(meta.ID, true, false, 0)
+		res, updateErr := s.runtime.Update(r.Context(), meta.ID, true, false)
+		if updateErr != nil && s.runtime.engine.IsRunning() {
+			writeRuntimeError(w, updateErr)
+			return
+		}
+		if req.Use {
+			if err := s.runtime.Use(r.Context(), meta.ID); err != nil {
+				writeRuntimeError(w, err)
+				return
+			}
+		}
 		if res != nil && res.Meta != nil {
 			meta = res.Meta
 		}
@@ -459,7 +378,7 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "missing subscription id")
 			return
 		}
-		if err := s.subMgr.Remove(id); err != nil {
+		if err := s.runtime.Remove(id); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -471,77 +390,58 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSubUse(w http.ResponseWriter, r *http.Request) {
-	var req struct {
+	var request struct {
 		ID string `json:"id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if !decodeRuntimeRequest(w, r, &request) {
 		return
 	}
-
-	if err := s.subMgr.Use(req.ID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if request.ID == "" {
+		writeError(w, http.StatusBadRequest, "missing subscription id")
 		return
 	}
-
-	if s.engineMgr.IsRunning() {
-		s.handleUp(w, r)
+	if err := s.runtime.Use(r.Context(), request.ID); err != nil {
+		writeRuntimeError(w, err)
 		return
 	}
-
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "activeId": req.ID})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "activeId": s.subMgr.ActiveID()})
 }
 
 func (s *Server) handleSubUpdate(w http.ResponseWriter, r *http.Request) {
-	var req struct {
+	var request struct {
 		ID       string `json:"id"`
 		Force    bool   `json:"force"`
 		ViaProxy bool   `json:"viaProxy"`
 		All      bool   `json:"all"`
 	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&req)
+	if !decodeRuntimeRequest(w, r, &request) {
+		return
 	}
-
-	s.mu.RLock()
-	proxyPort := s.prefs.MixedPort
-	s.mu.RUnlock()
-
-	if req.All {
-		list := s.subMgr.List()
-		results := make([]sub.UpdateResult, 0, len(list))
-		for _, item := range list {
-			res, err := s.subMgr.Update(item.ID, req.Force, req.ViaProxy, proxyPort)
-			if err == nil && res != nil {
-				results = append(results, *res)
+	if request.All {
+		results := make([]sub.UpdateResult, 0)
+		failures := make(map[string]string)
+		for _, item := range s.subMgr.List() {
+			result, err := s.runtime.Update(r.Context(), item.ID, request.Force, request.ViaProxy)
+			if result != nil {
+				results = append(results, *result)
 			}
+			if err != nil {
+				failures[item.ID] = err.Error()
+			}
+		}
+		if len(failures) > 0 {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "one or more subscription updates failed", "results": results, "failures": failures})
+			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"results": results})
 		return
 	}
-
-	targetID := req.ID
-	if targetID == "" {
-		targetID = s.subMgr.ActiveID()
-	}
-	if targetID == "" {
-		writeError(w, http.StatusBadRequest, "no subscription to update")
-		return
-	}
-
-	res, err := s.subMgr.Update(targetID, req.Force, req.ViaProxy, proxyPort)
+	result, err := s.runtime.Update(r.Context(), request.ID, request.Force, request.ViaProxy)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeRuntimeError(w, err)
 		return
 	}
-
-	// If content changed and active, reload engine
-	if res.ContentChanged && targetID == s.subMgr.ActiveID() && s.engineMgr.IsRunning() {
-		s.handleUp(w, r)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, res)
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) handleNodes(w http.ResponseWriter, r *http.Request) {
@@ -698,27 +598,20 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDoctor(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	prefs := s.prefs
-	s.mu.RUnlock()
+	prefs := s.runtime.Preferences()
 
 	rep := diag.RunDoctor(r.Context(), s.engineMgr, s.subMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
 	writeJSON(w, http.StatusOK, rep)
 }
 
 func (s *Server) handleBugReport(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	prefs := s.prefs
-	s.mu.RUnlock()
+	prefs := s.runtime.Preferences()
 
 	rep := diag.GenerateBugReport(r.Context(), s.engineMgr, s.subMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
 	writeJSON(w, http.StatusOK, rep)
 }
 
 func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
-	if s.webDir == "" {
-		s.webDir = "dist"
-	}
 
 	filePath := filepath.Join(s.webDir, filepath.Clean(r.URL.Path))
 	info, err := os.Stat(filePath)
@@ -730,10 +623,8 @@ func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		s.mu.RLock()
-		clashPort := s.prefs.ClashPort
-		clashSecret := s.prefs.ClashSecret
-		s.mu.RUnlock()
+		prefs := s.runtime.Preferences()
+		clashPort, clashSecret := prefs.ClashPort, prefs.ClashSecret
 
 		metaTag := fmt.Sprintf(`<meta name="external-controller" content="http://:%s@127.0.0.1:%d">
     <meta name="localapi-token" content="%s">
@@ -749,50 +640,15 @@ func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) runScheduledUpdates() {
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-s.done:
 			return
-		case <-ticker.C:
-			activeID := s.subMgr.ActiveID()
-			if activeID == "" {
-				continue
-			}
-
-			subMeta, err := s.subMgr.Get(activeID)
-			if err != nil || !subMeta.AutoUpdate {
-				continue
-			}
-
-			interval := time.Duration(subMeta.UpdateIntervalHours) * time.Hour
-			if interval <= 0 {
-				interval = 24 * time.Hour
-			}
-
-			if time.Since(subMeta.LastCheckedAt) >= interval {
-				s.mu.RLock()
-				proxyPort := s.prefs.MixedPort
-				s.mu.RUnlock()
-
-				res, err := s.subMgr.Update(subMeta.ID, false, false, proxyPort)
-				if err == nil && res != nil && res.ContentChanged && s.engineMgr.IsRunning() {
-					// Hot reload
-					sourceData, _ := os.ReadFile(paths.SubSourcePath(subMeta.ID))
-					if runtimeJSON, err := engine.DeriveRuntimeConfig(
-						sourceData,
-						s.prefs.TakeoverMode,
-						s.prefs.RoutingMode,
-						s.prefs.MixedPort,
-						s.prefs.AllowLan,
-						s.prefs.ClashPort,
-						s.prefs.ClashSecret,
-					); err == nil {
-						_ = s.engineMgr.Reload(runtimeJSON, subMeta.SavedSelections)
-					}
-				}
+		case now := <-ticker.C:
+			if err := s.runtime.UpdateDue(context.Background(), now); err != nil {
+				s.engineMgr.RingLog().Append(engine.LogLevelError, "Scheduled subscription update or runtime application failed")
 			}
 		}
 	}
@@ -806,4 +662,27 @@ func writeJSON(w http.ResponseWriter, code int, data any) {
 
 func writeError(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]any{"error": msg})
+}
+
+func decodeRuntimeRequest(w http.ResponseWriter, r *http.Request, target any) bool {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	if err := decoder.Decode(target); err != nil && !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return false
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, "request body must contain one JSON value")
+		return false
+	}
+	return true
+}
+
+func writeRuntimeError(w http.ResponseWriter, err error) {
+	var inputError *runtimeInputError
+	status := http.StatusInternalServerError
+	if errors.As(err, &inputError) {
+		status = http.StatusBadRequest
+	}
+	writeError(w, status, err.Error())
 }

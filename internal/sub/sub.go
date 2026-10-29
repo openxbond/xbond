@@ -5,14 +5,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/openxbond/xbond/internal/engine"
+	"github.com/openxbond/xbond/internal/platform/atomicfile"
 	"github.com/openxbond/xbond/internal/platform/paths"
 )
 
@@ -65,7 +69,7 @@ func (m *Manager) saveStoreLocked() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(paths.SubListPath(), data, 0o600)
+	return atomicfile.Write(paths.SubListPath(), data, 0o600)
 }
 
 func (m *Manager) ActiveID() string {
@@ -79,6 +83,9 @@ func (m *Manager) List() []SubscriptionMeta {
 	defer m.mu.RUnlock()
 	list := make([]SubscriptionMeta, len(m.store.Subscriptions))
 	copy(list, m.store.Subscriptions)
+	for i := range list {
+		list[i].SavedSelections = maps.Clone(list[i].SavedSelections)
+	}
 	return list
 }
 
@@ -89,6 +96,7 @@ func (m *Manager) Get(idOrName string) (*SubscriptionMeta, error) {
 	for _, s := range m.store.Subscriptions {
 		if s.ID == idOrName || s.Name == idOrName {
 			cp := s
+			cp.SavedSelections = maps.Clone(s.SavedSelections)
 			return &cp, nil
 		}
 	}
@@ -110,8 +118,13 @@ func (m *Manager) Use(idOrName string) error {
 		return fmt.Errorf("subscription %q not found", idOrName)
 	}
 
+	previous := m.store.ActiveID
 	m.store.ActiveID = targetID
-	return m.saveStoreLocked()
+	if err := m.saveStoreLocked(); err != nil {
+		m.store.ActiveID = previous
+		return err
+	}
+	return nil
 }
 
 func (m *Manager) Remove(idOrName string) error {
@@ -130,7 +143,21 @@ func (m *Manager) Remove(idOrName string) error {
 	}
 
 	subID := m.store.Subscriptions[idx].ID
-	m.store.Subscriptions = append(m.store.Subscriptions[:idx], m.store.Subscriptions[idx+1:]...)
+	subDir, err := filepath.Abs(paths.SubDir(subID))
+	if err != nil {
+		return err
+	}
+	root, err := filepath.Abs(paths.SubscriptionsDir())
+	if err != nil {
+		return err
+	}
+	relative, err := filepath.Rel(root, subDir)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("subscription directory is outside the managed directory")
+	}
+	previous := m.store
+	next := append([]SubscriptionMeta(nil), m.store.Subscriptions[:idx]...)
+	m.store.Subscriptions = append(next, m.store.Subscriptions[idx+1:]...)
 	if m.store.ActiveID == subID {
 		if len(m.store.Subscriptions) > 0 {
 			m.store.ActiveID = m.store.Subscriptions[0].ID
@@ -139,8 +166,11 @@ func (m *Manager) Remove(idOrName string) error {
 		}
 	}
 
-	_ = os.RemoveAll(paths.SubDir(subID))
-	return m.saveStoreLocked()
+	if err := m.saveStoreLocked(); err != nil {
+		m.store = previous
+		return err
+	}
+	return os.RemoveAll(subDir)
 }
 
 // Rename changes the display name without replacing configuration or credentials.
@@ -405,7 +435,9 @@ func (m *Manager) Update(
 
 	// 1. Handle 304 Not Modified
 	if statusNotModified {
-		m.recordCheck(subMeta.ID, etagFromResp, quotaFromResp, intervalFromResp, webPageURL)
+		if err := m.recordCheck(subMeta.ID, etagFromResp, quotaFromResp, intervalFromResp, webPageURL); err != nil {
+			return nil, err
+		}
 		return &UpdateResult{
 			Meta:         subMeta,
 			StatusNotMod: true,
@@ -429,8 +461,10 @@ func (m *Manager) Update(
 
 	// 3. Compute SHA-256 hash & check if content changed
 	newHash := hashBytes(convertedJSON)
-	var oldSource []byte
-	oldSource, _ = os.ReadFile(paths.SubSourcePath(subMeta.ID))
+	oldSource, readErr := os.ReadFile(paths.SubSourcePath(subMeta.ID))
+	if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
+		return nil, fmt.Errorf("read previous source configuration: %w", readErr)
+	}
 	oldHash := hashBytes(oldSource)
 
 	contentChanged := (oldHash != newHash) || len(oldSource) == 0
@@ -443,7 +477,9 @@ func (m *Manager) Update(
 	}
 
 	if !contentChanged {
-		m.recordCheck(subMeta.ID, etagFromResp, quotaFromResp, intervalFromResp, webPageURL)
+		if err := m.recordCheck(subMeta.ID, etagFromResp, quotaFromResp, intervalFromResp, webPageURL); err != nil {
+			return nil, err
+		}
 		return &UpdateResult{
 			Meta:           subMeta,
 			Diff:           diff,
@@ -452,12 +488,13 @@ func (m *Manager) Update(
 	}
 
 	// 4. Atomically write source config
-	if err := os.WriteFile(paths.SubSourcePath(subMeta.ID), convertedJSON, 0o600); err != nil {
+	if err := atomicfile.Write(paths.SubSourcePath(subMeta.ID), convertedJSON, 0o600); err != nil {
 		return nil, fmt.Errorf("failed to write source config: %w", err)
 	}
 
 	// 5. Update metadata
 	m.mu.Lock()
+	previousMetadata := append([]SubscriptionMeta(nil), m.store.Subscriptions...)
 	for i := range m.store.Subscriptions {
 		if m.store.Subscriptions[i].ID == subMeta.ID {
 			m.store.Subscriptions[i].Health = HealthOK
@@ -481,11 +518,29 @@ func (m *Manager) Update(
 				m.store.Subscriptions[i].Name = filename
 			}
 			m.store.Subscriptions[i].LastDiff = diff
-			subMeta = &m.store.Subscriptions[i]
+			updated := m.store.Subscriptions[i]
+			updated.SavedSelections = maps.Clone(updated.SavedSelections)
+			subMeta = &updated
 			break
 		}
 	}
-	_ = m.saveStoreLocked()
+	if err := m.saveStoreLocked(); err != nil {
+		m.store.Subscriptions = previousMetadata
+		m.mu.Unlock()
+		var restoreErr error
+		if readErr == nil {
+			restoreErr = atomicfile.Write(paths.SubSourcePath(subMeta.ID), oldSource, 0o600)
+		} else {
+			restoreErr = os.Remove(paths.SubSourcePath(subMeta.ID))
+			if errors.Is(restoreErr, os.ErrNotExist) {
+				restoreErr = nil
+			}
+		}
+		if restoreErr != nil {
+			return nil, errors.Join(fmt.Errorf("save subscription metadata: %w", err), fmt.Errorf("restore source configuration: %w", restoreErr))
+		}
+		return nil, fmt.Errorf("save subscription metadata: %w", err)
+	}
 	m.mu.Unlock()
 
 	return &UpdateResult{
@@ -501,9 +556,10 @@ func (m *Manager) recordCheck(
 	quota *QuotaInfo,
 	interval int,
 	webPageURL string,
-) {
+) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	previous := append([]SubscriptionMeta(nil), m.store.Subscriptions...)
 
 	for i := range m.store.Subscriptions {
 		if m.store.Subscriptions[i].ID == id {
@@ -525,7 +581,11 @@ func (m *Manager) recordCheck(
 			break
 		}
 	}
-	_ = m.saveStoreLocked()
+	if err := m.saveStoreLocked(); err != nil {
+		m.store.Subscriptions = previous
+		return fmt.Errorf("save subscription check: %w", err)
+	}
+	return nil
 }
 
 func (m *Manager) recordError(id string, health SubscriptionHealth, msg string) {

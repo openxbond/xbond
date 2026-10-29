@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/openxbond/xbond/internal/engine"
@@ -9,7 +11,6 @@ import (
 )
 
 type RuntimePreferences struct {
-	ActiveSubID  string              `json:"activeSubId"`
 	TakeoverMode engine.TakeoverMode `json:"takeoverMode"`
 	RoutingMode  engine.RoutingMode  `json:"routingMode"`
 	MixedPort    int                 `json:"mixedPort"`
@@ -29,29 +30,20 @@ func DefaultPreferences() RuntimePreferences {
 	}
 }
 
-func LoadPreferences() RuntimePreferences {
+func LoadPreferences() (RuntimePreferences, error) {
 	prefs := DefaultPreferences()
 	data, err := os.ReadFile(paths.RuntimeStatePath())
+	if errors.Is(err, os.ErrNotExist) {
+		return prefs, nil
+	}
 	if err != nil {
-		return prefs
+		return RuntimePreferences{}, fmt.Errorf("read runtime preferences: %w", err)
 	}
-	_ = json.Unmarshal(data, &prefs)
-	if prefs.MixedPort <= 0 {
-		prefs.MixedPort = 7890
+	if err := json.Unmarshal(data, &prefs); err != nil {
+		return RuntimePreferences{}, fmt.Errorf("decode runtime preferences: %w", err)
 	}
-	if prefs.ClashPort <= 0 {
-		prefs.ClashPort = 9090
+	if err := validatePreferences(prefs); err != nil {
+		return RuntimePreferences{}, err
 	}
-	if prefs.ClashSecret == "" {
-		prefs.ClashSecret = engine.GenerateSecret()
-	}
-	return prefs
-}
-
-func SavePreferences(prefs RuntimePreferences) error {
-	data, err := json.MarshalIndent(prefs, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(paths.RuntimeStatePath(), data, 0o600)
+	return prefs, nil
 }

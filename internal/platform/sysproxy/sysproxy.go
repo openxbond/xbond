@@ -2,9 +2,11 @@ package sysproxy
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
+	"github.com/openxbond/xbond/internal/platform/atomicfile"
 	"github.com/openxbond/xbond/internal/platform/paths"
 )
 
@@ -20,7 +22,7 @@ func SaveSnapshot(snap Snapshot) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(paths.SysproxySnapshotPath(), data, 0o600)
+	return atomicfile.Write(paths.SysproxySnapshotPath(), data, 0o600)
 }
 
 func LoadSnapshot() (*Snapshot, error) {
@@ -41,15 +43,17 @@ func ClearSnapshot() {
 
 func AutoRecoverOnStartup() error {
 	snap, err := LoadSnapshot()
-	if err != nil || snap == nil {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-
-	if snap.Enabled {
-		_ = Set(snap.Server, snap.Bypass)
-	} else {
-		_ = Disable()
+	if err != nil {
+		return fmt.Errorf("read system proxy recovery state: %w", err)
 	}
-	ClearSnapshot()
-	return fmt.Errorf("recovered stale system proxy from previous crash: enabled=%v, server=%s", snap.Enabled, snap.Server)
+	if err := Restore(*snap); err != nil {
+		return fmt.Errorf("restore stale system proxy: %w", err)
+	}
+	if err := os.Remove(paths.SysproxySnapshotPath()); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("remove system proxy recovery state: %w", err)
+	}
+	return nil
 }

@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"strconv"
 	"sync"
@@ -23,6 +25,7 @@ type Manager struct {
 	boxCancel   context.CancelFunc
 	running     bool
 	startedAt   time.Time
+	runtimeJSON []byte
 
 	takeoverMode TakeoverMode
 	routingMode  RoutingMode
@@ -135,6 +138,7 @@ func (m *Manager) startLocked(runtimeJSON []byte) error {
 	m.boxCancel = cancel
 	m.running = true
 	m.startedAt = time.Now()
+	m.runtimeJSON = append([]byte(nil), runtimeJSON...)
 	m.client = NewClashClient(m.clashPort, m.clashSecret)
 
 	m.ringLogger.Append(LogLevelInfo, fmt.Sprintf("sing-box v%s started (mixed: %d, clash: %d)", SingBoxVersionFromPackage(), m.mixedPort, m.clashPort))
@@ -153,8 +157,9 @@ func (m *Manager) Stop() error {
 }
 
 func (m *Manager) stopLocked() error {
+	var closeErr error
 	if m.boxInstance != nil {
-		_ = m.boxInstance.Close()
+		closeErr = m.boxInstance.Close()
 		m.boxInstance = nil
 	}
 	if m.boxCancel != nil {
@@ -162,69 +167,97 @@ func (m *Manager) stopLocked() error {
 		m.boxCancel = nil
 	}
 	m.running = false
+	m.client = nil
 	m.startedAt = time.Time{}
 	m.ringLogger.Append(LogLevelInfo, "sing-box engine stopped")
-	return nil
+	return closeErr
 }
 
 func (m *Manager) Reload(runtimeJSON []byte, savedSelections map[string]string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
 	if err := Validate(runtimeJSON); err != nil {
 		return fmt.Errorf("new runtime config failed validation: %w", err)
 	}
 
-	// Capture current selections if not explicitly provided
-	if m.running && m.client != nil && len(savedSelections) == 0 {
+	var previousSelections map[string]string
+	if m.running && m.client != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		if proxies, err := m.client.GetProxies(ctx); err == nil {
-			savedSelections = make(map[string]string)
-			for name, item := range proxies {
-				if item.Type == "Selector" && item.Now != "" {
-					savedSelections[name] = item.Now
-				}
+		proxies, err := m.client.GetProxies(ctx)
+		cancel()
+		if err != nil {
+			return fmt.Errorf("capture current node selections: %w", err)
+		}
+		previousSelections = make(map[string]string)
+		for name, item := range proxies {
+			if item.Type == "Selector" && item.Now != "" {
+				previousSelections[name] = item.Now
 			}
 		}
-		cancel()
+	}
+	if len(savedSelections) == 0 {
+		savedSelections = previousSelections
+	} else {
+		savedSelections = maps.Clone(savedSelections)
+	}
+	wasRunning := m.running
+	previous := append([]byte(nil), m.runtimeJSON...)
+	var applyErr error
+	if wasRunning {
+		if err := m.stopLocked(); err != nil {
+			applyErr = fmt.Errorf("stop previous core: %w", err)
+		}
+	}
+	if applyErr == nil {
+		applyErr = m.startLocked(runtimeJSON)
+	}
+	if applyErr == nil {
+		applyErr = m.restoreSelectionsLocked(savedSelections)
+	}
+	if applyErr == nil {
+		return nil
 	}
 
+	problems := []error{applyErr}
 	if m.running {
-		_ = m.stopLocked()
+		if err := m.stopLocked(); err != nil {
+			problems = append(problems, fmt.Errorf("stop rejected core: %w", err))
+		}
 	}
-
-	if err := m.startLocked(runtimeJSON); err != nil {
-		return err
+	if wasRunning {
+		if err := m.startLocked(previous); err != nil {
+			problems = append(problems, fmt.Errorf("restore previous core: %w", err))
+		} else if err := m.restoreSelectionsLocked(previousSelections); err != nil {
+			problems = append(problems, fmt.Errorf("restore previous node selections: %w", err))
+		}
 	}
+	return errors.Join(problems...)
+}
 
-	// Replay saved selections
-	if len(savedSelections) > 0 && m.client != nil {
-		go func(selections map[string]string) {
-			time.Sleep(100 * time.Millisecond)
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			proxies, err := m.client.GetProxies(ctx)
-			if err != nil {
-				return
-			}
-
-			for group, targetNode := range selections {
-				item, exists := proxies[group]
-				if !exists || item.Type != "Selector" {
-					continue
+func (m *Manager) restoreSelectionsLocked(selections map[string]string) error {
+	if len(selections) == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	proxies, err := m.client.GetProxies(ctx)
+	if err != nil {
+		return fmt.Errorf("read node selections: %w", err)
+	}
+	for group, target := range selections {
+		item, exists := proxies[group]
+		if !exists || item.Type != "Selector" {
+			continue
+		}
+		for _, candidate := range item.All {
+			if candidate == target {
+				if err := m.client.SelectNode(ctx, group, target); err != nil {
+					return fmt.Errorf("restore saved node selection: %w", err)
 				}
-
-				for _, candidate := range item.All {
-					if candidate == targetNode {
-						_ = m.client.SelectNode(ctx, group, targetNode)
-						break
-					}
-				}
+				break
 			}
-		}(savedSelections)
+		}
 	}
-
 	return nil
 }
 
@@ -248,13 +281,15 @@ func (m *Manager) extractMetadata(runtimeJSON []byte) {
 		return
 	}
 
+	m.takeoverMode = ModePort
+	m.allowLan = false
 	for _, in := range raw.Inbounds {
+		if in.Type == "tun" {
+			m.takeoverMode = ModeTun
+		}
 		if in.Type == "mixed" && in.ListenPort > 0 {
 			m.mixedPort = in.ListenPort
-			if in.Listen == "0.0.0.0" {
-				m.allowLan = true
-			}
-			break
+			m.allowLan = in.Listen == "0.0.0.0" || in.Listen == "::"
 		}
 	}
 

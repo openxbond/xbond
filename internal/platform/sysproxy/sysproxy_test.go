@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/openxbond/xbond/internal/platform/paths"
 )
 
 func TestSnapshotLifecycle(t *testing.T) {
@@ -36,5 +38,18 @@ func TestSnapshotLifecycle(t *testing.T) {
 	ClearSnapshot()
 	if _, err := LoadSnapshot(); err == nil {
 		t.Errorf("expected error after ClearSnapshot, got nil")
+	}
+}
+
+func TestCorruptRecoverySnapshotIsPreservedAndReported(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	if err := os.WriteFile(paths.SysproxySnapshotPath(), []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := AutoRecoverOnStartup(); err == nil {
+		t.Fatal("corrupt recovery state was ignored")
+	}
+	if _, err := os.Stat(paths.SysproxySnapshotPath()); err != nil {
+		t.Fatal("unrestored recovery state was deleted")
 	}
 }

@@ -43,30 +43,36 @@ func Get() (Snapshot, error) {
 
 func Set(server string, bypass string) error {
 	current, err := Get()
-	if err == nil {
-		_ = SaveSnapshot(current)
+	if err != nil {
+		return err
 	}
+	if err := SaveSnapshot(current); err != nil {
+		return err
+	}
+	if bypass == "" {
+		bypass = "localhost;127.*;10.*;172.16.*;192.168.*;<local>"
+	}
+	return Restore(Snapshot{Enabled: true, Server: server, Bypass: bypass})
+}
 
+func Restore(snapshot Snapshot) error {
 	k, err := registry.OpenKey(registry.CURRENT_USER, internetSettingsKey, registry.SET_VALUE)
 	if err != nil {
 		return fmt.Errorf("failed to open registry key for writing: %w", err)
 	}
 	defer k.Close()
 
-	if err := k.SetDWordValue("ProxyEnable", 1); err != nil {
+	if err := k.SetStringValue("ProxyServer", snapshot.Server); err != nil {
 		return err
 	}
-	if err := k.SetStringValue("ProxyServer", server); err != nil {
+	if err := k.SetStringValue("ProxyOverride", snapshot.Bypass); err != nil {
 		return err
 	}
-	if bypass == "" {
-		bypass = "localhost;127.*;10.*;172.16.*;192.168.*;<local>"
+	var enabled uint32
+	if snapshot.Enabled {
+		enabled = 1
 	}
-	if err := k.SetStringValue("ProxyOverride", bypass); err != nil {
-		return err
-	}
-
-	return nil
+	return k.SetDWordValue("ProxyEnable", enabled)
 }
 
 func Disable() error {

@@ -3,6 +3,7 @@
 package sysproxy
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 	"time"
@@ -45,8 +46,11 @@ func Get() (Snapshot, error) {
 
 func Set(server string, bypass string) error {
 	current, err := Get()
-	if err == nil {
-		_ = SaveSnapshot(current)
+	if err != nil {
+		return err
+	}
+	if err := SaveSnapshot(current); err != nil {
+		return err
 	}
 
 	service := getDefaultNetworkService()
@@ -57,17 +61,31 @@ func Set(server string, bypass string) error {
 		port = parts[1]
 	}
 
-	_ = exec.Command("networksetup", "-setwebproxy", service, host, port).Run()
-	_ = exec.Command("networksetup", "-setsecurewebproxy", service, host, port).Run()
-	_ = exec.Command("networksetup", "-setsocksfirewallproxy", service, host, port).Run()
+	for _, command := range []string{"-setwebproxy", "-setsecurewebproxy", "-setsocksfirewallproxy"} {
+		if err := exec.Command("networksetup", command, service, host, port).Run(); err != nil {
+			return fmt.Errorf("apply system proxy setting: %w", err)
+		}
+	}
 	return nil
 }
 
 func Disable() error {
 	service := getDefaultNetworkService()
-	_ = exec.Command("networksetup", "-setwebproxystate", service, "off").Run()
-	_ = exec.Command("networksetup", "-setsecurewebproxystate", service, "off").Run()
-	_ = exec.Command("networksetup", "-setsocksfirewallproxystate", service, "off").Run()
+	for _, command := range []string{"-setwebproxystate", "-setsecurewebproxystate", "-setsocksfirewallproxystate"} {
+		if err := exec.Command("networksetup", command, service, "off").Run(); err != nil {
+			return fmt.Errorf("release system proxy setting: %w", err)
+		}
+	}
 	ClearSnapshot()
 	return nil
+}
+
+func Restore(snapshot Snapshot) error {
+	if snapshot.Enabled {
+		if snapshot.Server == "" {
+			return fmt.Errorf("system proxy snapshot has no server")
+		}
+		return Set(snapshot.Server, snapshot.Bypass)
+	}
+	return Disable()
 }

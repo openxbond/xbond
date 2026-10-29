@@ -59,4 +59,4 @@ client-ui 擁有呈現與互動；client 不向 client-ui 或 apps 導入，不�
 
 Extension 實作時建立 apps/extension，擁有 MV3 background 的生命週期、訊息驗證、儲存、代理設定與認證 adapter；按實際需要重用 client 與適用畫面。PAC 編譯和 sing-box 配置衍生保留各自能力，不以全域 isExtension 分支把全部差異交回頁面。Agent 的 CONNECT 與配置簽發在 cloud 開發，沿用既有准入、選路、計量及限速。
 
-只有真實第二個使用情境才新增 module 或 package；目前沒有預建帳號 SDK、支付框架、PAC 編譯器或空 Extension 工程。運行配置套用的恢復、桌面進程探測與三層狀態歸屬仍需行為切片深化，不能把來源檔案歸位視為這些風險已修復。施工與證據見 [體系重塑任務](../tasks/client-system-reshape.md)。
+只有真實第二個使用情境才新增 module 或 package；目前沒有預建帳號 SDK、支付框架、PAC 編譯器或空 Extension 工程。運行配置套用已集中於 internal/daemon 的 runtimeController：HTTP 與排程共用驗證、套用、持久化與恢復流程，詳見[行為契約](../specs/runtime-configuration.md)。桌面進程探測與控制器三層狀態歸屬仍需深化；原生系統設定的已知限制亦不由測試替身視為已驗收。
