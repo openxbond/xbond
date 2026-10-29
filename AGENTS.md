@@ -19,7 +19,7 @@
 ## 開發與驗證
 
 - 安裝：`pnpm install --frozen-lockfile`；版本以 `package.json`、`go.mod`、`tauri/Cargo.toml` 為準。
-- Web：`pnpm start`（預設 3000）；`pnpm test`、`pnpm typecheck`、`pnpm lint`、`pnpm build`。
+- Web：`pnpm dev`（預設 3000）；`pnpm test`、`pnpm typecheck`、`pnpm lint`、`pnpm build`。
 - Go：`pnpm cli:check`（帶專案 build tags 的 vet、test、build）。
 - 桌面：`pnpm desktop`；`pnpm desktop:fmt:check`、`pnpm desktop:check`、`pnpm build:desktop`。開發介面固定 127.0.0.1:1420。
 - 移動端：`pnpm mobile:check` 只驗證 Go 接口；原生接入另須目標平台工具鏈及裝置驗證。

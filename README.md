@@ -6,7 +6,7 @@ XBond 是網絡代理用戶端，包含 Go CLI 與本機服務、React Web 介�
 
 1. 按 `package.json` 的 `packageManager` 準備 pnpm，按 `go.mod` 準備 Go；桌面工作另需 Rust 與 Tauri 的平台建置依賴。
 2. 執行 `pnpm install --frozen-lockfile`。
-3. Web 介面執行 `pnpm start`（預設埠 3000）；桌面開發執行 `pnpm desktop`（介面埠 1420）。
+3. Web 介面執行 `pnpm dev`（預設埠 3000）；桌面開發執行 `pnpm desktop`（介面埠 1420）。
 
 Web 可作遠端控制器介面；完整本機能力依賴本機服務及權限。只有介面啟動，不代表系統代理、TUN 或實際連通已通過驗證。
 
