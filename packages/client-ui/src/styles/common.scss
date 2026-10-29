@@ -224,6 +224,24 @@ input {
   -webkit-user-select: none;
 }
 
+// Toolbar above a page's data surface: search, filters and actions in one
+// bordered card, matching the proxies command card.
+.page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
+}
+
+.page-toolbar .input {
+  height: 36px;
+}
+
 @media (max-width: 768px) {
   .app {
     padding-left: 0;

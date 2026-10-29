@@ -420,7 +420,7 @@ export default function Diagnostics() {
             </select>
           </label>
           <button
-            className={`button button-brand dns-submit ${pending || !caps.dns ? "button-disabled" : ""}`}
+            className={`button button-normal dns-submit ${pending || !caps.dns ? "button-disabled" : ""}`}
             disabled={pending || !caps.dns}
             type="submit"
           >

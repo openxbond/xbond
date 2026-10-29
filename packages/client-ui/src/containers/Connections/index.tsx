@@ -440,7 +440,7 @@ export default function Connections() {
           size={20}
         />
       </Header>
-      <div className="my-3 flex flex-wrap items-end gap-3">
+      <div className="page-toolbar">
         {(["host", "process", "rule", "chains"] as const).map((key) => (
           <label
             key={key}

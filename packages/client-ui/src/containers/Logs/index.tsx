@@ -115,7 +115,7 @@ export default function Logs() {
             : r(state)}
         </output>
       </Header>
-      <div className="my-3 flex flex-wrap items-center gap-3">
+      <div className="page-toolbar">
         <label className="flex items-center gap-2 text-sm">
           {t("levelLabel")}
           <Select

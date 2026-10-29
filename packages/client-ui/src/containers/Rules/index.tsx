@@ -67,13 +67,15 @@ export default function Rules() {
   return (
     <div className="page">
       <RequestStatus error={error} retry={update} />
+      <Header title={t("title")} />
       {!capabilities.ruleProviders && capabilities.kind === "sing-box" && (
         <ProviderNote />
       )}
+      <div className="page-toolbar">
+        <RuleSearch value={search} onChange={setSearch} />
+      </div>
       <RuleProviders />
-      <RuleSearch value={search} onChange={setSearch} />
-      <Header className="not-first:mt-7.5" title={t("title")} />
-      <Card className="mt-2.5 flex flex-1 flex-col overflow-hidden p-0 md:mt-4 focus:outline-none">
+      <Card className="flex flex-1 flex-col overflow-hidden p-0 focus:outline-none">
         <div className="table-header rule-header">
           <div className="w-44">{t("columns.type")}</div>
           <div className="flex-1">{t("columns.payload")}</div>
@@ -116,7 +118,7 @@ function RuleSearch({
       aria-label={tc("search")}
       placeholder={tc("search")}
       align="left"
-      className="my-3"
+      className="flex-1"
       value={value}
       onChange={onChange}
     />
