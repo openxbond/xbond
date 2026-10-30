@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const BUILD_TAGS = "with_gvisor,with_quic,with_utls,with_clash_api";
+import { BUILD_TAGS } from "./go.ts";
+
 const MOBILE_PKG = "github.com/openxbond/xbond/mobile";
 
 export function checkGomobileInstalled(): boolean {
@@ -162,7 +163,7 @@ function main(): void {
     }
   } else {
     console.error(
-      "Usage: node --experimental-strip-types scripts/mobile.ts [check|bind:android|bind:ios]",
+      "Usage: node scripts/mobile.ts [check|bind:android|bind:ios]",
     );
     process.exit(1);
   }
