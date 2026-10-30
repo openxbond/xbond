@@ -35,6 +35,7 @@
     "check:architecture": "node scripts/check-architecture.ts",
     "cli:build": "node scripts/go.ts build",
     "cli:run": "node scripts/go.ts run",
+    "cli:daemon": "node scripts/go.ts run daemon",
     "cli:test": "node scripts/go.ts test",
     "cli:vet": "node scripts/go.ts vet",
     "cli:fmt": "node scripts/go.ts fmt",

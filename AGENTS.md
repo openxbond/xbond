@@ -6,7 +6,7 @@
 
 本倉庫是 XBond 客戶端；Cloud 控制面在另一個倉庫。本倉庫使用 pnpm、Go 及 Rust，命令以根目錄 `package.json` 為準。
 
-- `cmd/xbond/`：CLI；`internal/daemon/`：本機服務與 LocalAPI。
+- `cmd/xbond/`：單一二進位的 CLI；`daemon` 子命令本機前景運行，`service` 子命令組註冊使用者級自啟。`internal/daemon/`：本機服務與 LocalAPI；`internal/daemon/service/`：平台託管（systemd --user／LaunchAgent／HKCU Run）。
 - `internal/engine/`：sing-box；`internal/sub/`：訂閱與配置；`internal/platform/`：資料位置與系統代理；`internal/diag/`：診斷與脫敏。
 - `apps/dashboard/`：網頁入口及靜態資源；`apps/desktop/`：桌面入口與 `src-tauri/` 原生殼；`apps/mobile/android/`、`apps/mobile/ios/`：原生接入；`mobile/` 保留 gomobile 公開入口。
 - `packages/client/`：無 React 的控制器、配置及傳輸；`packages/client-ui/`：React 19、React Router、Jotai、UnoCSS 共用畫面。
@@ -24,7 +24,8 @@
 
 - 安裝：`pnpm install --frozen-lockfile`；Node ≥ 24（`scripts/*.ts` 直接執行，不帶 `--experimental-strip-types`）。版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準。
 - Web：`pnpm dev`（預設 3000）；`pnpm check` 一次跑 typecheck、lint（含架構檢查）、format、test；交付前另跑 `pnpm build`；`pnpm test:watch` 進入 watch 迴圈。
-- Go：`pnpm cli:run [args]` 本機執行 CLI；`pnpm cli:fmt`／`cli:fmt:check`（gofmt）；`pnpm cli:check` 為 vet、test、build。build tags 的單一來源在 `scripts/go.ts`；包路徑、`-run`、CLI 參數等額外參數直接附在命令後（如 `pnpm cli:test ./internal/sub -run TestX`）。
+- Go：`pnpm cli:run [args]` 本機執行 CLI；`pnpm cli:daemon` 前景運行 daemon；`pnpm cli:fmt`／`cli:fmt:check`（gofmt）；`pnpm cli:check` 為 vet、test、build。build tags 的單一來源在 `scripts/go.ts`；包路徑、`-run`、CLI 參數等額外參數直接附在命令後（如 `pnpm cli:test ./internal/sub -run TestX`）。
+- daemon 生命週期：CLI 不直接 spawn daemon 進程；`xbond service install` 把 `xbond daemon --background` 註冊到平台使用者級 supervisor，`service stop` 經 LocalAPI shutdown 端點優雅退出。服務未安裝時任何 CLI 命令會自動註冊並啟動（免管理員）。
 - 桌面：`pnpm dev:desktop`（前端，固定 127.0.0.1:1420）加 `pnpm desktop`（Tauri 殼）；`pnpm desktop:fmt`／`desktop:fmt:check`、`pnpm desktop:check`、`pnpm build:desktop`。
 - 移動端：`pnpm mobile:check` 只驗證 Go 接口；原生接入另須目標平台工具鏈及裝置驗證。
 - 格式：`pnpm exec oxfmt --check <本次檔案>`；`git diff --check`。可選 `pnpm hooks:install` 安裝 lefthook pre-commit，對提交中的檔案跑同樣的 oxfmt 與 oxlint 檢查。

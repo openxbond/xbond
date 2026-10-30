@@ -33,9 +33,5 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("failed to build XBond desktop app")
-        .run(|_app_handle, event| {
-            if let tauri::RunEvent::Exit = event {
-                daemon::stop_supervised_daemon();
-            }
-        });
+        .run(|_app_handle, _event| {});
 }

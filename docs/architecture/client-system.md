@@ -31,7 +31,7 @@ flowchart TD
 | packages/client | 不依賴 React 的控制器、來源資料正規化、核心及 LocalAPI 傳輸、策略與串流邏輯 |
 | packages/client-ui | React 畫面、互動、Jotai／SWR、語系及樣式；目前的瀏覽器／Tauri 探測亦留在這裡 |
 | cmd/xbond | 命令列參數、呈現及入口裝配 |
-| internal/daemon | LocalAPI、HTTP 裝配及本機運行流程 |
+| internal/daemon | LocalAPI、HTTP 裝配及本機運行流程；daemon/service 子包註冊使用者級自啟（systemd --user／LaunchAgent／HKCU Run） |
 | internal/engine | sing-box 執行、配置驗證與衍生 |
 | internal/sub | 訂閱來源、快取及更新 |
 | internal/platform | 作業系統資料位置與系統代理 |
@@ -58,5 +58,7 @@ client-ui 擁有呈現與互動；client 不向 client-ui 或 apps 導入，不�
 ## 後續宿主的落位
 
 Extension 實作時建立 apps/extension，擁有 MV3 background 的生命週期、訊息驗證、儲存、代理設定與認證 adapter；按實際需要重用 client 與適用畫面。PAC 編譯和 sing-box 配置衍生保留各自能力，不以全域 isExtension 分支把全部差異交回頁面。Agent 的 CONNECT 與配置簽發在 cloud 開發，沿用既有准入、選路、計量及限速。
+
+daemon 進程的宿主是平台使用者級 supervisor，不是任何一條 CLI 命令：`xbond daemon` 供前景直接運行與服務註冊復用，`xbond service install` 把 `xbond daemon --background` 交給 systemd --user、LaunchAgent 或 HKCU Run，CLI 只透過 LocalAPI 連線並在缺失時自動註冊。優雅退出統一走 LocalAPI shutdown 端點（引擎停止、系統代理還原、憑據檔清理），supervisor 的停止是硬殺，只作清理手段。
 
 只有真實第二個使用情境才新增 module 或 package；目前沒有預建帳號 SDK、支付框架、PAC 編譯器或空 Extension 工程。運行配置套用已集中於 internal/daemon 的 runtimeController：HTTP 與排程共用驗證、套用、持久化與恢復流程，詳見[行為契約](../specs/runtime-configuration.md)。桌面進程探測與控制器三層狀態歸屬仍需深化；原生系統設定的已知限制亦不由測試替身視為已驗收。

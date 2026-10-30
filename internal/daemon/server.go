@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/openxbond/xbond/internal/diag"
@@ -34,6 +35,11 @@ type Server struct {
 
 	webDir string
 	done   chan struct{}
+	// shutdownCh is closed when a LocalAPI client asked the daemon to exit
+	// (service stop); the daemon main loop watches it beside OS signals.
+	shutdownCh   chan struct{}
+	shutdownOnce sync.Once
+	stopOnce     sync.Once
 }
 
 func NewServer(addr string, webDir string) (*Server, error) {
@@ -61,12 +67,13 @@ func NewServer(addr string, webDir string) (*Server, error) {
 
 	core := engine.NewManager(1000)
 	s := &Server{
-		token:     token,
-		engineMgr: core,
-		subMgr:    subMgr,
-		runtime:   newRuntimeController(core, subMgr, prefs),
-		webDir:    webDir,
-		done:      make(chan struct{}),
+		token:      token,
+		engineMgr:  core,
+		subMgr:     subMgr,
+		runtime:    newRuntimeController(core, subMgr, prefs),
+		webDir:     webDir,
+		done:       make(chan struct{}),
+		shutdownCh: make(chan struct{}),
 	}
 
 	if s.webDir == "" {
@@ -110,8 +117,13 @@ func (s *Server) Start() error {
 	return s.httpServer.Serve(s.listener)
 }
 
+// ShutdownRequested is closed when a LocalAPI client asked the daemon to exit.
+func (s *Server) ShutdownRequested() <-chan struct{} {
+	return s.shutdownCh
+}
+
 func (s *Server) Stop(ctx context.Context) error {
-	close(s.done)
+	s.stopOnce.Do(func() { close(s.done) })
 
 	runtimeErr := s.runtime.Down()
 
@@ -165,6 +177,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/localapi/v0/doctor", s.authMiddleware(s.handleDoctor))
 	mux.HandleFunc("/localapi/v0/bugreport", s.authMiddleware(s.handleBugReport))
+	mux.HandleFunc("/localapi/v0/shutdown", s.authMiddleware(s.handleShutdown))
 
 	// Web UI static files
 	mux.HandleFunc("/", s.handleWeb)
@@ -609,6 +622,18 @@ func (s *Server) handleBugReport(w http.ResponseWriter, r *http.Request) {
 
 	rep := diag.GenerateBugReport(r.Context(), s.engineMgr, s.subMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
 	writeJSON(w, http.StatusOK, rep)
+}
+
+// handleShutdown answers before the daemon main loop tears the server down,
+// so the caller learns the request was accepted rather than racing a dead
+// listener. service stop uses it because platform supervisors kill hard.
+func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "shuttingDown": true})
+	s.shutdownOnce.Do(func() { close(s.shutdownCh) })
 }
 
 func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {

@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/openxbond/xbond/internal/daemon/service"
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/paths"
@@ -60,29 +60,37 @@ func NewClient() (*Client, error) {
 	}, nil
 }
 
+// EnsureRunning connects to the managed xbond-daemon service. An already
+// running daemon is reused, an installed-but-stopped service is started, and
+// a missing service is installed at user level first (no elevation on any
+// platform). The CLI deliberately never spawns a bare daemon process: the
+// process lifecycle belongs to the platform supervisor, not to whichever
+// command happened to run first.
 func EnsureRunning(ctx context.Context) (*Client, error) {
-	c, err := NewClient()
-	if err == nil {
+	if c, err := NewClient(); err == nil {
 		if _, err := c.GetStatus(ctx); err == nil {
 			return c, nil
 		}
 	}
 
-	// Launch background daemon
-	exe, err := os.Executable()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get executable path: %w", err)
+	if service.Installed() {
+		if err := service.Start(); err != nil {
+			return nil, fmt.Errorf("failed to start xbond daemon service: %w", err)
+		}
+	} else {
+		selfPath, err := service.SelfPath()
+		if err != nil {
+			return nil, err
+		}
+		// Install registers autostart and starts the daemon on every platform.
+		if err := service.Install(selfPath); err != nil {
+			return nil, fmt.Errorf("failed to install xbond daemon service: %w", err)
+		}
 	}
 
-	cmd := exec.Command(exe, "daemon")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start daemon process: %w", err)
-	}
-
-	// Poll until ready (up to 3 seconds)
-	for i := 0; i < 30; i++ {
+	// Poll until ready (up to 5 seconds) for the supervised daemon to publish
+	// its addr/token files.
+	for i := 0; i < 50; i++ {
 		time.Sleep(100 * time.Millisecond)
 		c, err := NewClient()
 		if err == nil {
@@ -92,7 +100,14 @@ func EnsureRunning(ctx context.Context) (*Client, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("daemon process started but failed to become ready in time")
+	return nil, fmt.Errorf("xbond-daemon service started but did not become ready in time; check its logs")
+}
+
+// Shutdown asks the daemon to exit gracefully (engine down, proxy restored,
+// credential files removed) through the LocalAPI shutdown endpoint. Platform
+// supervisors kill processes hard, so service stop goes through this first.
+func (c *Client) Shutdown(ctx context.Context) error {
+	return c.request(ctx, http.MethodPost, "/localapi/v0/shutdown", nil, nil)
 }
 
 func (c *Client) request(ctx context.Context, method, endpoint string, body any, target any) error {

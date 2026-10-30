@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::process::Child;
-use std::sync::Mutex;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -10,8 +8,6 @@ pub struct LocalAPIConfig {
     pub token: String,
     pub is_running: bool,
 }
-
-static SUPERVISED_CHILD: Mutex<Option<Child>> = Mutex::new(None);
 
 pub fn get_data_dir() -> PathBuf {
     if let Ok(custom) = std::env::var("XBOND_DATA_DIR") {
@@ -83,7 +79,9 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
         });
     }
 
-    // Attempt to start xbond daemon if binary exists
+    // The desktop app and the CLI are peers over one shared xbond daemon; the
+    // app starts it detached when missing and never stops it on exit —
+    // closing the window must not take the proxy down.
     let exe_name = if cfg!(windows) { "xbond.exe" } else { "xbond" };
     let mut candidate_paths = Vec::new();
 
@@ -121,10 +119,7 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
         }
 
         match cmd.spawn() {
-            Ok(child) => {
-                let mut guard = SUPERVISED_CHILD.lock().unwrap();
-                *guard = Some(child);
-
+            Ok(_) => {
                 // Wait up to 3 seconds for credentials to appear
                 for _ in 0..15 {
                     std::thread::sleep(Duration::from_millis(200));
@@ -155,14 +150,6 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
             token: "".to_string(),
             is_running: false,
         })
-    }
-}
-
-pub fn stop_supervised_daemon() {
-    let mut guard = SUPERVISED_CHILD.lock().unwrap();
-    if let Some(mut child) = guard.take() {
-        let _ = child.kill();
-        let _ = child.wait();
     }
 }
 
