@@ -22,12 +22,13 @@
 
 ## 開發與驗證
 
-- 安裝：`pnpm install --frozen-lockfile`；版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準。
-- Web：`pnpm dev`（預設 3000）；`pnpm test`、`pnpm typecheck`、`pnpm lint`、`pnpm build`。
-- Go：`pnpm cli:check`（帶專案 build tags 的 vet、test、build）。
-- 桌面：`pnpm desktop`；`pnpm desktop:fmt:check`、`pnpm desktop:check`、`pnpm build:desktop`。開發介面固定 127.0.0.1:1420。
+- 安裝：`pnpm install --frozen-lockfile`；Node ≥ 24（`scripts/*.ts` 直接執行，不帶 `--experimental-strip-types`）。版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準。
+- Web：`pnpm dev`（預設 3000）；`pnpm check` 一次跑 typecheck、lint（含架構檢查）、format、test；交付前另跑 `pnpm build`；`pnpm test:watch` 進入 watch 迴圈。
+- Go：`pnpm cli:run [args]` 本機執行 CLI；`pnpm cli:fmt`／`cli:fmt:check`（gofmt）；`pnpm cli:check` 為 vet、test、build。build tags 的單一來源在 `scripts/go.ts`；包路徑、`-run`、CLI 參數等額外參數直接附在命令後（如 `pnpm cli:test ./internal/sub -run TestX`）。
+- 桌面：`pnpm dev:desktop`（前端，固定 127.0.0.1:1420）加 `pnpm desktop`（Tauri 殼）；`pnpm desktop:fmt`／`desktop:fmt:check`、`pnpm desktop:check`、`pnpm build:desktop`。
 - 移動端：`pnpm mobile:check` 只驗證 Go 接口；原生接入另須目標平台工具鏈及裝置驗證。
-- 格式：`pnpm exec oxfmt --check <本次檔案>`；`git diff --check`。
+- 格式：`pnpm exec oxfmt --check <本次檔案>`；`git diff --check`。可選 `pnpm hooks:install` 安裝 lefthook pre-commit，對提交中的檔案跑同樣的 oxfmt 與 oxlint 檢查。
+- CI（`.github/workflows/`）複用同一批命令：`ci.yml` 跑 web 與 Go 門禁；`desktop-check.yml` 僅在 `apps/desktop/src-tauri/` 等路徑變更時跑桌面檢查。
 - 按 [驗證矩陣](docs/agents/verification.md) 選最窄檢查；只報實際執行結果。沒有在目標平台驗證的能力，保留待驗證狀態。
 
 ## 實作規則
