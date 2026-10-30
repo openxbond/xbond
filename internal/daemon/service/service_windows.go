@@ -5,7 +5,9 @@ package service
 import (
 	"fmt"
 	"os/exec"
+	"syscall"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -59,12 +61,24 @@ func startDaemon() error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(selfPath, "daemon", "--background")
+	cmd := backgroundCommand(selfPath)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to launch xbond daemon: %w", err)
 	}
 	go func() { _ = cmd.Wait() }()
 	return nil
+}
+
+// backgroundCommand launches the daemon without inheriting the CLI console.
+// Without CREATE_NO_WINDOW the child shares the parent terminal, and
+// --background's hideConsoleWindow() would hide the user's terminal instead
+// of a daemon-owned console.
+func backgroundCommand(exePath string) *exec.Cmd {
+	cmd := exec.Command(exePath, "daemon", "--background")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: windows.CREATE_NO_WINDOW,
+	}
+	return cmd
 }
 
 // stopDaemon has nothing to unregister: the graceful stop is the LocalAPI

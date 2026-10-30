@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openxbond/xbond/internal/account"
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/paths"
@@ -33,6 +34,7 @@ type Server struct {
 	engineMgr *engine.Manager
 	subMgr    *sub.Manager
 	runtime   *runtimeController
+	account   *accountController
 
 	webDir string
 	done   chan struct{}
@@ -89,6 +91,12 @@ func NewServer(addr string, webDir string) (*Server, error) {
 		shutdownCh: make(chan struct{}),
 		lock:       lock,
 	}
+	s.account = newAccountController(
+		account.NewManager(paths.AccountSessionPath()),
+		s.bindCredentials,
+		s.runtime.Logout,
+		s.activeXBondSub,
+	)
 
 	if s.webDir == "" {
 		s.webDir = "dist"
@@ -141,6 +149,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		close(s.done)
 		defer s.lock.Release()
 
+		s.account.cancelPending()
 		_, runtimeErr := s.runtime.Down()
 
 		_ = os.Remove(paths.LocalAPITokenPath())
@@ -178,6 +187,10 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/localapi/v0/login", s.authMiddleware(s.handleLogin))
 	mux.HandleFunc("/localapi/v0/logout", s.authMiddleware(s.handleLogout))
+	mux.HandleFunc("/localapi/v0/account", s.authMiddleware(s.handleAccountStatus))
+	mux.HandleFunc("/localapi/v0/account/login", s.authMiddleware(s.handleAccountLogin))
+	mux.HandleFunc("/localapi/v0/account/logout", s.authMiddleware(s.handleAccountLogout))
+	mux.HandleFunc("/localapi/v0/account/refresh", s.authMiddleware(s.handleAccountRefresh))
 
 	mux.HandleFunc("/localapi/v0/subs", s.authMiddleware(s.handleSubs))
 	mux.HandleFunc("/localapi/v0/subs/use", s.authMiddleware(s.handleSubUse))
@@ -289,44 +302,120 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var meta *sub.SubscriptionMeta
-	var err error
-
-	if req.Token != "" {
-		meta, err = s.subMgr.AddXBond(req.Token, req.Origin, req.FallbackOrigins, req.Protocol, req.Lang, req.Name, 24, false)
-	} else if req.URLOrFile != "" {
-		meta, err = s.subMgr.AddUniversal(req.URLOrFile, req.Name, 24, false)
-	} else {
-		writeError(w, http.StatusBadRequest, "must provide token or urlOrFile")
-		return
-	}
-
+	meta, updateErrMsg, err := s.bindSubscription(
+		r.Context(),
+		req.Token,
+		req.Origin,
+		req.FallbackOrigins,
+		req.Protocol,
+		req.Lang,
+		req.Name,
+		req.URLOrFile,
+	)
 	if err != nil {
+		var bindErr *bindError
+		if errors.As(err, &bindErr) && !bindErr.input {
+			writeRuntimeError(w, err)
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Fetch the initial config. A fetch failure must not fail the login:
-	// authorization succeeded and the subscription (its credentials included)
-	// stays saved, so `xbond update` can retry the fetch alone.
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "meta": meta, "updateError": updateErrMsg})
+}
+
+type bindError struct {
+	err   error
+	input bool
+}
+
+func (e *bindError) Error() string { return e.err.Error() }
+func (e *bindError) Unwrap() error { return e.err }
+
+// bindSubscription adds or updates a subscription and applies its initial
+// config. A fetch failure is reported through updateErrMsg, not as an error:
+// the credentials stay saved so a later update can retry.
+func (s *Server) bindSubscription(
+	ctx context.Context,
+	token, origin string,
+	fallbackOrigins []string,
+	protocol, lang, name, urlOrFile string,
+) (*sub.SubscriptionMeta, string, error) {
+	if token == "" && urlOrFile == "" {
+		return nil, "", &bindError{err: errors.New("must provide token or urlOrFile"), input: true}
+	}
+	if token != "" && name == "" {
+		for _, item := range s.subMgr.List() {
+			if item.Type == sub.SubTypeXBond && item.Token == token {
+				name = item.Name
+				break
+			}
+		}
+	}
+
+	var meta *sub.SubscriptionMeta
+	var err error
+	if token != "" {
+		meta, err = s.subMgr.AddXBond(token, origin, fallbackOrigins, protocol, lang, name, 24, false)
+	} else {
+		meta, err = s.subMgr.AddUniversal(urlOrFile, name, 24, false)
+	}
+	if err != nil {
+		return nil, "", &bindError{err: err, input: true}
+	}
+
 	finalMeta := meta
-	res, updateErr := s.runtime.Update(r.Context(), meta.ID, true, false)
+	res, updateErr := s.runtime.Update(ctx, meta.ID, true, false)
 	updateErrMsg := ""
 	if updateErr != nil {
 		updateErrMsg = updateErr.Error()
 	} else if res != nil && res.Meta != nil {
 		finalMeta = res.Meta
-		if err := s.runtime.Use(r.Context(), meta.ID); err != nil {
-			writeRuntimeError(w, err)
-			return
+		if err := s.runtime.Use(ctx, meta.ID); err != nil {
+			return finalMeta, updateErrMsg, &bindError{err: err, input: false}
 		}
 	}
+	return finalMeta, updateErrMsg, nil
+}
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "meta": finalMeta, "updateError": updateErrMsg})
+func (s *Server) bindCredentials(
+	ctx context.Context,
+	credentials *account.Credentials,
+	options accountBindOptions,
+) (*sub.SubscriptionMeta, string, error) {
+	return s.bindSubscription(
+		ctx,
+		credentials.SubscriptionToken,
+		credentials.Origin,
+		credentials.FallbackOrigins,
+		options.Protocol,
+		options.Lang,
+		options.Name,
+		"",
+	)
+}
+
+func (s *Server) activeXBondSub() *sub.SubscriptionMeta {
+	activeID := s.subMgr.ActiveID()
+	var first *sub.SubscriptionMeta
+	for _, item := range s.subMgr.List() {
+		if item.Type != sub.SubTypeXBond {
+			continue
+		}
+		copy := item
+		if item.ID == activeID {
+			return &copy
+		}
+		if first == nil {
+			first = &copy
+		}
+	}
+	return first
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	removed, err := s.runtime.Logout()
+	removed, err := s.account.logout()
 	if err != nil {
 		writeRuntimeError(w, err)
 		return

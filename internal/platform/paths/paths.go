@@ -75,6 +75,10 @@ func SysproxySnapshotPath() string {
 	return filepath.Join(DataDir(), "sysproxy.snapshot.json")
 }
 
+func AccountSessionPath() string {
+	return filepath.Join(DataDir(), "account.json")
+}
+
 func LocalAPITokenPath() string {
 	return filepath.Join(DataDir(), "localapi.token")
 }

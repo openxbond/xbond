@@ -133,6 +133,33 @@ export interface LocalAPIStatusResponse {
   activeSub: SubscriptionMeta | null;
 }
 
+export interface AccountStatus {
+  status: "signed_out" | "pending" | "signed_in" | "error";
+  method?: "pkce" | "device";
+  authUrl?: string;
+  verificationUri?: string;
+  verificationUriComplete?: string;
+  userCode?: string;
+  errorCode?: string;
+  error?: string;
+  startedAt?: string;
+  subscription?: SubscriptionMeta | null;
+  updateError?: string;
+}
+
+interface AccountStatusWire extends Omit<AccountStatus, "subscription"> {
+  subscription?: SubscriptionWire | null;
+}
+
+function normalizeAccountStatus(wire: AccountStatusWire): AccountStatus {
+  return {
+    ...wire,
+    subscription: wire.subscription
+      ? normalizeSubscription(wire.subscription)
+      : null,
+  };
+}
+
 export interface LocalAPIConfig {
   endpoint: string;
   token: string;
@@ -287,6 +314,48 @@ export class LocalAPIClient {
       body: JSON.stringify(params),
     });
     return normalizeSubscription(data);
+  }
+
+  async accountStatus(): Promise<AccountStatus> {
+    const data = await this.request<AccountStatusWire>("/localapi/v0/account");
+    return normalizeAccountStatus(data);
+  }
+
+  async accountLogin(options?: {
+    origin?: string;
+    name?: string;
+    lang?: string;
+    protocol?: string;
+    device?: boolean;
+    noBrowser?: boolean;
+  }): Promise<AccountStatus> {
+    const data = await this.request<AccountStatusWire>(
+      "/localapi/v0/account/login",
+      {
+        method: "POST",
+        body: JSON.stringify(options ?? {}),
+      },
+    );
+    return normalizeAccountStatus(data);
+  }
+
+  async accountLogout(): Promise<{
+    ok: boolean;
+    removed: SubscriptionMeta[];
+  }> {
+    const data = await this.request<{
+      ok: boolean;
+      removed: SubscriptionWire[];
+    }>("/localapi/v0/account/logout", { method: "POST" });
+    return { ...data, removed: data.removed.map(normalizeSubscription) };
+  }
+
+  async accountRefresh(): Promise<AccountStatus> {
+    const data = await this.request<AccountStatusWire>(
+      "/localapi/v0/account/refresh",
+      { method: "POST" },
+    );
+    return normalizeAccountStatus(data);
   }
 
   async removeSub(id: string): Promise<{ ok: boolean; deleted: string }> {

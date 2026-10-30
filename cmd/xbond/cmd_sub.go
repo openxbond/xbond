@@ -2,26 +2,21 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/openxbond/xbond/internal/clientapi"
+	"github.com/openxbond/xbond/internal/account"
 	"github.com/openxbond/xbond/internal/daemon"
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/i18n"
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/sub"
 	"github.com/spf13/cobra"
-	"golang.org/x/oauth2"
 )
 
 var (
@@ -120,11 +115,7 @@ var loginCmd = &cobra.Command{
 		effectiveLang := i18n.Resolve(globalLang, "")
 
 		var resp *daemon.LoginResponse
-		if loginDevice || isDockerEnvironment() {
-			resp, err = runDeviceLogin(ctx, client, loginOrigin, effectiveLang, loginName, loginNoBrowser)
-		} else {
-			resp, err = runPkceLogin(ctx, client, loginOrigin, effectiveLang, loginName, loginNoBrowser)
-		}
+		resp, err = runAccountLogin(ctx, client, loginOrigin, effectiveLang, loginName, loginNoBrowser, loginDevice || isDockerEnvironment())
 		if err != nil {
 			return err
 		}
@@ -167,273 +158,116 @@ func isDockerEnvironment() bool {
 	return false
 }
 
-// defaultOrigin 是未显式指定 --origin 时的 OAuth 端点基址；登录成功后配置
-// 拉取的线路会按服务端返回的 fallbackDomains 重新落位（completeOAuthLogin）。
-const defaultOrigin = "https://www.xbond.net"
-
-func runPkceLogin(
+// runAccountLogin performs OAuth through the daemon's shared account module,
+// then binds the discovered subscription through LocalAPI. Progress and
+// prompts stay on stderr; the final result stays on stdout.
+func runAccountLogin(
 	ctx context.Context,
 	client *daemon.Client,
 	origin string,
 	lang, name string,
-	noBrowser bool,
+	noBrowser, device bool,
 ) (*daemon.LoginResponse, error) {
-	effectiveLang := i18n.Resolve(lang, "")
-	t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
+	t := func(id string, data ...i18n.P) string { return i18n.T(lang, id, data...) }
+	manager := account.NewManager(paths.AccountSessionPath())
 
-	if origin == "" {
-		origin = defaultOrigin
-	}
-	origin = strings.TrimSuffix(origin, "/")
-
-	// 1. PKCE verifier + CSRF state（challenge 由 x/oauth2 按 RFC 7636 派生）
-	codeVerifier := oauth2.GenerateVerifier()
-	stateBytes := make([]byte, 16)
-	if _, err := rand.Read(stateBytes); err != nil {
-		return nil, fmt.Errorf("failed to generate state: %w", err)
-	}
-	cliState := hex.EncodeToString(stateBytes)
-	conf := clientapi.NewConfig(origin)
-
-	// 4. 監聽本機隨機可用端口 (RFC 8252 Loopback Interface)
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s %s\n", t("tag.info"), t("pkce.listen_failed", i18n.P{"err": err}))
-		return runDeviceLogin(ctx, client, origin, effectiveLang, name, noBrowser)
-	}
-	defer listener.Close()
-
-	port := listener.Addr().(*net.TCPAddr).Port
-	redirectURI := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
-
-	codeChan := make(chan string, 1)
-	errChan := make(chan error, 1)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Private-Network", "true")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		errParam := r.URL.Query().Get("error")
-		errDesc := r.URL.Query().Get("error_description")
-		if errParam != "" {
-			http.Error(w, fmt.Sprintf("OAuth error: %s (%s)", errParam, errDesc), http.StatusBadRequest)
-			select {
-			case errChan <- fmt.Errorf("oauth error: %s (%s)", errParam, errDesc):
-			default:
-			}
-			return
-		}
-
-		code := r.URL.Query().Get("code")
-		state := r.URL.Query().Get("state")
-
-		if state != cliState {
-			http.Error(w, "Invalid state parameter", http.StatusBadRequest)
-			return
-		}
-		if code == "" {
-			http.Error(w, "Missing authorization code", http.StatusBadRequest)
-			return
-		}
-
-		reqLang := r.URL.Query().Get("lang")
-		if reqLang == "" {
-			reqLang = effectiveLang
-		}
-		callbackHTML := i18n.RenderCallbackHTML(reqLang)
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(callbackHTML))
-
-		select {
-		case codeChan <- code:
-		default:
-		}
-	})
-
-	server := &http.Server{Handler: mux}
-	go func() {
-		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			select {
-			case errChan <- err:
-			default:
-			}
-		}
-	}()
-	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		_ = server.Shutdown(shutdownCtx)
-	}()
-
-	authURL := conf.AuthCodeURL(
-		cliState,
-		oauth2.S256ChallengeOption(codeVerifier),
-		oauth2.SetAuthURLParam("redirect_uri", redirectURI),
-		clientapi.ResourceOption(),
-	)
-
-	// Progress and prompts go to stderr; the final result goes to stdout, so
-	// piping login output never swallows the URL you must open.
-	fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
-	fmt.Fprintln(os.Stderr, t("pkce.banner"))
-	fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
-	if !noBrowser {
-		fmt.Fprintln(os.Stderr, t("pkce.opening_browser"))
-		if err := openBrowser(authURL); err != nil {
-			fmt.Fprintln(os.Stderr, t("pkce.browser_open_failed", i18n.P{"err": err}))
-		}
-	}
-	fmt.Fprintln(os.Stderr, t("pkce.visit_url"))
-	fmt.Fprintf(os.Stderr, "  %s\n\n", authURL)
-	fmt.Fprintln(os.Stderr, t("pkce.waiting"))
-
-	var authCode string
-	select {
-	case code := <-codeChan:
-		authCode = code
-	case err := <-errChan:
-		return nil, fmt.Errorf("auth error: %w", err)
-	case <-time.After(5 * time.Minute):
-		return nil, fmt.Errorf("login timed out after 5 minutes")
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-
-	// 5. 憑授權碼向 Token 端點兌換 OAuth token set
-	token, err := conf.Exchange(
+	var method string
+	var expiresIn int
+	credentials, err := manager.Login(
 		ctx,
-		authCode,
-		oauth2.VerifierOption(codeVerifier),
-		oauth2.SetAuthURLParam("redirect_uri", redirectURI),
-		clientapi.ResourceOption(),
+		account.LoginOptions{
+			Origin:       origin,
+			Device:       device,
+			NoBrowser:    noBrowser || isDockerEnvironment(),
+			CallbackHTML: i18n.RenderCallbackHTML,
+			OpenBrowser: func(target string) error {
+				if err := openBrowser(target); err != nil {
+					fmt.Fprintln(os.Stderr, t("pkce.browser_open_failed", i18n.P{"err": err}))
+					return err
+				}
+				return nil
+			},
+		},
+		func(progress account.Progress) {
+			method = progress.Method
+			expiresIn = progress.ExpiresIn
+			switch progress.Method {
+			case "device":
+				fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
+				fmt.Fprintln(os.Stderr, t("device.banner"))
+				fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
+				if !noBrowser && !isDockerEnvironment() {
+					fmt.Fprintln(os.Stderr, t("device.opening_browser"))
+				}
+				fmt.Fprintln(os.Stderr, t("device.visit_url"))
+				fmt.Fprintf(os.Stderr, "  %s\n\n", progress.VerificationURI)
+				fmt.Fprintln(os.Stderr, t("device.code_prompt"))
+				fmt.Fprintf(os.Stderr, "  >>>  %s  <<<\n\n", progress.UserCode)
+				if progress.VerificationURIComplete != "" {
+					fmt.Fprintln(os.Stderr, t("device.quick_link"))
+					fmt.Fprintf(os.Stderr, "  %s\n\n", progress.VerificationURIComplete)
+				}
+				fmt.Fprintln(os.Stderr, t("device.waiting"))
+			case "pkce":
+				fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
+				fmt.Fprintln(os.Stderr, t("pkce.banner"))
+				fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
+				if !noBrowser {
+					fmt.Fprintln(os.Stderr, t("pkce.opening_browser"))
+				}
+				fmt.Fprintln(os.Stderr, t("pkce.visit_url"))
+				fmt.Fprintf(os.Stderr, "  %s\n\n", progress.AuthURL)
+				fmt.Fprintln(os.Stderr, t("pkce.waiting"))
+			}
+		},
 	)
 	if err != nil {
-		return nil, err
+		return nil, localizeLoginError(t, err, method, expiresIn)
 	}
 
-	fmt.Fprintf(os.Stderr, "\n%s %s\n", t("tag.success"), t("pkce.success"))
-	return completeOAuthLogin(ctx, client, origin, effectiveLang, name, token)
-}
-
-// completeOAuthLogin turns a fresh OAuth token set into a bound subscription:
-// the subscription URL and its gateway line domains are dynamic, so they come
-// from user.credentials.subscriptionLink over tRPC (same procedure as the
-// dashboard) instead of being constructed client-side. Config fetching then
-// rides the classic ?token= URL channel on the discovered lines.
-func completeOAuthLogin(
-	ctx context.Context,
-	client *daemon.Client,
-	origin string,
-	lang, name string,
-	token *oauth2.Token,
-) (*daemon.LoginResponse, error) {
-	link, err := clientapi.FetchSubscriptionLinkWithRefresh(ctx, origin, token)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve subscription link: %w", err)
-	}
-	if link.SubscriptionToken == "" {
-		return nil, errors.New(i18n.T(lang, "login.link_unprovisioned"))
-	}
-
-	// 線路發現：登入後採用服務端線路表（默認線路 = fallbackDomains[0]）。
-	finalOrigin := origin
-	if len(link.FallbackDomains) > 0 && origin == defaultOrigin {
-		finalOrigin = link.FallbackDomains[0]
-	}
-
-	return client.Login(ctx, link.SubscriptionToken, finalOrigin, link.FallbackDomains, "", lang, name, "")
-}
-
-func runDeviceLogin(
-	ctx context.Context,
-	client *daemon.Client,
-	origin string,
-	lang, name string,
-	noBrowser bool,
-) (*daemon.LoginResponse, error) {
-	effectiveLang := i18n.Resolve(lang, "")
-	t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
-
-	if origin == "" {
-		origin = defaultOrigin
-	}
-	origin = strings.TrimSuffix(origin, "/")
-
-	// 1. 請求設備授權碼 (POST /api/auth/device/code, RFC 8628)
-	conf := clientapi.NewConfig(origin)
-	deviceResp, err := conf.DeviceAuth(ctx, clientapi.ResourceOption())
-	if err != nil {
-		return nil, err
-	}
-
-	// 2. 顯示終端授權指引
-	fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
-	fmt.Fprintln(os.Stderr, t("device.banner"))
-	fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
-	if !noBrowser && !isDockerEnvironment() {
-		fmt.Fprintln(os.Stderr, t("device.opening_browser"))
-		if err := openBrowser(deviceResp.VerificationURIComplete); err != nil {
-			// In headless environments, openBrowser might fail silently or error
-		}
-	}
-	fmt.Fprintln(os.Stderr, t("device.visit_url"))
-	fmt.Fprintf(os.Stderr, "  %s\n\n", deviceResp.VerificationURI)
-	fmt.Fprintln(os.Stderr, t("device.code_prompt"))
-	fmt.Fprintf(os.Stderr, "  >>>  %s  <<<\n\n", deviceResp.UserCode)
-	if deviceResp.VerificationURIComplete != "" {
-		fmt.Fprintln(os.Stderr, t("device.quick_link"))
-		fmt.Fprintf(os.Stderr, "  %s\n\n", deviceResp.VerificationURIComplete)
-	}
-	fmt.Fprintln(os.Stderr, t("device.waiting"))
-
-	// 3. 輪詢 Token 端點（RFC 8628）：DeviceAccessToken 內置 pending 靜默與
-	// slow_down 退避，截止時間取設備碼有效期；輪詢走後台 goroutine，保留
-	// 手動輸入 sub-…/URL 的逃生通道。
-	pollCtx, cancelPoll := context.WithCancel(ctx)
-	defer cancelPoll()
-	type pollResult struct {
-		token *oauth2.Token
-		err   error
-	}
-	tokenCh := make(chan pollResult, 1)
-	go func() {
-		token, err := conf.DeviceAccessToken(pollCtx, deviceResp, clientapi.ResourceOption())
-		tokenCh <- pollResult{token, err}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case result := <-tokenCh:
-		if result.err != nil {
-			var retrieveErr *oauth2.RetrieveError
-			if errors.As(result.err, &retrieveErr) {
-				switch retrieveErr.ErrorCode {
-				case "expired_token":
-					return nil, errors.New(t("device.expired"))
-				case "access_denied":
-					return nil, errors.New(t("device.denied"))
-				}
-			}
-			if errors.Is(result.err, context.DeadlineExceeded) {
-				seconds := int(time.Until(deviceResp.Expiry).Seconds()) + 1
-				return nil, fmt.Errorf("%s", t("device.timed_out", i18n.P{"seconds": seconds}))
-			}
-			return nil, result.err
-		}
-
+	switch method {
+	case "device":
 		fmt.Fprintf(os.Stderr, "\n%s %s\n", t("tag.success"), t("device.approved"))
-		return completeOAuthLogin(ctx, client, origin, effectiveLang, name, result.token)
+	case "pkce":
+		fmt.Fprintf(os.Stderr, "\n%s %s\n", t("tag.success"), t("pkce.success"))
 	}
+
+	if credentials.LinkError != nil {
+		return nil, fmt.Errorf("failed to resolve subscription link: %w", credentials.LinkError)
+	}
+	if credentials.SubscriptionToken == "" {
+		return nil, errors.New(t("login.link_unprovisioned"))
+	}
+
+	return client.Login(
+		ctx,
+		credentials.SubscriptionToken,
+		credentials.Origin,
+		credentials.FallbackOrigins,
+		"",
+		lang,
+		name,
+		"",
+	)
+}
+
+func localizeLoginError(t func(string, ...i18n.P) string, err error, method string, expiresIn int) error {
+	var accountErr *account.Error
+	if errors.As(err, &accountErr) {
+		switch accountErr.Code {
+		case account.ErrCodeAccessDenied:
+			return errors.New(t("device.denied"))
+		case account.ErrCodeExpired:
+			return errors.New(t("device.expired"))
+		case account.ErrCodeTimeout:
+			seconds := 300
+			if method == "device" && expiresIn > 0 {
+				seconds = expiresIn
+			}
+			return errors.New(t("device.timed_out", i18n.P{"seconds": seconds}))
+		}
+	}
+	return err
 }
 
 var logoutCmd = &cobra.Command{
