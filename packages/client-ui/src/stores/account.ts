@@ -2,16 +2,16 @@ import type { AccountStatus } from "@xbond/client/localapi";
 import { useCallback } from "react";
 import useSWR from "swr";
 
-import { useLocalAPI } from "./localapi";
+import { useDaemonConnection } from "./daemon";
 
 /**
  * Daemon-owned XBond account session. The OAuth token never reaches the UI;
  * this hook only exposes login state and the actions LocalAPI offers.
  */
 export function useAccount() {
-  const { client, hasLocalAPI } = useLocalAPI();
+  const { client, hasDaemon } = useDaemonConnection();
   const { data, error, mutate } = useSWR<AccountStatus>(
-    client && hasLocalAPI ? ["/localapi/v0/account", client] : null,
+    client && hasDaemon ? ["/localapi/v0/account", client] : null,
     () => {
       if (!client) throw new Error("LocalAPI not available");
       return client.accountStatus();

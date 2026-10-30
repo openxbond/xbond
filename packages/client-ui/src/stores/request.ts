@@ -12,6 +12,8 @@ import { atomWithStorage } from "jotai/utils";
 import { useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { useDaemonConnection } from "./daemon";
+
 function readStorage(key: string): unknown {
   try {
     return JSON.parse(localStorage.getItem(key) ?? "null");
@@ -21,12 +23,14 @@ function readStorage(key: string): unknown {
 }
 const fallback: Controller = {
   id: "default",
-  name: "",
+  name: "XBond",
   secret: "",
   url: window.location.pathname.startsWith("/ui")
     ? window.location.origin
     : "http://127.0.0.1:9090",
 };
+/** The built-in controller backed by this window's own daemon. */
+export const DAEMON_CONTROLLER_ID = fallback.id;
 const initialHosts = migrateControllers(
   readStorage("externalControllers"),
   fallback,
@@ -115,5 +119,18 @@ export function useAPIInfo() {
 }
 export function useClient() {
   const { url, secret } = useAPIInfo();
-  return useMemo(() => Client.forController(url, secret), [url, secret]);
+  const { data, hasDaemon } = useDaemonConnection();
+  const selected = useAtomValue(selectedControllerAtom);
+  return useMemo(() => {
+    // The daemon's clash endpoint (random available port + random secret) is
+    // a daemon-owned implementation detail: compose it from LocalAPI status
+    // instead of any persisted identity, and never surface it in the UI.
+    if (hasDaemon && data && selected === DAEMON_CONTROLLER_ID) {
+      return Client.forController(
+        `http://127.0.0.1:${data.preferences.clashPort}`,
+        data.preferences.clashSecret ?? "",
+      );
+    }
+    return Client.forController(url, secret);
+  }, [hasDaemon, data, selected, url, secret]);
 }

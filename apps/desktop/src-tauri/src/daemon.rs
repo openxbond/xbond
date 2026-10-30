@@ -70,13 +70,27 @@ pub fn read_credentials() -> Option<(String, String)> {
     None
 }
 
+/// TCP-connect probe: the LocalAPI port listening is the cheapest honest
+/// signal that the daemon process is alive — credential files can outlive a
+/// crashed daemon and must not short-circuit startup.
+fn daemon_alive(addr: &str) -> bool {
+    use std::net::TcpStream;
+    match addr.parse::<std::net::SocketAddr>() {
+        Ok(sock) => TcpStream::connect_timeout(&sock, Duration::from_millis(800)).is_ok(),
+        Err(_) => false,
+    }
+}
+
 pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
     if let Some((addr, token)) = read_credentials() {
-        return Ok(LocalAPIConfig {
-            addr,
-            token,
-            is_running: true,
-        });
+        if daemon_alive(&addr) {
+            return Ok(LocalAPIConfig {
+                addr,
+                token,
+                is_running: true,
+            });
+        }
+        // Stale files from a dead daemon: fall through and (re)start.
     }
 
     // The desktop app and the CLI are peers over one shared xbond daemon; the
@@ -181,6 +195,14 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
 
 #[tauri::command]
 pub fn get_localapi_config() -> LocalAPIConfig {
+    // Re-ensure on every read: the daemon may have died or been reinstalled
+    // since setup, and this is the hook that lets the frontend self-heal
+    // instead of serving stale credential files. Tests must not spawn
+    // processes, so the ensure path is compiled out there.
+    #[cfg(not(test))]
+    if let Ok(cfg) = ensure_daemon() {
+        return cfg;
+    }
     if let Some((addr, token)) = read_credentials() {
         LocalAPIConfig {
             addr,

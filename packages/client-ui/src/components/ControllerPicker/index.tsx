@@ -1,4 +1,5 @@
 import {
+  DAEMON_CONTROLLER_ID,
   selectedControllerAtom,
   useControllers,
   useSelectController,
@@ -19,9 +20,11 @@ export function ControllerPicker() {
       <select value={selected} onChange={(event) => select(event.target.value)}>
         {controllers.map((controller) => (
           <option key={controller.id} value={controller.id}>
-            {controller.name
-              ? controller.name + " · " + new URL(controller.url).host
-              : controller.url}
+            {controller.id === DAEMON_CONTROLLER_ID
+              ? "XBond"
+              : controller.name
+                ? controller.name + " · " + new URL(controller.url).host
+                : controller.url}
           </option>
         ))}
       </select>

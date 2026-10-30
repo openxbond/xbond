@@ -23,29 +23,25 @@ export default function App() {
   const client = useClient();
   useTheme();
 
-  const { hasLocalAPI, status } = useLocalAPI();
+  const { hasDaemon, status } = useLocalAPI();
   const { account, accountReady } = useAccount();
 
   const location = useLocation();
   const initialPage =
     detectLocalAPIConfig() || isDesktopApp() ? "/connect" : "/proxies";
 
-  // First-run gate: with a reachable local daemon and no signed-in account,
-  // a missing configuration opens the onboarding flow (sign in / import).
-  // A signed-in account whose active XBond subscription has a revoked token
-  // also lands here — resync re-binds the current subscriptionLink. Remote
-  // controller and web sessions are never gated. `accountReady` keeps
-  // signed-in users from seeing a flash.
+  // First-run gate: with the window's daemon reachable and no signed-in
+  // account, a missing (or credential-revoked) configuration opens the
+  // onboarding flow (sign in / import); resync re-binds the current
+  // subscriptionLink. Remote-controller and web sessions are never gated.
+  // `accountReady` keeps signed-in users from seeing a flash.
   const activeSub = status?.activeSub ?? null;
   const configUnusable =
     !activeSub || activeSub.health === "credential_invalid";
   const signedInNoSub =
-    hasLocalAPI &&
-    !!status &&
-    configUnusable &&
-    account?.status === "signed_in";
+    hasDaemon && !!status && configUnusable && account?.status === "signed_in";
   const needsOnboarding =
-    hasLocalAPI && !!status && configUnusable && accountReady && !signedInNoSub;
+    hasDaemon && !!status && configUnusable && accountReady && !signedInNoSub;
 
   if (needsOnboarding || signedInNoSub) {
     return <Onboarding signedInNoSub={signedInNoSub} />;

@@ -1,81 +1,26 @@
-import {
-  detectLocalAPIConfig,
-  isDesktopApp,
-  resolveDesktopLocalAPIConfig,
-} from "@lib/localapi-bootstrap";
-import {
-  LocalAPIClient,
-  type LocalAPIConfig,
-  type LocalAPIStatusResponse,
-  type TakeoverMode,
-  type RoutingMode,
-} from "@xbond/client/localapi";
-import { isDaemonController } from "@xbond/client/workspace";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { TakeoverMode, RoutingMode } from "@xbond/client/localapi";
+import { useAtomValue } from "jotai";
+import { useCallback } from "react";
 import useSWR from "swr";
 
-import { useAPIInfo } from "./request";
+import { useDaemonConnection } from "./daemon";
+import { DAEMON_CONTROLLER_ID, selectedControllerAtom } from "./request";
 
+/**
+ * Daemon-backed actions plus the view-level distinction between the local
+ * daemon core and an externally selected controller. Connection state and
+ * self-heal live in useDaemonConnection; the daemon's clash endpoint details
+ * (random port + random secret) are composed in useClient from status and
+ * never surfaced here.
+ */
 export function useLocalAPI() {
-  const controller = useAPIInfo();
-  const [config, setConfig] = useState<LocalAPIConfig | null>(() =>
-    detectLocalAPIConfig(),
-  );
-  const lastReresolveAt = useRef(0);
-
-  useEffect(() => {
-    if (!config) {
-      resolveDesktopLocalAPIConfig().then((desktopCfg) => {
-        if (desktopCfg) {
-          setConfig(desktopCfg);
-        }
-      });
-    }
-  }, [config]);
-
-  const client = useMemo(() => {
-    if (!config) return null;
-    return new LocalAPIClient(config.endpoint, config.token);
-  }, [config]);
-
-  const { data, error, mutate } = useSWR<LocalAPIStatusResponse>(
-    client ? ["/localapi/v0/status", config?.token] : null,
-    async () => {
-      if (!client) throw new Error("No LocalAPI client");
-      return client.getStatus();
-    },
-    {
-      refreshInterval: 4000,
-      shouldRetryOnError: false,
-    },
-  );
-
-  // Self-heal: the daemon may have been restarted (or reinstalled) with a
-  // fresh addr/token since this window resolved its config. Re-read it from
-  // the desktop shell when the status keeps failing; a changed config flips
-  // the SWR key and reconnects. Throttled so a down daemon doesn't poll IPC.
-  useEffect(() => {
-    if (!isDesktopApp() || !config || !error) return;
-    if (Date.now() - lastReresolveAt.current < 10_000) return;
-    lastReresolveAt.current = Date.now();
-    const timer = setTimeout(() => {
-      void resolveDesktopLocalAPIConfig().then((next) => {
-        if (
-          next &&
-          (next.endpoint !== config.endpoint || next.token !== config.token)
-        ) {
-          setConfig(next);
-        }
-      });
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [error, config]);
-
-  const isLocalTarget = isDaemonController(
-    controller.url,
-    data?.preferences.clashPort,
-  );
-  const hasLocalAPI = Boolean(client && data && !error && isLocalTarget);
+  const { client, config, data, error, mutateStatus, hasDaemon } =
+    useDaemonConnection();
+  const selected = useAtomValue(selectedControllerAtom);
+  // The viewed core is the daemon's own core when the default (XBond)
+  // controller is selected; user-added controllers are external cores.
+  const isLocalTarget = hasDaemon && selected === DAEMON_CONTROLLER_ID;
+  const hasLocalAPI = isLocalTarget;
 
   const up = useCallback(
     async (options?: {
@@ -87,25 +32,25 @@ export function useLocalAPI() {
     }) => {
       if (!client) return;
       const res = await client.up(options);
-      await mutate();
+      await mutateStatus();
       return res;
     },
-    [client, mutate],
+    [client, mutateStatus],
   );
 
   const down = useCallback(async () => {
     if (!client) return;
     const res = await client.down();
-    await mutate();
+    await mutateStatus();
     return res;
-  }, [client, mutate]);
+  }, [client, mutateStatus]);
 
   const restart = useCallback(async () => {
     if (!client) return;
     const res = await client.restart();
-    await mutate();
+    await mutateStatus();
     return res;
-  }, [client, mutate]);
+  }, [client, mutateStatus]);
 
   const setMode = useCallback(
     async (options: {
@@ -116,10 +61,10 @@ export function useLocalAPI() {
     }) => {
       if (!client) return;
       const res = await client.setMode(options);
-      await mutate();
+      await mutateStatus();
       return res;
     },
-    [client, mutate],
+    [client, mutateStatus],
   );
 
   const selectNode = useCallback(
@@ -133,11 +78,12 @@ export function useLocalAPI() {
   return {
     hasLocalAPI,
     isLocalTarget,
-    config,
+    hasDaemon,
     client,
+    config,
     status: data ?? null,
     error,
-    refresh: mutate,
+    refresh: mutateStatus,
     up,
     down,
     restart,
@@ -147,9 +93,11 @@ export function useLocalAPI() {
 }
 
 export function useSubscriptions() {
-  const { client, hasLocalAPI } = useLocalAPI();
+  // Subscriptions are daemon-owned: they stay manageable regardless of which
+  // controller the window is currently viewing.
+  const { client, hasDaemon } = useDaemonConnection();
   const { data, error, mutate } = useSWR(
-    client && hasLocalAPI ? ["/localapi/v0/subs", client] : null,
+    client && hasDaemon ? ["/localapi/v0/subs", client] : null,
     async () => {
       if (!client) return { subscriptions: [], activeId: "" };
       return client.listSubs();

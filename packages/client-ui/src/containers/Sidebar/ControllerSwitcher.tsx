@@ -1,4 +1,6 @@
+import { XBondIcon } from "@components";
 import {
+  DAEMON_CONTROLLER_ID,
   selectedControllerAtom,
   useControllers,
   useSelectController,
@@ -34,6 +36,7 @@ export function ControllerSwitcher({
   const selected =
     controllers.find((controller) => controller.id === selectedID) ??
     controllers[0];
+  const isDaemon = selected?.id === DAEMON_CONTROLLER_ID;
 
   useEffect(() => {
     if (!open) return;
@@ -69,19 +72,23 @@ export function ControllerSwitcher({
         onClick={() => setOpen((value) => !value)}
       >
         <span className="controller-switch-icon" aria-hidden="true">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="4" y="5" width="16" height="11" rx="2" />
-            <path d="M2 19h20" />
-          </svg>
+          {isDaemon ? (
+            <XBondIcon className="controller-switch-logo" />
+          ) : (
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="4" y="5" width="16" height="11" rx="2" />
+              <path d="M2 19h20" />
+            </svg>
+          )}
           <span
             className={`controller-switch-status ${connected ? "is-online" : ""}`}
           />
@@ -89,7 +96,11 @@ export function ControllerSwitcher({
         <span className="controller-switch-text">
           <span className="controller-switch-name">
             <span className="controller-switch-name-text">
-              {selected ? selected.name || hostOf(selected.url) : "—"}
+              {selected
+                ? isDaemon
+                  ? "XBond"
+                  : selected.name || hostOf(selected.url)
+                : "—"}
             </span>
             <svg
               className="controller-switch-chevron"
@@ -106,7 +117,7 @@ export function ControllerSwitcher({
               <path d="m6 9 6 6 6-6" />
             </svg>
           </span>
-          {selected?.name && (
+          {selected?.name && !isDaemon && (
             <span className="controller-switch-host">
               {hostOf(selected.url)}
             </span>
@@ -136,11 +147,15 @@ export function ControllerSwitcher({
               >
                 <span className="controller-menu-text">
                   <span className="controller-menu-name">
-                    {controller.name || hostOf(controller.url)}
+                    {controller.id === DAEMON_CONTROLLER_ID
+                      ? "XBond"
+                      : controller.name || hostOf(controller.url)}
                   </span>
-                  <span className="controller-menu-host">
-                    {hostOf(controller.url)}
-                  </span>
+                  {controller.id !== DAEMON_CONTROLLER_ID && (
+                    <span className="controller-menu-host">
+                      {hostOf(controller.url)}
+                    </span>
+                  )}
                 </span>
                 {active && (
                   <svg
