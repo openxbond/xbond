@@ -45,7 +45,7 @@ var nodeListCmd = &cobra.Command{
 	Short: "List proxy groups or nodes within a group",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -137,7 +137,7 @@ var nodeTestCmd = &cobra.Command{
 	Short: "Test latency of a proxy node or all nodes in a group",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -147,24 +147,30 @@ var nodeTestCmd = &cobra.Command{
 			return err
 		}
 
-		target := "Proxy"
+		target := ""
 		if len(args) > 0 {
 			target = args[0]
 		}
 
 		var targetsToTest []string
-		if item, exists := proxies[target]; exists && (item.Type == "Selector" || item.Type == "URLTest") {
-			targetsToTest = item.All
-		} else if _, exists := proxies[target]; exists {
-			targetsToTest = []string{target}
-		} else {
-			// Find default group
+		if target == "" {
+			// No target given: test the first selector group's nodes.
 			for _, item := range proxies {
 				if item.Type == "Selector" {
 					targetsToTest = item.All
 					break
 				}
 			}
+		} else if item, exists := proxies[target]; exists {
+			if item.Type == "Selector" || item.Type == "URLTest" {
+				targetsToTest = item.All
+			} else {
+				targetsToTest = []string{target}
+			}
+		} else {
+			// An explicit miss must fail: silently testing another group
+			// reports success for a name that does not exist.
+			return fmt.Errorf("node or group %q not found", target)
 		}
 
 		if len(targetsToTest) == 0 {

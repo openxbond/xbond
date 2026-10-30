@@ -74,3 +74,17 @@ type UpdateResult struct {
 	ContentChanged bool              `json:"contentChanged"`
 	StatusNotMod   bool              `json:"statusNotModified"`
 }
+
+// UpdateFailure carries one subscription's failed refresh inside a batch, so
+// partial failure keeps every per-item outcome instead of collapsing into a
+// single error.
+type UpdateFailure struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Error string `json:"error"`
+}
+
+type BatchUpdateResult struct {
+	Results  []UpdateResult  `json:"results"`
+	Failures []UpdateFailure `json:"failures"`
+}

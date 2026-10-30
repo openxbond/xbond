@@ -14,7 +14,16 @@ var rootCmd = &cobra.Command{
 	Use:   "xbond",
 	Short: "XBond — High performance, next-generation embedded proxy client",
 	Long: fmt.Sprintf(`XBond cli v%s (sing-box v%s)
-Next-generation proxy client with embedded sing-box engine, dual-track subscriptions, and comprehensive runtime diagnostics.`, version.Version, version.SingBoxVersion),
+Next-generation proxy client with embedded sing-box engine, dual-track subscriptions, and comprehensive runtime diagnostics.
+
+Quick start, background service:
+  xbond daemon install           # register and start the background daemon
+  xbond login                    # XBond account; or xbond sub add <url> for a third-party subscription (no account needed)
+  xbond up                       # connect
+  xbond status
+
+One-off foreground run, no daemon:
+  xbond run --config config.json`, version.Version, version.SingBoxVersion),
 }
 
 // commandLayout is both the help grouping and the order inside each group:
@@ -26,11 +35,12 @@ var commandLayout = []struct {
 	names []string
 }{
 	{"basic", []string{"login", "logout", "up", "down", "restart", "status"}},
+	{"runtime", []string{"daemon", "run"}},
 	{"config", []string{"sub", "update", "mode", "node", "env"}},
 	{"observe", []string{"logs", "conns", "rules", "dns", "doctor", "bugreport"}},
 	// help and completion are created by cobra at Execute time; they follow
 	// the listed commands automatically.
-	{"other", []string{"daemon", "run", "web", "version"}},
+	{"other", []string{"web", "version"}},
 }
 
 func init() {
@@ -38,6 +48,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&globalLang, "lang", "", "Language: zh-HK, zh-CN, en, ko, fa (default auto-detected)")
 	rootCmd.AddGroup(
 		&cobra.Group{ID: "basic", Title: "Basic commands:"},
+		&cobra.Group{ID: "runtime", Title: "Runtime service commands:"},
 		&cobra.Group{ID: "config", Title: "Configuration commands:"},
 		&cobra.Group{ID: "observe", Title: "Observation commands:"},
 		&cobra.Group{ID: "other", Title: "Other commands:"},

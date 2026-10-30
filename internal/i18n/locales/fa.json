@@ -14,6 +14,8 @@
   "pkce.subscription_active": "ورود موفق؛ اشتراک فعال شد: {{.name}} ({{.id}})",
   "pkce.quota_usage": "مصرف داده: {{.used}} گیگابایت از {{.total}} گیگابایت ({{.pct}}%)",
   "login.link_unprovisioned": "لینک اشتراک هنوز تولید نشده است: ابتدا لینک اشتراک را در داشبورد بازنشانی کنید، سپس دوباره xbond login را اجرا کنید.",
+  "login.update_failed": "ورود موفق بود، اما دریافت پیکربندی اولیه شکست خورد: {{.err}}. اشتراک ذخیره شد — برای تلاش دوباره `xbond update` را اجرا کنید.",
+  "login.next_step": "برای اتصال `xbond up` را اجرا کنید.",
   "pkce.listen_failed": "باز کردن درگاه محلی ممکن نشد؛ به ورود دستگاهی برمی‌گردیم ({{.err}})",
 
   "device.banner": "  ورود دستگاه XBond (OAuth 2.0 Device Flow)",
@@ -29,7 +31,8 @@
 
   "engine.started": "هسته XBond راه‌اندازی شد (حالت: {{.mode}}، مسیریابی: {{.routing}}، درگاه: {{.port}})",
   "engine.stopped": "هسته XBond متوقف شد و پراکسی سیستم بازیابی گردید.",
-  "engine.restarted": "پیکربندی زمان اجرای هسته XBond دوباره بارگذاری شد.",
+  "engine.restarted": "هسته XBond با اشتراک و تنظیمات فعلی دوباره راه‌اندازی شد.",
+  "engine.already_stopped": "هسته XBond از قبل متوقف است.",
   "engine.port_conflict": "درگاه {{.port}} توسط برنامه دیگری اشغال شده است (مثلاً Clash، v2rayN یا WSL/NAT).",
   "engine.port_conflict_hint": "از درگاه آزاد دیگری استفاده کنید، مثلاً: xbond up --port 7891",
 

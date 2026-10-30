@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -140,7 +141,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		close(s.done)
 		defer s.lock.Release()
 
-		runtimeErr := s.runtime.Down()
+		_, runtimeErr := s.runtime.Down()
 
 		_ = os.Remove(paths.LocalAPITokenPath())
 		_ = os.Remove(paths.LocalAPIAddrPath())
@@ -205,7 +206,12 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	prefs := s.runtime.Preferences()
 
 	status := s.engineMgr.Status()
-	threeTier := diag.EvaluateThreeTier(ctx, s.engineMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
+	var threeTier diag.ThreeTierStatus
+	// light=1 keeps readiness probes and polling loops off the network: the
+	// full evaluation runs DNS and egress checks, which is doctor's job.
+	if r.URL.Query().Get("light") != "1" {
+		threeTier = diag.EvaluateThreeTier(ctx, s.engineMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
+	}
 
 	var activeSub *sub.SubscriptionMeta
 	if s.subMgr.ActiveID() != "" {
@@ -235,15 +241,16 @@ func (s *Server) handleUp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDown(w http.ResponseWriter, r *http.Request) {
-	if err := s.runtime.Down(); err != nil {
+	stopped, err := s.runtime.Down()
+	if err != nil {
 		writeRuntimeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "stopped": true})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "stopped": stopped})
 }
 
 func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
-	if err := s.runtime.Up(r.Context(), runtimeOptions{}); err != nil {
+	if err := s.runtime.Restart(r.Context()); err != nil {
 		writeRuntimeError(w, err)
 		return
 	}
@@ -299,37 +306,33 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch initial config
+	// Fetch the initial config. A fetch failure must not fail the login:
+	// authorization succeeded and the subscription (its credentials included)
+	// stays saved, so `xbond update` can retry the fetch alone.
+	finalMeta := meta
 	res, updateErr := s.runtime.Update(r.Context(), meta.ID, true, false)
+	updateErrMsg := ""
 	if updateErr != nil {
-		if s.runtime.engine.IsRunning() {
-			writeRuntimeError(w, updateErr)
+		updateErrMsg = updateErr.Error()
+	} else if res != nil && res.Meta != nil {
+		finalMeta = res.Meta
+		if err := s.runtime.Use(r.Context(), meta.ID); err != nil {
+			writeRuntimeError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "meta": meta, "updateError": updateErr.Error()})
-		return
-	}
-	if err := s.runtime.Use(r.Context(), meta.ID); err != nil {
-		writeRuntimeError(w, err)
-		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "meta": res.Meta})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "meta": finalMeta, "updateError": updateErrMsg})
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Purge bool `json:"purge"`
-	}
-	if !decodeRuntimeRequest(w, r, &req) {
-		return
-	}
-	if err := s.runtime.Logout(req.Purge); err != nil {
+	removed, err := s.runtime.Logout()
+	if err != nil {
 		writeRuntimeError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "loggedOut": true})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "loggedOut": true, "removed": removed})
 }
 
 func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
@@ -384,23 +387,35 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Initial update
+		// Initial update. The response spells out every side effect —
+		// activation, whether the running core switched, and a failed
+		// initial fetch — so the CLI can report what actually happened.
 		res, updateErr := s.runtime.Update(r.Context(), meta.ID, true, false)
-		if updateErr != nil && s.runtime.engine.IsRunning() {
-			writeRuntimeError(w, updateErr)
-			return
+		updateErrMsg := ""
+		if updateErr != nil {
+			updateErrMsg = updateErr.Error()
+			if s.runtime.engine.IsRunning() {
+				// A running core cannot switch to a configuration that
+				// never arrived; activation waits for a successful update.
+				writeJSON(w, http.StatusOK, map[string]any{"meta": meta, "activated": false, "reloaded": false, "updateError": updateErrMsg})
+				return
+			}
 		}
+		activated := false
+		reloaded := false
 		if req.Use {
 			if err := s.runtime.Use(r.Context(), meta.ID); err != nil {
 				writeRuntimeError(w, err)
 				return
 			}
+			activated = true
+			reloaded = s.runtime.engine.IsRunning()
 		}
 		if res != nil && res.Meta != nil {
 			meta = res.Meta
 		}
 
-		writeJSON(w, http.StatusOK, meta)
+		writeJSON(w, http.StatusOK, map[string]any{"meta": meta, "activated": activated, "reloaded": reloaded, "updateError": updateErrMsg})
 
 	case http.MethodDelete:
 		id := r.URL.Query().Get("id")
@@ -448,22 +463,23 @@ func (s *Server) handleSubUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if request.All {
-		results := make([]sub.UpdateResult, 0)
-		failures := make(map[string]string)
+		// Always 200: a batch keeps every per-item outcome (results and
+		// failures) instead of collapsing partial failure into one error
+		// status. The caller decides what a failure rate means.
+		result := sub.BatchUpdateResult{
+			Results:  make([]sub.UpdateResult, 0),
+			Failures: make([]sub.UpdateFailure, 0),
+		}
 		for _, item := range s.subMgr.List() {
-			result, err := s.runtime.Update(r.Context(), item.ID, request.Force, request.ViaProxy)
-			if result != nil {
-				results = append(results, *result)
+			res, err := s.runtime.Update(r.Context(), item.ID, request.Force, request.ViaProxy)
+			if res != nil {
+				result.Results = append(result.Results, *res)
 			}
 			if err != nil {
-				failures[item.ID] = err.Error()
+				result.Failures = append(result.Failures, sub.UpdateFailure{ID: item.ID, Name: item.Name, Error: err.Error()})
 			}
 		}
-		if len(failures) > 0 {
-			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "one or more subscription updates failed", "results": results, "failures": failures})
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"results": results})
+		writeJSON(w, http.StatusOK, result)
 		return
 	}
 	result, err := s.runtime.Update(r.Context(), request.ID, request.Force, request.ViaProxy)
@@ -623,7 +639,13 @@ func (s *Server) handleDNSFlush(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	level := engine.LogLevel(r.URL.Query().Get("level"))
-	logs := s.engineMgr.RingLog().Snapshot(level, 200)
+	limit := 200
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 1000 {
+			limit = n
+		}
+	}
+	logs := s.engineMgr.RingLog().Snapshot(level, limit)
 	writeJSON(w, http.StatusOK, map[string]any{"logs": logs})
 }
 
@@ -641,15 +663,20 @@ func (s *Server) handleBugReport(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rep)
 }
 
-// handleShutdown answers before the daemon main loop tears the server down,
-// so the caller learns the request was accepted rather than racing a dead
-// listener. service stop uses it because platform supervisors kill hard.
+// handleShutdown tears the runtime down before answering, so the caller
+// learns "cleanup done" — engine down, proxy restored — not merely "exit
+// accepted". service stop uses this because platform supervisors kill hard.
 func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "shuttingDown": true})
+	_, cleanupErr := s.runtime.Down()
+	response := map[string]any{"ok": true, "shuttingDown": true, "cleanedUp": cleanupErr == nil}
+	if cleanupErr != nil {
+		response["error"] = cleanupErr.Error()
+	}
+	writeJSON(w, http.StatusOK, response)
 	s.shutdownOnce.Do(func() { close(s.shutdownCh) })
 }
 

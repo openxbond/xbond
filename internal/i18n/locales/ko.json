@@ -14,6 +14,8 @@
   "pkce.subscription_active": "로그인 완료, 구독이 활성화되었습니다: {{.name}} ({{.id}})",
   "pkce.quota_usage": "사용량: {{.used}} GB / {{.total}} GB ({{.pct}}%)",
   "login.link_unprovisioned": "구독 링크가 아직 생성되지 않았습니다: 대시보드에서 구독 링크를 재설정한 후 xbond login을 다시 실행하세요.",
+  "login.update_failed": "로그인했지만 초기 설정을 가져오는 데 실패했습니다: {{.err}}. 구독은 저장되었으니 `xbond update`로 다시 시도하세요.",
+  "login.next_step": "`xbond up`을 실행하여 연결하세요.",
   "pkce.listen_failed": "로컬 콜백 포트를 열 수 없어 기기 인증 로그인으로 전환합니다 ({{.err}})",
 
   "device.banner": "  XBond 기기 인증 로그인 (OAuth 2.0 Device Flow)",
@@ -29,7 +31,8 @@
 
   "engine.started": "XBond 코어가 시작되었습니다 (모드: {{.mode}}, 라우팅: {{.routing}}, 포트: {{.port}})",
   "engine.stopped": "XBond 코어가 중지되었으며 시스템 프록시가 복원되었습니다.",
-  "engine.restarted": "XBond 코어 실행 설정이 다시 로드되었습니다.",
+  "engine.restarted": "XBond 코어가 현재 구독과 설정으로 다시 시작되었습니다.",
+  "engine.already_stopped": "XBond 코어는 이미 중지되어 있습니다.",
   "engine.port_conflict": "포트 {{.port}}은(는) 다른 프로그램(Clash, v2rayN, WSL/NAT 등)에서 이미 사용 중입니다.",
   "engine.port_conflict_hint": "다른 사용 가능한 포트로 시작하세요. 예: xbond up --port 7891",
 

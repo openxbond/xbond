@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,8 +29,6 @@ var (
 	loginName      string
 	loginNoBrowser bool
 	loginDevice    bool
-
-	logoutPurge bool
 
 	subAddOrigin   string
 	subAddProtocol string
@@ -59,7 +58,6 @@ func init() {
 	rootCmd.AddCommand(loginCmd)
 
 	// logout
-	logoutCmd.Flags().BoolVar(&logoutPurge, "purge", false, "Delete local credentials and cached subscription files")
 	rootCmd.AddCommand(logoutCmd)
 
 	// top-level update
@@ -121,17 +119,27 @@ var loginCmd = &cobra.Command{
 
 		effectiveLang := i18n.Resolve(globalLang, "")
 
-		var meta *sub.SubscriptionMeta
+		var resp *daemon.LoginResponse
 		if loginDevice || isDockerEnvironment() {
-			meta, err = runDeviceLogin(ctx, client, loginOrigin, effectiveLang, loginName, loginNoBrowser)
+			resp, err = runDeviceLogin(ctx, client, loginOrigin, effectiveLang, loginName, loginNoBrowser)
 		} else {
-			meta, err = runPkceLogin(ctx, client, loginOrigin, effectiveLang, loginName, loginNoBrowser)
+			resp, err = runPkceLogin(ctx, client, loginOrigin, effectiveLang, loginName, loginNoBrowser)
 		}
 		if err != nil {
 			return err
 		}
+		if resp.Meta == nil {
+			return errors.New("login succeeded but the daemon returned no subscription")
+		}
 
 		t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
+		meta := resp.Meta
+		// Three distinct outcomes: ready to connect, saved-but-fetch-failed,
+		// or a hard failure (returned above as err).
+		if resp.UpdateError != "" {
+			fmt.Printf("%s %s\n", t("tag.success"), t("login.update_failed", i18n.P{"err": resp.UpdateError}))
+			return nil
+		}
 		fmt.Printf("%s %s\n", t("tag.success"), t("pkce.subscription_active", i18n.P{"name": meta.Name, "id": meta.ID}))
 		if meta.Quota.TotalBytes > 0 {
 			usedGB := float64(meta.Quota.DownloadBytes+meta.Quota.UploadBytes) / (1024 * 1024 * 1024)
@@ -141,6 +149,7 @@ var loginCmd = &cobra.Command{
 				"used": fmt.Sprintf("%.2f", usedGB), "total": fmt.Sprintf("%.2f", totalGB), "pct": fmt.Sprintf("%.1f", pct),
 			}))
 		}
+		fmt.Printf("%s %s\n", t("tag.info"), t("login.next_step"))
 		return nil
 	},
 }
@@ -168,7 +177,7 @@ func runPkceLogin(
 	origin string,
 	lang, name string,
 	noBrowser bool,
-) (*sub.SubscriptionMeta, error) {
+) (*daemon.LoginResponse, error) {
 	effectiveLang := i18n.Resolve(lang, "")
 	t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
 
@@ -189,7 +198,7 @@ func runPkceLogin(
 	// 4. 監聽本機隨機可用端口 (RFC 8252 Loopback Interface)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		fmt.Printf("%s %s\n", t("tag.info"), t("pkce.listen_failed", i18n.P{"err": err}))
+		fmt.Fprintf(os.Stderr, "%s %s\n", t("tag.info"), t("pkce.listen_failed", i18n.P{"err": err}))
 		return runDeviceLogin(ctx, client, origin, effectiveLang, name, noBrowser)
 	}
 	defer listener.Close()
@@ -272,18 +281,20 @@ func runPkceLogin(
 		clientapi.ResourceOption(),
 	)
 
-	fmt.Println(strings.Repeat("=", 66))
-	fmt.Println(t("pkce.banner"))
-	fmt.Println(strings.Repeat("=", 66))
+	// Progress and prompts go to stderr; the final result goes to stdout, so
+	// piping login output never swallows the URL you must open.
+	fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
+	fmt.Fprintln(os.Stderr, t("pkce.banner"))
+	fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
 	if !noBrowser {
-		fmt.Println(t("pkce.opening_browser"))
+		fmt.Fprintln(os.Stderr, t("pkce.opening_browser"))
 		if err := openBrowser(authURL); err != nil {
-			fmt.Println(t("pkce.browser_open_failed", i18n.P{"err": err}))
+			fmt.Fprintln(os.Stderr, t("pkce.browser_open_failed", i18n.P{"err": err}))
 		}
 	}
-	fmt.Println(t("pkce.visit_url"))
-	fmt.Printf("  %s\n\n", authURL)
-	fmt.Println(t("pkce.waiting"))
+	fmt.Fprintln(os.Stderr, t("pkce.visit_url"))
+	fmt.Fprintf(os.Stderr, "  %s\n\n", authURL)
+	fmt.Fprintln(os.Stderr, t("pkce.waiting"))
 
 	var authCode string
 	select {
@@ -309,7 +320,7 @@ func runPkceLogin(
 		return nil, err
 	}
 
-	fmt.Printf("\n%s %s\n", t("tag.success"), t("pkce.success"))
+	fmt.Fprintf(os.Stderr, "\n%s %s\n", t("tag.success"), t("pkce.success"))
 	return completeOAuthLogin(ctx, client, origin, effectiveLang, name, token)
 }
 
@@ -324,7 +335,7 @@ func completeOAuthLogin(
 	origin string,
 	lang, name string,
 	token *oauth2.Token,
-) (*sub.SubscriptionMeta, error) {
+) (*daemon.LoginResponse, error) {
 	link, err := clientapi.FetchSubscriptionLinkWithRefresh(ctx, origin, token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve subscription link: %w", err)
@@ -348,7 +359,7 @@ func runDeviceLogin(
 	origin string,
 	lang, name string,
 	noBrowser bool,
-) (*sub.SubscriptionMeta, error) {
+) (*daemon.LoginResponse, error) {
 	effectiveLang := i18n.Resolve(lang, "")
 	t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
 
@@ -365,24 +376,24 @@ func runDeviceLogin(
 	}
 
 	// 2. 顯示終端授權指引
-	fmt.Println(strings.Repeat("=", 66))
-	fmt.Println(t("device.banner"))
-	fmt.Println(strings.Repeat("=", 66))
+	fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
+	fmt.Fprintln(os.Stderr, t("device.banner"))
+	fmt.Fprintln(os.Stderr, strings.Repeat("=", 66))
 	if !noBrowser && !isDockerEnvironment() {
-		fmt.Println(t("device.opening_browser"))
+		fmt.Fprintln(os.Stderr, t("device.opening_browser"))
 		if err := openBrowser(deviceResp.VerificationURIComplete); err != nil {
 			// In headless environments, openBrowser might fail silently or error
 		}
 	}
-	fmt.Println(t("device.visit_url"))
-	fmt.Printf("  %s\n\n", deviceResp.VerificationURI)
-	fmt.Println(t("device.code_prompt"))
-	fmt.Printf("  >>>  %s  <<<\n\n", deviceResp.UserCode)
+	fmt.Fprintln(os.Stderr, t("device.visit_url"))
+	fmt.Fprintf(os.Stderr, "  %s\n\n", deviceResp.VerificationURI)
+	fmt.Fprintln(os.Stderr, t("device.code_prompt"))
+	fmt.Fprintf(os.Stderr, "  >>>  %s  <<<\n\n", deviceResp.UserCode)
 	if deviceResp.VerificationURIComplete != "" {
-		fmt.Println(t("device.quick_link"))
-		fmt.Printf("  %s\n\n", deviceResp.VerificationURIComplete)
+		fmt.Fprintln(os.Stderr, t("device.quick_link"))
+		fmt.Fprintf(os.Stderr, "  %s\n\n", deviceResp.VerificationURIComplete)
 	}
-	fmt.Println(t("device.waiting"))
+	fmt.Fprintln(os.Stderr, t("device.waiting"))
 
 	// 3. 輪詢 Token 端點（RFC 8628）：DeviceAccessToken 內置 pending 靜默與
 	// slow_down 退避，截止時間取設備碼有效期；輪詢走後台 goroutine，保留
@@ -420,24 +431,40 @@ func runDeviceLogin(
 			return nil, result.err
 		}
 
-		fmt.Printf("\n%s %s\n", t("tag.success"), t("device.approved"))
+		fmt.Fprintf(os.Stderr, "\n%s %s\n", t("tag.success"), t("device.approved"))
 		return completeOAuthLogin(ctx, client, origin, effectiveLang, name, result.token)
 	}
 }
 
 var logoutCmd = &cobra.Command{
 	Use:   "logout",
-	Short: "Log out and stop the active subscription",
+	Short: "Remove local XBond login credentials (universal subscriptions are kept)",
+	Args:  cobra.NoArgs,
+	Long: `Remove the local XBond login credentials: every xbond-type subscription is deleted, and the core disconnects only if the active one was among them.
+
+Third-party (universal) subscriptions are untouched — remove those with ` + "`xbond sub remove`" + `, and disconnect without removing credentials with ` + "`xbond down`" + `. The remote account authorization is NOT revoked; manage that in the XBond dashboard.
+
+Requires a running daemon (xbond daemon start) because it owns the credential store.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client, err := daemon.NewClient()
 		if err != nil {
+			return fmt.Errorf("xbond daemon is not running; start it first (xbond daemon start) so the credential store can be updated")
+		}
+		removed, err := client.Logout(ctx)
+		if err != nil {
 			return err
 		}
-		if err := client.Logout(ctx, logoutPurge); err != nil {
-			return err
+		if len(removed) == 0 {
+			fmt.Println("No XBond login credentials found locally; nothing was removed.")
+			fmt.Println("To disconnect the core, run `xbond down`. To remove a third-party subscription, use `xbond sub remove`.")
+			return nil
 		}
-		fmt.Println("Logged out successfully.")
+		for _, m := range removed {
+			fmt.Printf("Removed XBond subscription: %s (%s)\n", m.Name, m.ID)
+		}
+		fmt.Println("Local login credentials removed; the remote account authorization was not revoked.")
+		fmt.Println("Universal subscriptions were kept; remove them with `xbond sub remove`.")
 		return nil
 	},
 }
@@ -445,6 +472,7 @@ var logoutCmd = &cobra.Command{
 var updateCmd = &cobra.Command{
 	Use:   "update [name-or-id]",
 	Short: "Refresh active or specified subscription",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runUpdate(cmd, args)
 	},
@@ -458,9 +486,10 @@ var subCmd = &cobra.Command{
 var subListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all configured subscriptions",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -471,6 +500,9 @@ var subListCmd = &cobra.Command{
 		}
 
 		if subListJSON {
+			for i := range listRes.Subscriptions {
+				listRes.Subscriptions[i] = redactSubscriptionMeta(listRes.Subscriptions[i])
+			}
 			data, _ := json.MarshalIndent(listRes, "", "  ")
 			fmt.Println(string(data))
 			return nil
@@ -481,8 +513,8 @@ var subListCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("%-3s %-16s %-10s %-12s %-20s %-20s\n", "ACT", "NAME", "TYPE", "STATUS", "QUOTA (USED/TOTAL)", "LAST UPDATED")
-		fmt.Println(strings.Repeat("-", 85))
+		fmt.Printf("%-3s %-18s %-16s %-10s %-14s %-19s %-17s\n", "ACT", "NAME", "ID", "TYPE", "STATUS", "QUOTA (USED/TOTAL)", "LAST UPDATED")
+		fmt.Println(strings.Repeat("-", 100))
 
 		for _, s := range listRes.Subscriptions {
 			act := " "
@@ -502,8 +534,8 @@ var subListCmd = &cobra.Command{
 				lastUp = s.LastUpdatedAt.Local().Format("2006-01-02 15:04")
 			}
 
-			fmt.Printf("%-3s %-16s %-10s %-12s %-20s %-20s\n",
-				act, truncate(s.Name, 16), s.Type, s.Health, quotaStr, lastUp)
+			fmt.Printf("%-3s %-18s %-16s %-10s %-14s %-19s %-17s\n",
+				act, truncate(s.Name, 18), s.ID, s.Type, s.Health, quotaStr, lastUp)
 		}
 		return nil
 	},
@@ -513,6 +545,11 @@ var subAddCmd = &cobra.Command{
 	Use:   "add <token|url|file>",
 	Short: "Add a new subscription",
 	Args:  cobra.ExactArgs(1),
+	Long: `Add a new subscription from an XBond token (sub-…), a universal subscription URL, or a local configuration file.
+
+A universal URL or local file needs no XBond account. A local file is re-read on every update — edit it and run ` + "`xbond update`" + ` to pick up changes; the path is resolved by the CLI before the daemon sees it.
+
+Requires the background daemon (first time? ` + "`xbond daemon install`" + `). With --use (the default) a running core switches to the new subscription immediately.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client, err := daemon.EnsureRunning(ctx)
@@ -524,20 +561,46 @@ var subAddCmd = &cobra.Command{
 		var subType sub.SubscriptionType
 		var token, urlOrFile string
 
-		if strings.HasPrefix(input, "sub-") {
+		switch {
+		case strings.HasPrefix(input, "sub-"):
 			subType = sub.SubTypeXBond
 			token = input
-		} else {
+		case strings.HasPrefix(input, "http://"), strings.HasPrefix(input, "https://"):
 			subType = sub.SubTypeUniversal
 			urlOrFile = input
+		default:
+			// A local file path is read by the daemon on every update, so it
+			// must survive out of the CLI's working directory: absolutize it
+			// here, not inside the daemon's cwd.
+			subType = sub.SubTypeUniversal
+			abs, err := filepath.Abs(input)
+			if err != nil {
+				return fmt.Errorf("resolve local path %q: %w", input, err)
+			}
+			urlOrFile = abs
 		}
 
-		meta, err := client.AddSub(ctx, subType, token, subAddOrigin, nil, subAddProtocol, subAddLang, subAddName, urlOrFile, subAddInterval, subAddUse)
+		res, err := client.AddSub(ctx, subType, token, subAddOrigin, nil, subAddProtocol, subAddLang, subAddName, urlOrFile, subAddInterval, subAddUse)
 		if err != nil {
 			return err
 		}
+		meta := res.Meta
 
 		fmt.Printf("Added subscription %s (%s)\n", meta.Name, meta.ID)
+		if res.Activated {
+			fmt.Println("Set as the active subscription.")
+			if res.Reloaded {
+				fmt.Println("Running core switched to it.")
+			} else {
+				fmt.Println("Core is not running; it will use this subscription on the next `xbond up`.")
+			}
+		} else {
+			fmt.Println("Not activated; switch with `xbond sub use`.")
+		}
+		if res.UpdateError != "" {
+			fmt.Printf("Warning: initial configuration fetch failed: %s\n", res.UpdateError)
+			fmt.Printf("Run `xbond update %s` to retry.\n", meta.Name)
+		}
 		return nil
 	},
 }
@@ -564,6 +627,7 @@ var subUseCmd = &cobra.Command{
 var subUpdateCmd = &cobra.Command{
 	Use:   "update [name-or-id]",
 	Short: "Update subscription(s)",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runUpdate(cmd, args)
 	},
@@ -572,9 +636,10 @@ var subUpdateCmd = &cobra.Command{
 var subInfoCmd = &cobra.Command{
 	Use:   "info [name-or-id]",
 	Short: "Inspect subscription details and metadata",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -587,13 +652,15 @@ var subInfoCmd = &cobra.Command{
 		target := ""
 		if len(args) > 0 {
 			target = args[0]
-		} else {
-			target = subsList.ActiveID
+		}
+		targetID, err := resolveSubscriptionTarget(subsList, target)
+		if err != nil {
+			return err
 		}
 
 		var found *sub.SubscriptionMeta
 		for _, s := range subsList.Subscriptions {
-			if s.ID == target || s.Name == target {
+			if s.ID == targetID {
 				cp := s
 				found = &cp
 				break
@@ -605,7 +672,7 @@ var subInfoCmd = &cobra.Command{
 		}
 
 		if subInfoJSON {
-			data, _ := json.MarshalIndent(found, "", "  ")
+			data, _ := json.MarshalIndent(redactSubscriptionMeta(*found), "", "  ")
 			fmt.Println(string(data))
 			return nil
 		}
@@ -641,9 +708,15 @@ var subInfoCmd = &cobra.Command{
 var subExportCmd = &cobra.Command{
 	Use:   "export [name-or-id]",
 	Short: "Export source or runtime configuration",
+	Args:  cobra.MaximumNArgs(1),
+	Long: `Export the source or derived runtime configuration of a subscription.
+
+With no argument the active subscription is exported. An explicit name or ID that does not exist is an error — export never silently falls back to the active subscription.
+
+--redacted=false emits live credentials; pipe that output somewhere safe.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -653,18 +726,13 @@ var subExportCmd = &cobra.Command{
 			return err
 		}
 
-		targetID := subsList.ActiveID
+		target := ""
 		if len(args) > 0 {
-			for _, s := range subsList.Subscriptions {
-				if s.ID == args[0] || s.Name == args[0] {
-					targetID = s.ID
-					break
-				}
-			}
+			target = args[0]
 		}
-
-		if targetID == "" {
-			return fmt.Errorf("no subscription specified and no active subscription")
+		targetID, err := resolveSubscriptionTarget(subsList, target)
+		if err != nil {
+			return err
 		}
 
 		var targetPath string
@@ -708,10 +776,39 @@ var subRemoveCmd = &cobra.Command{
 }
 
 func runUpdate(cmd *cobra.Command, args []string) error {
+	if subUpdAll && len(args) > 0 {
+		return fmt.Errorf("update --all takes no target argument")
+	}
 	ctx := context.Background()
 	client, err := daemon.EnsureRunning(ctx)
 	if err != nil {
 		return err
+	}
+
+	if subUpdAll {
+		res, err := client.UpdateSubAll(ctx, subUpdForce, subUpdViaProxy)
+		if err != nil {
+			return err
+		}
+		if subUpdJSON {
+			data, _ := json.MarshalIndent(res, "", "  ")
+			fmt.Println(string(data))
+		} else {
+			if len(res.Results) == 0 && len(res.Failures) == 0 {
+				fmt.Println("No subscriptions to update.")
+			}
+			for _, r := range res.Results {
+				printUpdateOutcome(r)
+				printUpdateQuota(r)
+			}
+			for _, f := range res.Failures {
+				fmt.Printf("FAILED %s (%s): %s\n", f.Name, f.ID, f.Error)
+			}
+		}
+		if len(res.Failures) > 0 {
+			return fmt.Errorf("%d of %d subscription update(s) failed", len(res.Failures), len(res.Results)+len(res.Failures))
+		}
+		return nil
 	}
 
 	target := ""
@@ -719,7 +816,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		target = args[0]
 	}
 
-	res, err := client.UpdateSub(ctx, target, subUpdForce, subUpdViaProxy, subUpdAll)
+	res, err := client.UpdateSub(ctx, target, subUpdForce, subUpdViaProxy)
 	if err != nil {
 		return err
 	}
@@ -730,34 +827,49 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if res.StatusNotMod {
-		fmt.Printf("Subscription %s is already up to date (304 Not Modified). Zero disruption.\n", res.Meta.Name)
-	} else if !res.ContentChanged {
-		fmt.Printf("Subscription %s content unchanged. Zero disruption.\n", res.Meta.Name)
-	} else {
-		fmt.Printf("Subscription %s updated successfully.\n", res.Meta.Name)
-		if res.Diff != nil {
-			if len(res.Diff.AddedNodes) > 0 {
-				fmt.Printf("  + Added nodes (%d): %s\n", len(res.Diff.AddedNodes), strings.Join(res.Diff.AddedNodes, ", "))
-			}
-			if len(res.Diff.RemovedNodes) > 0 {
-				fmt.Printf("  - Removed nodes (%d): %s\n", len(res.Diff.RemovedNodes), strings.Join(res.Diff.RemovedNodes, ", "))
-			}
-			if len(res.Diff.AddedGroups) > 0 {
-				fmt.Printf("  + Added groups (%d): %s\n", len(res.Diff.AddedGroups), strings.Join(res.Diff.AddedGroups, ", "))
-			}
-			if len(res.Diff.RemovedGroups) > 0 {
-				fmt.Printf("  - Removed groups (%d): %s\n", len(res.Diff.RemovedGroups), strings.Join(res.Diff.RemovedGroups, ", "))
-			}
-		}
-	}
-
-	if res.Meta.Quota.TotalBytes > 0 {
-		usedGB := float64(res.Meta.Quota.DownloadBytes+res.Meta.Quota.UploadBytes) / (1024 * 1024 * 1024)
-		totalGB := float64(res.Meta.Quota.TotalBytes) / (1024 * 1024 * 1024)
-		fmt.Printf("Quota: %.2f GB / %.2f GB\n", usedGB, totalGB)
-	}
+	printUpdateOutcome(*res)
+	printUpdateQuota(*res)
 	return nil
+}
+
+func printUpdateOutcome(res sub.UpdateResult) {
+	name := "subscription"
+	if res.Meta != nil {
+		name = res.Meta.Name
+	}
+	if res.StatusNotMod {
+		fmt.Printf("Subscription %s is already up to date (304 Not Modified). Zero disruption.\n", name)
+		return
+	}
+	if !res.ContentChanged {
+		fmt.Printf("Subscription %s content unchanged. Zero disruption.\n", name)
+		return
+	}
+	fmt.Printf("Subscription %s updated successfully.\n", name)
+	if res.Diff == nil {
+		return
+	}
+	if len(res.Diff.AddedNodes) > 0 {
+		fmt.Printf("  + Added nodes (%d): %s\n", len(res.Diff.AddedNodes), strings.Join(res.Diff.AddedNodes, ", "))
+	}
+	if len(res.Diff.RemovedNodes) > 0 {
+		fmt.Printf("  - Removed nodes (%d): %s\n", len(res.Diff.RemovedNodes), strings.Join(res.Diff.RemovedNodes, ", "))
+	}
+	if len(res.Diff.AddedGroups) > 0 {
+		fmt.Printf("  + Added groups (%d): %s\n", len(res.Diff.AddedGroups), strings.Join(res.Diff.AddedGroups, ", "))
+	}
+	if len(res.Diff.RemovedGroups) > 0 {
+		fmt.Printf("  - Removed groups (%d): %s\n", len(res.Diff.RemovedGroups), strings.Join(res.Diff.RemovedGroups, ", "))
+	}
+}
+
+func printUpdateQuota(res sub.UpdateResult) {
+	if res.Meta == nil || res.Meta.Quota.TotalBytes <= 0 {
+		return
+	}
+	usedGB := float64(res.Meta.Quota.DownloadBytes+res.Meta.Quota.UploadBytes) / (1024 * 1024 * 1024)
+	totalGB := float64(res.Meta.Quota.TotalBytes) / (1024 * 1024 * 1024)
+	fmt.Printf("Quota: %.2f GB / %.2f GB\n", usedGB, totalGB)
 }
 
 func truncate(s string, max int) string {

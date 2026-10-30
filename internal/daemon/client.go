@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,6 +38,29 @@ type SubsListResponse struct {
 	Subscriptions []sub.SubscriptionMeta `json:"subscriptions"`
 }
 
+type ShutdownResult struct {
+	CleanedUp bool   `json:"cleanedUp"`
+	Error     string `json:"error,omitempty"`
+}
+
+type LoginResponse struct {
+	OK          bool                  `json:"ok"`
+	Meta        *sub.SubscriptionMeta `json:"meta"`
+	UpdateError string                `json:"updateError,omitempty"`
+}
+
+type AddSubResponse struct {
+	Meta        *sub.SubscriptionMeta `json:"meta"`
+	Activated   bool                  `json:"activated"`
+	Reloaded    bool                  `json:"reloaded"`
+	UpdateError string                `json:"updateError,omitempty"`
+}
+
+type LogoutResponse struct {
+	OK      bool                   `json:"ok"`
+	Removed []sub.SubscriptionMeta `json:"removed"`
+}
+
 func (c *Client) Addr() string {
 	return c.addr
 }
@@ -60,6 +84,19 @@ func NewClient() (*Client, error) {
 	}, nil
 }
 
+// Connect returns a client for an already responding daemon. Unlike
+// EnsureRunning it never starts the service: read-only commands answer
+// questions about the current state, they must not bring a stopped daemon
+// back to life as a side effect.
+func Connect(ctx context.Context) (*Client, error) {
+	if c, err := NewClient(); err == nil {
+		if _, err := c.GetStatusLight(ctx); err == nil {
+			return c, nil
+		}
+	}
+	return nil, errors.New("xbond daemon is not running; start it with `xbond daemon start` (first time? install it: `xbond daemon install`)")
+}
+
 // EnsureRunning connects to the managed xbond daemon. An already running
 // daemon is reused and an installed-but-stopped service is started. The CLI
 // never spawns a bare daemon process and never registers autostart on its
@@ -67,7 +104,7 @@ func NewClient() (*Client, error) {
 // stray command cannot silently change what starts at login.
 func EnsureRunning(ctx context.Context) (*Client, error) {
 	if c, err := NewClient(); err == nil {
-		if _, err := c.GetStatus(ctx); err == nil {
+		if _, err := c.GetStatusLight(ctx); err == nil {
 			return c, nil
 		}
 	}
@@ -82,12 +119,13 @@ func EnsureRunning(ctx context.Context) (*Client, error) {
 	}
 
 	// Poll until ready (up to 5 seconds) for the supervised daemon to publish
-	// its addr/token files.
+	// its addr/token files. The probe is the light status: readiness must not
+	// trigger the full network diagnostic on every poll.
 	for i := 0; i < 50; i++ {
 		time.Sleep(100 * time.Millisecond)
 		c, err := NewClient()
 		if err == nil {
-			if _, err := c.GetStatus(ctx); err == nil {
+			if _, err := c.GetStatusLight(ctx); err == nil {
 				return c, nil
 			}
 		}
@@ -96,11 +134,17 @@ func EnsureRunning(ctx context.Context) (*Client, error) {
 	return nil, fmt.Errorf("xbond daemon service started but did not become ready in time; check its logs")
 }
 
-// Shutdown asks the daemon to exit gracefully (engine down, proxy restored,
-// credential files removed) through the LocalAPI shutdown endpoint. Platform
-// supervisors kill processes hard, so service stop goes through this first.
-func (c *Client) Shutdown(ctx context.Context) error {
-	return c.request(ctx, http.MethodPost, "/localapi/v0/shutdown", nil, nil)
+// Shutdown asks the daemon to exit gracefully through the LocalAPI shutdown
+// endpoint. The daemon tears its runtime down before answering, so the
+// result reports completed cleanup (engine down, proxy restored) — accepted
+// but incomplete exits surface in CleanedUp/Error. Platform supervisors kill
+// processes hard, so service stop goes through this first.
+func (c *Client) Shutdown(ctx context.Context) (*ShutdownResult, error) {
+	var res ShutdownResult
+	if err := c.request(ctx, http.MethodPost, "/localapi/v0/shutdown", nil, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (c *Client) request(ctx context.Context, method, endpoint string, body any, target any) error {
@@ -146,12 +190,24 @@ func (c *Client) request(ctx context.Context, method, endpoint string, body any,
 	return nil
 }
 
-func (c *Client) GetStatus(ctx context.Context) (*StatusResponse, error) {
+func (c *Client) getStatus(ctx context.Context, query string) (*StatusResponse, error) {
 	var res StatusResponse
-	if err := c.request(ctx, http.MethodGet, "/localapi/v0/status", nil, &res); err != nil {
+	if err := c.request(ctx, http.MethodGet, "/localapi/v0/status"+query, nil, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
+}
+
+// GetStatus returns the full status including the three-tier network
+// evaluation (DNS and egress probes).
+func (c *Client) GetStatus(ctx context.Context) (*StatusResponse, error) {
+	return c.getStatus(ctx, "")
+}
+
+// GetStatusLight skips the network probes — the shape for readiness checks
+// and polling loops.
+func (c *Client) GetStatusLight(ctx context.Context) (*StatusResponse, error) {
+	return c.getStatus(ctx, "?light=1")
 }
 
 func (c *Client) Up(ctx context.Context, mode engine.TakeoverMode, routing engine.RoutingMode, port int, allowLan *bool, subID string) error {
@@ -165,8 +221,16 @@ func (c *Client) Up(ctx context.Context, mode engine.TakeoverMode, routing engin
 	return c.request(ctx, http.MethodPost, "/localapi/v0/up", payload, nil)
 }
 
-func (c *Client) Down(ctx context.Context) error {
-	return c.request(ctx, http.MethodPost, "/localapi/v0/down", nil, nil)
+// Down disconnects the core. The bool reports whether there was anything to
+// stop, so the CLI can distinguish "stopped" from "was already stopped".
+func (c *Client) Down(ctx context.Context) (bool, error) {
+	var res struct {
+		Stopped bool `json:"stopped"`
+	}
+	if err := c.request(ctx, http.MethodPost, "/localapi/v0/down", nil, &res); err != nil {
+		return false, err
+	}
+	return res.Stopped, nil
 }
 
 func (c *Client) Restart(ctx context.Context) error {
@@ -183,7 +247,11 @@ func (c *Client) SetMode(ctx context.Context, mode engine.TakeoverMode, routing 
 	return c.request(ctx, http.MethodPatch, "/localapi/v0/mode", payload, nil)
 }
 
-func (c *Client) Login(ctx context.Context, token, origin string, fallbackOrigins []string, protocol, lang, name, urlOrFile string) (*sub.SubscriptionMeta, error) {
+// Login binds a subscription (XBond token or universal source) as the login
+// result. A non-empty UpdateError means authorization and saving succeeded
+// but the initial configuration fetch failed — the subscription stays and
+// `xbond update` retries the fetch.
+func (c *Client) Login(ctx context.Context, token, origin string, fallbackOrigins []string, protocol, lang, name, urlOrFile string) (*LoginResponse, error) {
 	payload := map[string]any{
 		"token":           token,
 		"origin":          origin,
@@ -193,19 +261,24 @@ func (c *Client) Login(ctx context.Context, token, origin string, fallbackOrigin
 		"name":            name,
 		"urlOrFile":       urlOrFile,
 	}
-	var res struct {
-		OK   bool                  `json:"ok"`
-		Meta *sub.SubscriptionMeta `json:"meta"`
-	}
+	var res LoginResponse
 	if err := c.request(ctx, http.MethodPost, "/localapi/v0/login", payload, &res); err != nil {
 		return nil, err
 	}
-	return res.Meta, nil
+	return &res, nil
 }
 
-func (c *Client) Logout(ctx context.Context, purge bool) error {
-	payload := map[string]any{"purge": purge}
-	return c.request(ctx, http.MethodPost, "/localapi/v0/logout", payload, nil)
+// Logout removes the local XBond credentials. It returns what was removed;
+// universal subscriptions are never touched by logout.
+func (c *Client) Logout(ctx context.Context) ([]sub.SubscriptionMeta, error) {
+	var res struct {
+		OK      bool                   `json:"ok"`
+		Removed []sub.SubscriptionMeta `json:"removed"`
+	}
+	if err := c.request(ctx, http.MethodPost, "/localapi/v0/logout", nil, &res); err != nil {
+		return nil, err
+	}
+	return res.Removed, nil
 }
 
 func (c *Client) ListSubs(ctx context.Context) (*SubsListResponse, error) {
@@ -216,7 +289,7 @@ func (c *Client) ListSubs(ctx context.Context) (*SubsListResponse, error) {
 	return &res, nil
 }
 
-func (c *Client) AddSub(ctx context.Context, subType sub.SubscriptionType, token, origin string, fallbacks []string, protocol, lang, name, urlOrFile string, interval int, use bool) (*sub.SubscriptionMeta, error) {
+func (c *Client) AddSub(ctx context.Context, subType sub.SubscriptionType, token, origin string, fallbacks []string, protocol, lang, name, urlOrFile string, interval int, use bool) (*AddSubResponse, error) {
 	payload := map[string]any{
 		"type":            subType,
 		"token":           token,
@@ -229,7 +302,7 @@ func (c *Client) AddSub(ctx context.Context, subType sub.SubscriptionType, token
 		"intervalHours":   interval,
 		"use":             use,
 	}
-	var res sub.SubscriptionMeta
+	var res AddSubResponse
 	if err := c.request(ctx, http.MethodPost, "/localapi/v0/subs", payload, &res); err != nil {
 		return nil, err
 	}
@@ -241,14 +314,28 @@ func (c *Client) UseSub(ctx context.Context, id string) error {
 	return c.request(ctx, http.MethodPost, "/localapi/v0/subs/use", payload, nil)
 }
 
-func (c *Client) UpdateSub(ctx context.Context, id string, force, viaProxy, all bool) (*sub.UpdateResult, error) {
+func (c *Client) UpdateSub(ctx context.Context, id string, force, viaProxy bool) (*sub.UpdateResult, error) {
 	payload := map[string]any{
 		"id":       id,
 		"force":    force,
 		"viaProxy": viaProxy,
-		"all":      all,
 	}
 	var res sub.UpdateResult
+	if err := c.request(ctx, http.MethodPost, "/localapi/v0/subs/update", payload, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+// UpdateSubAll refreshes every subscription and returns each per-item
+// outcome; the response is always 200, so partial failure keeps all results.
+func (c *Client) UpdateSubAll(ctx context.Context, force, viaProxy bool) (*sub.BatchUpdateResult, error) {
+	payload := map[string]any{
+		"force":    force,
+		"viaProxy": viaProxy,
+		"all":      true,
+	}
+	var res sub.BatchUpdateResult
 	if err := c.request(ctx, http.MethodPost, "/localapi/v0/subs/update", payload, &res); err != nil {
 		return nil, err
 	}
@@ -323,10 +410,10 @@ func (c *Client) FlushDNS(ctx context.Context) error {
 	return c.request(ctx, http.MethodPost, "/localapi/v0/dns/flush", nil, nil)
 }
 
-func (c *Client) GetLogs(ctx context.Context, level string) ([]engine.LogEntry, error) {
-	endpoint := "/localapi/v0/logs"
+func (c *Client) GetLogs(ctx context.Context, level string, limit int) ([]engine.LogEntry, error) {
+	endpoint := fmt.Sprintf("/localapi/v0/logs?limit=%d", limit)
 	if level != "" {
-		endpoint += "?level=" + url.QueryEscape(level)
+		endpoint += "&level=" + url.QueryEscape(level)
 	}
 	var res struct {
 		Logs []engine.LogEntry `json:"logs"`

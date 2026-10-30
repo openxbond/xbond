@@ -22,7 +22,7 @@ func lockFile(path string) (*instanceLock, error) {
 		0, 1, 0, &windows.Overlapped{},
 	); err != nil {
 		f.Close()
-		return nil, fmt.Errorf("another xbond daemon instance owns this state directory (%s)", path)
+		return nil, fmt.Errorf("%w (%s)", errLockHeld, path)
 	}
 	return &instanceLock{release: func() {
 		windows.UnlockFileEx(windows.Handle(f.Fd()), 0, 1, 0, &windows.Overlapped{})

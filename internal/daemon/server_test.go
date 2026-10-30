@@ -70,12 +70,15 @@ func TestLocalAPIServerAndClient(t *testing.T) {
 	}
 
 	// 3. Add and list subscriptions
-	addedMeta, err := client.AddSub(ctx, sub.SubTypeUniversal, "", "", nil, "", "", "TestSub", "local.json", 12, true)
+	added, err := client.AddSub(ctx, sub.SubTypeUniversal, "", "", nil, "", "", "TestSub", "local.json", 12, true)
 	if err != nil {
 		t.Fatalf("AddSub failed: %v", err)
 	}
-	if addedMeta.Name != "TestSub" {
-		t.Errorf("expected TestSub, got %s", addedMeta.Name)
+	if added.Meta == nil || added.Meta.Name != "TestSub" {
+		t.Errorf("expected TestSub, got %+v", added.Meta)
+	}
+	if !added.Activated {
+		t.Error("use=true should report the subscription as activated")
 	}
 
 	subsList, err := client.ListSubs(ctx)

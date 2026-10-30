@@ -14,6 +14,8 @@
   "pkce.subscription_active": "登录成功，订阅已启用：{{.name}} ({{.id}})",
   "pkce.quota_usage": "已用流量：{{.used}} GB / {{.total}} GB（{{.pct}}%）",
   "login.link_unprovisioned": "订阅链接尚未生成：请先在控制台重置订阅链接，再重新执行 xbond login。",
+  "login.update_failed": "登录成功，但获取初始配置失败：{{.err}}。订阅已保存，请运行 `xbond update` 重试。",
+  "login.next_step": "运行 `xbond up` 即可连接。",
   "pkce.listen_failed": "无法打开本地回调端口，将改用设备授权登录（{{.err}}）",
 
   "device.banner": "  XBond 设备授权登录 (OAuth 2.0 Device Flow)",
@@ -29,7 +31,8 @@
 
   "engine.started": "XBond 核心已启动 (模式: {{.mode}}, 路由: {{.routing}}, 端口: {{.port}})",
   "engine.stopped": "XBond 核心已停止，系统代理已还原。",
-  "engine.restarted": "XBond 核心已重新加载运行配置。",
+  "engine.restarted": "XBond 核心已按当前订阅与偏好重新启动。",
+  "engine.already_stopped": "XBond 核心本就处于停止状态。",
   "engine.port_conflict": "端口 {{.port}} 已被其他程序占用（如 Clash、v2rayN 或 WSL/NAT）。",
   "engine.port_conflict_hint": "请改用其他可用端口，例如：xbond up --port 7891",
 

@@ -9,9 +9,12 @@ import (
 	"time"
 
 	"github.com/openxbond/xbond/internal/daemon"
+	"github.com/openxbond/xbond/internal/daemon/service"
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/i18n"
+	"github.com/openxbond/xbond/internal/platform/paths"
+	"github.com/openxbond/xbond/internal/sub"
 	"github.com/spf13/cobra"
 )
 
@@ -66,11 +69,14 @@ func init() {
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show three-tier connection status, active subscription, and traffic stats",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
-			return err
+			// A status query reports the actual state; it never starts the
+			// daemon it is asking about.
+			return printStatusOffline(statusJSON)
 		}
 
 		st, err := client.GetStatus(ctx)
@@ -79,7 +85,7 @@ var statusCmd = &cobra.Command{
 		}
 
 		if statusJSON {
-			data, _ := json.MarshalIndent(st, "", "  ")
+			data, _ := json.MarshalIndent(redactStatus(st), "", "  ")
 			fmt.Println(string(data))
 			return nil
 		}
@@ -150,14 +156,53 @@ var statusCmd = &cobra.Command{
 	},
 }
 
+// printStatusOffline reports the daemon's absence truthfully instead of
+// starting it. Daemon-down, engine-down, and proxy-state-unknown are three
+// different facts; only the first two are knowable from here.
+func printStatusOffline(asJSON bool) error {
+	installed := service.Installed()
+	lockHeld, err := daemon.InstanceLockHeld(paths.DataDir())
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		data, _ := json.MarshalIndent(map[string]any{
+			"daemon": map[string]any{
+				"running":   false,
+				"installed": installed,
+				"lockHeld":  lockHeld,
+			},
+			"engine": map[string]any{"running": false},
+		}, "", "  ")
+		fmt.Println(string(data))
+		return nil
+	}
+
+	fmt.Println("XBond daemon is not running; the core is stopped.")
+	if lockHeld {
+		fmt.Println("A daemon process holds the instance lock but is not responding.")
+	} else if installed {
+		fmt.Println("The background service is installed but not running; start it: xbond daemon start")
+	} else {
+		fmt.Println("The background service is not installed (xbond daemon install), or run the core in a terminal: xbond daemon")
+	}
+	fmt.Println("System proxy state cannot be verified while the daemon is down; check system settings if a previous session was interrupted.")
+	return nil
+}
+
 var doctorCmd = &cobra.Command{
 	Use:   "doctor",
 	Short: "Run comprehensive diagnostic self-checks",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
-			return err
+			// The daemon being down is exactly when diagnosis matters most:
+			// check registration, handshake files, the instance lock, and
+			// local configuration without it.
+			return runOfflineDoctor(doctorJSON)
 		}
 
 		rep, err := client.RunDoctor(ctx)
@@ -166,7 +211,7 @@ var doctorCmd = &cobra.Command{
 		}
 
 		if doctorJSON {
-			data, _ := json.MarshalIndent(rep, "", "  ")
+			data, _ := json.MarshalIndent(redactDoctorReport(rep), "", "  ")
 			fmt.Println(string(data))
 			return nil
 		}
@@ -210,12 +255,114 @@ var doctorCmd = &cobra.Command{
 	},
 }
 
+type doctorCheck struct {
+	Name    string `json:"name"`
+	Status  string `json:"status"` // ok, warn, fail
+	Details string `json:"details,omitempty"`
+}
+
+// runOfflineDoctor diagnoses a machine whose daemon will not come up: the
+// checks that need no daemon cover registration, handshake files, the
+// instance lock, preferences, and the subscription store.
+func runOfflineDoctor(asJSON bool) error {
+	checks := []doctorCheck{}
+	add := func(name, status, details string) {
+		checks = append(checks, doctorCheck{Name: name, Status: status, Details: details})
+	}
+
+	installed := service.Installed()
+	if installed {
+		add("service-registration", "ok", "background service is installed")
+	} else {
+		add("service-registration", "warn", "background service is not installed (xbond daemon install)")
+	}
+
+	lockHeld, lockErr := daemon.InstanceLockHeld(paths.DataDir())
+	switch {
+	case lockErr != nil:
+		add("instance-lock", "fail", lockErr.Error())
+	case lockHeld:
+		add("instance-lock", "warn", "a daemon process holds the instance lock but does not answer on the LocalAPI; it may be hung — check daemon logs")
+	default:
+		add("instance-lock", "ok", "free; no daemon process is running")
+	}
+
+	handshakePaths := []struct{ name, path string }{
+		{"localapi.addr", paths.LocalAPIAddrPath()},
+		{"localapi.token", paths.LocalAPITokenPath()},
+	}
+	for _, f := range handshakePaths {
+		if _, err := os.ReadFile(f.path); err != nil {
+			add("handshake-files", "ok", f.name+" absent (daemon not running)")
+		} else {
+			add("handshake-files", "warn", f.name+" present but no daemon answered; stale file from an unclean exit")
+		}
+	}
+
+	if prefs, err := daemon.LoadPreferences(); err != nil {
+		add("preferences", "fail", err.Error())
+	} else {
+		add("preferences", "ok", fmt.Sprintf("mode=%s routing=%s mixedPort=%d clashPort=%d (secret not shown)",
+			prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort, prefs.ClashPort))
+	}
+
+	if mgr, err := sub.NewManager(); err != nil {
+		add("subscription-store", "fail", err.Error())
+	} else {
+		subs := mgr.List()
+		details := fmt.Sprintf("%d subscription(s), active: %s", len(subs), mgr.ActiveID())
+		status := "ok"
+		for _, s := range subs {
+			if s.Health != sub.HealthOK && s.LastErrorMessage != "" {
+				status = "warn"
+				details += fmt.Sprintf("; %s (%s): %s", s.Name, s.Health, s.LastErrorMessage)
+			}
+		}
+		add("subscription-store", status, details)
+		if activeID := mgr.ActiveID(); activeID != "" {
+			if _, err := os.Stat(paths.SubSourcePath(activeID)); err != nil {
+				add("active-config", "fail", fmt.Sprintf("active subscription has no downloaded config (%s); run `xbond update` once the network path works", activeID))
+			} else {
+				add("active-config", "ok", "downloaded configuration present")
+			}
+		}
+	}
+
+	failed := 0
+	for _, c := range checks {
+		if c.Status == "fail" {
+			failed++
+		}
+	}
+
+	if asJSON {
+		data, _ := json.MarshalIndent(map[string]any{"offline": true, "checks": checks}, "", "  ")
+		fmt.Println(string(data))
+	} else {
+		fmt.Println("XBond Diagnostics (offline — daemon did not answer)")
+		fmt.Println(strings.Repeat("=", 60))
+		for _, c := range checks {
+			fmt.Printf("[%s] %s: %s\n", strings.ToUpper(c.Status), c.Name, c.Details)
+		}
+		if failed > 0 {
+			fmt.Printf("\n%d check(s) failed. Fix the items above, then run `xbond daemon start`.\n", failed)
+		} else {
+			fmt.Println("\nLocal checks passed. Start the daemon and run `xbond doctor` again for the full network checks.")
+		}
+	}
+	if failed > 0 {
+		return fmt.Errorf("%d offline check(s) failed", failed)
+	}
+	return nil
+}
+
 var bugreportCmd = &cobra.Command{
 	Use:   "bugreport",
 	Short: "Generate a 100% credential-redacted diagnostic bundle",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -249,7 +396,7 @@ var connsCmd = &cobra.Command{
 	Short: "Inspect and manage active proxy connections",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -271,12 +418,6 @@ var connsCmd = &cobra.Command{
 			return err
 		}
 
-		if connsJSON {
-			data, _ := json.MarshalIndent(conns, "", "  ")
-			fmt.Println(string(data))
-			return nil
-		}
-
 		filtered := conns.Connections
 		if connsFilter != "" {
 			kw := strings.ToLower(connsFilter)
@@ -289,6 +430,12 @@ var connsCmd = &cobra.Command{
 					filtered = append(filtered, c)
 				}
 			}
+		}
+
+		if connsJSON {
+			data, _ := json.MarshalIndent(filtered, "", "  ")
+			fmt.Println(string(data))
+			return nil
 		}
 
 		fmt.Printf("Active Connections: %d (Total Upload: %.2f MB, Download: %.2f MB)\n",
@@ -312,9 +459,10 @@ var connsCmd = &cobra.Command{
 var rulesCmd = &cobra.Command{
 	Use:   "rules",
 	Short: "List active routing rules and dispatch targets",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -322,12 +470,6 @@ var rulesCmd = &cobra.Command{
 		rules, err := client.GetRules(ctx)
 		if err != nil {
 			return err
-		}
-
-		if rulesJSON {
-			data, _ := json.MarshalIndent(rules, "", "  ")
-			fmt.Println(string(data))
-			return nil
 		}
 
 		if rulesSearch != "" {
@@ -339,6 +481,12 @@ var rulesCmd = &cobra.Command{
 				}
 			}
 			rules = filtered
+		}
+
+		if rulesJSON {
+			data, _ := json.MarshalIndent(rules, "", "  ")
+			fmt.Println(string(data))
+			return nil
 		}
 
 		fmt.Printf("%-15s %-35s %-20s\n", "TYPE", "PAYLOAD", "OUTBOUND TARGET")
@@ -361,7 +509,7 @@ var dnsQueryCmd = &cobra.Command{
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -387,9 +535,10 @@ var dnsQueryCmd = &cobra.Command{
 var dnsFlushCmd = &cobra.Command{
 	Use:   "flush",
 	Short: "Flush internal DNS and FakeIP cache",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
@@ -404,14 +553,15 @@ var dnsFlushCmd = &cobra.Command{
 var logsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "View or follow recent engine and daemon logs",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		client, err := daemon.EnsureRunning(ctx)
+		client, err := daemon.Connect(ctx)
 		if err != nil {
 			return err
 		}
 
-		logs, err := client.GetLogs(ctx, logsLevel)
+		logs, err := client.GetLogs(ctx, logsLevel, 200)
 		if err != nil {
 			return err
 		}
@@ -421,23 +571,37 @@ var logsCmd = &cobra.Command{
 			start = len(logs) - logsLines
 		}
 
+		lastSeq := uint64(0)
+		for _, l := range logs {
+			if l.Seq > lastSeq {
+				lastSeq = l.Seq
+			}
+		}
 		for _, l := range logs[start:] {
-			fmt.Printf("[%s] [%s] %s\n", l.Timestamp.Format("15:04:05"), strings.ToUpper(string(l.Level)), l.Message)
+			printLogEntry(l)
 		}
 
 		if logsFollow {
-			lastCount := len(logs)
+			// The ring buffer wraps, so array length is not a cursor: poll a
+			// wide window and print only entries past the last seen Seq.
 			for {
 				time.Sleep(1 * time.Second)
-				latest, err := client.GetLogs(ctx, logsLevel)
-				if err == nil && len(latest) > lastCount {
-					for _, l := range latest[lastCount:] {
-						fmt.Printf("[%s] [%s] %s\n", l.Timestamp.Format("15:04:05"), strings.ToUpper(string(l.Level)), l.Message)
+				latest, err := client.GetLogs(ctx, logsLevel, 1000)
+				if err != nil {
+					return fmt.Errorf("log stream ended: %w", err)
+				}
+				for _, l := range latest {
+					if l.Seq > lastSeq {
+						printLogEntry(l)
+						lastSeq = l.Seq
 					}
-					lastCount = len(latest)
 				}
 			}
 		}
 		return nil
 	},
+}
+
+func printLogEntry(l engine.LogEntry) {
+	fmt.Printf("[%s] [%s] %s\n", l.Timestamp.Format("15:04:05"), strings.ToUpper(string(l.Level)), l.Message)
 }

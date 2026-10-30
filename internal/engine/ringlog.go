@@ -18,6 +18,10 @@ const (
 )
 
 type LogEntry struct {
+	// Seq is a daemon-lifetime monotonic counter. `logs --follow` uses it as
+	// a cursor: the ring buffer wraps, so array length says nothing about
+	// which entries are new.
+	Seq       uint64    `json:"seq"`
 	Timestamp time.Time `json:"timestamp"`
 	Level     LogLevel  `json:"level"`
 	Message   string    `json:"message"`
@@ -29,6 +33,7 @@ type RingLogger struct {
 	entries  []LogEntry
 	cursor   int
 	isFull   bool
+	seq      uint64
 }
 
 func NewRingLogger(capacity int) *RingLogger {
@@ -83,7 +88,9 @@ func (r *RingLogger) Append(level LogLevel, msg string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	r.seq++
 	r.entries[r.cursor] = LogEntry{
+		Seq:       r.seq,
 		Timestamp: time.Now(),
 		Level:     level,
 		Message:   msg,

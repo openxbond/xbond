@@ -17,7 +17,7 @@ func lockFile(path string) (*instanceLock, error) {
 	// queue behind the first.
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		f.Close()
-		return nil, fmt.Errorf("another xbond daemon instance owns this state directory (%s)", path)
+		return nil, fmt.Errorf("%w (%s)", errLockHeld, path)
 	}
 	return &instanceLock{release: func() {
 		syscall.Flock(int(f.Fd()), syscall.LOCK_UN)

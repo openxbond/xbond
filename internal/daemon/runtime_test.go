@@ -260,15 +260,16 @@ func TestRuntimeOwnsProxyUntilReleasedAndDoesNotClaimFailedStopSucceeded(t *test
 		t.Fatalf("original recovery snapshot was overwritten: %v", err)
 	}
 	f.core.stopError = errors.New("injected stop failure")
-	if err := f.controller.Down(); err == nil {
+	if _, err := f.controller.Down(); err == nil {
 		t.Fatal("stop failure was reported as success")
 	}
 	if current != original {
 		t.Fatal("system proxy was not released")
 	}
 	f.core.stopError = nil
-	if err := f.controller.Down(); err != nil {
-		t.Fatal(err)
+	stopped, err := f.controller.Down()
+	if err != nil || !stopped {
+		t.Fatalf("expected a real stop on the second down: stopped=%v err=%v", stopped, err)
 	}
 	if f.core.IsRunning() {
 		t.Fatal("core remains running after successful stop")
@@ -342,7 +343,7 @@ func TestRuntimeConcurrentApplyAndStopAreSerialized(t *testing.T) {
 	}()
 	<-entered
 	stopped := make(chan error, 1)
-	go func() { stopped <- f.controller.Down() }()
+	go func() { _, err := f.controller.Down(); stopped <- err }()
 	select {
 	case <-stopped:
 		close(release)

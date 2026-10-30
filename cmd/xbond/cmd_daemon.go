@@ -32,9 +32,13 @@ var (
 
 func init() {
 	// daemon — foreground control service plus its service management verbs.
-	daemonCmd.PersistentFlags().StringVar(&daemonListen, "listen", "", "LocalAPI listen address (default 127.0.0.1:0 auto-assigned)")
-	daemonCmd.PersistentFlags().StringVar(&daemonWebDir, "web-dir", "", "Directory containing compiled web assets (dist)")
-	daemonCmd.PersistentFlags().BoolVar(&daemonBackground, "background", false, "Hide the console window (set by the service registration on Windows)")
+	// Runtime flags live on the `daemon` command itself, not persistently on
+	// the group: the service registration always launches plain `xbond
+	// daemon`, so install/start/stop must not accept options that would be
+	// silently dropped.
+	daemonCmd.Flags().StringVar(&daemonListen, "listen", "", "LocalAPI listen address (default 127.0.0.1:0 auto-assigned)")
+	daemonCmd.Flags().StringVar(&daemonWebDir, "web-dir", "", "Directory containing compiled web assets (dist)")
+	daemonCmd.Flags().BoolVar(&daemonBackground, "background", false, "Hide the console window (set by the service registration on Windows)")
 	daemonInstallCmd.Flags().StringVar(&daemonScope, "scope", string(service.ScopeUser), "Installation scope: user or system")
 	daemonCmd.AddCommand(daemonInstallCmd, daemonUninstallCmd, daemonStartCmd, daemonStopCmd, daemonRestartCmd, daemonStatusCmd)
 	rootCmd.AddCommand(daemonCmd)
@@ -113,6 +117,7 @@ var daemonCmd = &cobra.Command{
 var daemonInstallCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Register the daemon as a background autostart service and start it",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		selfPath, err := service.SelfPath()
 		if err != nil {
@@ -134,17 +139,20 @@ var daemonInstallCmd = &cobra.Command{
 var daemonUninstallCmd = &cobra.Command{
 	Use:   "uninstall",
 	Short: "Stop the daemon and remove its autostart registration, keeping user data",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		// Clean the connection first: the daemon exits gracefully (engine
 		// down, proxy restored) before its registration disappears.
 		if client, err := daemon.NewClient(); err == nil {
-			_ = client.Shutdown(ctx)
+			if _, err := client.Shutdown(ctx); err != nil {
+				fmt.Fprintf(os.Stderr, "shutdown request failed (%v); falling back to the supervisor\n", err)
+			}
 		}
 		if err := service.Uninstall(); err != nil {
 			return err
 		}
-		if err := waitDaemonStopped(ctx, 5*time.Second); err != nil {
+		if err := waitDaemonExit(5 * time.Second); err != nil {
 			return err
 		}
 		fmt.Println("xbond daemon service unregistered; user data kept.")
@@ -155,6 +163,7 @@ var daemonUninstallCmd = &cobra.Command{
 var daemonStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the registered background daemon service",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !service.Installed() {
 			return fmt.Errorf("daemon service is not installed; run: xbond daemon install")
@@ -175,24 +184,49 @@ var daemonStartCmd = &cobra.Command{
 var daemonStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the background daemon service and wait for its exit",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		// The supervisor's stop is a hard kill on Windows, so ask the daemon
-		// to exit gracefully first (engine down, proxy restored).
+
+		// "Request failed", "unresponsive", "process exited" and "cleanup
+		// done" are four different outcomes; each gets its own handling.
+		var cleanupErr string
+		reachable := false
 		if client, err := daemon.NewClient(); err == nil {
-			if err := client.Shutdown(ctx); err != nil {
-				fmt.Fprintf(os.Stderr, "shutdown request failed (%v); falling back to the supervisor\n", err)
+			if _, serr := client.GetStatusLight(ctx); serr == nil {
+				reachable = true
+				// The supervisor's stop is a hard kill on Windows, so ask the
+				// daemon to exit gracefully first (engine down, proxy
+				// restored). The daemon tears down before answering, so the
+				// result says whether cleanup actually completed.
+				if res, err := client.Shutdown(ctx); err != nil {
+					fmt.Fprintf(os.Stderr, "graceful shutdown failed (%v); falling back to the supervisor; proxy recovery runs on the next daemon start\n", err)
+				} else if !res.CleanedUp {
+					cleanupErr = res.Error
+				}
 			}
 		}
-		if err := service.Stop(); err != nil {
-			return err
+
+		installed := service.Installed()
+		if !reachable && !installed {
+			fmt.Println("Daemon service is not running.")
+			return nil
 		}
-		// Accepted shutdown is not a completed cleanup: confirm the daemon is
-		// really gone before reporting success.
-		if err := waitDaemonStopped(ctx, 5*time.Second); err != nil {
+		if installed {
+			if err := service.Stop(); err != nil {
+				return err
+			}
+		}
+		// Exit is confirmed by the instance lock — an OS lock that dies with
+		// the process — never by a failed LocalAPI call, which a hung
+		// process also produces.
+		if err := waitDaemonExit(5 * time.Second); err != nil {
 			return err
 		}
 		fmt.Println("Daemon service stopped.")
+		if cleanupErr != "" {
+			return fmt.Errorf("daemon exited but reported an incomplete cleanup: %s (inspect with `xbond doctor`)", cleanupErr)
+		}
 		return nil
 	},
 }
@@ -200,6 +234,7 @@ var daemonStopCmd = &cobra.Command{
 var daemonRestartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Fully stop the daemon service, then start it again",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stopErr := daemonStopCmd.RunE(daemonStopCmd, args)
 		if stopErr != nil {
@@ -212,10 +247,11 @@ var daemonRestartCmd = &cobra.Command{
 var daemonStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Report daemon registration and runtime state separately",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		if client, err := daemon.NewClient(); err == nil {
-			if st, err := client.GetStatus(ctx); err == nil {
+			if st, err := client.GetStatusLight(ctx); err == nil {
 				fmt.Printf("running (engine active: %v, takeover: %s)\n",
 					st.Engine.Running, st.Preferences.TakeoverMode)
 				return nil
@@ -233,6 +269,7 @@ var daemonStatusCmd = &cobra.Command{
 var webCmd = &cobra.Command{
 	Use:   "web",
 	Short: "Open local Web UI bridge with auto-configured controller credentials",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client, err := daemon.EnsureRunning(ctx)
@@ -258,6 +295,7 @@ var webCmd = &cobra.Command{
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print client and sing-box version information",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		info := version.Get()
 		if versionJSON {
@@ -273,7 +311,7 @@ var versionCmd = &cobra.Command{
 func waitDaemonReady(ctx context.Context) (*daemon.Client, error) {
 	for {
 		if c, err := daemon.NewClient(); err == nil {
-			if _, err := c.GetStatus(ctx); err == nil {
+			if _, err := c.GetStatusLight(ctx); err == nil {
 				return c, nil
 			}
 		}
@@ -284,22 +322,23 @@ func waitDaemonReady(ctx context.Context) (*daemon.Client, error) {
 	}
 }
 
-func waitDaemonStopped(ctx context.Context, timeout time.Duration) error {
-	deadline := time.After(timeout)
+// waitDaemonExit confirms the daemon process is really gone by probing the
+// instance lock, which the OS releases on process death. A failed LocalAPI
+// call is not exit evidence: a hung process fails calls too.
+func waitDaemonExit(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
 	for {
-		c, err := daemon.NewClient()
-		if err == nil {
-			if _, err := c.GetStatus(ctx); err != nil {
-				return nil
-			}
-		} else {
+		held, err := daemon.InstanceLockHeld(paths.DataDir())
+		if err != nil {
+			return err
+		}
+		if !held {
 			return nil
 		}
-		select {
-		case <-deadline:
+		if time.Now().After(deadline) {
 			return fmt.Errorf("daemon did not exit within %s; it may still hold the proxy or ports", timeout)
-		case <-time.After(100 * time.Millisecond):
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 

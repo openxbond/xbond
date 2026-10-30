@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -94,6 +95,18 @@ func (c *runtimeController) Up(ctx context.Context, options runtimeOptions) erro
 	return c.applyLocked(ctx, options, true)
 }
 
+// Restart disconnects and reconnects the core from the active subscription
+// and current preferences — a fresh core process state, unlike Up, which
+// applies changes in place and skips work when nothing changed.
+func (c *runtimeController) Restart(ctx context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, err := c.stopLocked(); err != nil {
+		return fmt.Errorf("stop current core: %w", err)
+	}
+	return c.applyLocked(ctx, runtimeOptions{}, true)
+}
+
 func (c *runtimeController) Configure(ctx context.Context, options runtimeOptions) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -168,6 +181,10 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	}
 
 	var runtimeJSON []byte
+	prefsJSON, err := json.MarshalIndent(next, "", "  ")
+	if err != nil {
+		return err
+	}
 	if run {
 		if targetID == "" {
 			return &runtimeInputError{errors.New("no active subscription; please login or add a subscription first")}
@@ -196,10 +213,22 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		if err := engine.Validate(runtimeJSON); err != nil {
 			return fmt.Errorf("validate runtime configuration: %w", err)
 		}
-	}
-	prefsJSON, err := json.MarshalIndent(next, "", "  ")
-	if err != nil {
-		return err
+		// Re-applying a byte-identical configuration to the running core is
+		// a no-op: repeating `up` must not bounce the core or churn the
+		// system proxy. The proxy-ownership check keeps mode switches honest
+		// — sysproxy and port can derive the same core JSON while the
+		// takeover side effect differs. Preferences still get persisted in
+		// case the file drifted from memory.
+		proxyOwnershipMatches := (next.TakeoverMode == engine.ModeSysproxy) == (c.originalProxy != nil)
+		if c.engine.IsRunning() && c.appliedSubID == targetID && bytes.Equal(runtimeJSON, c.applied) && proxyOwnershipMatches {
+			if err := c.write(paths.RuntimeStatePath(), prefsJSON, 0o600); err != nil {
+				return fmt.Errorf("save runtime preferences: %w", err)
+			}
+			c.stateMu.Lock()
+			c.prefs = next
+			c.stateMu.Unlock()
+			return nil
+		}
 	}
 	prefsFile, err := captureRuntimeFile(paths.RuntimeStatePath())
 	if err != nil {
@@ -333,27 +362,33 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	return nil
 }
 
-func (c *runtimeController) Down() error {
+func (c *runtimeController) Down() (bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.stopLocked()
 }
 
-func (c *runtimeController) stopLocked() error {
+// stopLocked tears down whatever the daemon owns. The bool reports whether
+// there was anything to tear down, so `down` can distinguish "stopped" from
+// "was already stopped" instead of printing the same success for both.
+func (c *runtimeController) stopLocked() (bool, error) {
+	if c.originalProxy == nil && !c.engine.IsRunning() {
+		return false, nil
+	}
 	if c.originalProxy != nil {
 		if err := c.proxyRestore(*c.originalProxy); err != nil {
-			return fmt.Errorf("release system proxy: %w", err)
+			return true, fmt.Errorf("release system proxy: %w", err)
 		}
 		if err := os.Remove(paths.SysproxySnapshotPath()); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return err
+			return true, err
 		}
 	}
 	if err := c.engine.Stop(); err != nil {
-		return fmt.Errorf("stop core: %w", err)
+		return true, fmt.Errorf("stop core: %w", err)
 	}
 	c.originalProxy = nil
 	c.pendingApply = false
-	return nil
+	return true, nil
 }
 
 func (c *runtimeController) Remove(id string) error {
@@ -364,23 +399,37 @@ func (c *runtimeController) Remove(id string) error {
 		return &runtimeInputError{err}
 	}
 	if meta.ID == c.subs.ActiveID() {
-		if err := c.stopLocked(); err != nil {
+		if _, err := c.stopLocked(); err != nil {
 			return err
 		}
 	}
 	return c.subs.Remove(meta.ID)
 }
 
-func (c *runtimeController) Logout(purge bool) error {
+// Logout removes the local XBond credentials: every xbond-type subscription.
+// The core disconnects only when the active subscription is one of them, and
+// universal subscriptions are never touched — removing those is `sub remove`.
+// Remote authorization is not revoked; that is a dashboard action.
+func (c *runtimeController) Logout() ([]sub.SubscriptionMeta, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if err := c.stopLocked(); err != nil {
-		return err
+	active := c.subs.ActiveID()
+	var removed []sub.SubscriptionMeta
+	for _, item := range c.subs.List() {
+		if item.Type != sub.SubTypeXBond {
+			continue
+		}
+		if item.ID == active {
+			if _, err := c.stopLocked(); err != nil {
+				return removed, err
+			}
+		}
+		if err := c.subs.Remove(item.ID); err != nil {
+			return removed, err
+		}
+		removed = append(removed, item)
 	}
-	if id := c.subs.ActiveID(); purge && id != "" {
-		return c.subs.Remove(id)
-	}
-	return nil
+	return removed, nil
 }
 
 func (c *runtimeController) Update(ctx context.Context, id string, force, viaProxy bool) (*sub.UpdateResult, error) {

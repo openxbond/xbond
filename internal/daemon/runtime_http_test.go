@@ -69,15 +69,24 @@ func TestRuntimeBulkUpdateReportsFailuresInsteadOfReturningSuccess(t *testing.T)
 	}
 	server := &Server{subMgr: f.subs, runtime: f.controller}
 	response := runtimeRequest(server.handleSubUpdate, `{"all":true,"force":true}`)
-	var result struct {
-		Error    string            `json:"error"`
-		Failures map[string]string `json:"failures"`
-	}
+	var result sub.BatchUpdateResult
 	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
 	}
-	if response.Code != http.StatusInternalServerError || result.Error == "" || result.Failures[f.second.ID] == "" {
-		t.Fatalf("failed update was hidden: %d %s", response.Code, response.Body)
+	if response.Code != http.StatusOK {
+		t.Fatalf("a batch keeps per-item outcomes at 200, got %d: %s", response.Code, response.Body)
+	}
+	if len(result.Results) != 1 || result.Results[0].Meta == nil || result.Results[0].Meta.ID != f.first.ID {
+		t.Fatalf("healthy subscription's result missing from batch: %s", response.Body)
+	}
+	found := false
+	for _, failure := range result.Failures {
+		if failure.ID == f.second.ID && failure.Name != "" && failure.Error != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("failed update was hidden: %s", response.Body)
 	}
 }
 
@@ -100,7 +109,7 @@ func TestRuntimeUpHTTPReturnsActualStartedCoreStatus(t *testing.T) {
 	controller := newRuntimeController(core, f.subs, preferences)
 	server := &Server{engineMgr: core, subMgr: f.subs, runtime: controller}
 	t.Cleanup(func() {
-		if err := controller.Down(); err != nil {
+		if _, err := controller.Down(); err != nil {
 			t.Error(err)
 		}
 	})
