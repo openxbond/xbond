@@ -147,6 +147,16 @@ export interface AccountStatus {
   updateError?: string;
 }
 
+export interface SubscriptionFetchProgress {
+  active: boolean;
+  subId?: string;
+  name?: string;
+  bytes: number;
+  /** 0 = size unknown (chunked response). */
+  total: number;
+  startedAt?: string;
+}
+
 interface AccountStatusWire extends Omit<AccountStatus, "subscription"> {
   subscription?: SubscriptionWire | null;
 }
@@ -314,6 +324,10 @@ export class LocalAPIClient {
       body: JSON.stringify(params),
     });
     return normalizeSubscription(data);
+  }
+
+  async subscriptionProgress(): Promise<SubscriptionFetchProgress> {
+    return this.request("/localapi/v0/subs/progress");
   }
 
   async accountStatus(): Promise<AccountStatus> {

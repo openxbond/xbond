@@ -15,6 +15,7 @@
   "pkce.quota_usage": "Data used: {{.used}} GB / {{.total}} GB ({{.pct}}%)",
   "login.link_unprovisioned": "Subscription link not provisioned yet: reset the subscription link in the dashboard, then run xbond login again.",
   "login.update_failed": "Signed in, but fetching the initial configuration failed: {{.err}}. The subscription was saved — run `xbond update` to retry.",
+  "login.downloading_config": "Downloading subscription config (may take a minute on slow networks)…",
   "login.next_step": "Run `xbond up` to connect.",
   "pkce.listen_failed": "Could not open a local callback port, falling back to device sign-in ({{.err}})",
 

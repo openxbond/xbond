@@ -24,6 +24,7 @@ type Client struct {
 	addr       string
 	token      string
 	httpClient *http.Client
+	slowClient *http.Client
 }
 
 type StatusResponse struct {
@@ -80,6 +81,12 @@ func NewClient() (*Client, error) {
 		token: strings.TrimSpace(string(tokenBytes)),
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
+		},
+		slowClient: &http.Client{
+			// Endpoints that fetch and apply a subscription can legitimately
+			// take minutes: a first config download measured 2.6 MB over a
+			// ~39 KB/s line (~67 s), and the fetch client alone allows 120 s.
+			Timeout: 180 * time.Second,
 		},
 	}, nil
 }
@@ -148,6 +155,16 @@ func (c *Client) Shutdown(ctx context.Context) (*ShutdownResult, error) {
 }
 
 func (c *Client) request(ctx context.Context, method, endpoint string, body any, target any) error {
+	return c.requestWith(ctx, c.httpClient, method, endpoint, body, target)
+}
+
+// requestSlow runs endpoints whose handler fetches a subscription config;
+// see slowClient for the timeout rationale.
+func (c *Client) requestSlow(ctx context.Context, method, endpoint string, body any, target any) error {
+	return c.requestWith(ctx, c.slowClient, method, endpoint, body, target)
+}
+
+func (c *Client) requestWith(ctx context.Context, client *http.Client, method, endpoint string, body any, target any) error {
 	var bodyReader io.Reader
 	if body != nil {
 		buf, err := json.Marshal(body)
@@ -166,7 +183,7 @@ func (c *Client) request(ctx context.Context, method, endpoint string, body any,
 	req.Header.Set("X-XBond-Token", c.token)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -218,7 +235,7 @@ func (c *Client) Up(ctx context.Context, mode engine.TakeoverMode, routing engin
 		"allowLan": allowLan,
 		"subId":    subID,
 	}
-	return c.request(ctx, http.MethodPost, "/localapi/v0/up", payload, nil)
+	return c.requestSlow(ctx, http.MethodPost, "/localapi/v0/up", payload, nil)
 }
 
 // Down disconnects the core. The bool reports whether there was anything to
@@ -262,7 +279,7 @@ func (c *Client) Login(ctx context.Context, token, origin string, fallbackOrigin
 		"urlOrFile":       urlOrFile,
 	}
 	var res LoginResponse
-	if err := c.request(ctx, http.MethodPost, "/localapi/v0/login", payload, &res); err != nil {
+	if err := c.requestSlow(ctx, http.MethodPost, "/localapi/v0/login", payload, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -279,6 +296,16 @@ func (c *Client) Logout(ctx context.Context) ([]sub.SubscriptionMeta, error) {
 		return nil, err
 	}
 	return res.Removed, nil
+}
+
+// SubscriptionProgress snapshots the daemon's in-flight subscription config
+// download; inactive when nothing is downloading.
+func (c *Client) SubscriptionProgress(ctx context.Context) (*sub.FetchProgress, error) {
+	var res sub.FetchProgress
+	if err := c.request(ctx, http.MethodGet, "/localapi/v0/subs/progress", nil, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (c *Client) ListSubs(ctx context.Context) (*SubsListResponse, error) {
@@ -303,7 +330,7 @@ func (c *Client) AddSub(ctx context.Context, subType sub.SubscriptionType, token
 		"use":             use,
 	}
 	var res AddSubResponse
-	if err := c.request(ctx, http.MethodPost, "/localapi/v0/subs", payload, &res); err != nil {
+	if err := c.requestSlow(ctx, http.MethodPost, "/localapi/v0/subs", payload, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -321,7 +348,7 @@ func (c *Client) UpdateSub(ctx context.Context, id string, force, viaProxy bool)
 		"viaProxy": viaProxy,
 	}
 	var res sub.UpdateResult
-	if err := c.request(ctx, http.MethodPost, "/localapi/v0/subs/update", payload, &res); err != nil {
+	if err := c.requestSlow(ctx, http.MethodPost, "/localapi/v0/subs/update", payload, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -336,7 +363,7 @@ func (c *Client) UpdateSubAll(ctx context.Context, force, viaProxy bool) (*sub.B
 		"all":      true,
 	}
 	var res sub.BatchUpdateResult
-	if err := c.request(ctx, http.MethodPost, "/localapi/v0/subs/update", payload, &res); err != nil {
+	if err := c.requestSlow(ctx, http.MethodPost, "/localapi/v0/subs/update", payload, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil

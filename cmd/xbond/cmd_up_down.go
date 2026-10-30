@@ -73,17 +73,20 @@ Repeating ` + "`up`" + ` with unchanged arguments is a no-op — the core is not
 			allowLanPtr = &upAllowLan
 		}
 
-		if err := client.Up(ctx, engine.TakeoverMode(upMode), engine.RoutingMode(upRouting), upPort, allowLanPtr, upSub); err != nil {
-			if strings.Contains(err.Error(), "bind: Only one usage") || strings.Contains(err.Error(), "address already in use") {
+		upErr := withFetchProgress(ctx, client, func() error {
+			return client.Up(ctx, engine.TakeoverMode(upMode), engine.RoutingMode(upRouting), upPort, allowLanPtr, upSub)
+		})
+		if upErr != nil {
+			if strings.Contains(upErr.Error(), "bind: Only one usage") || strings.Contains(upErr.Error(), "address already in use") {
 				port := upPort
 				if port == 0 {
 					port = 7890
 				}
-				return fmt.Errorf("%w\n\n%s: %s\n%s", err, i18n.T(lang, "tag.error"),
+				return fmt.Errorf("%w\n\n%s: %s\n%s", upErr, i18n.T(lang, "tag.error"),
 					i18n.T(lang, "engine.port_conflict", i18n.P{"port": port}),
 					i18n.T(lang, "engine.port_conflict_hint"))
 			}
-			return err
+			return upErr
 		}
 
 		st, _ := client.GetStatus(ctx)

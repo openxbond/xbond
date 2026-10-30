@@ -15,6 +15,7 @@
   "pkce.quota_usage": "已用流量：{{.used}} GB / {{.total}} GB（{{.pct}}%）",
   "login.link_unprovisioned": "订阅链接尚未生成：请先在控制台重置订阅链接，再重新执行 xbond login。",
   "login.update_failed": "登录成功，但获取初始配置失败：{{.err}}。订阅已保存，请运行 `xbond update` 重试。",
+  "login.downloading_config": "正在下载订阅配置（慢网络约需 1 分钟）…",
   "login.next_step": "运行 `xbond up` 即可连接。",
   "pkce.listen_failed": "无法打开本地回调端口，将改用设备授权登录（{{.err}}）",
 

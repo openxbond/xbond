@@ -195,6 +195,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/subs", s.authMiddleware(s.handleSubs))
 	mux.HandleFunc("/localapi/v0/subs/use", s.authMiddleware(s.handleSubUse))
 	mux.HandleFunc("/localapi/v0/subs/update", s.authMiddleware(s.handleSubUpdate))
+	mux.HandleFunc("/localapi/v0/subs/progress", s.authMiddleware(s.handleSubsProgress))
 
 	mux.HandleFunc("/localapi/v0/nodes", s.authMiddleware(s.handleNodes))
 	mux.HandleFunc("/localapi/v0/nodes/select", s.authMiddleware(s.handleNodeSelect))
@@ -412,6 +413,16 @@ func (s *Server) activeXBondSub() *sub.SubscriptionMeta {
 		}
 	}
 	return first
+}
+
+// handleSubsProgress exposes the in-flight subscription download so clients
+// blocked on login/update can render progress instead of a silent wait.
+func (s *Server) handleSubsProgress(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	writeJSON(w, http.StatusOK, s.subMgr.Progress())
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {

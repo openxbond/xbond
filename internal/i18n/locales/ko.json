@@ -15,6 +15,7 @@
   "pkce.quota_usage": "사용량: {{.used}} GB / {{.total}} GB ({{.pct}}%)",
   "login.link_unprovisioned": "구독 링크가 아직 생성되지 않았습니다: 대시보드에서 구독 링크를 재설정한 후 xbond login을 다시 실행하세요.",
   "login.update_failed": "로그인했지만 초기 설정을 가져오는 데 실패했습니다: {{.err}}. 구독은 저장되었으니 `xbond update`로 다시 시도하세요.",
+  "login.downloading_config": "구독 설정을 다운로드하는 중입니다 (느린 네트워크에서는 1분 정도 걸릴 수 있습니다)…",
   "login.next_step": "`xbond up`을 실행하여 연결하세요.",
   "pkce.listen_failed": "로컬 콜백 포트를 열 수 없어 기기 인증 로그인으로 전환합니다 ({{.err}})",
 

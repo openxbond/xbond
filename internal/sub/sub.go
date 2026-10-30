@@ -20,9 +20,22 @@ import (
 	"github.com/openxbond/xbond/internal/platform/paths"
 )
 
+// FetchProgress reports the in-flight subscription config download so
+// LocalAPI consumers can render progress while a blocking update runs.
+type FetchProgress struct {
+	Active    bool      `json:"active"`
+	SubID     string    `json:"subId,omitempty"`
+	Name      string    `json:"name,omitempty"`
+	Bytes     int64     `json:"bytes"`
+	Total     int64     `json:"total"` // 0 = size unknown (chunked response)
+	StartedAt time.Time `json:"startedAt,omitempty"`
+}
+
 type Manager struct {
-	mu    sync.RWMutex
-	store SubscriptionsStore
+	mu         sync.RWMutex
+	store      SubscriptionsStore
+	progressMu sync.Mutex
+	progress   FetchProgress
 }
 
 func NewManager() (*Manager, error) {
@@ -329,6 +342,31 @@ func (m *Manager) upsertAndInit(meta SubscriptionMeta, activate bool) (*Subscrip
 	return &meta, nil
 }
 
+func (m *Manager) setFetchProgress(active bool, subID, name string) {
+	m.progressMu.Lock()
+	defer m.progressMu.Unlock()
+	if active {
+		m.progress = FetchProgress{Active: true, SubID: subID, Name: name, StartedAt: time.Now()}
+		return
+	}
+	m.progress = FetchProgress{}
+}
+
+func (m *Manager) setFetchProgressBytes(read, total int64) {
+	m.progressMu.Lock()
+	defer m.progressMu.Unlock()
+	m.progress.Bytes = read
+	m.progress.Total = total
+}
+
+// Progress snapshots the current fetch progress; inactive when nothing is
+// downloading.
+func (m *Manager) Progress() FetchProgress {
+	m.progressMu.Lock()
+	defer m.progressMu.Unlock()
+	return m.progress
+}
+
 func (m *Manager) Update(
 	idOrName string,
 	force bool,
@@ -339,8 +377,11 @@ func (m *Manager) Update(
 	if err != nil {
 		return nil, err
 	}
+	defer m.setFetchProgress(false, "", "")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	// The context must outlast the fetch client's own timeout (120s) and the
+	// fallback-origin probes that run after a transient primary failure.
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
 	defer cancel()
 
 	var rawContent []byte
@@ -358,10 +399,12 @@ func (m *Manager) Update(
 
 	if subMeta.Type == SubTypeXBond {
 		fetchURL := BuildXBondURL(subMeta.Origin, subMeta.Token, subMeta.Protocol, subMeta.Lang)
+		m.setFetchProgress(true, subMeta.ID, subMeta.Name)
 		resp, err := FetchSubscription(ctx, fetchURL, FetchOptions{
-			ETag:      etag,
-			ViaProxy:  viaProxy,
-			ProxyPort: proxyPort,
+			ETag:       etag,
+			ViaProxy:   viaProxy,
+			ProxyPort:  proxyPort,
+			OnProgress: m.setFetchProgressBytes,
 		})
 
 		// Try fallback origins if primary fails with transient error
@@ -370,10 +413,12 @@ func (m *Manager) Update(
 				if ok, _ := ProbeGatewayHealth(ctx, fallback, viaProxy, proxyPort); ok {
 					subMeta.Origin = fallback
 					fetchURL = BuildXBondURL(fallback, subMeta.Token, subMeta.Protocol, subMeta.Lang)
+					m.setFetchProgress(true, subMeta.ID, subMeta.Name)
 					resp, err = FetchSubscription(ctx, fetchURL, FetchOptions{
-						ETag:      etag,
-						ViaProxy:  viaProxy,
-						ProxyPort: proxyPort,
+						ETag:       etag,
+						ViaProxy:   viaProxy,
+						ProxyPort:  proxyPort,
+						OnProgress: m.setFetchProgressBytes,
 					})
 					if err == nil {
 						break
@@ -402,10 +447,12 @@ func (m *Manager) Update(
 	} else {
 		// Universal subscription (URL or local file)
 		if strings.HasPrefix(subMeta.SourceURL, "http://") || strings.HasPrefix(subMeta.SourceURL, "https://") {
+			m.setFetchProgress(true, subMeta.ID, subMeta.Name)
 			resp, err := FetchSubscription(ctx, subMeta.SourceURL, FetchOptions{
-				ETag:      etag,
-				ViaProxy:  viaProxy,
-				ProxyPort: proxyPort,
+				ETag:       etag,
+				ViaProxy:   viaProxy,
+				ProxyPort:  proxyPort,
+				OnProgress: m.setFetchProgressBytes,
 			})
 			if resp != nil {
 				subMeta.Health = resp.Health

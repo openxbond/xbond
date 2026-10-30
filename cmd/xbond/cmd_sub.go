@@ -239,16 +239,28 @@ func runAccountLogin(
 		return nil, errors.New(t("login.link_unprovisioned"))
 	}
 
-	return client.Login(
-		ctx,
-		credentials.SubscriptionToken,
-		credentials.Origin,
-		credentials.FallbackOrigins,
-		"",
-		lang,
-		name,
-		"",
-	)
+	fmt.Fprintln(os.Stderr, t("login.downloading_config"))
+	var response *daemon.LoginResponse
+	if err := withFetchProgress(ctx, client, func() error {
+		var loginErr error
+		response, loginErr = client.Login(
+			ctx,
+			credentials.SubscriptionToken,
+			credentials.Origin,
+			credentials.FallbackOrigins,
+			"",
+			lang,
+			name,
+			"",
+		)
+		return loginErr
+	}); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("%w; the subscription was saved locally; run `xbond update` to retry the first config fetch", err)
+		}
+		return nil, err
+	}
+	return response, nil
 }
 
 func localizeLoginError(t func(string, ...i18n.P) string, err error, method string, expiresIn int) error {
@@ -414,7 +426,12 @@ Requires the background daemon (first time? ` + "`xbond daemon install`" + `). W
 			urlOrFile = abs
 		}
 
-		res, err := client.AddSub(ctx, subType, token, subAddOrigin, nil, subAddProtocol, subAddLang, subAddName, urlOrFile, subAddInterval, subAddUse)
+		var res *daemon.AddSubResponse
+		err = withFetchProgress(ctx, client, func() error {
+			var addErr error
+			res, addErr = client.AddSub(ctx, subType, token, subAddOrigin, nil, subAddProtocol, subAddLang, subAddName, urlOrFile, subAddInterval, subAddUse)
+			return addErr
+		})
 		if err != nil {
 			return err
 		}
@@ -620,7 +637,12 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	if subUpdAll {
-		res, err := client.UpdateSubAll(ctx, subUpdForce, subUpdViaProxy)
+		var res *sub.BatchUpdateResult
+		err = withFetchProgress(ctx, client, func() error {
+			var updateErr error
+			res, updateErr = client.UpdateSubAll(ctx, subUpdForce, subUpdViaProxy)
+			return updateErr
+		})
 		if err != nil {
 			return err
 		}
@@ -650,7 +672,12 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		target = args[0]
 	}
 
-	res, err := client.UpdateSub(ctx, target, subUpdForce, subUpdViaProxy)
+	var res *sub.UpdateResult
+	err = withFetchProgress(ctx, client, func() error {
+		var updateErr error
+		res, updateErr = client.UpdateSub(ctx, target, subUpdForce, subUpdViaProxy)
+		return updateErr
+	})
 	if err != nil {
 		return err
 	}

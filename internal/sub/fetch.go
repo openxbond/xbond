@@ -22,6 +22,9 @@ type FetchOptions struct {
 	ViaProxy  bool
 	ProxyPort int
 	Timeout   time.Duration
+	// OnProgress reports cumulative bytes read and the total size when the
+	// response carries Content-Length (-1 otherwise). Nil disables reporting.
+	OnProgress func(read, total int64)
 }
 
 type FetchResponse struct {
@@ -120,7 +123,10 @@ func ProbeGatewayHealth(ctx context.Context, origin string, viaProxy bool, proxy
 func FetchSubscription(ctx context.Context, fetchURL string, opts FetchOptions) (*FetchResponse, error) {
 	timeout := opts.Timeout
 	if timeout <= 0 {
-		timeout = 15 * time.Second
+		// Subscription configs are megabytes and direct lines can run at
+		// tens of KB/s (2.6 MB measured at ~39 KB/s = 67 s); a short default
+		// times out every cold fetch before the body finishes.
+		timeout = 120 * time.Second
 	}
 
 	client := createHTTPClient(opts.ViaProxy, opts.ProxyPort, timeout)
@@ -202,7 +208,11 @@ func FetchSubscription(ctx context.Context, fetchURL string, opts FetchOptions) 
 		return result, nil
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	var body io.Reader = resp.Body
+	if opts.OnProgress != nil {
+		body = &progressReader{r: resp.Body, total: resp.ContentLength, on: opts.OnProgress}
+	}
+	bodyBytes, err := io.ReadAll(body)
 	if err != nil {
 		result.Health = HealthTransientError
 		result.ErrorMessage = fmt.Sprintf("failed to read response body: %v", err)
@@ -286,4 +296,24 @@ func createHTTPClient(viaProxy bool, proxyPort int, timeout time.Duration) *http
 		Transport: transport,
 		Timeout:   timeout,
 	}
+}
+
+// progressReader counts bytes as the body is consumed so callers can render
+// download progress; the callback fires once per Read that returns data.
+type progressReader struct {
+	r     io.Reader
+	n     int64
+	total int64
+	on    func(read, total int64)
+}
+
+func (p *progressReader) Read(b []byte) (int, error) {
+	n, err := p.r.Read(b)
+	if n > 0 {
+		p.n += int64(n)
+		if p.on != nil {
+			p.on(p.n, p.total)
+		}
+	}
+	return n, err
 }
