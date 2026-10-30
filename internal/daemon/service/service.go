@@ -16,11 +16,33 @@ import (
 	"os/exec"
 )
 
-func Install(exePath string) error { return installDaemon(exePath) }
-func Uninstall() error             { return uninstallDaemon() }
-func Start() error                 { return startDaemon() }
-func Stop() error                  { return stopDaemon() }
-func Installed() bool              { return daemonInstalled() }
+// Scope selects where the registration lives. user registers inside the
+// current user session (user data dir, user-scoped system proxy); system
+// registers a machine-level service. A scope must never be silently swapped
+// for another: unsupported ones return an explicit error.
+type Scope string
+
+const (
+	ScopeUser   Scope = "user"
+	ScopeSystem Scope = "system"
+)
+
+func Install(exePath string, scope Scope) error {
+	switch scope {
+	case ScopeUser:
+		return installDaemon(exePath)
+	case ScopeSystem:
+		// Explicit, never downgraded to user: the machine service backend
+		// (kardianos/service) is a separate slice per the daemon spec.
+		return fmt.Errorf("scope %q is not available in this build yet (see docs/specs/daemon-runtime.md)", scope)
+	default:
+		return fmt.Errorf("unknown scope %q (want %q or %q)", scope, ScopeUser, ScopeSystem)
+	}
+}
+func Uninstall() error { return uninstallDaemon() }
+func Start() error     { return startDaemon() }
+func Stop() error      { return stopDaemon() }
+func Installed() bool  { return daemonInstalled() }
 
 // SelfPath resolves the running xbond binary; the service registrations all
 // point at "<self> daemon", so install always registers the binary the user

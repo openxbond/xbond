@@ -60,12 +60,11 @@ func NewClient() (*Client, error) {
 	}, nil
 }
 
-// EnsureRunning connects to the managed xbond-daemon service. An already
-// running daemon is reused, an installed-but-stopped service is started, and
-// a missing service is installed at user level first (no elevation on any
-// platform). The CLI deliberately never spawns a bare daemon process: the
-// process lifecycle belongs to the platform supervisor, not to whichever
-// command happened to run first.
+// EnsureRunning connects to the managed xbond daemon. An already running
+// daemon is reused and an installed-but-stopped service is started. The CLI
+// never spawns a bare daemon process and never registers autostart on its
+// own: installing the service is an explicit `xbond daemon install`, so a
+// stray command cannot silently change what starts at login.
 func EnsureRunning(ctx context.Context) (*Client, error) {
 	if c, err := NewClient(); err == nil {
 		if _, err := c.GetStatus(ctx); err == nil {
@@ -73,19 +72,13 @@ func EnsureRunning(ctx context.Context) (*Client, error) {
 		}
 	}
 
-	if service.Installed() {
-		if err := service.Start(); err != nil {
-			return nil, fmt.Errorf("failed to start xbond daemon service: %w", err)
-		}
-	} else {
-		selfPath, err := service.SelfPath()
-		if err != nil {
-			return nil, err
-		}
-		// Install registers autostart and starts the daemon on every platform.
-		if err := service.Install(selfPath); err != nil {
-			return nil, fmt.Errorf("failed to install xbond daemon service: %w", err)
-		}
+	if !service.Installed() {
+		return nil, fmt.Errorf(
+			"xbond daemon is not running; start the background service with `xbond daemon start` (first time? install it: `xbond daemon install`, or run `xbond daemon` in another terminal)",
+		)
+	}
+	if err := service.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start xbond daemon service: %w", err)
 	}
 
 	// Poll until ready (up to 5 seconds) for the supervised daemon to publish
@@ -100,7 +93,7 @@ func EnsureRunning(ctx context.Context) (*Client, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("xbond-daemon service started but did not become ready in time; check its logs")
+	return nil, fmt.Errorf("xbond daemon service started but did not become ready in time; check its logs")
 }
 
 // Shutdown asks the daemon to exit gracefully (engine down, proxy restored,

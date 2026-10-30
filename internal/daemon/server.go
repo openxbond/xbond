@@ -40,14 +40,26 @@ type Server struct {
 	shutdownCh   chan struct{}
 	shutdownOnce sync.Once
 	stopOnce     sync.Once
+	stopErr      error
+	lock         *instanceLock
 }
 
 func NewServer(addr string, webDir string) (*Server, error) {
+	// The lock must exist before proxy recovery and discovery-file writes:
+	// a second instance must never fight over ports, system proxy, or the
+	// credential files.
+	lock, err := acquireInstanceLock(paths.DataDir())
+	if err != nil {
+		return nil, err
+	}
+
 	if err := paths.EnsureDirs(); err != nil {
+		lock.Release()
 		return nil, err
 	}
 
 	if err := sysproxy.AutoRecoverOnStartup(); err != nil {
+		lock.Release()
 		return nil, err
 	}
 
@@ -74,6 +86,7 @@ func NewServer(addr string, webDir string) (*Server, error) {
 		webDir:     webDir,
 		done:       make(chan struct{}),
 		shutdownCh: make(chan struct{}),
+		lock:       lock,
 	}
 
 	if s.webDir == "" {
@@ -123,14 +136,18 @@ func (s *Server) ShutdownRequested() <-chan struct{} {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	s.stopOnce.Do(func() { close(s.done) })
+	s.stopOnce.Do(func() {
+		close(s.done)
+		defer s.lock.Release()
 
-	runtimeErr := s.runtime.Down()
+		runtimeErr := s.runtime.Down()
 
-	_ = os.Remove(paths.LocalAPITokenPath())
-	_ = os.Remove(paths.LocalAPIAddrPath())
+		_ = os.Remove(paths.LocalAPITokenPath())
+		_ = os.Remove(paths.LocalAPIAddrPath())
 
-	return errors.Join(runtimeErr, s.httpServer.Shutdown(ctx))
+		s.stopErr = errors.Join(runtimeErr, s.httpServer.Shutdown(ctx))
+	})
+	return s.stopErr
 }
 
 func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {

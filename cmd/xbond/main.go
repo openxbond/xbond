@@ -30,7 +30,7 @@ var commandLayout = []struct {
 	{"observe", []string{"logs", "conns", "rules", "dns", "doctor", "bugreport"}},
 	// help and completion are created by cobra at Execute time; they follow
 	// the listed commands automatically.
-	{"other", []string{"daemon", "service", "web", "version"}},
+	{"other", []string{"daemon", "run", "web", "version"}},
 }
 
 func init() {

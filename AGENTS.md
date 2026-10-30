@@ -25,7 +25,7 @@
 - 安裝：`pnpm install --frozen-lockfile`；Node ≥ 24（`scripts/*.ts` 直接執行，不帶 `--experimental-strip-types`）。版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準。
 - Web：`pnpm dev`（預設 3000）；`pnpm check` 一次跑 typecheck、lint（含架構檢查）、format、test；交付前另跑 `pnpm build`；`pnpm test:watch` 進入 watch 迴圈。
 - Go：`pnpm cli:run [args]` 本機執行 CLI；`pnpm cli:daemon` 前景運行 daemon；`pnpm cli:fmt`／`cli:fmt:check`（gofmt）；`pnpm cli:check` 為 vet、test、build。build tags 的單一來源在 `scripts/go.ts`；包路徑、`-run`、CLI 參數等額外參數直接附在命令後（如 `pnpm cli:test ./internal/sub -run TestX`）。
-- daemon 生命週期：CLI 不直接 spawn daemon 進程；`xbond service install` 把 `xbond daemon --background` 註冊到平台使用者級 supervisor，`service stop` 經 LocalAPI shutdown 端點優雅退出。服務未安裝時任何 CLI 命令會自動註冊並啟動（免管理員）。
+- daemon 生命週期（契約見 [daemon-runtime 規格](docs/specs/daemon-runtime.md)）：`xbond daemon install`（`--scope user`；system 暫未提供，明確報錯）把受監督的 `xbond daemon --background` 註冊到平台使用者級 supervisor，`daemon stop` 經 LocalAPI shutdown 端點優雅退出並等待確認。CLI 不 spawn daemon、不隱式註冊：未安裝且未運行時報錯並給出指引。同一資料目錄由實例鎖保證單一 daemon。`xbond run --config <file>` 前台運行獨立核心，與 daemon 的接管資源互斥、衝突即報錯，不觸碰 daemon 發現文件與狀態。
 - 桌面：`pnpm dev:desktop`（前端，固定 127.0.0.1:1420）加 `pnpm desktop`（Tauri 殼）；`pnpm desktop:fmt`／`desktop:fmt:check`、`pnpm desktop:check`、`pnpm build:desktop`。
 - 移動端：`pnpm mobile:check` 只驗證 Go 接口；原生接入另須目標平台工具鏈及裝置驗證。
 - 格式：`pnpm exec oxfmt --check <本次檔案>`；`git diff --check`。可選 `pnpm hooks:install` 安裝 lefthook pre-commit，對提交中的檔案跑同樣的 oxfmt 與 oxlint 檢查。

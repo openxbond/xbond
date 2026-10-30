@@ -108,15 +108,41 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
     }
 
     if let Some(bin) = binary_path {
-        let mut cmd = std::process::Command::new(bin);
-        cmd.arg("daemon");
-
         #[cfg(windows)]
-        {
+        fn no_window(cmd: &mut std::process::Command) {
             use std::os::windows::process::CommandExt;
             const CREATE_NO_WINDOW: u32 = 0x08000000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
+
+        // Prefer the managed-service contract shared with the CLI: an
+        // installed service is started through `xbond daemon start`, so the
+        // GUI never bypasses the supervisor.
+        let mut service_cmd = std::process::Command::new(&bin);
+        service_cmd.args(["daemon", "start"]);
+        #[cfg(windows)]
+        no_window(&mut service_cmd);
+        if let Ok(out) = service_cmd.output() {
+            if out.status.success() {
+                // Wait up to 3 seconds for credentials to appear
+                for _ in 0..15 {
+                    std::thread::sleep(Duration::from_millis(200));
+                    if let Some((addr, token)) = read_credentials() {
+                        return Ok(LocalAPIConfig {
+                            addr,
+                            token,
+                            is_running: true,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Fall back to a detached dev spawn (no service installed).
+        let mut cmd = std::process::Command::new(&bin);
+        cmd.arg("daemon");
+        #[cfg(windows)]
+        no_window(&mut cmd);
 
         match cmd.spawn() {
             Ok(_) => {
