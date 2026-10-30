@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -25,12 +24,7 @@ import (
 )
 
 var (
-	loginToken     string
-	loginURL       string
-	loginFile      string
 	loginOrigin    string
-	loginFallback  string
-	loginProtocol  string
 	loginName      string
 	loginNoBrowser bool
 	loginDevice    bool
@@ -38,7 +32,6 @@ var (
 	logoutPurge bool
 
 	subAddOrigin   string
-	subAddFallback string
 	subAddProtocol string
 	subAddLang     string
 	subAddName     string
@@ -59,12 +52,7 @@ var (
 
 func init() {
 	// login
-	loginCmd.Flags().StringVar(&loginToken, "token", "", "XBond subscription token (starts with sub-)")
-	loginCmd.Flags().StringVar(&loginURL, "url", "", "Remote subscription URL")
-	loginCmd.Flags().StringVar(&loginFile, "file", "", "Local subscription configuration file path")
 	loginCmd.Flags().StringVar(&loginOrigin, "origin", "", "XBond gateway origin (default https://www.xbond.net)")
-	loginCmd.Flags().StringVar(&loginFallback, "fallback", "", "Comma-separated fallback origins")
-	loginCmd.Flags().StringVar(&loginProtocol, "protocol", "vless-reality", "Preferred protocol: vless-reality, trojan-ws")
 	loginCmd.Flags().StringVar(&loginName, "name", "", "Subscription profile label")
 	loginCmd.Flags().BoolVar(&loginNoBrowser, "no-browser", false, "Do not open browser automatically, print URL only")
 	loginCmd.Flags().BoolVar(&loginDevice, "device", false, "Use OAuth 2.0 Device Authorization flow (for Docker, SSH, or headless environments)")
@@ -90,7 +78,6 @@ func init() {
 
 	// sub add
 	subAddCmd.Flags().StringVar(&subAddOrigin, "origin", "", "Gateway origin (for XBond tokens)")
-	subAddCmd.Flags().StringVar(&subAddFallback, "fallback", "", "Comma-separated fallback origins")
 	subAddCmd.Flags().StringVar(&subAddProtocol, "protocol", "vless-reality", "Transport protocol: vless-reality, trojan-ws")
 	subAddCmd.Flags().StringVar(&subAddLang, "lang", "zh-HK", "Display language: zh-HK, zh, en, ko, fa")
 	subAddCmd.Flags().StringVar(&subAddName, "name", "", "Custom subscription name")
@@ -123,7 +110,8 @@ func init() {
 
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Bind and activate an XBond token or subscription URL",
+	Short: "Sign in to your XBond account and activate its subscription",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		client, err := daemon.EnsureRunning(ctx)
@@ -131,46 +119,19 @@ var loginCmd = &cobra.Command{
 			return err
 		}
 
-		var fallbacks []string
-		if loginFallback != "" {
-			fallbacks = strings.Split(loginFallback, ",")
-		}
-
-		targetInput := loginToken
-		urlOrFile := loginURL
-		if urlOrFile == "" {
-			urlOrFile = loginFile
-		}
-
-		if targetInput == "" && urlOrFile == "" && len(args) > 0 {
-			arg := args[0]
-			if strings.HasPrefix(arg, "sub-") {
-				targetInput = arg
-			} else {
-				urlOrFile = arg
-			}
-		}
-
 		effectiveLang := i18n.Resolve(globalLang, "")
-		t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
 
 		var meta *sub.SubscriptionMeta
-		if targetInput == "" && urlOrFile == "" {
-			if loginDevice || isDockerEnvironment() {
-				meta, err = runDeviceLogin(ctx, client, loginOrigin, fallbacks, loginProtocol, effectiveLang, loginName, loginNoBrowser)
-			} else {
-				meta, err = runPkceLogin(ctx, client, loginOrigin, fallbacks, loginProtocol, effectiveLang, loginName, loginNoBrowser)
-			}
-			if err != nil {
-				return err
-			}
+		if loginDevice || isDockerEnvironment() {
+			meta, err = runDeviceLogin(ctx, client, loginOrigin, effectiveLang, loginName, loginNoBrowser)
 		} else {
-			meta, err = client.Login(ctx, targetInput, loginOrigin, fallbacks, loginProtocol, effectiveLang, loginName, urlOrFile)
-			if err != nil {
-				return err
-			}
+			meta, err = runPkceLogin(ctx, client, loginOrigin, effectiveLang, loginName, loginNoBrowser)
+		}
+		if err != nil {
+			return err
 		}
 
+		t := func(id string, data ...i18n.P) string { return i18n.T(effectiveLang, id, data...) }
 		fmt.Printf("%s %s\n", t("tag.success"), t("pkce.subscription_active", i18n.P{"name": meta.Name, "id": meta.ID}))
 		if meta.Quota.TotalBytes > 0 {
 			usedGB := float64(meta.Quota.DownloadBytes+meta.Quota.UploadBytes) / (1024 * 1024 * 1024)
@@ -205,8 +166,7 @@ func runPkceLogin(
 	ctx context.Context,
 	client *daemon.Client,
 	origin string,
-	fallbacks []string,
-	protocol, lang, name string,
+	lang, name string,
 	noBrowser bool,
 ) (*sub.SubscriptionMeta, error) {
 	effectiveLang := i18n.Resolve(lang, "")
@@ -230,7 +190,7 @@ func runPkceLogin(
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		fmt.Printf("%s %s\n", t("tag.info"), t("pkce.listen_failed", i18n.P{"err": err}))
-		return runDeviceLogin(ctx, client, origin, fallbacks, protocol, effectiveLang, name, noBrowser)
+		return runDeviceLogin(ctx, client, origin, effectiveLang, name, noBrowser)
 	}
 	defer listener.Close()
 
@@ -324,33 +284,11 @@ func runPkceLogin(
 	fmt.Println(t("pkce.visit_url"))
 	fmt.Printf("  %s\n\n", authURL)
 	fmt.Println(t("pkce.waiting"))
-	fmt.Println(t("pkce.headless_hint"))
-	fmt.Print("> ")
-
-	inputChan := make(chan string, 1)
-	go func() {
-		scanner := bufio.NewScanner(os.Stdin)
-		if scanner.Scan() {
-			text := strings.TrimSpace(scanner.Text())
-			if text != "" {
-				inputChan <- text
-			}
-		}
-	}()
 
 	var authCode string
 	select {
 	case code := <-codeChan:
 		authCode = code
-	case input := <-inputChan:
-		targetInput := ""
-		urlOrFile := ""
-		if strings.HasPrefix(input, "sub-") {
-			targetInput = input
-		} else {
-			urlOrFile = input
-		}
-		return client.Login(ctx, targetInput, origin, fallbacks, protocol, effectiveLang, name, urlOrFile)
 	case err := <-errChan:
 		return nil, fmt.Errorf("auth error: %w", err)
 	case <-time.After(5 * time.Minute):
@@ -372,7 +310,7 @@ func runPkceLogin(
 	}
 
 	fmt.Printf("\n%s %s\n", t("tag.success"), t("pkce.success"))
-	return completeOAuthLogin(ctx, client, origin, fallbacks, protocol, effectiveLang, name, token)
+	return completeOAuthLogin(ctx, client, origin, effectiveLang, name, token)
 }
 
 // completeOAuthLogin turns a fresh OAuth token set into a bound subscription:
@@ -384,8 +322,7 @@ func completeOAuthLogin(
 	ctx context.Context,
 	client *daemon.Client,
 	origin string,
-	flagFallbacks []string,
-	protocol, lang, name string,
+	lang, name string,
 	token *oauth2.Token,
 ) (*sub.SubscriptionMeta, error) {
 	link, err := clientapi.FetchSubscriptionLinkWithRefresh(ctx, origin, token)
@@ -396,26 +333,20 @@ func completeOAuthLogin(
 		return nil, errors.New(i18n.T(lang, "login.link_unprovisioned"))
 	}
 
-	// 線路發現：用戶顯式指定的 origin/fallback 優先；缺省時採用服務端線路表
-	// （默認線路 = fallbackDomains[0]）。
-	finalFallbacks := flagFallbacks
+	// 線路發現：登入後採用服務端線路表（默認線路 = fallbackDomains[0]）。
 	finalOrigin := origin
-	if len(finalFallbacks) == 0 && len(link.FallbackDomains) > 0 {
-		finalFallbacks = link.FallbackDomains
-		if origin == defaultOrigin {
-			finalOrigin = link.FallbackDomains[0]
-		}
+	if len(link.FallbackDomains) > 0 && origin == defaultOrigin {
+		finalOrigin = link.FallbackDomains[0]
 	}
 
-	return client.Login(ctx, link.SubscriptionToken, finalOrigin, finalFallbacks, protocol, lang, name, "")
+	return client.Login(ctx, link.SubscriptionToken, finalOrigin, link.FallbackDomains, "", lang, name, "")
 }
 
 func runDeviceLogin(
 	ctx context.Context,
 	client *daemon.Client,
 	origin string,
-	fallbacks []string,
-	protocol, lang, name string,
+	lang, name string,
 	noBrowser bool,
 ) (*sub.SubscriptionMeta, error) {
 	effectiveLang := i18n.Resolve(lang, "")
@@ -452,18 +383,6 @@ func runDeviceLogin(
 		fmt.Printf("  %s\n\n", deviceResp.VerificationURIComplete)
 	}
 	fmt.Println(t("device.waiting"))
-	fmt.Print("> ")
-
-	inputChan := make(chan string, 1)
-	go func() {
-		scanner := bufio.NewScanner(os.Stdin)
-		if scanner.Scan() {
-			text := strings.TrimSpace(scanner.Text())
-			if text != "" {
-				inputChan <- text
-			}
-		}
-	}()
 
 	// 3. 輪詢 Token 端點（RFC 8628）：DeviceAccessToken 內置 pending 靜默與
 	// slow_down 退避，截止時間取設備碼有效期；輪詢走後台 goroutine，保留
@@ -502,16 +421,7 @@ func runDeviceLogin(
 		}
 
 		fmt.Printf("\n%s %s\n", t("tag.success"), t("device.approved"))
-		return completeOAuthLogin(ctx, client, origin, fallbacks, protocol, effectiveLang, name, result.token)
-	case input := <-inputChan:
-		targetInput := ""
-		urlOrFile := ""
-		if strings.HasPrefix(input, "sub-") {
-			targetInput = input
-		} else {
-			urlOrFile = input
-		}
-		return client.Login(ctx, targetInput, origin, fallbacks, protocol, effectiveLang, name, urlOrFile)
+		return completeOAuthLogin(ctx, client, origin, effectiveLang, name, result.token)
 	}
 }
 
@@ -622,12 +532,7 @@ var subAddCmd = &cobra.Command{
 			urlOrFile = input
 		}
 
-		var fallbacks []string
-		if subAddFallback != "" {
-			fallbacks = strings.Split(subAddFallback, ",")
-		}
-
-		meta, err := client.AddSub(ctx, subType, token, subAddOrigin, fallbacks, subAddProtocol, subAddLang, subAddName, urlOrFile, subAddInterval, subAddUse)
+		meta, err := client.AddSub(ctx, subType, token, subAddOrigin, nil, subAddProtocol, subAddLang, subAddName, urlOrFile, subAddInterval, subAddUse)
 		if err != nil {
 			return err
 		}
