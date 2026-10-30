@@ -1,5 +1,6 @@
 import {
   detectLocalAPIConfig,
+  isDesktopApp,
   resolveDesktopLocalAPIConfig,
 } from "@lib/localapi-bootstrap";
 import {
@@ -10,7 +11,7 @@ import {
   type RoutingMode,
 } from "@xbond/client/localapi";
 import { isDaemonController } from "@xbond/client/workspace";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 
 import { useAPIInfo } from "./request";
@@ -20,6 +21,7 @@ export function useLocalAPI() {
   const [config, setConfig] = useState<LocalAPIConfig | null>(() =>
     detectLocalAPIConfig(),
   );
+  const lastReresolveAt = useRef(0);
 
   useEffect(() => {
     if (!config) {
@@ -47,6 +49,27 @@ export function useLocalAPI() {
       shouldRetryOnError: false,
     },
   );
+
+  // Self-heal: the daemon may have been restarted (or reinstalled) with a
+  // fresh addr/token since this window resolved its config. Re-read it from
+  // the desktop shell when the status keeps failing; a changed config flips
+  // the SWR key and reconnects. Throttled so a down daemon doesn't poll IPC.
+  useEffect(() => {
+    if (!isDesktopApp() || !config || !error) return;
+    if (Date.now() - lastReresolveAt.current < 10_000) return;
+    lastReresolveAt.current = Date.now();
+    const timer = setTimeout(() => {
+      void resolveDesktopLocalAPIConfig().then((next) => {
+        if (
+          next &&
+          (next.endpoint !== config.endpoint || next.token !== config.token)
+        ) {
+          setConfig(next);
+        }
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [error, config]);
 
   const isLocalTarget = isDaemonController(
     controller.url,
