@@ -342,15 +342,11 @@ export default function Connections() {
     return (
       <div
         role="columnheader"
-        className={classnames(
-          "connections-th table-header",
-          alignClass(id),
-          {
-            resizing: column.getIsResizing(),
-            fixed: column.id === Columns.Host,
-            shadow: scrolled && column.id === Columns.Host,
-          },
-        )}
+        className={classnames("connections-th table-header", alignClass(id), {
+          resizing: column.getIsResizing(),
+          fixed: column.id === Columns.Host,
+          shadow: scrolled && column.id === Columns.Host,
+        })}
         style={{ flex: `${header.getSize()} 0 ${header.getSize()}px` }}
         ref={column.id === Columns.Host ? pinRef : undefined}
         key={id}

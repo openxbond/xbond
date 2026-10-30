@@ -29,11 +29,13 @@
     // Legacy-fork deltas, each an architecture its own project, not a lint
     // fix: the custom controls (Checkbox/Switch/Tags/Select/Devices) are
     // div/span with onClick, portals read their container ref during render
-    // by design, and Lists come from react-window v1.
+    // by design, Lists come from react-window v1, and the Connections table
+    // is a windowed div grid whose spacer rows have no native equivalent.
     "jsx-a11y/click-events-have-key-events": "off",
     "jsx-a11y/no-static-element-interactions": "off",
     "jsx-a11y/no-noninteractive-element-interactions": "off",
     "jsx-a11y/no-autofocus": "off",
+    "jsx-a11y/prefer-tag-over-role": "off",
     "react/refs": "off",
     "react/incompatible-library": "off",
 

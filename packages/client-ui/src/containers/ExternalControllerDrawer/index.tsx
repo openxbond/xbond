@@ -33,16 +33,17 @@ export default function ExternalController() {
   // fails, then surfaces as a "can't connect?" prompt with details on demand.
   const [testFailed, setTestFailed] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [urlError, setUrlError] = useState<"" | "invalidURL" | "invalidPortRange">(
-    "",
-  );
-  useEffect(() => {
-    if (identity) {
-      setTestFailed(false);
-      setHelpOpen(false);
-      setUrlError("");
-    }
-  }, [identity]);
+  const [urlError, setUrlError] = useState<
+    "" | "invalidURL" | "invalidPortRange"
+  >("");
+  // Every close path (save, remove, dismiss) routes through close() — the one
+  // place transient test UI resets, so reopening the dialog starts clean.
+  function close() {
+    setTestFailed(false);
+    setHelpOpen(false);
+    setUrlError("");
+    setIdentity(true);
+  }
   useEffect(() => {
     set({
       name: controller.name,
@@ -81,7 +82,7 @@ export default function ExternalController() {
           : [...list, { ...item, id }];
     });
     select(id);
-    setIdentity(true);
+    close();
     const client = Client.forController(item.url, item.secret);
     void mutate((key) => Array.isArray(key) && key[1] === client).catch(
       () => {},
@@ -92,7 +93,7 @@ export default function ExternalController() {
     if (!next.length) return;
     setter(next);
     select(next[0].id);
-    setIdentity(true);
+    close();
   }
   async function test() {
     const item = validated();
@@ -116,7 +117,7 @@ export default function ExternalController() {
       show={!identity}
       title={t("external.title")}
       bodyClassName="external-controller"
-      onClose={() => setIdentity(true)}
+      onClose={() => close()}
       onOk={() => save()}
       pending={pending}
       footerExtra={
@@ -217,7 +218,10 @@ export default function ExternalController() {
                   {t("external.allowInsecure")}
                 </span>
                 <code className="ec-flag">{insecureURL}</code>
-                <CopyButton value={insecureURL} label={t("external.copyFlag")} />
+                <CopyButton
+                  value={insecureURL}
+                  label={t("external.copyFlag")}
+                />
               </div>
               <p className="ec-help-sub">{t("external.localNetworkNote")}</p>
             </div>

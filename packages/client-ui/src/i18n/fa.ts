@@ -144,6 +144,12 @@ const FA = {
       "از URL تست HTTPS و زمان انتظار ۱۰۰ تا ۳۰۰۰۰ میلی‌ثانیه استفاده کنید.",
     groupTest: "تست این گروه",
     selected: "انتخاب فعلی",
+    locate: "یافتن مکان انتخاب فعلی",
+    filterNodes: "پالایش گره‌ها",
+    sortState: "مرتب‌سازی: {{mode}}",
+    sortDefault: "پیش‌فرض",
+    sortLatency: "بر اساس تأخیر",
+    sortName: "بر اساس نام",
     testNode: "تست تنها این گره",
     testNodeAria: "تست تأخیر: {{name}}",
     groupMembers_one: "{{count}} عضو",
@@ -467,8 +473,7 @@ const FA = {
       invalidPortRange: "شماره درگاه باید بین ۱ تا ۶۵۵۳۵ باشد.",
       invalidPort: "عددی صحیح بین ۰ تا ۶۵۵۳۵ وارد کنید (۰ یعنی خاموش).",
       connecting: "در حال اتصال",
-      browserNote:
-        "اتصال صفحه HTTPS به کنترلر HTTP توسط مرورگر مسدود می‌شود:",
+      browserNote: "اتصال صفحه HTTPS به کنترلر HTTP توسط مرورگر مسدود می‌شود:",
       helpTrigger: "وصل نمی‌شوید؟ اینجا را ببینید",
       allowInsecure: "محتوای ناامن",
       localNetworkNote:
