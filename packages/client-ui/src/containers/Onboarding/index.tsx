@@ -30,8 +30,10 @@ function formatBytes(n: number): string {
 
 export default function Onboarding({
   signedInNoSub = false,
+  onConnectRemote,
 }: {
   signedInNoSub?: boolean;
+  onConnectRemote: () => void;
 }) {
   const { t } = useTranslation("onboarding");
   const { t: tc } = useTranslation("common");
@@ -146,6 +148,7 @@ export default function Onboarding({
             </a>
           )}
           <p className="onboarding-note">{t("pendingHint")}</p>
+          <Button onClick={onConnectRemote}>{t("remoteOption")}</Button>
         </div>
       </div>
     );
@@ -283,6 +286,9 @@ export default function Onboarding({
           <Button onClick={() => void startLogin()}>{tc("retry")}</Button>
         </div>
       )}
+      <Button disabled={busy} onClick={onConnectRemote}>
+        {t("remoteOption")}
+      </Button>
     </div>
   );
 }

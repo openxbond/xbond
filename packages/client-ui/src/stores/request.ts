@@ -1,15 +1,14 @@
 import { isClashX, jsBridge } from "@lib/jsBridge";
 import {
-  controllerFromMeta,
-  controllerFromQuery,
   migrateControllers,
   normalizeControllerURL,
+  resolveControlTarget,
   type Controller,
 } from "@xbond/client/controller";
 import { Client } from "@xbond/client/request";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { useDaemonConnection } from "./daemon";
@@ -82,55 +81,70 @@ const clashxConfigAtom = atom(async () => {
     secret: info.secret,
   };
 });
+// The page's injected metadata is static; the daemon's endpoint is not.
+// Keep a successfully verified binding in memory across daemon restarts.
+const verifiedDaemonMetaAtom = atom<string | undefined>(undefined);
 export function useAPIInfo() {
   const clashx = useAtomValue(clashxConfigAtom);
+  const { data, config } = useDaemonConnection();
+  const [verifiedMeta, setVerifiedMeta] = useAtom(verifiedDaemonMetaAtom);
   const location = useLocation();
   const selected = useAtomValue(selectedControllerAtom);
   const saved = useAtomValue(hostsStorageAtom);
   const hosts = useMemo(() => migrateControllers(saved, fallback), [saved]);
-  return useMemo(() => {
-    let controller = hosts.find((h) => h.id === selected) ?? hosts[0];
+  const info = useMemo(() => {
+    const savedController = hosts.find((h) => h.id === selected) ?? hosts[0];
     const meta = document.querySelector<HTMLMetaElement>(
       'meta[name="external-controller"]',
     );
-    if (meta?.content) {
-      try {
-        controller = controllerFromMeta(meta.content, controller);
-      } catch {
-        /* Keep the usable saved controller. */
-      }
-    }
-    if (clashx) controller = clashx;
-    else {
-      try {
-        controller = controllerFromQuery(location.search, controller);
-      } catch {
-        /* Ignore invalid launch parameters. */
-      }
-    }
+    const { controller, kind } = resolveControlTarget(savedController, {
+      meta: meta?.content,
+      search: location.search,
+      bridge: clashx,
+      daemon: config
+        ? {
+            id: DAEMON_CONTROLLER_ID,
+            verifiedMeta,
+            core: data
+              ? {
+                  url: `http://127.0.0.1:${data.preferences.clashPort}`,
+                  secret: data.preferences.clashSecret ?? "",
+                }
+              : undefined,
+          }
+        : null,
+    });
     const url = new URL(controller.url);
     return {
       ...controller,
+      targetKind: kind,
       hostname: url.hostname,
       port: url.port || (url.protocol === "https:" ? "443" : "80"),
       protocol: url.protocol,
     };
-  }, [clashx, hosts, selected, location.search]);
+  }, [clashx, hosts, selected, location.search, data, config, verifiedMeta]);
+  useEffect(() => {
+    if (info.targetKind !== "daemon" || !data) return;
+    const meta = document.querySelector<HTMLMetaElement>(
+      'meta[name="external-controller"]',
+    )?.content;
+    if (meta) setVerifiedMeta(meta);
+  }, [info.targetKind, data, setVerifiedMeta]);
+  return info;
 }
 export function useClient() {
-  const { url, secret } = useAPIInfo();
+  const { url, secret, targetKind } = useAPIInfo();
   const { data, hasDaemon } = useDaemonConnection();
-  const selected = useAtomValue(selectedControllerAtom);
   return useMemo(() => {
     // The daemon's clash endpoint (random available port + random secret) is
     // a daemon-owned implementation detail: compose it from LocalAPI status
     // instead of any persisted identity, and never surface it in the UI.
-    if (hasDaemon && data && selected === DAEMON_CONTROLLER_ID) {
+    if (hasDaemon && data && targetKind === "daemon") {
       return Client.forController(
         `http://127.0.0.1:${data.preferences.clashPort}`,
         data.preferences.clashSecret ?? "",
       );
     }
     return Client.forController(url, secret);
-  }, [hasDaemon, data, selected, url, secret]);
+  }, [hasDaemon, data, targetKind, url, secret]);
 }

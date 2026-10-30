@@ -497,9 +497,10 @@ const KO = {
   },
   onboarding: {
     title: "XBond에 오신 것을 환영합니다",
-    subtitle: "계정에 로그인하거나 설정을 가져와 시작하세요.",
+    subtitle: "로그인하거나, 설정을 가져오거나, 원격 컨트롤러에 연결하세요.",
     login: "XBond 로그인",
     importOption: "설정 가져오기",
+    remoteOption: "원격 컨트롤러 연결",
     importTitle: "설정 가져오기",
     modeUrl: "URL",
     modeFile: "로컬 파일",

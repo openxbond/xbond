@@ -5,6 +5,56 @@ export interface Controller {
   secret: string;
 }
 
+export interface ControlTarget {
+  kind: "daemon" | "controller";
+  controller: Controller;
+}
+
+/** Resolve the effective target before granting local runtime operations. */
+export function resolveControlTarget(
+  saved: Controller,
+  launch: {
+    meta?: string;
+    search?: string;
+    bridge?: Controller | null;
+    daemon?: {
+      id: string;
+      core?: Pick<Controller, "url" | "secret">;
+      verifiedMeta?: string;
+    } | null;
+  } = {},
+): ControlTarget {
+  let controller = saved;
+  let kind: ControlTarget["kind"] =
+    launch.daemon && saved.id === launch.daemon.id ? "daemon" : "controller";
+  if (launch.meta) {
+    try {
+      controller = controllerFromMeta(launch.meta, controller);
+      kind =
+        kind === "daemon" &&
+        (launch.meta === launch.daemon?.verifiedMeta ||
+          !launch.daemon?.core ||
+          (controller.url === launch.daemon.core.url &&
+            controller.secret === launch.daemon.core.secret))
+          ? "daemon"
+          : "controller";
+    } catch {
+      // Invalid launch metadata does not replace a usable saved target.
+    }
+  }
+  if (launch.bridge) return { kind: "controller", controller: launch.bridge };
+  const query = new URLSearchParams(launch.search);
+  if (["host", "port", "protocol", "secret"].some((key) => query.has(key))) {
+    try {
+      controller = controllerFromQuery(launch.search ?? "", controller);
+      kind = "controller";
+    } catch {
+      // Preserve the preceding target when launch parameters are invalid.
+    }
+  }
+  return { kind, controller };
+}
+
 let sequence = 0;
 // LAN HTTP controllers are not secure contexts, so randomUUID may be absent.
 export function createControllerId() {
@@ -98,10 +148,17 @@ export function controllerFromQuery(
   const protocol = qs.get("protocol")?.replace(/:$/, "");
   if (protocol === "http" || protocol === "https")
     url.protocol = `${protocol}:`;
+  const resolvedURL = normalizeControllerURL(url.toString());
   return {
     ...fallback,
-    url: normalizeControllerURL(url.toString()),
-    secret: qs.get("secret") ?? fallback.secret,
+    url: resolvedURL,
+    // A launch URL that changes targets cannot borrow the previous target's
+    // credential, including a private daemon credential injected by meta.
+    secret:
+      qs.get("secret") ??
+      (resolvedURL === normalizeControllerURL(fallback.url)
+        ? fallback.secret
+        : ""),
   };
 }
 

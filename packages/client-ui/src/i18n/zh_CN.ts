@@ -485,9 +485,10 @@ const CN = {
   },
   onboarding: {
     title: "欢迎使用 XBond",
-    subtitle: "登录账号，或导入配置开始使用。",
+    subtitle: "登录账号、导入配置，或连接远端控制器。",
     login: "登录 XBond",
     importOption: "导入配置",
+    remoteOption: "连接远端控制器",
     importTitle: "导入配置",
     modeUrl: "URL",
     modeFile: "本地配置",

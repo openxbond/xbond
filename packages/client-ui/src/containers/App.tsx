@@ -12,8 +12,15 @@ import SideBar from "@containers/Sidebar";
 import Subscriptions from "@containers/Subscriptions";
 import { isClashX } from "@lib/jsBridge";
 import { detectLocalAPIConfig, isDesktopApp } from "@lib/localapi-bootstrap";
-import { useAccount, useClient, useLocalAPI, useTheme } from "@stores";
+import {
+  identityAtom,
+  useAccount,
+  useClient,
+  useLocalAPI,
+  useTheme,
+} from "@stores";
 import classnames from "classnames";
+import { useSetAtom } from "jotai";
 import { Route, Navigate, Routes, useLocation, Outlet } from "react-router-dom";
 
 import "../styles/common.scss";
@@ -23,8 +30,9 @@ export default function App() {
   const client = useClient();
   useTheme();
 
-  const { hasDaemon, status } = useLocalAPI();
+  const { hasLocalAPI, status } = useLocalAPI();
   const { account, accountReady } = useAccount();
+  const setIdentity = useSetAtom(identityAtom);
 
   const location = useLocation();
   const initialPage =
@@ -39,12 +47,23 @@ export default function App() {
   const configUnusable =
     !activeSub || activeSub.health === "credential_invalid";
   const signedInNoSub =
-    hasDaemon && !!status && configUnusable && account?.status === "signed_in";
+    hasLocalAPI &&
+    !!status &&
+    configUnusable &&
+    account?.status === "signed_in";
   const needsOnboarding =
-    hasDaemon && !!status && configUnusable && accountReady && !signedInNoSub;
+    hasLocalAPI && !!status && configUnusable && accountReady && !signedInNoSub;
 
   if (needsOnboarding || signedInNoSub) {
-    return <Onboarding signedInNoSub={signedInNoSub} />;
+    return (
+      <>
+        <Onboarding
+          signedInNoSub={signedInNoSub}
+          onConnectRemote={() => setIdentity(false)}
+        />
+        <ExternalControllerModal createOnly />
+      </>
+    );
   }
 
   // Mobile bottom navigation targets (4 core destinations)

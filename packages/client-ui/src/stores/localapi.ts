@@ -1,10 +1,9 @@
 import type { TakeoverMode, RoutingMode } from "@xbond/client/localapi";
-import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import useSWR from "swr";
 
 import { useDaemonConnection } from "./daemon";
-import { DAEMON_CONTROLLER_ID, selectedControllerAtom } from "./request";
+import { useAPIInfo } from "./request";
 
 /**
  * Daemon-backed actions plus the view-level distinction between the local
@@ -14,13 +13,18 @@ import { DAEMON_CONTROLLER_ID, selectedControllerAtom } from "./request";
  * never surfaced here.
  */
 export function useLocalAPI() {
-  const { client, config, data, error, mutateStatus, hasDaemon } =
-    useDaemonConnection();
-  const selected = useAtomValue(selectedControllerAtom);
-  // The viewed core is the daemon's own core when the default (XBond)
-  // controller is selected; user-added controllers are external cores.
-  const isLocalTarget = hasDaemon && selected === DAEMON_CONTROLLER_ID;
-  const hasLocalAPI = isLocalTarget;
+  const {
+    client: daemonClient,
+    config,
+    data,
+    error,
+    mutateStatus,
+    hasDaemon,
+  } = useDaemonConnection();
+  const { targetKind } = useAPIInfo();
+  const isLocalTarget = targetKind === "daemon";
+  const hasLocalAPI = isLocalTarget && hasDaemon;
+  const client = hasLocalAPI ? daemonClient : null;
 
   const up = useCallback(
     async (options?: {
@@ -30,7 +34,7 @@ export function useLocalAPI() {
       allowLan?: boolean;
       subId?: string;
     }) => {
-      if (!client) return;
+      if (!client) throw new Error("Selected target has no LocalAPI");
       const res = await client.up(options);
       await mutateStatus();
       return res;
@@ -39,14 +43,14 @@ export function useLocalAPI() {
   );
 
   const down = useCallback(async () => {
-    if (!client) return;
+    if (!client) throw new Error("Selected target has no LocalAPI");
     const res = await client.down();
     await mutateStatus();
     return res;
   }, [client, mutateStatus]);
 
   const restart = useCallback(async () => {
-    if (!client) return;
+    if (!client) throw new Error("Selected target has no LocalAPI");
     const res = await client.restart();
     await mutateStatus();
     return res;
@@ -59,7 +63,7 @@ export function useLocalAPI() {
       port?: number;
       allowLan?: boolean;
     }) => {
-      if (!client) return;
+      if (!client) throw new Error("Selected target has no LocalAPI");
       const res = await client.setMode(options);
       await mutateStatus();
       return res;
@@ -69,7 +73,7 @@ export function useLocalAPI() {
 
   const selectNode = useCallback(
     async (group: string, node: string) => {
-      if (!client) return;
+      if (!client) throw new Error("Selected target has no LocalAPI");
       return client.selectNode(group, node);
     },
     [client],
@@ -80,9 +84,9 @@ export function useLocalAPI() {
     isLocalTarget,
     hasDaemon,
     client,
-    config,
-    status: data ?? null,
-    error,
+    config: isLocalTarget ? config : null,
+    status: isLocalTarget ? data : null,
+    error: isLocalTarget ? error : null,
     refresh: mutateStatus,
     up,
     down,

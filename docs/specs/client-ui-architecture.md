@@ -2,6 +2,8 @@
 
 本規格定義 XBond 用戶端在桌面版、流動版及純網頁控制器模式下的頁面職責、零重疊資訊架構、各模式可獲取資料與可執行操作，以及版面佈局契約。詞彙定義見 [GLOSSARY.md](../../GLOSSARY.md)，產品定位見 [PRODUCT.md](../../PRODUCT.md)，視覺系統與設計令牌見 [DESIGN.md](../../DESIGN.md)。
 
+已確認的後續導覽方向為桌面「連接、策略、配置、活動、設定」五項主入口、獨立 Cloud 帳號入口與可見的目標切換器；移動端維持四項常駐導覽。以下八路由結構仍描述既有頁面，五項導覽整合在後續切片實施，不由本次目標隔離改動推定已完成。首次接入與有效目標解析以 [控制目標規格](./control-targets.md)為準，優先於下文僅按 LocalAPI 或控制器 ID 判定的舊識別描述。
+
 ## 範圍與入口
 
 本規格適用於共享前端（`packages/client-ui/src/`）及其承載的桌面殼層（`apps/desktop/src-tauri/`）、本機守護進程接口（`internal/daemon/` 的 `/localapi/v0/*`）、核心控制接口（Clash 相容 REST／WebSocket API）與流動端橋接層（`mobile/`）。

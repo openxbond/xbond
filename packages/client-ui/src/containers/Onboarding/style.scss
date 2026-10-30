@@ -36,7 +36,13 @@
 
 .onboarding-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
+}
+
+.onboarding-page .button {
+  min-height: 44px;
 }
 
 .onboarding-card {

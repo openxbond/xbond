@@ -503,9 +503,10 @@ const EN = {
   onboarding: {
     title: "Welcome to XBond",
     subtitle:
-      "Sign in to your account, or import a configuration to get started.",
+      "Sign in, import a configuration, or connect to a remote controller.",
     login: "Sign in to XBond",
     importOption: "Import configuration",
+    remoteOption: "Connect to a remote controller",
     importTitle: "Import configuration",
     modeUrl: "URL",
     modeFile: "Local file",

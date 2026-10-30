@@ -20,7 +20,11 @@ import { useSWRConfig } from "swr";
 
 import "./style.scss";
 
-export default function ExternalController() {
+export default function ExternalController({
+  createOnly = false,
+}: {
+  createOnly?: boolean;
+}) {
   const { t } = useTranslation("settings");
   const controller = useAPIInfo();
   const [identity, setIdentity] = useAtom(identityAtom);
@@ -45,12 +49,16 @@ export default function ExternalController() {
     setIdentity(true);
   }
   useEffect(() => {
-    set({
-      name: controller.name,
-      url: controller.url,
-      secret: controller.secret,
-    });
-  }, [controller.name, controller.url, controller.secret, set]);
+    set(
+      createOnly
+        ? { name: "", url: "", secret: "" }
+        : {
+            name: controller.name,
+            url: controller.url,
+            secret: controller.secret,
+          },
+    );
+  }, [createOnly, controller.name, controller.url, controller.secret, set]);
 
   function validated() {
     const text = value.url.trim();
@@ -118,21 +126,23 @@ export default function ExternalController() {
       title={t("external.title")}
       bodyClassName="external-controller"
       onClose={() => close()}
-      onOk={() => save()}
+      onOk={() => save(createOnly)}
       pending={pending}
       footerExtra={
-        <div className="flex gap-2">
-          <Button disabled={pending} onClick={() => save(true)}>
-            {t("external.add")}
-          </Button>
-          <Button
-            type="danger"
-            disabled={pending || hosts.length < 2}
-            onClick={remove}
-          >
-            {t("external.delete")}
-          </Button>
-        </div>
+        !createOnly && (
+          <div className="flex gap-2">
+            <Button disabled={pending} onClick={() => save(true)}>
+              {t("external.add")}
+            </Button>
+            <Button
+              type="danger"
+              disabled={pending || hosts.length < 2}
+              onClick={remove}
+            >
+              {t("external.delete")}
+            </Button>
+          </div>
+        )
       }
     >
       <p className="ec-note">{t("external.note")}</p>
@@ -160,7 +170,7 @@ export default function ExternalController() {
                 setUrlError("");
                 set("url", url);
               }}
-              onEnter={() => save()}
+              onEnter={() => save(createOnly)}
             />
             {urlError && (
               <p className="ec-error" id="ec-url-error" role="alert">
@@ -178,7 +188,7 @@ export default function ExternalController() {
               align="left"
               value={value.secret}
               onChange={(secret) => set("secret", secret)}
-              onEnter={() => save()}
+              onEnter={() => save(createOnly)}
             />
             <Button className="ec-test" disabled={pending} onClick={test}>
               {pending ? t("external.connecting") : t("external.test")}

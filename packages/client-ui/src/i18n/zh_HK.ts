@@ -485,9 +485,10 @@ const HK = {
   },
   onboarding: {
     title: "歡迎使用 XBond",
-    subtitle: "登入帳號，或匯入配置開始使用。",
+    subtitle: "登入帳號、匯入配置，或連接遠端控制器。",
     login: "登入 XBond",
     importOption: "匯入配置",
+    remoteOption: "連接遠端控制器",
     importTitle: "匯入配置",
     modeUrl: "URL",
     modeFile: "本機配置",

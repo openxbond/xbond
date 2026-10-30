@@ -500,9 +500,11 @@ const FA = {
   },
   onboarding: {
     title: "به XBond خوش آمدید",
-    subtitle: "وارد حساب خود شوید یا یک پیکربندی وارد کنید تا شروع کنید.",
+    subtitle:
+      "وارد شوید، پیکربندی وارد کنید یا به کنترل‌کننده راه دور متصل شوید.",
     login: "ورود به XBond",
     importOption: "وارد کردن پیکربندی",
+    remoteOption: "اتصال به کنترل‌کننده راه دور",
     importTitle: "وارد کردن پیکربندی",
     modeUrl: "URL",
     modeFile: "فایل محلی",
