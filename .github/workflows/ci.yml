@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Check-only runs can replace earlier runs for the same event and ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Actions are pinned by major tag; the cloud repository pins commit SHAs –
+# adopt that (plus Dependabot) here when this repo wants the same hardening.
+# The commands mirror docs/agents/verification.md: this file only reuses what
+# `pnpm` already provides locally.
+jobs:
+  web:
+    name: "Web"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Checkout otherwise leaves its token behind for later Git commands.
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Node >= 24: scripts/*.ts run on default type stripping (no
+          # --experimental-strip-types), matching the engines floor.
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check
+      - run: pnpm build
+      # Empty output must fail even when the build command exits successfully.
+      - name: Verify build output
+        run: |
+          if [[ -z "$(find dist -type f -print -quit)" ]]; then
+            echo "::error::dist/ holds no files – the dashboard build is incomplete."
+            exit 1
+          fi
+
+  go:
+    name: "Go"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Same gates as locally: vet, test, build – all with the shared build
+      # tags from scripts/go.ts. No pnpm install: cli:check only shells out to
+      # the Go toolchain through scripts/go.ts.
+      - run: pnpm cli:check

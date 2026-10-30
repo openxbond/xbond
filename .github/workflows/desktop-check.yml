@@ -1,0 +1,65 @@
+name: Desktop Check
+
+# The Rust/Tauri job is the slowest check, so it only runs when the native
+# shell or the frontend assets it embeds actually change. The TS+Go gates for
+# those commits still run in ci.yml.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/src-tauri/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/desktop-check.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/desktop/src-tauri/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/desktop-check.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: "Desktop (Tauri)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # tauri::generate_context! embeds the frontend dist at compile time, so
+      # cargo check needs dist-desktop/ to exist and be current.
+      - run: pnpm build:desktop
+
+      # Actions are pinned by major tag; see the note in ci.yml.
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: rustfmt
+
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev
+
+      - run: pnpm desktop:fmt:check
+      - run: pnpm desktop:check
