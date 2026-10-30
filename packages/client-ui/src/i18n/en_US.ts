@@ -522,6 +522,8 @@ const EN = {
     devicePrompt: "Enter this code in the browser to authorize:",
     pendingHint: "This page continues automatically once authorized.",
     loginFailed: "Sign-in failed",
+    subscriptionInvalid:
+      "The active subscription’s credentials were revoked. Fetch again to re-bind it.",
     signedInNoSub:
       "Signed in, but this account has no active subscription yet.",
     resync: "Fetch subscription again",

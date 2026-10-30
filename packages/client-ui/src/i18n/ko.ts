@@ -516,6 +516,8 @@ const KO = {
     devicePrompt: "브라우저에서 아래 코드를 입력해 인증하세요:",
     pendingHint: "인증이 완료되면 자동으로 계속됩니다.",
     loginFailed: "로그인 실패",
+    subscriptionInvalid:
+      "활성 구독의 자격 증명이 무효화되었습니다. 다시 가져오면 자동으로 복구됩니다.",
     signedInNoSub: "로그인되었지만 사용 가능한 구독이 없습니다.",
     resync: "구독 다시 가져오기",
     resyncFailed: "구독을 가져오지 못했습니다. 잠시 후 다시 시도하세요.",

@@ -37,7 +37,7 @@ export default function Onboarding({
   const { t: tc } = useTranslation("common");
   const { t: ta } = useTranslation("account");
   const { lang } = useLanguage();
-  const { client, refresh: refreshStatus } = useLocalAPI();
+  const { client, status: localStatus, refresh: refreshStatus } = useLocalAPI();
   const { account, login, resync } = useAccount();
   const { addSub } = useSubscriptions();
 
@@ -169,7 +169,11 @@ export default function Onboarding({
 
       {signedInNoSub && (
         <div className="onboarding-card">
-          <p>{t("signedInNoSub")}</p>
+          <p>
+            {localStatus?.activeSub?.health === "credential_invalid"
+              ? t("subscriptionInvalid")
+              : t("signedInNoSub")}
+          </p>
           <Button type="brand" disabled={busy} onClick={() => void onResync()}>
             {t("resync")}
           </Button>

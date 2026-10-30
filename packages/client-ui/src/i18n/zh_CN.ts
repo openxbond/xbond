@@ -504,6 +504,7 @@ const CN = {
     devicePrompt: "在浏览器中输入以下代码完成授权：",
     pendingHint: "授权完成后会自动继续，无需关闭本页。",
     loginFailed: "登录失败",
+    subscriptionInvalid: "当前订阅的凭据已失效，重新获取后会自动修复。",
     signedInNoSub: "账号已登录，但当前没有可用订阅。",
     resync: "重新获取订阅",
     resyncFailed: "获取订阅失败，请稍后重试。",

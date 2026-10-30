@@ -504,6 +504,7 @@ const HK = {
     devicePrompt: "在瀏覽器輸入以下代碼完成授權：",
     pendingHint: "授權完成後會自動繼續，無需關閉本頁。",
     loginFailed: "登入失敗",
+    subscriptionInvalid: "目前訂閱的憑據已失效，重新取得後會自動修復。",
     signedInNoSub: "帳號已登入，但目前沒有可用訂閱。",
     resync: "重新取得訂閱",
     resyncFailed: "取得訂閱失敗，請稍後重試。",

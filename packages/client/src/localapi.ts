@@ -71,6 +71,9 @@ export interface SubscriptionMeta {
   lastUpdated: number;
   lastEtag?: string;
   lastHash?: string;
+  /** Daemon fetch health: "ok" | "transient_error" | "credential_invalid" | … */
+  health?: string;
+  lastErrorMessage?: string;
 }
 
 export function subscriptionQuota(
