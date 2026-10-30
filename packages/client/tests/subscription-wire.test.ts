@@ -28,7 +28,7 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
           : req.url?.endsWith("/update")
             ? { ok: true, diff: {}, meta: subscription }
             : req.url?.endsWith("/login")
-              ? subscription
+              ? { ok: true, meta: subscription }
               : { activeId: "profile", subscriptions: [subscription] },
       ),
     );
@@ -48,7 +48,7 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
     (await client.getStatus()).activeSub,
     (await client.listSubs()).subscriptions[0],
     (await client.updateSub()).meta,
-    await client.addSub({ urlOrFile: "https://example.invalid" }),
+    (await client.addSub({ urlOrFile: "https://example.invalid" })).meta,
   ]) {
     assert.ok(meta);
     assert.equal(meta.upload + meta.download, 20);

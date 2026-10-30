@@ -4,6 +4,7 @@ import type { Lang } from "@i18n";
 import { useAction } from "@lib/actions";
 import { DASHBOARD_VERSION } from "@lib/version";
 import {
+  useAccount,
   useAPIInfo,
   useCapabilities,
   useClient,
@@ -28,6 +29,7 @@ export default function Settings() {
   const { t: tc } = useTranslation("common");
   const { t: r } = useTranslation("runtime");
   const { t: c } = useTranslation("connect");
+  const { t: ta } = useTranslation("account");
 
   const controller = useAPIInfo();
   const caps = useCapabilities();
@@ -36,6 +38,7 @@ export default function Settings() {
   const { general, update } = useGeneral();
   const { hasLocalAPI, isLocalTarget, status, setMode, refresh } =
     useLocalAPI();
+  const { account, login: loginAccount } = useAccount();
 
   const [theme, setTheme] = useAtom(themeAtom);
   const setIdentity = useSetAtom(identityAtom);
@@ -71,6 +74,39 @@ export default function Settings() {
       <Header title={t("title")} />
 
       <div className="settings-grid">
+        {/* Account CTA: the active configuration is not from XBond. */}
+        {hasLocalAPI && status?.activeSub?.type === "universal" && (
+          <section className="settings-card">
+            <div className="settings-card-header">
+              <h2>{ta("title")}</h2>
+            </div>
+            <div className="settings-card-content">
+              {account?.status === "signed_in" ? (
+                <p className="text-sm">{ta("signedIn")}</p>
+              ) : account?.status === "pending" ? (
+                <p className="text-sm text-muted-foreground">{ta("pending")}</p>
+              ) : (
+                <div className="setting-label-col">
+                  <p className="text-sm text-muted-foreground">{ta("note")}</p>
+                  {account?.status === "error" && (
+                    <p className="text-sm text-warning">
+                      {ta("failed")}: {account.error}
+                    </p>
+                  )}
+                  <div className="mt-2">
+                    <Button
+                      type="brand"
+                      onClick={() => loginAccount().catch(() => {})}
+                    >
+                      {ta("loginCta")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Card 1: 網絡與連接埠 (Network & Ports) */}
         <section className="settings-card">
           <div className="settings-card-header">

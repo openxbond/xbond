@@ -313,6 +313,46 @@ func (m *Manager) AddUniversal(
 	return m.upsertAndInit(meta, activate)
 }
 
+// AddUniversalContent imports pasted configuration text. The content is
+// snapshotted into the subscription directory and re-read on every update,
+// giving paste the same lifecycle as a local file import.
+func (m *Manager) AddUniversalContent(
+	content, name string,
+	intervalHours int,
+	activate bool,
+) (*SubscriptionMeta, error) {
+	if strings.TrimSpace(content) == "" {
+		return nil, fmt.Errorf("content cannot be empty")
+	}
+	if intervalHours <= 0 {
+		intervalHours = 24
+	}
+
+	subID := fmt.Sprintf("uni_%s", hashString(content)[:12])
+	if name == "" {
+		name = fmt.Sprintf("Universal-%s", subID[4:8])
+	}
+
+	_ = os.MkdirAll(paths.SubDir(subID), 0o700)
+	sourcePath := filepath.Join(paths.SubDir(subID), "pasted.source")
+	if err := atomicfile.Write(sourcePath, []byte(content), 0o600); err != nil {
+		return nil, fmt.Errorf("save pasted configuration: %w", err)
+	}
+
+	meta := SubscriptionMeta{
+		ID:                  subID,
+		Name:                name,
+		Type:                SubTypeUniversal,
+		SourceURL:           sourcePath,
+		AutoUpdate:          true,
+		UpdateIntervalHours: intervalHours,
+		Health:              HealthOK,
+		SavedSelections:     make(map[string]string),
+	}
+
+	return m.upsertAndInit(meta, activate)
+}
+
 func (m *Manager) upsertAndInit(meta SubscriptionMeta, activate bool) (*SubscriptionMeta, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

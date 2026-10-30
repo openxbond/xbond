@@ -314,16 +314,31 @@ export class LocalAPIClient {
   async addSub(params: {
     token?: string;
     urlOrFile?: string;
+    content?: string;
     name?: string;
     protocol?: string;
     lang?: string;
     origin?: string;
-  }): Promise<SubscriptionMeta> {
-    const data = await this.request<SubscriptionWire>("/localapi/v0/login", {
+  }): Promise<{
+    ok: boolean;
+    meta: SubscriptionMeta | null;
+    updateError?: string;
+  }> {
+    // The daemon's /login handler answers { ok, meta, updateError }: the
+    // subscription is saved even when the first config fetch failed.
+    const data = await this.request<{
+      ok?: boolean;
+      meta?: SubscriptionWire;
+      updateError?: string;
+    }>("/localapi/v0/login", {
       method: "POST",
       body: JSON.stringify(params),
     });
-    return normalizeSubscription(data);
+    return {
+      ok: data.ok ?? false,
+      meta: data.meta ? normalizeSubscription(data.meta) : null,
+      updateError: data.updateError,
+    };
   }
 
   async subscriptionProgress(): Promise<SubscriptionFetchProgress> {

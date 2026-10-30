@@ -86,6 +86,8 @@ declare module "i18next" {
       subscriptions: typeof en_US.subscriptions;
       settings: typeof en_US.settings;
       runtime: typeof en_US.runtime;
+      onboarding: typeof en_US.onboarding;
+      account: typeof en_US.account;
     };
   }
 }

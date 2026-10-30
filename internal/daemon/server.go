@@ -296,6 +296,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Lang            string   `json:"lang"`
 		Name            string   `json:"name"`
 		URLOrFile       string   `json:"urlOrFile"`
+		Content         string   `json:"content"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -312,6 +313,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		req.Lang,
 		req.Name,
 		req.URLOrFile,
+		req.Content,
 	)
 	if err != nil {
 		var bindErr *bindError
@@ -341,10 +343,10 @@ func (s *Server) bindSubscription(
 	ctx context.Context,
 	token, origin string,
 	fallbackOrigins []string,
-	protocol, lang, name, urlOrFile string,
+	protocol, lang, name, urlOrFile, content string,
 ) (*sub.SubscriptionMeta, string, error) {
-	if token == "" && urlOrFile == "" {
-		return nil, "", &bindError{err: errors.New("must provide token or urlOrFile"), input: true}
+	if token == "" && urlOrFile == "" && content == "" {
+		return nil, "", &bindError{err: errors.New("must provide token, content or urlOrFile"), input: true}
 	}
 	if token != "" && name == "" {
 		for _, item := range s.subMgr.List() {
@@ -357,9 +359,12 @@ func (s *Server) bindSubscription(
 
 	var meta *sub.SubscriptionMeta
 	var err error
-	if token != "" {
+	switch {
+	case token != "":
 		meta, err = s.subMgr.AddXBond(token, origin, fallbackOrigins, protocol, lang, name, 24, false)
-	} else {
+	case content != "":
+		meta, err = s.subMgr.AddUniversalContent(content, name, 24, false)
+	default:
 		meta, err = s.subMgr.AddUniversal(urlOrFile, name, 24, false)
 	}
 	if err != nil {
@@ -393,6 +398,7 @@ func (s *Server) bindCredentials(
 		options.Protocol,
 		options.Lang,
 		options.Name,
+		"",
 		"",
 	)
 }

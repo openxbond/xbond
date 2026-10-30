@@ -70,7 +70,7 @@ test("Dual-track subscription management (XBond Cloud token vs Universal URL) wi
       };
       subs.push(newSub);
       activeId = newSub.id;
-      res.writeHead(200).end(JSON.stringify(newSub));
+      res.writeHead(200).end(JSON.stringify({ ok: true, meta: newSub }));
       return;
     }
 
@@ -123,19 +123,25 @@ test("Dual-track subscription management (XBond Cloud token vs Universal URL) wi
   assert.equal(initial.activeId, "sub-xbond-1");
 
   // 2. Add Track A: XBond Cloud Token
-  const addedXBond = await client.addSub({
-    token: "sub-user-token-123",
-    name: "My XBond VIP",
-    protocol: "trojan",
-  });
+  const addedXBond = (
+    await client.addSub({
+      token: "sub-user-token-123",
+      name: "My XBond VIP",
+      protocol: "trojan",
+    })
+  ).meta;
+  assert.ok(addedXBond);
   assert.equal(addedXBond.type, "xbond");
   assert.equal(addedXBond.name, "My XBond VIP");
 
   // 3. Add Track B: Universal Subscription URL
-  const addedUniversal = await client.addSub({
-    urlOrFile: "https://example.com/clash.yaml",
-    name: "Custom Node List",
-  });
+  const addedUniversal = (
+    await client.addSub({
+      urlOrFile: "https://example.com/clash.yaml",
+      name: "Custom Node List",
+    })
+  ).meta;
+  assert.ok(addedUniversal);
   assert.equal(addedUniversal.type, "universal");
   assert.equal(addedUniversal.name, "Custom Node List");
 

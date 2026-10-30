@@ -4,6 +4,7 @@ import Connections from "@containers/Connections";
 import Diagnostics from "@containers/Diagnostics";
 import ExternalControllerModal from "@containers/ExternalControllerDrawer";
 import Logs from "@containers/Logs";
+import Onboarding from "@containers/Onboarding";
 import Proxies from "@containers/Proxies";
 import Rules from "@containers/Rules";
 import Settings from "@containers/Settings";
@@ -11,7 +12,7 @@ import SideBar from "@containers/Sidebar";
 import Subscriptions from "@containers/Subscriptions";
 import { isClashX } from "@lib/jsBridge";
 import { detectLocalAPIConfig, isDesktopApp } from "@lib/localapi-bootstrap";
-import { useClient, useTheme } from "@stores";
+import { useAccount, useClient, useLocalAPI, useTheme } from "@stores";
 import classnames from "classnames";
 import { Route, Navigate, Routes, useLocation, Outlet } from "react-router-dom";
 
@@ -22,9 +23,26 @@ export default function App() {
   const client = useClient();
   useTheme();
 
+  const { hasLocalAPI, status } = useLocalAPI();
+  const { account, accountReady } = useAccount();
+
   const location = useLocation();
   const initialPage =
     detectLocalAPIConfig() || isDesktopApp() ? "/connect" : "/proxies";
+
+  // First-run gate: with a reachable local daemon, no active configuration
+  // and no signed-in account, the whole app is replaced by the onboarding
+  // flow (sign in / import). Remote-controller and web sessions are never
+  // gated. `accountReady` keeps signed-in users from seeing a flash.
+  const hasConfig = !!status?.activeSub;
+  const signedInNoSub =
+    hasLocalAPI && !!status && !hasConfig && account?.status === "signed_in";
+  const needsOnboarding =
+    hasLocalAPI && !!status && !hasConfig && accountReady && !signedInNoSub;
+
+  if (needsOnboarding || signedInNoSub) {
+    return <Onboarding signedInNoSub={signedInNoSub} />;
+  }
 
   // Mobile bottom navigation targets (4 core destinations)
   const mobileRoutes = [

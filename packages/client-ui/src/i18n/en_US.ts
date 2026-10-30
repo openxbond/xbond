@@ -500,6 +500,43 @@ const EN = {
     providerUnavailable:
       "This core does not expose provider management through the Clash API.",
   },
+  onboarding: {
+    title: "Welcome to XBond",
+    subtitle:
+      "Sign in to your account, or import a configuration to get started.",
+    login: "Sign in to XBond",
+    importOption: "Import configuration",
+    importTitle: "Import configuration",
+    modeUrl: "URL",
+    modeFile: "Local file",
+    modePaste: "Paste text",
+    urlPlaceholder: "Subscription or config URL",
+    pastePlaceholder: "Paste a sing-box / Clash configuration",
+    chooseFile: "Choose a file",
+    import: "Import",
+    importing: "Importing…",
+    importFailed: "Import failed",
+    fileReadFailed: "Could not read the selected file.",
+    waitingAuth: "Waiting for browser authorization…",
+    reopenAuth: "Reopen the authorization page",
+    devicePrompt: "Enter this code in the browser to authorize:",
+    pendingHint: "This page continues automatically once authorized.",
+    loginFailed: "Sign-in failed",
+    signedInNoSub:
+      "Signed in, but this account has no active subscription yet.",
+    resync: "Fetch subscription again",
+    resyncFailed: "Could not fetch the subscription. Retry in a moment.",
+    downloaded: "Downloaded {{received}}",
+  },
+  account: {
+    title: "Account",
+    signedIn: "Signed in to XBond",
+    loginCta: "Sign in to XBond",
+    note: "The active configuration comes from a third-party source; sign in to use your XBond subscription.",
+    pending: "Waiting for authorization…",
+    retry: "Retry",
+    failed: "Sign-in failed",
+  },
 } as const;
 
 export default EN;

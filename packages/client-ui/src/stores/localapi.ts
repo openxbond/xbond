@@ -137,6 +137,7 @@ export function useSubscriptions() {
     async (params: {
       token?: string;
       urlOrFile?: string;
+      content?: string;
       name?: string;
       protocol?: string;
       lang?: string;
