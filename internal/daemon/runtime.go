@@ -263,6 +263,15 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		if next.MixedPort == next.ClashPort {
 			return &runtimeInputError{fmt.Errorf("proxy port %d collides with the daemon-owned controller port; set a fixed port instead", next.MixedPort)}
 		}
+		// TUN failures are swallowed by the cores just like bind errors: a
+		// missing privilege would silently leave the core running mixed-only
+		// while the UI reports TUN. Gate on the real capability before any
+		// state is touched (daemon-runtime spec: 不静默降级).
+		if next.TakeoverMode == engine.ModeTun {
+			if capability := tunCapability(); !capability.Tun {
+				return &runtimeInputError{fmt.Errorf("TUN takeover unavailable: %s", capability.Reason)}
+			}
+		}
 		prefsJSON, err = json.MarshalIndent(next, "", "  ")
 		if err != nil {
 			return err

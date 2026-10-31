@@ -113,25 +113,47 @@ export default function Settings() {
               <div className="setting-label-col">
                 <strong>{t("takeover.title")}</strong>
                 <div className="takeover-options mt-2">
-                  {(["sysproxy", "tun", "port"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      className="takeover-card-btn"
-                      aria-pressed={status?.preferences.takeoverMode === mode}
-                      disabled={pending}
-                      onClick={() => void run(() => setMode({ mode }))}
-                    >
-                      <strong>{c(mode)}</strong>
-                      <span>{t(`takeover.${mode}Desc` as const)}</span>
-                    </button>
-                  ))}
+                  {(["sysproxy", "tun", "port"] as const).map((mode) => {
+                    // TUN availability is a daemon-side fact (elevation,
+                    // wintun driver), never a UI guess.
+                    const tunUnavailable =
+                      mode === "tun" &&
+                      !!status?.capabilities &&
+                      !status.capabilities.tun;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        className="takeover-card-btn"
+                        aria-pressed={status?.preferences.takeoverMode === mode}
+                        disabled={pending || tunUnavailable}
+                        title={
+                          tunUnavailable
+                            ? status?.capabilities?.tunReason
+                            : undefined
+                        }
+                        onClick={() => void run(() => setMode({ mode }))}
+                      >
+                        <strong>{c(mode)}</strong>
+                        <span>{t(`takeover.${mode}Desc` as const)}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                {status?.preferences.takeoverMode === "tun" && (
-                  <p className="setting-note mt-2 text-warning">
-                    {t("takeover.tunPrivilegeNotice")}
-                  </p>
-                )}
+                {!status?.capabilities?.tun &&
+                  status?.capabilities?.tunReasonCode && (
+                    <p className="setting-note mt-2 text-warning">
+                      {t(
+                        `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                      )}
+                    </p>
+                  )}
+                {status?.preferences.takeoverMode === "tun" &&
+                  status?.capabilities?.tun && (
+                    <p className="setting-note mt-2 text-warning">
+                      {t("takeover.tunPrivilegeNotice")}
+                    </p>
+                  )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">{r("readonly")}</p>

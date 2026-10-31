@@ -457,6 +457,12 @@ const CN = {
       allowLanDesc: "允许同一局域网内的其他设备使用此代理",
       sysproxyDesc: "接管浏览器与标准 HTTP/SOCKS 流量",
       tunDesc: "接管整机所有应用的流量",
+      tunUnavailable: {
+        not_elevated: "TUN 需要管理员权限——请以管理员身份重启守护进程。",
+        not_root: "TUN 需要 root 权限——请以 root 重启守护进程。",
+        wintun_missing:
+          "未在守护进程旁或 System32 找到 wintun.dll；放置后即可启用 TUN。",
+      },
       tunPrivilegeNotice:
         "TUN 接管需要管理员权限：Windows 以管理员身份运行，macOS/Linux 需要 root/sudo。",
       portDesc: "仅监听代理端口，不修改系统网络设置",

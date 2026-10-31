@@ -458,6 +458,13 @@ const HK = {
       allowLanDesc: "允許同一區域網絡內的其他裝置使用此代理",
       sysproxyDesc: "接管瀏覽器與標準 HTTP/SOCKS 流量",
       tunDesc: "接管整機所有應用的流量",
+      tunUnavailable: {
+        not_elevated:
+          "TUN 需要系統管理員權限——請以系統管理員身份重啟守護進程。",
+        not_root: "TUN 需要 root 權限——請以 root 重啟守護進程。",
+        wintun_missing:
+          "未在守護進程旁或 System32 找到 wintun.dll；放置後即可啟用 TUN。",
+      },
       tunPrivilegeNotice:
         "TUN 接管需要系統管理員權限：Windows 以系統管理員身份執行，macOS/Linux 需要 root/sudo。",
       portDesc: "僅監聽代理連接埠，不修改系統網絡設定",

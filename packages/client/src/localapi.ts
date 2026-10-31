@@ -145,11 +145,21 @@ function normalizeSubscription(meta: SubscriptionWire): SubscriptionMeta {
   };
 }
 
+/** Daemon-side privilege facts the UI must not guess: TUN takeover needs an
+ * elevated token (Windows) or root (unix) and, on Windows, the wintun
+ * driver DLL. Absent on non-daemon controllers. */
+export interface LocalAPICapabilities {
+  tun: boolean;
+  tunReasonCode?: "not_elevated" | "not_root" | "wintun_missing";
+  tunReason?: string;
+}
+
 export interface LocalAPIStatusResponse {
   engine: LocalAPIEngineStatus;
   preferences: LocalAPIPreferences;
   threeTier: ThreeTierStatus;
   activeSub: SubscriptionMeta | null;
+  capabilities?: LocalAPICapabilities;
 }
 
 /** Service status from user.billing.subscription (billing-disabled collapses

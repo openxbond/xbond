@@ -3,8 +3,12 @@ package daemon
 import (
 	"bytes"
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/openxbond/xbond/internal/engine"
 
 	"github.com/openxbond/xbond/internal/sub"
 )
@@ -97,5 +101,33 @@ func TestUpdateDueSkipsPinnedAndManualUpdateUnpins(t *testing.T) {
 	}
 	if meta, _ := f.subs.Get(f.first.ID); meta.SourcePinned {
 		t.Fatal("manual update did not remove the pin")
+	}
+}
+
+// TUN takeover fails deterministically before any state changes when the
+// daemon lacks the privilege, instead of silently running mixed-only. The
+// positive path needs a real privileged adapter, so the test is adaptive:
+// it asserts the gating only when the capability is actually absent.
+func TestTUNTakeoverGatedOnPrivilege(t *testing.T) {
+	f := newRuntimeFixture(t)
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if tunCapability().Tun {
+		t.Skip("running privileged; the negative gate cannot be exercised")
+	}
+
+	config := f.core.configuration()
+	prefs := f.controller.Preferences()
+	err := f.controller.Configure(context.Background(), runtimeOptions{Mode: engine.ModeTun})
+	var inputErr *runtimeInputError
+	if !errors.As(err, &inputErr) {
+		t.Fatalf("TUN without privilege must fail as an input error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "TUN takeover unavailable") {
+		t.Fatalf("gate error lacks the actionable prefix: %v", err)
+	}
+	if !f.core.IsRunning() || !bytes.Equal(config, f.core.configuration()) || f.controller.Preferences() != prefs {
+		t.Fatal("the TUN gate disturbed the running core or preferences")
 	}
 }

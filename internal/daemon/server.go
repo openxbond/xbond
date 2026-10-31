@@ -242,10 +242,11 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]any{
-		"engine":      status,
-		"preferences": prefs,
-		"threeTier":   threeTier,
-		"activeSub":   activeSub,
+		"engine":       status,
+		"preferences":  prefs,
+		"threeTier":    threeTier,
+		"activeSub":    activeSub,
+		"capabilities": tunCapability(),
 	}
 
 	writeJSON(w, http.StatusOK, response)

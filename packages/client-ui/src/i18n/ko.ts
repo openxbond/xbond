@@ -468,6 +468,14 @@ const KO = {
       allowLanDesc: "같은 LAN의 다른 기기가 이 프록시를 사용하도록 허용",
       sysproxyDesc: "브라우저와 표준 HTTP/SOCKS 트래픽을 인계합니다",
       tunDesc: "모든 애플리케이션의 트래픽을 인계합니다",
+      tunUnavailable: {
+        not_elevated:
+          "TUN에는 관리자 권한이 필요합니다 — 데몬을 관리자 권한으로 다시 시작하세요.",
+        not_root:
+          "TUN에는 root 권한이 필요합니다 — 데몬을 root로 다시 시작하세요.",
+        wintun_missing:
+          "데몬 옆 또는 System32에서 wintun.dll을 찾을 수 없습니다; 배치하면 TUN을 사용할 수 있습니다.",
+      },
       tunPrivilegeNotice:
         "TUN 인계에는 관리자 권한이 필요합니다 (Windows는 관리자 권한으로 실행, macOS/Linux는 root/sudo).",
       portDesc: "시스템 설정을 바꾸지 않고 프록시 포트만 열어둡니다",

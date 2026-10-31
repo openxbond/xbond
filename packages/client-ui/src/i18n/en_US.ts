@@ -473,6 +473,13 @@ const EN = {
       allowLanDesc: "Let other devices on the same LAN use this proxy",
       sysproxyDesc: "Takes over browser and standard HTTP/SOCKS traffic",
       tunDesc: "Takes over traffic from all applications",
+      tunUnavailable: {
+        not_elevated:
+          "TUN needs administrator privileges — restart the daemon as Administrator.",
+        not_root: "TUN needs root privileges — restart the daemon as root.",
+        wintun_missing:
+          "wintun.dll was not found next to the daemon or in System32; place it there to enable TUN.",
+      },
       tunPrivilegeNotice:
         "TUN takeover requires administrator privileges (run as Administrator on Windows, root/sudo on macOS/Linux).",
       portDesc: "Listens on the proxy port without changing system settings",
