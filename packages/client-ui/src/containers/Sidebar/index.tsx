@@ -14,6 +14,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
+import { AccountMenu } from "./AccountMenu";
 import { ControllerSwitcher } from "./ControllerSwitcher";
 
 import "./style.scss";
@@ -313,6 +314,10 @@ export default function Sidebar(props: SidebarProps) {
           connected={trafficState === "open"}
           onEdit={() => setIdentity(false)}
         />
+
+        {/* Avatar account entry: identity, service status, announcements and
+            the trusted console entry (client-rethink §二). */}
+        <AccountMenu />
 
         <div className="sidebar-version">
           <div className="sidebar-version-item">

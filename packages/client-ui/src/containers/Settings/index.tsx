@@ -1,10 +1,10 @@
 import { Button, ButtonSelect, Header, Switch } from "@components";
 import { ControllerPicker } from "@components/ControllerPicker";
+import AccountPanel from "@containers/AccountPanel";
 import type { Lang } from "@i18n";
 import { useAction } from "@lib/actions";
 import { DASHBOARD_VERSION } from "@lib/version";
 import {
-  useAccount,
   useAPIInfo,
   useCapabilities,
   useClient,
@@ -28,8 +28,8 @@ export default function Settings() {
   const { t } = useTranslation("settings");
   const { t: tc } = useTranslation("common");
   const { t: r } = useTranslation("runtime");
-  const { t: c } = useTranslation("connect");
   const { t: ta } = useTranslation("account");
+  const { t: c } = useTranslation("connect");
 
   const controller = useAPIInfo();
   const caps = useCapabilities();
@@ -38,7 +38,6 @@ export default function Settings() {
   const { general, update } = useGeneral();
   const { hasLocalAPI, isLocalTarget, status, setMode, refresh } =
     useLocalAPI();
-  const { account, login: loginAccount, logout: logoutAccount } = useAccount();
 
   const [theme, setTheme] = useAtom(themeAtom);
   const setIdentity = useSetAtom(identityAtom);
@@ -74,124 +73,19 @@ export default function Settings() {
       <Header title={t("title")} />
 
       <div className="settings-grid">
-        {/* Account: identity, service status and the trusted console entry. */}
+        {/* Account: identity, service status and the trusted console entry.
+            The sidebar avatar opens the same panel as a dialog; this card
+            keeps the account reachable on mobile, which has no avatar. */}
         {hasLocalAPI && (
           <section className="settings-card">
             <div className="settings-card-header">
               <h2>{ta("title")}</h2>
             </div>
             <div className="settings-card-content">
-              {account?.status === "signed_in" ? (
-                <div className="setting-label-col">
-                  <p className="text-sm">
-                    {account.name || account.email
-                      ? [account.name, account.email]
-                          .filter(Boolean)
-                          .join(" · ")
-                      : ta("signedIn")}
-                  </p>
-                  {account.service ? (
-                    <p className="text-sm text-muted-foreground">
-                      {[
-                        account.service.plan,
-                        account.service.servicePeriodEnd
-                          ? ta("serviceExpires", {
-                              date: new Date(
-                                account.service.servicePeriodEnd,
-                              ).toLocaleDateString(lang),
-                            })
-                          : null,
-                        account.service.quotaState === "blocked"
-                          ? ta("serviceQuotaBlocked")
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {ta("noService")}
-                    </p>
-                  )}
-                  {account.overviewError && (
-                    <p className="text-sm text-warning">
-                      {ta("overviewFailed", { error: account.overviewError })}
-                    </p>
-                  )}
-                  {account.announcements &&
-                    account.announcements.length > 0 && (
-                      <div className="setting-label-col mt-2">
-                        <strong className="text-sm">
-                          {ta("announcements")}
-                        </strong>
-                        {account.announcements.slice(0, 3).map((item) => (
-                          <div key={item.id} className="text-sm">
-                            <span
-                              className={
-                                item.readAt
-                                  ? "text-muted-foreground"
-                                  : undefined
-                              }
-                            >
-                              {item.title}
-                            </span>
-                            {item.summary && (
-                              <p className="text-sm text-muted-foreground">
-                                {item.summary}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  <div className="setting-inline mt-2">
-                    {account.consoleUrl && (
-                      <a
-                        href={account.consoleUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="section-link"
-                      >
-                        {ta("openConsole")} ↗
-                      </a>
-                    )}
-                    <Button
-                      type="danger"
-                      disabled={pending}
-                      onClick={() => void run(logoutAccount)}
-                    >
-                      {ta("logout")}
-                    </Button>
-                  </div>
-                </div>
-              ) : account?.status === "pending" ? (
-                <p className="text-sm text-muted-foreground">{ta("pending")}</p>
-              ) : (
-                <div className="setting-label-col">
-                  {status?.activeSub?.type === "universal" && (
-                    <p className="text-sm text-muted-foreground">
-                      {ta("note")}
-                    </p>
-                  )}
-                  {account?.status === "error" && (
-                    <p className="text-sm text-warning">
-                      {ta("failed")}: {account.error}
-                    </p>
-                  )}
-                  <div className="mt-2">
-                    <Button
-                      type="brand"
-                      onClick={() => loginAccount().catch(() => {})}
-                    >
-                      {ta("loginCta")}
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <AccountPanel />
             </div>
           </section>
         )}
-
         {/* Card 1: 網絡與連接埠 (Network & Ports) */}
         <section className="settings-card">
           <div className="settings-card-header">
