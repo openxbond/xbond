@@ -667,7 +667,7 @@ export default function Connect() {
         <section className="bento-card card quick-tools-card">
           <div className="card-header-line">
             <h3 className="card-title">{t("environment")}</h3>
-            <Link to="/diagnostics" className="section-link">
+            <Link to="/activity?view=diagnostics" className="section-link">
               {sb("diagnostics")} &rarr;
             </Link>
           </div>
@@ -715,13 +715,13 @@ export default function Connect() {
             </div>
 
             <div className="quick-links-group">
-              <Link to="/connections" className="quick-link-pill">
+              <Link to="/activity?view=connections" className="quick-link-pill">
                 {t("quickLinks.connections")}
               </Link>
-              <Link to="/rules" className="quick-link-pill">
+              <Link to="/proxies?view=rules" className="quick-link-pill">
                 {t("quickLinks.rules")}
               </Link>
-              <Link to="/logs" className="quick-link-pill">
+              <Link to="/activity?view=logs" className="quick-link-pill">
                 {t("quickLinks.logs")}
               </Link>
             </div>

@@ -113,6 +113,14 @@
   border-radius: 0 0 16px 16px;
 }
 
+// Target switcher + account avatar: stacked in the desktop footer, one slim
+// row above the mobile bottom tabs (order: -1 keeps them on top).
+.sidebar-footer-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 // Traffic readout: inline mono rates, no box — arrows are typographic data
 // markers matching the speed column elsewhere.
 .sidebar-telemetry {
@@ -187,18 +195,73 @@
   .sidebar {
     inset: auto 0 0;
     width: 100%;
-    height: calc(64px + env(safe-area-inset-bottom));
+    height: calc(102px + env(safe-area-inset-bottom));
     border-radius: 0;
     border: 0;
     border-top: 1px solid var(--sidebar-border);
     box-shadow: none;
-    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+    padding: 0 8px calc(4px + env(safe-area-inset-bottom));
   }
 
   .sidebar-brand,
-  .sidebar-footer,
   .desktop-menu {
     display: none;
+  }
+
+  // The footer shrinks to the always-visible controls row (switcher +
+  // avatar); telemetry and version stay desktop-only.
+  .sidebar-footer {
+    order: -1;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    border-top: 0;
+    border-bottom: 1px solid var(--sidebar-border);
+    border-radius: 0;
+  }
+
+  .sidebar-telemetry,
+  .sidebar-version {
+    display: none;
+  }
+
+  .sidebar-footer-controls {
+    flex: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+
+    // Slim inline switcher: the desktop card header and tall button padding
+    // do not fit the row above the bottom tabs.
+    .controller-switcher {
+      flex: 1;
+      min-width: 0;
+      margin-top: 0;
+      gap: 0;
+    }
+
+    .controller-switch-head {
+      display: none;
+    }
+
+    .controller-switch-btn {
+      flex-direction: row;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 9px;
+      text-align: left;
+    }
+
+    .controller-switch-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .controller-switch-host {
+      display: none;
+    }
   }
 
   .mobile-menu {

@@ -1,0 +1,46 @@
+.account-avatar-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--sidebar-border);
+  background: transparent;
+  color: var(--sidebar-foreground-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--foreground);
+    border-color: var(--sidebar-foreground-muted);
+  }
+}
+
+.account-avatar-initial {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.account-avatar-state {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  border: 2px solid var(--sidebar);
+
+  &.is-signed-in {
+    background: var(--success);
+  }
+}
+
+.account-dialog {
+  .setting-label-col {
+    gap: 0.35rem;
+  }
+}

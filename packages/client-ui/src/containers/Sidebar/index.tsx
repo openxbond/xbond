@@ -1,5 +1,6 @@
 import { XBondIcon } from "@components";
 import { DASHBOARD_VERSION, parseClientInfo } from "@lib/version";
+import { DESKTOP_NAV, MOBILE_NAV, type NavName } from "@nav";
 import {
   useVersion,
   useClashXData,
@@ -14,29 +15,24 @@ import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
+import { AccountMenu } from "./AccountMenu";
 import { ControllerSwitcher } from "./ControllerSwitcher";
 
 import "./style.scss";
 
 /** Route display names map to sidebar message keys. */
-function navLabel(name: string) {
+export function navLabel(name: NavName) {
   const keys = {
     Connect: "connect",
     Activity: "activity",
     Proxies: "proxies",
+    Subscriptions: "subscriptions",
     Settings: "settings",
   } as const;
-  return keys[name as keyof typeof keys] ?? "home";
+  return keys[name];
 }
 
-interface SidebarProps {
-  routes: Array<{
-    path: string;
-    name: string;
-  }>;
-}
-
-function getRouteIcon(name: string) {
+function getRouteIcon(name: NavName) {
   switch (name) {
     case "Connect":
       return (
@@ -94,81 +90,6 @@ function getRouteIcon(name: string) {
           <line x1="12" y1="22.08" x2="12" y2="12" />
         </svg>
       );
-    case "Connections":
-      return (
-        <svg
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="nav-icon"
-          aria-hidden="true"
-        >
-          <path d="M8 8h8v8H8zM4 4h3v3H4zM17 4h3v3h-3zM4 17h3v3H4zM17 17h3v3h-3zM7 7l2 2M15 9l2-2M7 17l2-2M15 15l2 2" />
-        </svg>
-      );
-    case "Rules":
-      return (
-        <svg
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="nav-icon"
-          aria-hidden="true"
-        >
-          <polyline points="16 3 21 3 21 8" />
-          <line x1="4" y1="20" x2="21" y2="3" />
-          <polyline points="21 16 21 21 16 21" />
-          <line x1="15" y1="15" x2="21" y2="21" />
-          <line x1="4" y1="4" x2="9" y2="9" />
-        </svg>
-      );
-    case "Logs":
-      return (
-        <svg
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="nav-icon"
-          aria-hidden="true"
-        >
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-          <line x1="8" y1="6" x2="16" y2="6" />
-          <line x1="8" y1="10" x2="16" y2="10" />
-        </svg>
-      );
-    case "Diagnostics":
-      return (
-        <svg
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="nav-icon"
-          aria-hidden="true"
-        >
-          <path d="M9 3h6M10 3v6L4 19a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L14 9V3M8 15h8" />
-        </svg>
-      );
     case "Activity":
       return (
         <svg
@@ -209,8 +130,7 @@ function getRouteIcon(name: string) {
   }
 }
 
-export default function Sidebar(props: SidebarProps) {
-  const { routes } = props;
+export default function Sidebar() {
   const { version, premium, meta } = useVersion();
   const { data } = useClashXData();
   const { t } = useTranslation("sidebar");
@@ -234,38 +154,23 @@ export default function Sidebar(props: SidebarProps) {
     [version, data?.isClashX, premium, meta],
   );
 
-  const desktopItems = [
-    { path: "/connect", name: "Connect", label: t("home") },
-    { path: "/proxies", name: "Proxies", label: t("proxies") },
-    {
-      path: "/subscriptions",
-      name: "Subscriptions",
-      label: t("subscriptions"),
-    },
-    { path: "/connections", name: "Connections", label: t("connections") },
-    { path: "/rules", name: "Rules", label: t("rules") },
-    { path: "/logs", name: "Logs", label: t("logs") },
-    { path: "/diagnostics", name: "Diagnostics", label: t("diagnostics") },
-    { path: "/settings", name: "Settings", label: t("settings") },
-  ];
-
-  const desktopLinks = desktopItems.map((item) => {
-    const isActive = location.pathname === item.path;
+  const desktopLinks = DESKTOP_NAV.map(({ path, name }) => {
+    const isActive = location.pathname === path;
     return (
-      <li className="item" key={item.name}>
+      <li className="item" key={name}>
         <Link
-          to={workspaceLink(location.search, item.path)}
+          to={workspaceLink(location.search, path)}
           className={isActive ? "active" : undefined}
           aria-current={isActive ? "page" : undefined}
         >
-          {getRouteIcon(item.name)}
-          <span className="nav-label">{item.label}</span>
+          {getRouteIcon(name)}
+          <span className="nav-label">{t(navLabel(name))}</span>
         </Link>
       </li>
     );
   });
 
-  const mobileLinks = routes.map(({ path, name }) => {
+  const mobileLinks = MOBILE_NAV.map(({ path, name }) => {
     const isActive = location.pathname === path;
     return (
       <li className="item" key={name}>
@@ -291,7 +196,7 @@ export default function Sidebar(props: SidebarProps) {
       <ul className="sidebar-menu desktop-menu">{desktopLinks}</ul>
       <ul className="sidebar-menu mobile-menu">{mobileLinks}</ul>
 
-      <div className="sidebar-footer desktop-only">
+      <div className="sidebar-footer">
         {trafficState === "open" && speed && (
           <div className="sidebar-telemetry">
             <div className="telemetry-item down">
@@ -309,10 +214,16 @@ export default function Sidebar(props: SidebarProps) {
           </div>
         )}
 
-        <ControllerSwitcher
-          connected={trafficState === "open"}
-          onEdit={() => setIdentity(false)}
-        />
+        {/* Target switcher and the account avatar are always visible: the
+            desktop footer stacks them vertically; on mobile the footer
+            becomes the slim row above the bottom tabs. */}
+        <div className="sidebar-footer-controls">
+          <ControllerSwitcher
+            connected={trafficState === "open"}
+            onEdit={() => setIdentity(false)}
+          />
+          <AccountMenu />
+        </div>
 
         <div className="sidebar-version">
           <div className="sidebar-version-item">

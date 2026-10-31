@@ -52,7 +52,11 @@ function RuleRow({
   );
 }
 
-export default function Rules() {
+/**
+ * The rules table without the page chrome: 策略 embeds it as its secondary
+ * view and owns the page header.
+ */
+export function RulesContent() {
   const { rules: allRules, error, update } = useRule();
   const [search, setSearch] = useState("");
   const rules = allRules.filter(
@@ -65,9 +69,8 @@ export default function Rules() {
   const capabilities = useCapabilities();
   const { t } = useTranslation("rules");
   return (
-    <div className="page">
+    <>
       <RequestStatus error={error} retry={update} />
-      <Header title={t("title")} />
       {!capabilities.ruleProviders && capabilities.kind === "sing-box" && (
         <ProviderNote />
       )}
@@ -93,7 +96,7 @@ export default function Rules() {
           />
         </div>
       </Card>
-    </div>
+    </>
   );
 }
 
