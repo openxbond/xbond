@@ -11,8 +11,8 @@ import (
 
 func TestUpdateMetadataFailurePreservesLastDownloadedSource(t *testing.T) {
 	t.Setenv("XBOND_DATA_DIR", t.TempDir())
-	source := filepath.Join(paths.DataDir(), "source.json")
-	initial := []byte(`{"outbounds":[{"type":"direct","tag":"initial"}]}`)
+	source := filepath.Join(paths.DataDir(), "source.yaml")
+	initial := []byte("proxies:\n  - {name: initial, type: trojan, server: example.invalid, port: 443, password: fixture-only}\n")
 	if err := os.WriteFile(source, initial, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestUpdateMetadataFailurePreservesLastDownloadedSource(t *testing.T) {
 	if err := os.Mkdir(paths.SubListPath(), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(source, []byte(`{"outbounds":[{"type":"direct","tag":"replacement"}]}`), 0o600); err != nil {
+	if err := os.WriteFile(source, []byte("proxies:\n  - {name: replacement, type: trojan, server: example.invalid, port: 443, password: fixture-only}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := manager.Update(meta.ID, true, false, 0); err == nil {

@@ -311,7 +311,7 @@ export default function Connect() {
                 <span className="tier-desc">
                   {hasLocalAPI
                     ? status?.engine.running
-                      ? version.version || "sing-box"
+                      ? version.version || "mihomo"
                       : t("stopped")
                     : r(trafficState)}
                 </span>

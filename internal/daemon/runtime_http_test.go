@@ -48,7 +48,7 @@ func TestRuntimeHandlersReturnOperationResultsAndRejectInvalidRequests(t *testin
 		t.Fatal("selected subscription was not applied")
 	}
 	source, _ := f.subs.Get(f.second.ID)
-	if err := os.WriteFile(source.SourceURL, []byte(`{"outbounds":[{"type":"direct","tag":"new-second"}]}`), 0o600); err != nil {
+	if err := os.WriteFile(source.SourceURL, []byte("proxies:\n  - name: new-second\n    type: trojan\n    server: example.invalid\n    port: 443\n    password: fixture-only\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	updated := runtimeRequest(server.handleSubUpdate, `{"id":"`+f.second.ID+`","force":true}`)

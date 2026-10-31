@@ -1,45 +1,39 @@
 package engine
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 
-	"github.com/sagernet/sing-box"
-	_ "github.com/sagernet/sing-box/experimental/clashapi"
-	"github.com/sagernet/sing-box/include"
-	"github.com/sagernet/sing-box/option"
-	singJson "github.com/sagernet/sing/common/json"
+	"github.com/metacubex/mihomo/config"
+	"github.com/metacubex/mihomo/hub/executor"
+	"gopkg.in/yaml.v3"
 )
 
-func NewBoxContext() context.Context {
-	return include.Context(context.Background())
-}
-
-func Validate(sourceJSON []byte) error {
-	ctx := NewBoxContext()
-	options, err := singJson.UnmarshalExtendedContext[option.Options](ctx, sourceJSON)
+// Validate parses and resolves the configuration without starting any
+// listener. Remote proxy/rule providers are fetched lazily by the running
+// core, so validation never touches the network.
+func Validate(configBytes []byte) error {
+	if err := initCoreHome(); err != nil {
+		return err
+	}
+	raw, err := config.UnmarshalRawConfig(configBytes)
 	if err != nil {
-		return fmt.Errorf("failed to parse sing-box options: %w", err)
+		return fmt.Errorf("failed to parse mihomo configuration: %w", err)
 	}
-
-	if len(options.Outbounds) == 0 {
-		return fmt.Errorf("configuration contains no outbounds")
+	if len(raw.Proxy) == 0 && len(raw.ProxyProvider) == 0 {
+		return fmt.Errorf("configuration contains no proxies")
 	}
-
-	instance, err := box.New(box.Options{
-		Context: ctx,
-		Options: options,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create sing-box instance: %w", err)
+	if _, err := executor.ParseWithBytes(configBytes); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
 	}
-	_ = instance.Close()
 	return nil
 }
 
+// DeriveRuntimeConfig merges a subscription's Clash YAML with the daemon-owned
+// listeners, takeover and controller settings. Everything under the daemon's
+// ownership is overwritten; subscription content (proxies, groups, rules,
+// DNS choices) is preserved as-is except where TUN mode requires DNS.
 func DeriveRuntimeConfig(
-	sourceJSON []byte,
+	source []byte,
 	takeoverMode TakeoverMode,
 	routingMode RoutingMode,
 	mixedPort int,
@@ -60,107 +54,26 @@ func DeriveRuntimeConfig(
 		routingMode = RoutingRule
 	}
 
-	var raw map[string]any
-	if err := json.Unmarshal(sourceJSON, &raw); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal source config: %w", err)
+	raw, err := decodeYAMLMap(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source config: %w", err)
 	}
 
-	inbounds, _ := raw["inbounds"].([]any)
-	filteredInbounds := make([]any, 0, len(inbounds)+2)
+	applyGeneral(raw, routingMode, mixedPort, allowLan, clashPort, clashSecret)
+	applyTakeover(raw, takeoverMode)
 
-	var hasMixed bool
-	var hasTun bool
-
-	listenAddr := "127.0.0.1"
-	if allowLan {
-		listenAddr = "0.0.0.0"
-	}
-
-	for _, item := range inbounds {
-		inboundMap, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		inboundType, _ := inboundMap["type"].(string)
-
-		if inboundType == "tun" {
-			if takeoverMode == ModeTun {
-				inboundMap["interface_name"] = "sing-tun"
-				inboundMap["auto_route"] = true
-				inboundMap["strict_route"] = true
-				filteredInbounds = append(filteredInbounds, inboundMap)
-				hasTun = true
-			}
-			continue
-		}
-
-		if inboundType == "mixed" {
-			inboundMap["listen"] = listenAddr
-			inboundMap["listen_port"] = mixedPort
-			filteredInbounds = append(filteredInbounds, inboundMap)
-			hasMixed = true
-			continue
-		}
-
-		filteredInbounds = append(filteredInbounds, inboundMap)
-	}
-
-	if !hasMixed {
-		mixedInbound := map[string]any{
-			"type":        "mixed",
-			"tag":         "mixed-in",
-			"listen":      listenAddr,
-			"listen_port": mixedPort,
-		}
-		filteredInbounds = append([]any{mixedInbound}, filteredInbounds...)
-	}
-
-	if takeoverMode == ModeTun && !hasTun {
-		tunInbound := map[string]any{
-			"type":           "tun",
-			"tag":            "tun-in",
-			"interface_name": "sing-tun",
-			"auto_route":     true,
-			"strict_route":   true,
-			"stack":          "mixed",
-		}
-		filteredInbounds = append([]any{tunInbound}, filteredInbounds...)
-	}
-
-	raw["inbounds"] = filteredInbounds
-
-	exp, _ := raw["experimental"].(map[string]any)
-	if exp == nil {
-		exp = make(map[string]any)
-	}
-
-	clashApiMap := map[string]any{
-		"external_controller": fmt.Sprintf("127.0.0.1:%d", clashPort),
-		"secret":              clashSecret,
-		"default_mode":        string(routingMode),
-	}
-	exp["clash_api"] = clashApiMap
-
-	cacheFile, _ := exp["cache_file"].(map[string]any)
-	if cacheFile == nil {
-		cacheFile = make(map[string]any)
-	}
-	cacheFile["enabled"] = true
-	cacheFile["store_fakeip"] = true
-	exp["cache_file"] = cacheFile
-
-	raw["experimental"] = exp
-
-	derivedJSON, err := json.MarshalIndent(raw, "", "  ")
+	derived, err := yaml.Marshal(raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal derived config: %w", err)
 	}
-
-	return derivedJSON, nil
+	return derived, nil
 }
 
+// DeriveMobileRuntimeConfig is the VPN-flavoured derivation: the platform TUN
+// file descriptor is the only takeover, no local proxy listener is opened,
+// and the controller stays on loopback for the in-app UI.
 func DeriveMobileRuntimeConfig(
-	sourceJSON []byte,
+	source []byte,
 	tunFd int32,
 	routingMode RoutingMode,
 	clashPort int,
@@ -176,63 +89,139 @@ func DeriveMobileRuntimeConfig(
 		routingMode = RoutingRule
 	}
 
-	var raw map[string]any
-	if err := json.Unmarshal(sourceJSON, &raw); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal source config: %w", err)
+	raw, err := decodeYAMLMap(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source config: %w", err)
 	}
 
-	inbounds, _ := raw["inbounds"].([]any)
-	filteredInbounds := make([]any, 0, len(inbounds)+1)
+	delete(raw, "port")
+	delete(raw, "socks-port")
+	delete(raw, "redir-port")
+	delete(raw, "tproxy-port")
+	delete(raw, "listeners")
+	raw["mixed-port"] = 0
+	raw["allow-lan"] = false
+	raw["mode"] = string(routingMode)
+	raw["log-level"] = "info"
+	raw["external-controller"] = fmt.Sprintf("127.0.0.1:%d", clashPort)
+	raw["secret"] = clashSecret
+	delete(raw, "external-controller-tls")
+	delete(raw, "external-controller-unix")
+	delete(raw, "external-controller-pipe")
+	delete(raw, "external-ui")
+	mergeProfile(raw)
 
-	for _, item := range inbounds {
-		inboundMap, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		inboundType, _ := inboundMap["type"].(string)
-		if inboundType == "tun" || inboundType == "mixed" {
-			continue
-		}
-		filteredInbounds = append(filteredInbounds, inboundMap)
-	}
-
-	tunInbound := map[string]any{
-		"type":            "tun",
-		"tag":             "tun-in",
-		"file_descriptor": tunFd,
+	raw["tun"] = map[string]any{
+		"enable":          true,
+		"file-descriptor": tunFd,
 		"stack":           "mixed",
-		"auto_route":      false,
-		"strict_route":    false,
+		"auto-route":      false,
+		"strict-route":    false,
 	}
-	filteredInbounds = append([]any{tunInbound}, filteredInbounds...)
-	raw["inbounds"] = filteredInbounds
+	ensureDNSForTun(raw)
 
-	exp, _ := raw["experimental"].(map[string]any)
-	if exp == nil {
-		exp = make(map[string]any)
-	}
-
-	clashApiMap := map[string]any{
-		"external_controller": fmt.Sprintf("127.0.0.1:%d", clashPort),
-		"secret":              clashSecret,
-		"default_mode":        string(routingMode),
-	}
-	exp["clash_api"] = clashApiMap
-
-	cacheFile, _ := exp["cache_file"].(map[string]any)
-	if cacheFile == nil {
-		cacheFile = make(map[string]any)
-	}
-	cacheFile["enabled"] = true
-	cacheFile["store_fakeip"] = true
-	exp["cache_file"] = cacheFile
-
-	raw["experimental"] = exp
-
-	derivedJSON, err := json.MarshalIndent(raw, "", "  ")
+	derived, err := yaml.Marshal(raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal derived mobile config: %w", err)
 	}
+	return derived, nil
+}
 
-	return derivedJSON, nil
+func decodeYAMLMap(source []byte) (map[string]any, error) {
+	var raw map[string]any
+	if err := yaml.Unmarshal(source, &raw); err != nil {
+		return nil, err
+	}
+	if raw == nil {
+		raw = make(map[string]any)
+	}
+	return raw, nil
+}
+
+// applyGeneral overwrites the general section the daemon owns. Listener
+// configuration from the subscription never survives: takeover is a
+// user-controlled app setting, not subscription content.
+func applyGeneral(
+	raw map[string]any,
+	routingMode RoutingMode,
+	mixedPort int,
+	allowLan bool,
+	clashPort int,
+	clashSecret string,
+) {
+	delete(raw, "port")
+	delete(raw, "socks-port")
+	delete(raw, "redir-port")
+	delete(raw, "tproxy-port")
+	delete(raw, "listeners")
+	raw["mixed-port"] = mixedPort
+	raw["allow-lan"] = allowLan
+	if allowLan {
+		raw["bind-address"] = "*"
+	} else {
+		raw["bind-address"] = "127.0.0.1"
+	}
+	raw["mode"] = string(routingMode)
+	raw["log-level"] = "info"
+	raw["external-controller"] = fmt.Sprintf("127.0.0.1:%d", clashPort)
+	raw["secret"] = clashSecret
+	delete(raw, "external-controller-tls")
+	delete(raw, "external-controller-unix")
+	delete(raw, "external-controller-pipe")
+	delete(raw, "external-ui")
+	mergeProfile(raw)
+}
+
+func mergeProfile(raw map[string]any) {
+	profile, _ := raw["profile"].(map[string]any)
+	if profile == nil {
+		profile = make(map[string]any)
+	}
+	profile["store-selected"] = true
+	profile["store-fake-ip"] = true
+	raw["profile"] = profile
+}
+
+func applyTakeover(raw map[string]any, takeoverMode TakeoverMode) {
+	tun, _ := raw["tun"].(map[string]any)
+	if tun == nil {
+		tun = make(map[string]any)
+	}
+	if takeoverMode != ModeTun {
+		tun["enable"] = false
+		raw["tun"] = tun
+		return
+	}
+	tun["enable"] = true
+	tun["stack"] = "mixed"
+	tun["auto-route"] = true
+	tun["strict-route"] = true
+	tun["auto-detect-interface"] = true
+	tun["dns-hijack"] = []any{"any:53"}
+	raw["tun"] = tun
+	ensureDNSForTun(raw)
+}
+
+// ensureDNSForTun makes the DNS module usable when TUN takes over traffic:
+// without it, hijacked DNS queries have nowhere to go. A subscription that
+// already ships a working DNS section keeps its upstreams.
+func ensureDNSForTun(raw map[string]any) {
+	dns, _ := raw["dns"].(map[string]any)
+	if dns == nil {
+		dns = make(map[string]any)
+	}
+	dns["enable"] = true
+	if nameservers, _ := dns["nameserver"].([]any); len(nameservers) == 0 {
+		dns["nameserver"] = []any{"system", "8.8.8.8"}
+	}
+	if dns["enhanced-mode"] == nil {
+		dns["enhanced-mode"] = "fake-ip"
+	}
+	if dns["enhanced-mode"] == "fake-ip" && dns["fake-ip-range"] == nil {
+		dns["fake-ip-range"] = "198.18.0.1/16"
+	}
+	if filter, _ := dns["fake-ip-filter"].([]any); len(filter) == 0 {
+		dns["fake-ip-filter"] = []any{"*.lan", "*.local"}
+	}
+	raw["dns"] = dns
 }

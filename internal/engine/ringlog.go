@@ -1,11 +1,8 @@
 package engine
 
 import (
-	"strings"
 	"sync"
 	"time"
-
-	slog "github.com/sagernet/sing-box/log"
 )
 
 type LogLevel string
@@ -44,44 +41,6 @@ func NewRingLogger(capacity int) *RingLogger {
 		capacity: capacity,
 		entries:  make([]LogEntry, capacity),
 	}
-}
-
-func (r *RingLogger) Write(p []byte) (n int, err error) {
-	msg := strings.TrimSpace(string(p))
-	if msg == "" {
-		return len(p), nil
-	}
-
-	level := LogLevelInfo
-	lower := strings.ToLower(msg)
-	switch {
-	case strings.Contains(lower, "error") || strings.Contains(lower, "fatal") || strings.Contains(lower, "panic"):
-		level = LogLevelError
-	case strings.Contains(lower, "warn"):
-		level = LogLevelWarn
-	case strings.Contains(lower, "debug"):
-		level = LogLevelDebug
-	}
-
-	r.Append(level, msg)
-	return len(p), nil
-}
-
-func (r *RingLogger) WriteMessage(level slog.Level, message string) {
-	var l LogLevel
-	switch level {
-	case slog.LevelDebug, slog.LevelTrace:
-		l = LogLevelDebug
-	case slog.LevelInfo:
-		l = LogLevelInfo
-	case slog.LevelWarn:
-		l = LogLevelWarn
-	case slog.LevelError, slog.LevelFatal, slog.LevelPanic:
-		l = LogLevelError
-	default:
-		l = LogLevelInfo
-	}
-	r.Append(l, message)
 }
 
 func (r *RingLogger) Append(level LogLevel, msg string) {

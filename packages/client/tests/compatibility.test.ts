@@ -115,6 +115,20 @@ test("sing-box compatibility flags do not advertise Clash Premium mutations", ()
   assert.equal(coreCapabilities({ version: "v1.18.0" }).editPorts, true);
   assert.equal(coreCapabilities({ version: "v1.18.0" }).ruleProviders, false);
 });
+test("embedded mihomo core reports its kind from the meta flag and full capabilities", () => {
+  // mihomo's /version returns the bare version number plus meta: true.
+  const core = coreCapabilities({ version: "1.19.33", meta: true });
+  assert.equal(core.kind, "mihomo");
+  assert.equal(core.editPorts, true);
+  assert.equal(core.editLan, true);
+  assert.equal(core.reloadConfig, true);
+  assert.equal(core.proxyProviders, true);
+  assert.equal(core.ruleProviders, true);
+  assert.equal(core.flushCache, true);
+  assert.deepEqual(core.modes, ["global", "rule", "direct"]);
+  const metaByName = coreCapabilities({ version: "Mihomo v1.19.33" });
+  assert.equal(metaByName.kind, "mihomo");
+});
 test("listener ports and latency options reject empty, fractional and out-of-range input", () => {
   for (const value of ["", "-1", "1.2", "65536", "NaN"])
     assert.equal(validPort(value), false);

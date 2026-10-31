@@ -59,7 +59,7 @@ var runCmd = &cobra.Command{
 }
 
 func init() {
-	runCmd.Flags().StringVar(&runConfig, "config", "", "Path to the sing-box runtime config (required)")
+	runCmd.Flags().StringVar(&runConfig, "config", "", "Path to the mihomo runtime config (required)")
 	_ = runCmd.MarkFlagRequired("config")
 	rootCmd.AddCommand(runCmd)
 }

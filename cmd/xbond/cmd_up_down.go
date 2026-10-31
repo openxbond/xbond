@@ -55,7 +55,7 @@ func init() {
 
 var upCmd = &cobra.Command{
 	Use:   "up",
-	Short: "Start or reload the embedded sing-box engine",
+	Short: "Start or reload the embedded mihomo engine",
 	Args:  cobra.NoArgs,
 	Long: `Connect the core using the active subscription and current preferences.
 

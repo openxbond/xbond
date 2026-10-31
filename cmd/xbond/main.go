@@ -13,8 +13,8 @@ var globalLang string
 var rootCmd = &cobra.Command{
 	Use:   "xbond",
 	Short: "XBond — High performance, next-generation embedded proxy client",
-	Long: fmt.Sprintf(`XBond cli v%s (sing-box v%s)
-Next-generation proxy client with embedded sing-box engine, dual-track subscriptions, and comprehensive runtime diagnostics.
+	Long: fmt.Sprintf(`XBond cli v%s (mihomo v%s)
+Next-generation proxy client with embedded mihomo engine, dual-track subscriptions, and comprehensive runtime diagnostics.
 
 Quick start, background service:
   xbond daemon install           # register and start the background daemon
@@ -23,7 +23,7 @@ Quick start, background service:
   xbond status
 
 One-off foreground run, no daemon:
-  xbond run --config config.json`, version.Version, version.SingBoxVersion),
+  xbond run --config config.yaml`, version.Version, version.CoreVersion),
 }
 
 // commandLayout is both the help grouping and the order inside each group:

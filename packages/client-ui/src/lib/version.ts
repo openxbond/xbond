@@ -30,11 +30,15 @@ export function parseClientInfo(
   } else if (lower.includes("mihomo")) {
     type = "Mihomo";
     cleanVersion = v.replace(/mihomo/i, "").trim();
-  } else if (lower.includes("meta") || meta) {
+  } else if (lower.includes("meta")) {
     type = "Clash.Meta";
     cleanVersion = v.replace(/clash\.meta|meta/i, "").trim();
   } else if (premium) {
     type = "Clash Premium";
+  } else if (meta) {
+    // mihomo's /version reports only the bare version number with the meta
+    // flag; without the name in the string, the flag itself identifies it.
+    type = "Mihomo";
   }
 
   return {

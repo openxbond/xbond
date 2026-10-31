@@ -44,7 +44,11 @@ func TestReloadRestoresRunningCoreWhenNewListenerCannotStart(t *testing.T) {
 		t.Fatalf("failed reload published replacement metadata: %+v", status)
 	}
 	for {
-		proxies, err := manager.Client().GetProxies(ctx)
+		// Fresh context: the reload itself consumed part of the original
+		// three-second window while proving the rollback path.
+		pollCtx, pollCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		proxies, err := manager.Client().GetProxies(pollCtx)
+		pollCancel()
 		if err != nil {
 			t.Fatalf("restored core is not reachable: %v", err)
 		}

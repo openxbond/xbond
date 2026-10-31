@@ -8,22 +8,41 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestFormatDetection(t *testing.T) {
-	// 1. sing-box JSON
-	validSingBox := []byte(`{"outbounds": [{"type": "direct", "tag": "direct"}]}`)
+	// 1. sing-box JSON converts to canonical Clash YAML
+	validSingBox := []byte(`{"outbounds": [{"type": "trojan", "tag": "HK-01", "server": "1.2.3.4", "server_port": 443, "password": "pass"}]}`)
 	converted, _, err := DetectAndConvert(validSingBox, false)
 	if err != nil {
-		t.Fatalf("expected sing-box json to pass, got: %v", err)
+		t.Fatalf("expected sing-box json to convert, got: %v", err)
 	}
-	if string(converted) != string(validSingBox) {
-		t.Errorf("expected verbatim sing-box json")
+	var convertedDoc struct {
+		Proxies []map[string]any `yaml:"proxies"`
+		Groups  []map[string]any `yaml:"proxy-groups"`
+	}
+	if err := yaml.Unmarshal(converted, &convertedDoc); err != nil {
+		t.Fatalf("failed to parse converted yaml: %v", err)
+	}
+	if len(convertedDoc.Proxies) != 1 || convertedDoc.Proxies[0]["name"] != "HK-01" {
+		t.Fatalf("expected converted node, got %v", convertedDoc.Proxies)
+	}
+	if len(convertedDoc.Groups) != 2 {
+		t.Errorf("expected default Proxy/Auto groups, got %v", convertedDoc.Groups)
 	}
 
-	// 2. Clash YAML
+	// A sing-box config without convertible nodes is useless as a subscription.
+	directOnly := []byte(`{"outbounds": [{"type": "direct", "tag": "direct"}]}`)
+	if _, _, err := DetectAndConvert(directOnly, false); err == nil {
+		t.Fatalf("expected direct-only sing-box config to fail")
+	}
+
+	// 2. Clash YAML passes through verbatim
 	clashYaml := []byte(`# subscription-userinfo: upload=100; download=200; total=1000; expire=1800000000
 proxies:
   - name: "HK-01"
@@ -44,18 +63,8 @@ proxy-groups:
 	if quota == nil || quota.TotalBytes != 1000 {
 		t.Errorf("expected quota to be parsed from yaml comment, got: %+v", quota)
 	}
-
-	var parsedYAML struct {
-		Outbounds []struct {
-			Tag  string `json:"tag"`
-			Type string `json:"type"`
-		} `json:"outbounds"`
-	}
-	if err := json.Unmarshal(convertedYAML, &parsedYAML); err != nil {
-		t.Fatalf("failed to parse converted yaml: %v", err)
-	}
-	if len(parsedYAML.Outbounds) < 3 {
-		t.Errorf("expected node, direct and policy outbounds, got %d", len(parsedYAML.Outbounds))
+	if string(convertedYAML) != strings.TrimSpace(string(clashYaml)) {
+		t.Errorf("expected verbatim clash yaml passthrough")
 	}
 
 	// 3. Base64 trojan link
@@ -66,39 +75,31 @@ proxy-groups:
 		t.Fatalf("expected base64 link to convert, got: %v", err)
 	}
 	var parsedB64 struct {
-		Outbounds []struct {
-			Tag string `json:"tag"`
-		} `json:"outbounds"`
+		Proxies []map[string]any `yaml:"proxies"`
 	}
-	if err := json.Unmarshal(convertedB64, &parsedB64); err != nil {
+	if err := yaml.Unmarshal(convertedB64, &parsedB64); err != nil {
 		t.Fatalf("failed to parse converted base64: %v", err)
 	}
-	if len(parsedB64.Outbounds) == 0 {
-		t.Fatalf("expected outbounds from base64")
+	if len(parsedB64.Proxies) == 0 {
+		t.Fatalf("expected proxies from base64")
 	}
 }
 
 func TestComputeUpdateDiff(t *testing.T) {
-	oldSource := []byte(`{
-  "outbounds": [
-    {"type": "direct", "tag": "direct"},
-    {"type": "block", "tag": "block"},
-    {"type": "trojan", "tag": "HK-01"},
-    {"type": "trojan", "tag": "US-01"},
-    {"type": "selector", "tag": "Proxy"}
-  ]
-}`)
+	oldSource := []byte(`proxies:
+  - {name: HK-01, type: trojan, server: 1.2.3.4, port: 443, password: fixture-only}
+  - {name: US-01, type: trojan, server: 1.2.3.4, port: 443, password: fixture-only}
+proxy-groups:
+  - {name: Proxy, type: select, proxies: [HK-01, US-01]}
+`)
 
-	newSource := []byte(`{
-  "outbounds": [
-    {"type": "direct", "tag": "direct"},
-    {"type": "block", "tag": "block"},
-    {"type": "trojan", "tag": "HK-01"},
-    {"type": "trojan", "tag": "SG-01"},
-    {"type": "selector", "tag": "Proxy"},
-    {"type": "selector", "tag": "AI"}
-  ]
-}`)
+	newSource := []byte(`proxies:
+  - {name: HK-01, type: trojan, server: 1.2.3.4, port: 443, password: fixture-only}
+  - {name: SG-01, type: trojan, server: 1.2.3.4, port: 443, password: fixture-only}
+proxy-groups:
+  - {name: Proxy, type: select, proxies: [HK-01, SG-01]}
+  - {name: AI, type: select, proxies: [HK-01]}
+`)
 
 	diff, err := ComputeUpdateDiff(oldSource, newSource)
 	if err != nil {
@@ -176,12 +177,13 @@ func TestSubscriptionLifecycleAndErrors(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 	t.Setenv("XBOND_DATA_DIR", tempDir)
 
-	validJSON := `{
-  "outbounds": [
-    {"type": "direct", "tag": "direct"},
-    {"type": "block", "tag": "block"}
-  ]
-}`
+	validClash := `proxies:
+  - {name: HK-01, type: trojan, server: 1.2.3.4, port: 443, password: fixture-only}
+proxy-groups:
+  - {name: Proxy, type: select, proxies: [HK-01]}
+rules:
+  - MATCH,Proxy
+`
 
 	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -216,9 +218,9 @@ func TestSubscriptionLifecycleAndErrors(t *testing.T) {
 			w.Header().Set("ETag", `"v1-etag"`)
 			w.Header().Set("Subscription-Userinfo", "upload=10; download=20; total=100; expire=1900000000")
 			w.Header().Set("Profile-Update-Interval", "12")
-			w.Header().Set("Content-Disposition", `attachment; filename="XBond-Pro.json"`)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(validJSON))
+			w.Header().Set("Content-Disposition", `attachment; filename="XBond-Pro.yaml"`)
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			_, _ = w.Write([]byte(validClash))
 			return
 		}
 

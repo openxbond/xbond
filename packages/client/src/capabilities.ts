@@ -32,7 +32,7 @@ export function coreCapabilities(
     proxyProviders: known && !sing,
     ruleProviders: known && !sing && (!!core.premium || meta),
     dns: known,
-    flushCache: sing,
+    flushCache: known,
     memory: sing || meta,
     groupDelay: sing || meta,
     modes: modeList?.length

@@ -394,9 +394,9 @@ const FA = {
     title: "اشتراک‌ها",
     xbondTrack: "اعتبار ابری XBond",
     universalTrack: "URL اشتراک همگانی",
-    clashNodesOnly: "فقط گره‌های Clash وارد شوند",
+    clashNodesOnly: "فقط گره‌ها وارد شوند",
     clashNodesOnlyHint:
-      "قوانین، DNS، درگاه‌ها و گروه‌های Clash کنار گذاشته می‌شوند و سیاست پیش‌فرض گره اعمال می‌شود. گره‌های پشتیبانی‌نشده رد می‌شوند. فقط برای Clash YAML است.",
+      "قوانین، DNS و گروه‌های پیکربندی کنار گذاشته می‌شوند و فقط گره‌ها با سیاست پیش‌فرض نگه داشته می‌شوند. فقط برای sing-box JSON است؛ Clash YAML همان‌طور که هست اجرا می‌شود و نیازی به انتخاب نیست.",
     tokenPlaceholder: "اعتبار XBond را وارد کنید (مثلاً sub-xxxx…)",
     urlPlaceholder: "URL اشتراک Clash / sing-box یا مسیر محلی وارد کنید",
     namePlaceholder: "نام اشتراک (اختیاری)",
@@ -458,7 +458,7 @@ const FA = {
     about: {
       title: "سیستم و درباره",
       appVersion: "نسخه داشبورد",
-      coreVersion: "نسخه هسته sing-box",
+      coreVersion: "نسخه هسته mihomo",
       logLevel: "سطح لاگ",
       openSource: "پروژه متن‌باز",
     },

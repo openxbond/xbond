@@ -75,6 +75,9 @@ func NewServer(addr string, webDir string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Before anything can apply a runtime config: stored sing-box JSON
+	// sources must become the canonical Clash YAML the mihomo core expects.
+	subMgr.MigrateLegacySources()
 
 	tokenBytes := make([]byte, 16)
 	_, _ = rand.Read(tokenBytes)

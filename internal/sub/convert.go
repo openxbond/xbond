@@ -11,108 +11,119 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type ClashConfig struct {
-	Proxies     []map[string]any `yaml:"proxies,omitempty"`
-	ProxyGroups []map[string]any `yaml:"proxy-groups,omitempty"`
-}
-
-func DetectAndConvert(rawContent []byte, clashNodesOnly bool) ([]byte, *QuotaInfo, error) {
+// DetectAndConvert normalizes any supported subscription format into the
+// canonical internal format: a Clash (mihomo) YAML document. Clash YAML is
+// the core's native format and passes through untouched; sing-box JSON and
+// share-link lists are converted. nodesOnly is the explicit escape hatch for
+// inputs whose semantics cannot be preserved (currently sing-box JSON).
+func DetectAndConvert(rawContent []byte, nodesOnly bool) ([]byte, *QuotaInfo, error) {
 	trimmed := bytes.TrimSpace(rawContent)
 	if len(trimmed) == 0 {
 		return nil, nil, fmt.Errorf("configuration content is empty")
 	}
 
-	// 1. Try sing-box JSON
+	quota := parseQuotaComment(trimmed)
+
+	// 1. sing-box JSON
 	if trimmed[0] == '{' {
-		var testMap map[string]any
-		if err := json.Unmarshal(trimmed, &testMap); err == nil {
-			if _, hasOutbounds := testMap["outbounds"]; hasOutbounds {
-				if clashNodesOnly {
-					return nil, nil, fmt.Errorf("Clash nodes-only mode requires Clash YAML, not sing-box JSON")
+		var probe map[string]any
+		if err := json.Unmarshal(trimmed, &probe); err == nil {
+			if _, hasOutbounds := probe["outbounds"]; hasOutbounds {
+				converted, err := convertSingBoxToClash(trimmed, nodesOnly)
+				if err != nil {
+					return nil, nil, err
 				}
-				return trimmed, nil, nil
+				return converted, quota, nil
 			}
 		}
 	}
 
-	// 2. Try Clash YAML
-	var clash ClashConfig
-	yamlErr := yaml.Unmarshal(trimmed, &clash)
+	// 2. Clash YAML — passthrough; the core's own validation gate
+	// (engine.Validate) is the authority on whether it runs.
 	var fields map[string]any
-	if yaml.Unmarshal(trimmed, &fields) == nil {
-		for _, key := range []string{"proxies", "proxy-groups", "proxy-providers", "rules", "rule-providers"} {
-			if _, exists := fields[key]; exists && (yamlErr != nil || len(clash.Proxies) == 0) {
-				return nil, nil, fmt.Errorf("Clash requires a non-empty inline proxy list; proxy providers are unsupported")
+	if err := yaml.Unmarshal(trimmed, &fields); err == nil {
+		proxies, _ := fields["proxies"].([]any)
+		providers, _ := fields["proxy-providers"].(map[string]any)
+		_, hasGroups := fields["proxy-groups"]
+		_, hasRules := fields["rules"]
+		if len(proxies) > 0 || len(providers) > 0 || hasGroups || hasRules {
+			if len(proxies) == 0 && len(providers) == 0 {
+				return nil, nil, fmt.Errorf("Clash configuration has neither inline proxies nor proxy-providers")
 			}
-		}
-	}
-	if yamlErr == nil && len(clash.Proxies) > 0 {
-		if !clashNodesOnly {
-			if err := checkFields(fields, "Clash", "proxies", "proxy-groups"); err != nil {
-				return nil, nil, fmt.Errorf("%w; use sing-box JSON to preserve policy, or explicitly choose Clash nodes-only import", err)
-			}
-		} else {
-			clash.ProxyGroups = nil
-		}
-		var quota *QuotaInfo
-		// Check for line 1 comment: # subscription-userinfo: ...
-		lines := strings.Split(string(trimmed), "\n")
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "#") && strings.Contains(line, "subscription-userinfo:") {
-				parts := strings.SplitN(line, "subscription-userinfo:", 2)
-				if len(parts) == 2 {
-					quota = ParseQuotaHeader(strings.TrimSpace(parts[1]))
-				}
-				break
-			}
-		}
-
-		converted, err := convertClashToSingBox(&clash)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to convert clash yaml: %w", err)
-		}
-		return converted, quota, nil
-	}
-
-	// 3. Try Base64 or Line-delimited URIs
-	if clashNodesOnly {
-		return nil, nil, fmt.Errorf("Clash nodes-only mode requires a Clash YAML proxy list")
-	}
-	decoded := trimmed
-	for _, encoding := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
-		if content, err := encoding.DecodeString(strings.Join(strings.Fields(string(trimmed)), "")); err == nil {
-			decoded = content
-			break
+			return trimmed, quota, nil
 		}
 	}
 
-	lines := strings.Split(string(decoded), "\n")
-	var outbounds []map[string]any
-	var nodeTags []string
-
-	for index, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		outbound, err := parseProxyURI(line)
-		if err != nil {
-			return nil, nil, fmt.Errorf("share-link line %d: %w", index+1, err)
-		}
-		outbounds = append(outbounds, outbound)
-		nodeTags = append(nodeTags, outbound["tag"].(string))
+	// 3. Base64-wrapped share links or a plain URI list
+	decoded := tryDecodeBase64(trimmed)
+	proxies, err := parseShareLinks(decoded)
+	if err != nil {
+		return nil, nil, err
 	}
-
-	if len(outbounds) > 0 {
-		converted, err := buildSingBoxFromOutbounds(outbounds, nodeTags)
+	if len(proxies) > 0 {
+		converted, err := buildClashFromProxies(proxies)
 		if err != nil {
 			return nil, nil, err
 		}
 		return converted, nil, nil
 	}
 
-	return nil, nil, fmt.Errorf("unrecognized subscription format (neither sing-box JSON, Clash YAML, nor URI list)")
+	return nil, nil, fmt.Errorf("unrecognized subscription format (neither Clash YAML, sing-box JSON, nor URI list)")
+}
+
+func tryDecodeBase64(content []byte) []byte {
+	joined := strings.Join(strings.Fields(string(content)), "")
+	for _, encoding := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		if decoded, err := encoding.DecodeString(joined); err == nil {
+			return decoded
+		}
+	}
+	return content
+}
+
+// parseShareLinks parses trojan/vless share-link lists. Lines without a URI
+// scheme are skipped so arbitrary text fails as "unrecognized format" in the
+// caller instead of a confusing per-line error.
+func parseShareLinks(content []byte) ([]map[string]any, error) {
+	lines := strings.Split(string(content), "\n")
+	var proxies []map[string]any
+	var firstErr error
+	for index, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if !strings.Contains(line, "://") {
+			continue
+		}
+		proxy, err := parseProxyURI(line)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("share-link line %d: %w", index+1, err)
+			}
+			continue
+		}
+		proxies = append(proxies, proxy)
+	}
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return proxies, nil
+}
+
+// parseQuotaComment extracts quota info from a `# subscription-userinfo:`
+// comment line, as injected by the XBond gateway and most airport panels.
+func parseQuotaComment(content []byte) *QuotaInfo {
+	for _, line := range strings.Split(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "#") {
+			continue
+		}
+		if _, rest, found := strings.Cut(line, "subscription-userinfo:"); found {
+			return ParseQuotaHeader(strings.TrimSpace(rest))
+		}
+	}
+	return nil
 }
 
 func ParseQuotaHeader(headerVal string) *QuotaInfo {

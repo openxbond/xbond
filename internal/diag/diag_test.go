@@ -13,7 +13,7 @@ func TestRedact(t *testing.T) {
 token=sub-abcdef1234567890
 proxy=px-9876543210fedcba
 path=/ws/secret-stream-endpoint?param=1
-url=https://www.xbond.net/api/subscription/config?token=sub-abcdef1234567890&target=sing-box
+url=https://www.xbond.net/api/subscription/config?token=sub-abcdef1234567890&target=clash
 header: Authorization: Bearer eyJhbGciOi...
 json: {
   "password": "super-secret-password",

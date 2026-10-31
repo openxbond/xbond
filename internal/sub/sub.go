@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
 	"github.com/openxbond/xbond/internal/platform/paths"
@@ -748,20 +750,25 @@ func ComputeUpdateDiff(oldSource, newSource []byte) (*UpdateDiff, error) {
 
 func extractOutbounds(source []byte) (nodes []string, groups []string, err error) {
 	var raw struct {
-		Outbounds []struct {
-			Type string `json:"type"`
-			Tag  string `json:"tag"`
-		} `json:"outbounds"`
+		Proxies []struct {
+			Name string `yaml:"name"`
+		} `yaml:"proxies"`
+		ProxyGroups []struct {
+			Name string `yaml:"name"`
+		} `yaml:"proxy-groups"`
 	}
-	if err := json.Unmarshal(source, &raw); err != nil {
+	if err := yaml.Unmarshal(source, &raw); err != nil {
 		return nil, nil, err
 	}
 
-	for _, ob := range raw.Outbounds {
-		if ob.Type == "selector" || ob.Type == "urltest" {
-			groups = append(groups, ob.Tag)
-		} else if ob.Type != "direct" && ob.Type != "block" && ob.Type != "dns" {
-			nodes = append(nodes, ob.Tag)
+	for _, proxy := range raw.Proxies {
+		if proxy.Name != "" {
+			nodes = append(nodes, proxy.Name)
+		}
+	}
+	for _, group := range raw.ProxyGroups {
+		if group.Name != "" {
+			groups = append(groups, group.Name)
 		}
 	}
 	sort.Strings(nodes)

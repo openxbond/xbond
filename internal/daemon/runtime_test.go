@@ -76,8 +76,9 @@ func newRuntimeFixture(t *testing.T) runtimeFixture {
 		t.Fatal(err)
 	}
 	add := func(name string, active bool) (*sub.SubscriptionMeta, string) {
-		source := filepath.Join(paths.DataDir(), name+".json")
-		if err := os.WriteFile(source, []byte(fmt.Sprintf(`{"outbounds":[{"type":"direct","tag":%q}]}`, name)), 0o600); err != nil {
+		source := filepath.Join(paths.DataDir(), name+".yaml")
+		fixture := fmt.Sprintf("proxies:\n  - name: %s\n    type: trojan\n    server: example.invalid\n    port: 443\n    password: fixture-only\n", name)
+		if err := os.WriteFile(source, []byte(fixture), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		meta, err := manager.AddUniversal(source, name, 24, active, false)
@@ -281,7 +282,7 @@ func TestRuntimeUpdateFailureRetriesCachedConfigurationOnManualOrScheduledUpdate
 		t.Run(retry, func(t *testing.T) {
 			f := newRuntimeFixture(t)
 			before := f.core.configuration()
-			updated := []byte(`{"outbounds":[{"type":"direct","tag":"updated"}]}`)
+			updated := []byte("proxies:\n  - name: updated\n    type: trojan\n    server: example.invalid\n    port: 443\n    password: fixture-only\n")
 			if err := os.WriteFile(f.firstSource, updated, 0o600); err != nil {
 				t.Fatal(err)
 			}

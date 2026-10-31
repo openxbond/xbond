@@ -13,7 +13,7 @@ func TestAddUniversalContentSnapshotsAndReusesID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new manager: %v", err)
 	}
-	content := `{"outbounds":[{"type":"direct","tag":"direct"}]}`
+	content := "proxies:\n  - {name: edge, type: trojan, server: example.invalid, port: 443, password: fixture-only}\n"
 
 	meta, err := manager.AddUniversalContent(content, "", 24, true, false)
 	if err != nil {

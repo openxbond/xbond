@@ -294,7 +294,7 @@ var webCmd = &cobra.Command{
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print client and sing-box version information",
+	Short: "Print client and mihomo core version information",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		info := version.Get()

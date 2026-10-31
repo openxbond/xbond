@@ -7,7 +7,7 @@
 本倉庫是 XBond 客戶端；Cloud 控制面在另一個倉庫。本倉庫使用 pnpm、Go 及 Rust，命令以根目錄 `package.json` 為準。
 
 - `cmd/xbond/`：單一二進位的 CLI；`daemon` 子命令本機前景運行，`service` 子命令組註冊使用者級自啟。`internal/daemon/`：本機服務與 LocalAPI；`internal/daemon/service/`：平台託管（systemd --user／LaunchAgent／HKCU Run）。
-- `internal/engine/`：sing-box；`internal/sub/`：訂閱與配置；`internal/platform/`：資料位置與系統代理；`internal/diag/`：診斷與脫敏。
+- `internal/engine/`：mihomo（v1.19.33，引用包模式，構建標籤僅 `with_gvisor`）；`internal/sub/`：訂閱與配置；`internal/platform/`：資料位置與系統代理；`internal/diag/`：診斷與脫敏。
 - `apps/dashboard/`：網頁入口及靜態資源；`apps/desktop/`：桌面入口與 `src-tauri/` 原生殼；`apps/mobile/android/`、`apps/mobile/ios/`：原生接入；`mobile/` 保留 gomobile 公開入口。
 - `packages/client/`：無 React 的控制器、配置及傳輸；`packages/client-ui/`：React 19、React Router、Jotai、UnoCSS 共用畫面。
 - `scripts/`：移動端檢查、Web 產物封裝及發佈轉交。

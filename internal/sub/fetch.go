@@ -75,7 +75,7 @@ func BuildXBondURL(origin, token, protocol, lang string) string {
 
 	q := url.Values{}
 	q.Set("token", token)
-	q.Set("target", "sing-box")
+	q.Set("target", "clash")
 	q.Set("protocol", protocol)
 	q.Set("lang", lang)
 
@@ -97,7 +97,7 @@ func ProbeGatewayHealth(ctx context.Context, origin string, viaProxy bool, proxy
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("xbond/%s sing-box/%s", version.Version, version.SingBoxVersion))
+	req.Header.Set("User-Agent", fmt.Sprintf("xbond/%s mihomo/%s", version.Version, version.CoreVersion))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -137,7 +137,7 @@ func FetchSubscription(ctx context.Context, fetchURL string, opts FetchOptions) 
 	}
 
 	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("User-Agent", fmt.Sprintf("xbond/%s sing-box/%s", version.Version, version.SingBoxVersion))
+	req.Header.Set("User-Agent", fmt.Sprintf("xbond/%s mihomo/%s", version.Version, version.CoreVersion))
 
 	if opts.ETag != "" {
 		req.Header.Set("If-None-Match", opts.ETag)

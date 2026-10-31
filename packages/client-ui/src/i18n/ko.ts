@@ -393,9 +393,9 @@ const KO = {
     title: "구독",
     xbondTrack: "XBond 클라우드 자격 증명",
     universalTrack: "범용 구독 URL",
-    clashNodesOnly: "Clash 노드만 가져오기",
+    clashNodesOnly: "노드만 가져오기",
     clashNodesOnlyHint:
-      "Clash 규칙, DNS, 포트, 그룹을 제외하고 기본 노드 정책을 사용합니다. 지원하지 않는 노드는 거부됩니다. Clash YAML에만 적용됩니다.",
+      "설정의 규칙, DNS, 그룹을 제외하고 노드만 기본 정책으로 유지합니다. sing-box JSON에만 적용됩니다. Clash YAML은 그대로 실행되므로 선택할 필요가 없습니다.",
     tokenPlaceholder: "XBond 자격 증명 입력 (예: sub-xxxx…)",
     urlPlaceholder: "Clash / sing-box 구독 URL 또는 로컬 경로 입력",
     namePlaceholder: "구독 이름 (선택)",
@@ -455,7 +455,7 @@ const KO = {
     about: {
       title: "시스템과 정보",
       appVersion: "대시보드 버전",
-      coreVersion: "sing-box 코어 버전",
+      coreVersion: "mihomo 코어 버전",
       logLevel: "로그 레벨",
       openSource: "오픈소스 프로젝트",
     },

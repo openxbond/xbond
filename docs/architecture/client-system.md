@@ -32,7 +32,7 @@ flowchart TD
 | packages/client-ui | React 畫面、互動、Jotai／SWR、語系及樣式；目前的瀏覽器／Tauri 探測亦留在這裡 |
 | cmd/xbond | 命令列參數、呈現及入口裝配 |
 | internal/daemon | LocalAPI、HTTP 裝配及本機運行流程；daemon/service 子包註冊使用者級自啟（systemd --user／LaunchAgent／HKCU Run） |
-| internal/engine | sing-box 執行、配置驗證與衍生 |
+| internal/engine | mihomo 執行、配置驗證與衍生 |
 | internal/sub | 訂閱來源、快取及更新 |
 | internal/platform | 作業系統資料位置與系統代理 |
 | mobile | gomobile 相容的公開入口與平台回呼 |
@@ -59,7 +59,7 @@ client-ui 擁有呈現與互動；client 不向 client-ui 或 apps 導入，不�
 
 ## 後續宿主的落位
 
-Extension 實作時建立 apps/extension，擁有 MV3 background 的生命週期、訊息驗證、儲存、代理設定與認證 adapter；按實際需要重用 client 與適用畫面。PAC 編譯和 sing-box 配置衍生保留各自能力，不以全域 isExtension 分支把全部差異交回頁面。Agent 的 CONNECT 與配置簽發在 cloud 開發，沿用既有准入、選路、計量及限速。
+Extension 實作時建立 apps/extension，擁有 MV3 background 的生命週期、訊息驗證、儲存、代理設定與認證 adapter；按實際需要重用 client 與適用畫面。PAC 編譯和 Clash 配置衍生保留各自能力，不以全域 isExtension 分支把全部差異交回頁面。Agent 的 CONNECT 與配置簽發在 cloud 開發，沿用既有准入、選路、計量及限速。
 
 daemon 進程的宿主是平台使用者級 supervisor，不是任何一條 CLI 命令：`xbond daemon` 供前景直接運行與服務註冊復用，`xbond daemon install` 把 `xbond daemon --background` 交給 systemd --user、LaunchAgent 或 HKCU Run，CLI 只透過 LocalAPI 連線，未安裝時報錯而不是靜默註冊。`xbond run --config` 是與 daemon 互斥的前台核心入口，使用顯式配置與隔離狀態。優雅退出統一走 LocalAPI shutdown 端點（引擎停止、系統代理還原、憑據檔清理），supervisor 的停止是硬殺，只作清理手段；同一資料目錄由實例鎖保證單一 daemon。完整契約見 [daemon 生命周期与运行形式](../specs/daemon-runtime.md)。
 

@@ -35,6 +35,7 @@ type TunnelService struct {
 func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelService {
 	_ = paths.EnsureDirs()
 	subMgr, _ := sub.NewManager()
+	subMgr.MigrateLegacySources()
 	return &TunnelService{
 		platform: platform,
 		listener: listener,
@@ -276,7 +277,7 @@ func (s *TunnelService) GetStatusJSON() string {
 			Core: TierItem{
 				OK:     running,
 				Label:  "核心可達",
-				Detail: "sing-box v1.13.21 行動 VPN 擴展",
+				Detail: "mihomo 行動 VPN 擴展",
 			},
 			Takeover: TierItem{
 				OK:     running,

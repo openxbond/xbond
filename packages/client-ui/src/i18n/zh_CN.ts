@@ -387,9 +387,9 @@ const CN = {
     title: "订阅",
     xbondTrack: "XBond 专属云凭据",
     universalTrack: "通用订阅链接",
-    clashNodesOnly: "仅导入 Clash 节点",
+    clashNodesOnly: "仅导入节点",
     clashNodesOnlyHint:
-      "丢弃 Clash 原规则、DNS、端口和策略组，使用默认节点策略；不支持的节点仍会拒绝。仅适用于 Clash YAML。",
+      "丢弃配置的规则、DNS 和策略组，仅保留节点并使用默认策略。仅对 sing-box JSON 生效；Clash YAML 原样运行，无需勾选。",
     tokenPlaceholder: "输入 XBond 凭据（例如 sub-xxxx…）",
     urlPlaceholder: "输入通用 Clash / sing-box 订阅 URL 或本地路径",
     namePlaceholder: "订阅名称（选填）",
