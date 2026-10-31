@@ -394,6 +394,9 @@ const FA = {
     title: "اشتراک‌ها",
     xbondTrack: "اعتبار ابری XBond",
     universalTrack: "URL اشتراک همگانی",
+    clashNodesOnly: "فقط گره‌های Clash وارد شوند",
+    clashNodesOnlyHint:
+      "قوانین، DNS، درگاه‌ها و گروه‌های Clash کنار گذاشته می‌شوند و سیاست پیش‌فرض گره اعمال می‌شود. گره‌های پشتیبانی‌نشده رد می‌شوند. فقط برای Clash YAML است.",
     tokenPlaceholder: "اعتبار XBond را وارد کنید (مثلاً sub-xxxx…)",
     urlPlaceholder: "URL اشتراک Clash / sing-box یا مسیر محلی وارد کنید",
     namePlaceholder: "نام اشتراک (اختیاری)",

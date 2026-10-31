@@ -393,6 +393,9 @@ const KO = {
     title: "구독",
     xbondTrack: "XBond 클라우드 자격 증명",
     universalTrack: "범용 구독 URL",
+    clashNodesOnly: "Clash 노드만 가져오기",
+    clashNodesOnlyHint:
+      "Clash 규칙, DNS, 포트, 그룹을 제외하고 기본 노드 정책을 사용합니다. 지원하지 않는 노드는 거부됩니다. Clash YAML에만 적용됩니다.",
     tokenPlaceholder: "XBond 자격 증명 입력 (예: sub-xxxx…)",
     urlPlaceholder: "Clash / sing-box 구독 URL 또는 로컬 경로 입력",
     namePlaceholder: "구독 이름 (선택)",

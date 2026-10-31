@@ -316,7 +316,7 @@ func (c *Client) ListSubs(ctx context.Context) (*SubsListResponse, error) {
 	return &res, nil
 }
 
-func (c *Client) AddSub(ctx context.Context, subType sub.SubscriptionType, token, origin string, fallbacks []string, protocol, lang, name, urlOrFile string, interval int, use bool) (*AddSubResponse, error) {
+func (c *Client) AddSub(ctx context.Context, subType sub.SubscriptionType, token, origin string, fallbacks []string, protocol, lang, name, urlOrFile string, interval int, use, clashNodesOnly bool) (*AddSubResponse, error) {
 	payload := map[string]any{
 		"type":            subType,
 		"token":           token,
@@ -328,6 +328,7 @@ func (c *Client) AddSub(ctx context.Context, subType sub.SubscriptionType, token
 		"urlOrFile":       urlOrFile,
 		"intervalHours":   interval,
 		"use":             use,
+		"clashNodesOnly":  clashNodesOnly,
 	}
 	var res AddSubResponse
 	if err := c.requestSlow(ctx, http.MethodPost, "/localapi/v0/subs", payload, &res); err != nil {

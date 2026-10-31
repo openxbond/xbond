@@ -9,6 +9,7 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
     id: "profile",
     name: "Example",
     type: "universal",
+    clashNodesOnly: true,
     autoUpdate: true,
     updateIntervalHours: 24,
     quota: {
@@ -19,7 +20,13 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
     },
     lastUpdatedAt: "2026-10-28T00:00:00Z",
   };
-  const server = createServer((req, res) => {
+  let imported: unknown;
+  const server = createServer(async (req, res) => {
+    if (req.url?.endsWith("/login")) {
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      imported = JSON.parse(body);
+    }
     res.setHeader("Content-Type", "application/json");
     res.end(
       JSON.stringify(
@@ -48,9 +55,15 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
     (await client.getStatus()).activeSub,
     (await client.listSubs()).subscriptions[0],
     (await client.updateSub()).meta,
-    (await client.addSub({ urlOrFile: "https://example.invalid" })).meta,
+    (
+      await client.addSub({
+        urlOrFile: "https://example.invalid",
+        clashNodesOnly: true,
+      })
+    ).meta,
   ]) {
     assert.ok(meta);
+    assert.equal(meta.clashNodesOnly, true);
     assert.equal(meta.upload + meta.download, 20);
     assert.equal(meta.total, 100);
     assert.equal(meta.expire, 1800000000);
@@ -59,4 +72,8 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
       Date.parse(subscription.lastUpdatedAt) / 1000,
     );
   }
+  assert.deepEqual(imported, {
+    urlOrFile: "https://example.invalid",
+    clashNodesOnly: true,
+  });
 });

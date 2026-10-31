@@ -60,6 +60,7 @@ export interface SubscriptionMeta {
   id: string;
   name: string;
   type: "xbond" | "universal";
+  clashNodesOnly?: boolean;
   urlOrFile?: string;
   token?: string;
   upload: number;
@@ -322,6 +323,7 @@ export class LocalAPIClient {
     protocol?: string;
     lang?: string;
     origin?: string;
+    clashNodesOnly?: boolean;
   }): Promise<{
     ok: boolean;
     meta: SubscriptionMeta | null;

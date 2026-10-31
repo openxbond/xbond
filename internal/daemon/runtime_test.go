@@ -80,7 +80,7 @@ func newRuntimeFixture(t *testing.T) runtimeFixture {
 		if err := os.WriteFile(source, []byte(fmt.Sprintf(`{"outbounds":[{"type":"direct","tag":%q}]}`, name)), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		meta, err := manager.AddUniversal(source, name, 24, active)
+		meta, err := manager.AddUniversal(source, name, 24, active, false)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -13,13 +12,11 @@ import (
 )
 
 type ClashConfig struct {
-	Port        int              `yaml:"port,omitempty"`
-	SocksPort   int              `yaml:"socks-port,omitempty"`
 	Proxies     []map[string]any `yaml:"proxies,omitempty"`
 	ProxyGroups []map[string]any `yaml:"proxy-groups,omitempty"`
 }
 
-func DetectAndConvert(rawContent []byte) ([]byte, *QuotaInfo, error) {
+func DetectAndConvert(rawContent []byte, clashNodesOnly bool) ([]byte, *QuotaInfo, error) {
 	trimmed := bytes.TrimSpace(rawContent)
 	if len(trimmed) == 0 {
 		return nil, nil, fmt.Errorf("configuration content is empty")
@@ -30,6 +27,9 @@ func DetectAndConvert(rawContent []byte) ([]byte, *QuotaInfo, error) {
 		var testMap map[string]any
 		if err := json.Unmarshal(trimmed, &testMap); err == nil {
 			if _, hasOutbounds := testMap["outbounds"]; hasOutbounds {
+				if clashNodesOnly {
+					return nil, nil, fmt.Errorf("Clash nodes-only mode requires Clash YAML, not sing-box JSON")
+				}
 				return trimmed, nil, nil
 			}
 		}
@@ -38,7 +38,22 @@ func DetectAndConvert(rawContent []byte) ([]byte, *QuotaInfo, error) {
 	// 2. Try Clash YAML
 	var clash ClashConfig
 	yamlErr := yaml.Unmarshal(trimmed, &clash)
+	var fields map[string]any
+	if yaml.Unmarshal(trimmed, &fields) == nil {
+		for _, key := range []string{"proxies", "proxy-groups", "proxy-providers", "rules", "rule-providers"} {
+			if _, exists := fields[key]; exists && (yamlErr != nil || len(clash.Proxies) == 0) {
+				return nil, nil, fmt.Errorf("Clash requires a non-empty inline proxy list; proxy providers are unsupported")
+			}
+		}
+	}
 	if yamlErr == nil && len(clash.Proxies) > 0 {
+		if !clashNodesOnly {
+			if err := checkFields(fields, "Clash", "proxies", "proxy-groups"); err != nil {
+				return nil, nil, fmt.Errorf("%w; use sing-box JSON to preserve policy, or explicitly choose Clash nodes-only import", err)
+			}
+		} else {
+			clash.ProxyGroups = nil
+		}
 		var quota *QuotaInfo
 		// Check for line 1 comment: # subscription-userinfo: ...
 		lines := strings.Split(string(trimmed), "\n")
@@ -61,29 +76,32 @@ func DetectAndConvert(rawContent []byte) ([]byte, *QuotaInfo, error) {
 	}
 
 	// 3. Try Base64 or Line-delimited URIs
+	if clashNodesOnly {
+		return nil, nil, fmt.Errorf("Clash nodes-only mode requires a Clash YAML proxy list")
+	}
 	decoded := trimmed
-	if b64, err := base64.StdEncoding.DecodeString(string(trimmed)); err == nil {
-		decoded = b64
-	} else if b64url, err := base64.RawURLEncoding.DecodeString(string(trimmed)); err == nil {
-		decoded = b64url
+	for _, encoding := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		if content, err := encoding.DecodeString(strings.Join(strings.Fields(string(trimmed)), "")); err == nil {
+			decoded = content
+			break
+		}
 	}
 
 	lines := strings.Split(string(decoded), "\n")
 	var outbounds []map[string]any
 	var nodeTags []string
 
-	for _, line := range lines {
+	for index, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 		outbound, err := parseProxyURI(line)
-		if err == nil && outbound != nil {
-			outbounds = append(outbounds, outbound)
-			if tag, ok := outbound["tag"].(string); ok {
-				nodeTags = append(nodeTags, tag)
-			}
+		if err != nil {
+			return nil, nil, fmt.Errorf("share-link line %d: %w", index+1, err)
 		}
+		outbounds = append(outbounds, outbound)
+		nodeTags = append(nodeTags, outbound["tag"].(string))
 	}
 
 	if len(outbounds) > 0 {
@@ -95,225 +113,6 @@ func DetectAndConvert(rawContent []byte) ([]byte, *QuotaInfo, error) {
 	}
 
 	return nil, nil, fmt.Errorf("unrecognized subscription format (neither sing-box JSON, Clash YAML, nor URI list)")
-}
-
-func convertClashToSingBox(clash *ClashConfig) ([]byte, error) {
-	outbounds := make([]map[string]any, 0, len(clash.Proxies)+len(clash.ProxyGroups)+2)
-	nodeTags := make([]string, 0, len(clash.Proxies))
-
-	for _, p := range clash.Proxies {
-		outbound := convertClashProxy(p)
-		if outbound != nil {
-			outbounds = append(outbounds, outbound)
-			if tag, ok := outbound["tag"].(string); ok {
-				nodeTags = append(nodeTags, tag)
-			}
-		}
-	}
-
-	// Direct and block outbounds
-	outbounds = append(outbounds,
-		map[string]any{"type": "direct", "tag": "direct"},
-		map[string]any{"type": "block", "tag": "block"},
-	)
-
-	// Groups
-	if len(clash.ProxyGroups) > 0 {
-		for _, g := range clash.ProxyGroups {
-			name, _ := g["name"].(string)
-			groupType, _ := g["type"].(string)
-			proxies, _ := g["proxies"].([]any)
-			subOutbounds := make([]string, 0, len(proxies))
-			for _, item := range proxies {
-				if s, ok := item.(string); ok {
-					subOutbounds = append(subOutbounds, s)
-				}
-			}
-
-			switch strings.ToLower(groupType) {
-			case "select":
-				outbounds = append(outbounds, map[string]any{
-					"type":      "selector",
-					"tag":       name,
-					"outbounds": subOutbounds,
-				})
-			case "url-test", "fallback", "load-balance":
-				outbounds = append(outbounds, map[string]any{
-					"type":      "urltest",
-					"tag":       name,
-					"outbounds": subOutbounds,
-					"url":       "https://www.gstatic.com/generate_204",
-					"interval":  "300s",
-				})
-			default:
-				outbounds = append(outbounds, map[string]any{
-					"type":      "selector",
-					"tag":       name,
-					"outbounds": subOutbounds,
-				})
-			}
-		}
-	} else {
-		// Default groups if none specified
-		outbounds = append(outbounds,
-			map[string]any{
-				"type":      "selector",
-				"tag":       "Proxy",
-				"outbounds": append([]string{"Auto"}, nodeTags...),
-			},
-			map[string]any{
-				"type":      "urltest",
-				"tag":       "Auto",
-				"outbounds": nodeTags,
-				"url":       "https://www.gstatic.com/generate_204",
-				"interval":  "300s",
-			},
-		)
-	}
-
-	root := map[string]any{
-		"outbounds": outbounds,
-	}
-
-	return json.MarshalIndent(root, "", "  ")
-}
-
-func convertClashProxy(p map[string]any) map[string]any {
-	pType, _ := p["type"].(string)
-	name, _ := p["name"].(string)
-	server, _ := p["server"].(string)
-	port := getInt(p["port"])
-
-	out := map[string]any{
-		"tag":         name,
-		"server":      server,
-		"server_port": port,
-	}
-
-	switch strings.ToLower(pType) {
-	case "ss", "shadowsocks":
-		out["type"] = "shadowsocks"
-		out["method"] = p["cipher"]
-		out["password"] = p["password"]
-	case "trojan":
-		out["type"] = "trojan"
-		out["password"] = p["password"]
-		tlsMap := map[string]any{"enabled": true}
-		if sni, ok := p["sni"].(string); ok && sni != "" {
-			tlsMap["server_name"] = sni
-		}
-		out["tls"] = tlsMap
-	case "vless":
-		out["type"] = "vless"
-		out["uuid"] = p["uuid"]
-		tlsMap := map[string]any{"enabled": true}
-		if sni, ok := p["servername"].(string); ok && sni != "" {
-			tlsMap["server_name"] = sni
-		}
-		out["tls"] = tlsMap
-	case "vmess":
-		out["type"] = "vmess"
-		out["uuid"] = p["uuid"]
-		out["security"] = "auto"
-	case "socks5":
-		out["type"] = "socks"
-		if user, ok := p["username"].(string); ok {
-			out["username"] = user
-		}
-		if pass, ok := p["password"].(string); ok {
-			out["password"] = pass
-		}
-	case "http":
-		out["type"] = "http"
-		if user, ok := p["username"].(string); ok {
-			out["username"] = user
-		}
-		if pass, ok := p["password"].(string); ok {
-			out["password"] = pass
-		}
-	default:
-		return nil
-	}
-
-	return out
-}
-
-func parseProxyURI(uriStr string) (map[string]any, error) {
-	u, err := url.Parse(uriStr)
-	if err != nil {
-		return nil, err
-	}
-
-	scheme := strings.ToLower(u.Scheme)
-	tag := u.Fragment
-	if tag == "" {
-		tag = u.Host
-	} else {
-		if unescaped, err := url.QueryUnescape(tag); err == nil {
-			tag = unescaped
-		}
-	}
-
-	port := 443
-	if p, err := strconv.Atoi(u.Port()); err == nil && p > 0 {
-		port = p
-	}
-
-	switch scheme {
-	case "trojan":
-		return map[string]any{
-			"type":        "trojan",
-			"tag":         tag,
-			"server":      u.Hostname(),
-			"server_port": port,
-			"password":    u.User.Username(),
-			"tls": map[string]any{
-				"enabled":     true,
-				"server_name": u.Query().Get("sni"),
-			},
-		}, nil
-	case "vless":
-		return map[string]any{
-			"type":        "vless",
-			"tag":         tag,
-			"server":      u.Hostname(),
-			"server_port": port,
-			"uuid":        u.User.Username(),
-			"tls": map[string]any{
-				"enabled":     true,
-				"server_name": u.Query().Get("sni"),
-			},
-		}, nil
-	}
-
-	return nil, fmt.Errorf("unsupported uri scheme: %s", scheme)
-}
-
-func buildSingBoxFromOutbounds(nodes []map[string]any, nodeTags []string) ([]byte, error) {
-	outbounds := make([]map[string]any, 0, len(nodes)+4)
-	outbounds = append(outbounds, nodes...)
-
-	outbounds = append(outbounds,
-		map[string]any{"type": "direct", "tag": "direct"},
-		map[string]any{"type": "block", "tag": "block"},
-		map[string]any{
-			"type":      "selector",
-			"tag":       "Proxy",
-			"outbounds": append([]string{"Auto"}, nodeTags...),
-		},
-		map[string]any{
-			"type":      "urltest",
-			"tag":       "Auto",
-			"outbounds": nodeTags,
-			"url":       "https://www.gstatic.com/generate_204",
-			"interval":  "300s",
-		},
-	)
-
-	root := map[string]any{
-		"outbounds": outbounds,
-	}
-	return json.MarshalIndent(root, "", "  ")
 }
 
 func ParseQuotaHeader(headerVal string) *QuotaInfo {
@@ -347,20 +146,4 @@ func ParseQuotaHeader(headerVal string) *QuotaInfo {
 		}
 	}
 	return info
-}
-
-func getInt(val any) int {
-	switch v := val.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		return int(v)
-	case string:
-		i, _ := strconv.Atoi(v)
-		return i
-	default:
-		return 0
-	}
 }

@@ -15,7 +15,7 @@ import (
 func TestFormatDetection(t *testing.T) {
 	// 1. sing-box JSON
 	validSingBox := []byte(`{"outbounds": [{"type": "direct", "tag": "direct"}]}`)
-	converted, _, err := DetectAndConvert(validSingBox)
+	converted, _, err := DetectAndConvert(validSingBox, false)
 	if err != nil {
 		t.Fatalf("expected sing-box json to pass, got: %v", err)
 	}
@@ -37,7 +37,7 @@ proxy-groups:
     type: select
     proxies: ["HK-01"]
 `)
-	convertedYAML, quota, err := DetectAndConvert(clashYaml)
+	convertedYAML, quota, err := DetectAndConvert(clashYaml, false)
 	if err != nil {
 		t.Fatalf("expected clash yaml to convert, got: %v", err)
 	}
@@ -55,13 +55,13 @@ proxy-groups:
 		t.Fatalf("failed to parse converted yaml: %v", err)
 	}
 	if len(parsedYAML.Outbounds) < 3 {
-		t.Errorf("expected at least 3 outbounds (hk-01, direct, block, proxy), got %d", len(parsedYAML.Outbounds))
+		t.Errorf("expected node, direct and policy outbounds, got %d", len(parsedYAML.Outbounds))
 	}
 
 	// 3. Base64 trojan link
 	link := "trojan://password123@hk.node.com:443?sni=hk.node.com#HongKong-01\n"
 	b64 := base64.StdEncoding.EncodeToString([]byte(link))
-	convertedB64, _, err := DetectAndConvert([]byte(b64))
+	convertedB64, _, err := DetectAndConvert([]byte(b64), false)
 	if err != nil {
 		t.Fatalf("expected base64 link to convert, got: %v", err)
 	}

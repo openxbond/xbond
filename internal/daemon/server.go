@@ -297,6 +297,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Name            string   `json:"name"`
 		URLOrFile       string   `json:"urlOrFile"`
 		Content         string   `json:"content"`
+		ClashNodesOnly  bool     `json:"clashNodesOnly"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -314,6 +315,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		req.Name,
 		req.URLOrFile,
 		req.Content,
+		req.ClashNodesOnly,
 	)
 	if err != nil {
 		var bindErr *bindError
@@ -344,9 +346,13 @@ func (s *Server) bindSubscription(
 	token, origin string,
 	fallbackOrigins []string,
 	protocol, lang, name, urlOrFile, content string,
+	clashNodesOnly bool,
 ) (*sub.SubscriptionMeta, string, error) {
 	if token == "" && urlOrFile == "" && content == "" {
 		return nil, "", &bindError{err: errors.New("must provide token, content or urlOrFile"), input: true}
+	}
+	if clashNodesOnly && token != "" {
+		return nil, "", &bindError{err: errors.New("Clash nodes-only mode is not available for XBond subscriptions"), input: true}
 	}
 	if token != "" && name == "" {
 		for _, item := range s.subMgr.List() {
@@ -363,9 +369,9 @@ func (s *Server) bindSubscription(
 	case token != "":
 		meta, err = s.subMgr.AddXBond(token, origin, fallbackOrigins, protocol, lang, name, 24, false)
 	case content != "":
-		meta, err = s.subMgr.AddUniversalContent(content, name, 24, false)
+		meta, err = s.subMgr.AddUniversalContent(content, name, 24, false, clashNodesOnly)
 	default:
-		meta, err = s.subMgr.AddUniversal(urlOrFile, name, 24, false)
+		meta, err = s.subMgr.AddUniversal(urlOrFile, name, 24, false, clashNodesOnly)
 	}
 	if err != nil {
 		return nil, "", &bindError{err: err, input: true}
@@ -400,6 +406,7 @@ func (s *Server) bindCredentials(
 		options.Name,
 		"",
 		"",
+		false,
 	)
 }
 
@@ -474,6 +481,7 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 			URLOrFile       string               `json:"urlOrFile"`
 			IntervalHours   int                  `json:"intervalHours"`
 			Use             bool                 `json:"use"`
+			ClashNodesOnly  bool                 `json:"clashNodesOnly"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -482,10 +490,14 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 
 		var meta *sub.SubscriptionMeta
 		var err error
+		if req.ClashNodesOnly && (req.Type == sub.SubTypeXBond || req.Token != "") {
+			writeError(w, http.StatusBadRequest, "Clash nodes-only mode is not available for XBond subscriptions")
+			return
+		}
 		if req.Type == sub.SubTypeXBond || req.Token != "" {
 			meta, err = s.subMgr.AddXBond(req.Token, req.Origin, req.FallbackOrigins, req.Protocol, req.Lang, req.Name, req.IntervalHours, false)
 		} else {
-			meta, err = s.subMgr.AddUniversal(req.URLOrFile, req.Name, req.IntervalHours, false)
+			meta, err = s.subMgr.AddUniversal(req.URLOrFile, req.Name, req.IntervalHours, false, req.ClashNodesOnly)
 		}
 
 		if err != nil {
@@ -500,12 +512,10 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 		updateErrMsg := ""
 		if updateErr != nil {
 			updateErrMsg = updateErr.Error()
-			if s.runtime.engine.IsRunning() {
-				// A running core cannot switch to a configuration that
-				// never arrived; activation waits for a successful update.
-				writeJSON(w, http.StatusOK, map[string]any{"meta": meta, "activated": false, "reloaded": false, "updateError": updateErrMsg})
-				return
-			}
+			// Saving a source is not activation: even a stopped core must
+			// wait for successful conversion and validation before using it.
+			writeJSON(w, http.StatusOK, map[string]any{"meta": meta, "activated": false, "reloaded": false, "updateError": updateErrMsg})
+			return
 		}
 		activated := false
 		reloaded := false

@@ -307,7 +307,7 @@ func (s *TunnelService) UpdateSubscription(tokenOrURL string) (string, error) {
 	if strings.HasPrefix(tokenOrURL, "sub-") {
 		meta, err = s.subMgr.AddXBond(tokenOrURL, "", nil, "", "zh-HK", "Mobile Sub", 24, true)
 	} else {
-		meta, err = s.subMgr.AddUniversal(tokenOrURL, "Mobile Sub", 24, true)
+		meta, err = s.subMgr.AddUniversal(tokenOrURL, "Mobile Sub", 24, true, false)
 	}
 
 	if err != nil {

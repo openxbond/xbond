@@ -20,7 +20,7 @@ func TestUpdateMetadataFailurePreservesLastDownloadedSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta, err := manager.AddUniversal(source, "example", 24, true)
+	meta, err := manager.AddUniversal(source, "example", 24, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestRemovePersistenceFailureKeepsSubscriptionAndSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta, err := manager.AddUniversal("example.json", "example", 24, true)
+	meta, err := manager.AddUniversal("example.json", "example", 24, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}

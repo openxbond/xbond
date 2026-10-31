@@ -6,6 +6,7 @@ import "./style.scss";
 
 interface CheckboxProps extends BaseComponentProps {
   checked: boolean;
+  disabled?: boolean;
   onChange?: (checked: boolean) => void;
 }
 
@@ -18,6 +19,7 @@ export function Checkbox(props: CheckboxProps) {
       <input
         type="checkbox"
         checked={checked}
+        disabled={props.disabled}
         onChange={(event) => onChange(event.target.checked)}
       />
       <span className="checkbox-marker" aria-hidden="true">

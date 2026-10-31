@@ -7,6 +7,7 @@ import {
   QuotaRing,
   Stat,
 } from "@components";
+import { ClashImportOption } from "@components/ClashImportOption";
 import { CopyButton } from "@components/CopyButton";
 import { RequestStatus } from "@components/RequestStatus";
 import { useAction } from "@lib/actions";
@@ -45,6 +46,8 @@ export default function Subscriptions() {
   const [token, setToken] = useState("");
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
+  const [clashNodesOnly, setClashNodesOnly] = useState(false);
+  const [importError, setImportError] = useState("");
   const track = params.get("track") === "universal" ? "universal" : "xbond";
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
@@ -58,15 +61,20 @@ export default function Subscriptions() {
 
   async function add() {
     setImportFeedback("idle");
+    setImportError("");
     const ok = await run(async () => {
-      await addSub({
+      const result = await addSub({
         ...(track === "xbond"
           ? { token: token.trim() }
-          : { urlOrFile: url.trim() }),
+          : { urlOrFile: url.trim(), clashNodesOnly }),
         name: name.trim() || undefined,
         lang: subscriptionLang(lang),
       });
       await refresh();
+      if (result.updateError) {
+        setImportError(result.updateError);
+        throw new Error(result.updateError);
+      }
     }, false);
     if (ok) {
       setToken("");
@@ -134,6 +142,13 @@ export default function Subscriptions() {
                 void add();
               }}
             >
+              {track === "universal" && (
+                <ClashImportOption
+                  checked={clashNodesOnly}
+                  disabled={pending}
+                  onChange={setClashNodesOnly}
+                />
+              )}
               <div className="import-inputs">
                 <label className="import-field">
                   <span className="import-label">
@@ -185,6 +200,7 @@ export default function Subscriptions() {
                   {t(
                     importFeedback === "success" ? "imported" : "importFailed",
                   )}
+                  {importError && <span className="block">{importError}</span>}
                 </span>
                 {importFeedback === "success" && (
                   <Link
@@ -230,6 +246,11 @@ export default function Subscriptions() {
                                 ? t("typeXbond")
                                 : t("typeUniversal")}
                             </span>
+                            {sub.clashNodesOnly && (
+                              <span className="sub-type-badge">
+                                {t("clashNodesOnly")}
+                              </span>
+                            )}
                             {isActive && (
                               <span className="sub-active-badge">
                                 {t("active")}

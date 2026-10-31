@@ -15,7 +15,7 @@ func TestAddUniversalContentSnapshotsAndReusesID(t *testing.T) {
 	}
 	content := `{"outbounds":[{"type":"direct","tag":"direct"}]}`
 
-	meta, err := manager.AddUniversalContent(content, "", 24, true)
+	meta, err := manager.AddUniversalContent(content, "", 24, true, false)
 	if err != nil {
 		t.Fatalf("add pasted content: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestAddUniversalContentSnapshotsAndReusesID(t *testing.T) {
 		t.Errorf("activate: active %q, want %q", manager.ActiveID(), meta.ID)
 	}
 
-	again, err := manager.AddUniversalContent(content, "", 24, false)
+	again, err := manager.AddUniversalContent(content, "", 24, false, false)
 	if err != nil {
 		t.Fatalf("re-add: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestAddUniversalContentRejectsBlank(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new manager: %v", err)
 	}
-	if _, err := manager.AddUniversalContent("   \n", "", 24, false); err == nil {
+	if _, err := manager.AddUniversalContent("   \n", "", 24, false, false); err == nil {
 		t.Fatal("blank content must be rejected")
 	}
 }

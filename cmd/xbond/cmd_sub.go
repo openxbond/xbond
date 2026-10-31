@@ -25,12 +25,13 @@ var (
 	loginNoBrowser bool
 	loginDevice    bool
 
-	subAddOrigin   string
-	subAddProtocol string
-	subAddLang     string
-	subAddName     string
-	subAddInterval int
-	subAddUse      bool
+	subAddOrigin         string
+	subAddProtocol       string
+	subAddLang           string
+	subAddName           string
+	subAddInterval       int
+	subAddUse            bool
+	subAddClashNodesOnly bool
 
 	subUpdForce    bool
 	subUpdViaProxy bool
@@ -76,6 +77,7 @@ func init() {
 	subAddCmd.Flags().StringVar(&subAddName, "name", "", "Custom subscription name")
 	subAddCmd.Flags().IntVar(&subAddInterval, "interval", 24, "Auto-update interval in hours (1-168)")
 	subAddCmd.Flags().BoolVar(&subAddUse, "use", true, "Activate as active subscription immediately")
+	subAddCmd.Flags().BoolVar(&subAddClashNodesOnly, "clash-nodes-only", false, "Import only Clash nodes, discarding its groups, rules and other settings")
 	subCmd.AddCommand(subAddCmd)
 
 	// sub use
@@ -404,6 +406,9 @@ Requires the background daemon (first time? ` + "`xbond daemon install`" + `). W
 		}
 
 		input := args[0]
+		if subAddClashNodesOnly && strings.HasPrefix(input, "sub-") {
+			return fmt.Errorf("--clash-nodes-only is not available for XBond subscriptions")
+		}
 		var subType sub.SubscriptionType
 		var token, urlOrFile string
 
@@ -429,7 +434,7 @@ Requires the background daemon (first time? ` + "`xbond daemon install`" + `). W
 		var res *daemon.AddSubResponse
 		err = withFetchProgress(ctx, client, func() error {
 			var addErr error
-			res, addErr = client.AddSub(ctx, subType, token, subAddOrigin, nil, subAddProtocol, subAddLang, subAddName, urlOrFile, subAddInterval, subAddUse)
+			res, addErr = client.AddSub(ctx, subType, token, subAddOrigin, nil, subAddProtocol, subAddLang, subAddName, urlOrFile, subAddInterval, subAddUse, subAddClashNodesOnly)
 			return addErr
 		})
 		if err != nil {
@@ -531,6 +536,9 @@ var subInfoCmd = &cobra.Command{
 		fmt.Printf("Subscription Details: %s\n", found.Name)
 		fmt.Printf("  ID:           %s\n", found.ID)
 		fmt.Printf("  Type:         %s\n", found.Type)
+		if found.ClashNodesOnly {
+			fmt.Println("  Import:       Clash nodes only (upstream policy discarded)")
+		}
 		fmt.Printf("  Health:       %s\n", found.Health)
 		if found.LastErrorMessage != "" {
 			fmt.Printf("  Last Error:   %s\n", found.LastErrorMessage)

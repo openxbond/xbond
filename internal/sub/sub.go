@@ -286,6 +286,7 @@ func (m *Manager) AddUniversal(
 	urlOrPath, name string,
 	intervalHours int,
 	activate bool,
+	clashNodesOnly bool,
 ) (*SubscriptionMeta, error) {
 	if urlOrPath == "" {
 		return nil, fmt.Errorf("url or path cannot be empty")
@@ -294,7 +295,11 @@ func (m *Manager) AddUniversal(
 		intervalHours = 24
 	}
 
-	subID := fmt.Sprintf("uni_%s", hashString(urlOrPath)[:12])
+	identity := urlOrPath
+	if clashNodesOnly {
+		identity += "\nclash-nodes-only"
+	}
+	subID := fmt.Sprintf("uni_%s", hashString(identity)[:12])
 	if name == "" {
 		name = fmt.Sprintf("Universal-%s", subID[4:8])
 	}
@@ -304,6 +309,7 @@ func (m *Manager) AddUniversal(
 		Name:                name,
 		Type:                SubTypeUniversal,
 		SourceURL:           urlOrPath,
+		ClashNodesOnly:      clashNodesOnly,
 		AutoUpdate:          true,
 		UpdateIntervalHours: intervalHours,
 		Health:              HealthOK,
@@ -320,6 +326,7 @@ func (m *Manager) AddUniversalContent(
 	content, name string,
 	intervalHours int,
 	activate bool,
+	clashNodesOnly bool,
 ) (*SubscriptionMeta, error) {
 	if strings.TrimSpace(content) == "" {
 		return nil, fmt.Errorf("content cannot be empty")
@@ -328,7 +335,11 @@ func (m *Manager) AddUniversalContent(
 		intervalHours = 24
 	}
 
-	subID := fmt.Sprintf("uni_%s", hashString(content)[:12])
+	identity := content
+	if clashNodesOnly {
+		identity += "\nclash-nodes-only"
+	}
+	subID := fmt.Sprintf("uni_%s", hashString(identity)[:12])
 	if name == "" {
 		name = fmt.Sprintf("Universal-%s", subID[4:8])
 	}
@@ -344,6 +355,7 @@ func (m *Manager) AddUniversalContent(
 		Name:                name,
 		Type:                SubTypeUniversal,
 		SourceURL:           sourcePath,
+		ClashNodesOnly:      clashNodesOnly,
 		AutoUpdate:          true,
 		UpdateIntervalHours: intervalHours,
 		Health:              HealthOK,
@@ -357,11 +369,27 @@ func (m *Manager) upsertAndInit(meta SubscriptionMeta, activate bool) (*Subscrip
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	_ = os.MkdirAll(paths.SubDir(meta.ID), 0o700)
+	if err := os.MkdirAll(paths.SubDir(meta.ID), 0o700); err != nil {
+		return nil, err
+	}
+	previous := m.store
+	previous.Subscriptions = append([]SubscriptionMeta(nil), m.store.Subscriptions...)
 
 	found := false
 	for i, s := range m.store.Subscriptions {
 		if s.ID == meta.ID {
+			// Re-import may fail its next conversion. Keep the confirmed
+			// configuration metadata and selections until an update succeeds.
+			meta.ETag = s.ETag
+			meta.ContentHash = s.ContentHash
+			meta.Quota = s.Quota
+			meta.WebPageURL = s.WebPageURL
+			meta.Health = s.Health
+			meta.LastErrorMessage = s.LastErrorMessage
+			meta.LastCheckedAt = s.LastCheckedAt
+			meta.LastUpdatedAt = s.LastUpdatedAt
+			meta.SavedSelections = maps.Clone(s.SavedSelections)
+			meta.LastDiff = s.LastDiff
 			m.store.Subscriptions[i] = meta
 			found = true
 			break
@@ -371,11 +399,12 @@ func (m *Manager) upsertAndInit(meta SubscriptionMeta, activate bool) (*Subscrip
 		m.store.Subscriptions = append(m.store.Subscriptions, meta)
 	}
 
-	if activate || m.store.ActiveID == "" {
+	if activate {
 		m.store.ActiveID = meta.ID
 	}
 
 	if err := m.saveStoreLocked(); err != nil {
+		m.store = previous
 		return nil, err
 	}
 
@@ -532,7 +561,7 @@ func (m *Manager) Update(
 	}
 
 	// 2. Format conversion & validation gate
-	convertedJSON, quotaFromYAML, err := DetectAndConvert(rawContent)
+	convertedJSON, quotaFromYAML, err := DetectAndConvert(rawContent, subMeta.ClashNodesOnly)
 	if err != nil {
 		m.recordError(subMeta.ID, HealthTransientError, fmt.Sprintf("format detection failed: %v", err))
 		return nil, err

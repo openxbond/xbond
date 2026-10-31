@@ -70,15 +70,15 @@ func TestLocalAPIServerAndClient(t *testing.T) {
 	}
 
 	// 3. Add and list subscriptions
-	added, err := client.AddSub(ctx, sub.SubTypeUniversal, "", "", nil, "", "", "TestSub", "local.json", 12, true)
+	added, err := client.AddSub(ctx, sub.SubTypeUniversal, "", "", nil, "", "", "TestSub", "local.json", 12, true, false)
 	if err != nil {
 		t.Fatalf("AddSub failed: %v", err)
 	}
 	if added.Meta == nil || added.Meta.Name != "TestSub" {
 		t.Errorf("expected TestSub, got %+v", added.Meta)
 	}
-	if !added.Activated {
-		t.Error("use=true should report the subscription as activated")
+	if added.Activated || added.UpdateError == "" {
+		t.Error("failed initial fetch must not activate the saved source")
 	}
 
 	subsList, err := client.ListSubs(ctx)
@@ -89,10 +89,12 @@ func TestLocalAPIServerAndClient(t *testing.T) {
 		t.Errorf("expected 1 sub in list, got %d", len(subsList.Subscriptions))
 	}
 
-	// 4. Up refreshes a missing subscription config before failing, so the
-	// caller sees the upstream refresh error instead of a file-not-found.
-	if err := client.Up(ctx, "", "", 0, nil, ""); err == nil || !strings.Contains(err.Error(), "no downloaded config") {
-		t.Errorf("expected actionable missing-config error, got %v", err)
+	// An invalid first import remains saved for retry without becoming active.
+	if status, err := client.GetStatus(ctx); err != nil || status.ActiveSub != nil {
+		t.Fatalf("failed source became active: %v", err)
+	}
+	if err := client.Up(ctx, "", "", 0, nil, ""); err == nil {
+		t.Error("starting without an active configuration must fail")
 	}
 
 	// 5. Test Web UI index.html meta injection

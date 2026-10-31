@@ -395,6 +395,9 @@ const EN = {
     title: "Subscriptions",
     xbondTrack: "XBond cloud credential",
     universalTrack: "Universal subscription URL",
+    clashNodesOnly: "Import Clash nodes only",
+    clashNodesOnlyHint:
+      "Discard Clash rules, DNS, ports and groups; use a default node policy. Unsupported nodes are still rejected. Applies only to Clash YAML.",
     tokenPlaceholder: "Enter an XBond credential (e.g. sub-xxxx…)",
     urlPlaceholder: "Enter a Clash / sing-box subscription URL or local path",
     namePlaceholder: "Subscription name (optional)",

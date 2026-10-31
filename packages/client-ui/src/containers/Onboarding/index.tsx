@@ -1,4 +1,5 @@
 import { Button, ButtonSelect, XBondIcon } from "@components";
+import { ClashImportOption } from "@components/ClashImportOption";
 import {
   useAccount,
   useLanguage,
@@ -44,6 +45,7 @@ export default function Onboarding({
   const { addSub } = useSubscriptions();
 
   const [showImport, setShowImport] = useState(signedInNoSub);
+  const [clashNodesOnly, setClashNodesOnly] = useState(false);
   const [mode, setMode] = useState<ImportMode>("url");
   const [url, setUrl] = useState("");
   const [paste, setPaste] = useState("");
@@ -109,7 +111,11 @@ export default function Onboarding({
         mode === "url"
           ? { urlOrFile: url.trim() }
           : { content: mode === "file" ? await readSelectedFile() : paste };
-      const res = await addSub({ ...params, lang: subscriptionLang(lang) });
+      const res = await addSub({
+        ...params,
+        clashNodesOnly,
+        lang: subscriptionLang(lang),
+      });
       await refreshStatus();
       if (res.updateError) {
         // Saved but the first fetch failed: keep the import open with the
@@ -215,6 +221,12 @@ export default function Onboarding({
               }}
             />
           </div>
+
+          <ClashImportOption
+            checked={clashNodesOnly}
+            disabled={busy}
+            onChange={setClashNodesOnly}
+          />
 
           {mode === "url" && (
             <input

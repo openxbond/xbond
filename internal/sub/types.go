@@ -44,6 +44,7 @@ type SubscriptionMeta struct {
 	NameCustomized      bool               `json:"nameCustomized,omitempty"`
 	Type                SubscriptionType   `json:"type"`
 	SourceURL           string             `json:"sourceUrl,omitempty"`
+	ClashNodesOnly      bool               `json:"clashNodesOnly,omitempty"`
 	Token               string             `json:"token,omitempty"`
 	Origin              string             `json:"origin,omitempty"`
 	FallbackOrigins     []string           `json:"fallbackOrigins,omitempty"`

@@ -12,7 +12,7 @@ func TestRenamePreservesIdentityAndPersists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta, err := m.AddUniversal("https://example.invalid/config", "original", 24, true)
+	meta, err := m.AddUniversal("https://example.invalid/config", "original", 24, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestRenameRollsBackFailedWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta, err := m.AddUniversal("https://example.invalid/config", "original", 24, true)
+	meta, err := m.AddUniversal("https://example.invalid/config", "original", 24, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
