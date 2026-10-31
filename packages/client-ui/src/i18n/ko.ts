@@ -68,6 +68,7 @@ const KO = {
     tun: "TUN",
     uptime: "실행 시간: {{duration}}",
     noConfig: "구독을 추가하거나 설정을 가져오면 시작할 수 있습니다.",
+    manageController: "컨트롤러 관리",
     remoteNote:
       "이 컨트롤러는 원격으로 관리됩니다. 로컬 인계 상태는 알 수 없습니다.",
     statusReadFailed: "로컬 상태를 읽을 수 없습니다. 다시 시도하세요.",

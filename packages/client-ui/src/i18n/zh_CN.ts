@@ -67,6 +67,7 @@ const CN = {
     tun: "虚拟网卡",
     uptime: "已运行 {{duration}}",
     noConfig: "加入订阅或导入配置，即可开始使用。",
+    manageController: "管理控制器",
     remoteNote: "此控制器由远程管理，本机接管状态未知。",
     statusReadFailed: "无法读取本机状态，请重试。",
     currentNode: "当前节点",

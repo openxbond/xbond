@@ -191,6 +191,14 @@ export default function Connect() {
   const mixedPort = hasLocalAPI
     ? status?.engine.mixedPort || 7890
     : general.mixedPort || 7890;
+  // The proxy inbound address follows the target: loopback for the local
+  // daemon, the remote controller's own host for anything else — a remote
+  // proxy never lives on this machine's loopback.
+  const proxyAddress = hasLocalAPI
+    ? `127.0.0.1:${mixedPort}`
+    : controller.hostname
+      ? `${controller.hostname}:${mixedPort}`
+      : `:${mixedPort}`;
 
   async function testCurrentNode() {
     if (!group?.now) return;
@@ -206,7 +214,7 @@ export default function Connect() {
   }
 
   function copyTerminalCommand() {
-    const cmd = `$env:all_proxy="http://127.0.0.1:${mixedPort}"`;
+    const cmd = `$env:all_proxy="http://${proxyAddress}"`;
     navigator.clipboard.writeText(cmd).then(() => {
       success(tc("copied"));
     });
@@ -289,15 +297,21 @@ export default function Connect() {
                       : t("connect")}
                 </Button>
               ) : (
-                <Button onClick={() => setIdentity(false)}>{tc("edit")}</Button>
+                // A plain Clash-API remote has nothing this dashboard can
+                // start or stop: the honest main action is managing the
+                // target itself (switch / add / test in the controller
+                // manager), per the approved interaction design.
+                <Button onClick={() => setIdentity(false)}>
+                  {t("manageController")}
+                </Button>
               )}
             </div>
           </div>
 
           <div className="port-info-bar">
             <span className="port-label">{t("port")}:</span>
-            <code className="port-val">127.0.0.1:{mixedPort}</code>
-            <CopyButton value={`127.0.0.1:${mixedPort}`} label={tc("copy")} />
+            <code className="port-val">{proxyAddress}</code>
+            <CopyButton value={proxyAddress} label={tc("copy")} />
           </div>
 
           {/* Three-Tier Status Row (Straightforward, Uncollapsed) */}

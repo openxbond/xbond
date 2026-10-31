@@ -68,6 +68,7 @@ const EN = {
     tun: "TUN",
     uptime: "Uptime: {{duration}}",
     noConfig: "Add a subscription or import a configuration to get started.",
+    manageController: "Manage controller",
     remoteNote:
       "This controller is managed remotely. Local takeover status is unavailable.",
     statusReadFailed: "Could not read local status. Retry to check again.",
