@@ -410,6 +410,14 @@ const KO = {
     remove: "설정 제거",
     bindNote:
       "구독 자격 증명으로 이 기기를 등록합니다. xbond login으로 로그인할 수도 있습니다.",
+    override: "규칙 재정의",
+    overridePrepend: "앞에 추가하는 규칙",
+    overrideAppend: "뒤에 추가하는 규칙",
+    overrideHintClash:
+      "한 줄에 규칙 하나(TYPE,PAYLOAD,POLICY). 저장 시 검증: 참조된 노드나 그룹을 확인하며, 재정의는 모든 업데이트에 자동 적용됩니다.",
+    overrideHintSingBox:
+      "한 줄에 sing-box 규칙 JSON 객체 하나. 저장 시 검증: 참조된 아웃바운드를 확인하며, 재정의는 모든 업데이트에 자동 적용됩니다.",
+    overrideSaved: "재정의가 저장되고 적용되었습니다",
     rename: "이름 바꾸기",
     removeConfirm: "이 설정을 제거할까요? 이 기기에서는 복구할 수 없습니다.",
     removeActive: "사용 중인 설정을 제거하면 먼저 프록시 연결이 끊깁니다.",

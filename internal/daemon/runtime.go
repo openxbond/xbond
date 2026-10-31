@@ -240,6 +240,19 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		if err != nil {
 			return fmt.Errorf("read source configuration: %w", err)
 		}
+		// The local override is the layer between the source and derivation:
+		// a conflict fails before the core is touched, keeping the previous
+		// runtime intact.
+		override, err := c.subs.Override(targetID)
+		if err != nil {
+			return fmt.Errorf("read local override: %w", err)
+		}
+		if !override.IsZero() {
+			source, err = engine.ApplyOverride(source, override)
+			if err != nil {
+				return &runtimeInputError{fmt.Errorf("apply local override: %w", err)}
+			}
+		}
 		// The effective port follows the source unless the user fixed it
 		// locally; the resolved value is what gets persisted and reported.
 		sourcePort, err := engine.SourcePort(source)

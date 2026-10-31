@@ -475,3 +475,52 @@ func TestRuntimeFileFailureIncludesCoreRecoveryFailure(t *testing.T) {
 		t.Fatalf("apply or recovery error was hidden: %v", err)
 	}
 }
+
+// The local override rides derivation: a saved override lands in the running
+// config, and a conflict against a changed upstream fails before the core is
+// touched, keeping the previous runtime intact.
+func TestRuntimeAppliesOverrideAndConflictKeepsPreviousCore(t *testing.T) {
+	f := newRuntimeFixture(t)
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// A valid override lands in the derived config on the next apply.
+	if err := f.subs.SetOverride(f.first.ID, &engine.SubscriptionOverride{
+		RulesAppend: []string{"DOMAIN,kept.example.invalid," + f.first.Name},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.controller.Configure(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if config := string(f.core.configuration()); !strings.Contains(config, "DOMAIN,kept.example.invalid,"+f.first.Name) {
+		t.Fatalf("override did not reach the running config: %s", config)
+	}
+
+	// The upstream drops the referenced node: apply fails before the core is
+	// touched and the previous runtime stays intact.
+	source := "proxies:\n  - name: other\n    type: trojan\n    server: example.invalid\n    port: 443\n    password: fixture-only\nrules:\n  - MATCH,DIRECT\n"
+	if err := os.WriteFile(paths.SubSourcePath(f.first.ID), []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	config := f.core.configuration()
+	prefs := f.controller.Preferences()
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err == nil {
+		t.Fatal("conflicting override applied successfully")
+	}
+	if !f.core.IsRunning() || !bytes.Equal(config, f.core.configuration()) || f.controller.Preferences() != prefs {
+		t.Fatal("failed apply disturbed the running core or preferences")
+	}
+
+	// Clearing the override restores a clean apply.
+	if err := f.subs.SetOverride(f.first.ID, &engine.SubscriptionOverride{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if config := string(f.core.configuration()); strings.Contains(config, "kept.example.invalid") {
+		t.Fatal("cleared override still affects the runtime config")
+	}
+}

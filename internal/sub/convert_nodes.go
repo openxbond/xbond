@@ -5,17 +5,9 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/openxbond/xbond/internal/engine"
 	"gopkg.in/yaml.v3"
 )
-
-// reservedNames are the built-in outbound names both cores shadow; a
-// subscription node or group may never use them.
-func reservedNames() map[string]bool {
-	return map[string]bool{
-		"DIRECT": true, "REJECT": true, "REJECT-DROP": true,
-		"COMPATIBLE": true, "PASS": true, "GLOBAL": true,
-	}
-}
 
 func nodeTags(nodes []map[string]any) []string {
 	tags := make([]string, 0, len(nodes))
@@ -53,7 +45,10 @@ func buildClashFromProxies(proxies []map[string]any) ([]byte, error) {
 	if len(proxies) == 0 {
 		return nil, fmt.Errorf("no usable nodes found")
 	}
-	used := reservedNames()
+	used := map[string]bool{}
+	for _, name := range engine.ReservedAllPolicies() {
+		used[name] = true
+	}
 	tags := make([]string, 0, len(proxies))
 	for index, proxy := range proxies {
 		name, _ := proxy["name"].(string)

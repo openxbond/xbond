@@ -402,6 +402,14 @@ const HK = {
     readonly: "由遠端核心管理",
     remove: "移除配置",
     bindNote: "使用訂閱憑據接入本裝置；帳號登入亦可透過 xbond login 完成。",
+    override: "覆蓋規則",
+    overridePrepend: "前置規則",
+    overrideAppend: "追加規則",
+    overrideHintClash:
+      "每行一條規則（TYPE,PAYLOAD,POLICY）。保存時校驗：引用的節點或策略組會被核對，覆蓋隨每次更新自動生效。",
+    overrideHintSingBox:
+      "每行一個 sing-box 規則 JSON 對象。保存時校驗：引用的出站會被核對，覆蓋隨每次更新自動生效。",
+    overrideSaved: "覆蓋已保存並應用",
     rename: "重新命名",
     removeConfirm: "移除此配置？移除後無法從本機恢復。",
     removeActive: "移除使用中的配置會先中斷目前連線。",

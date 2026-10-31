@@ -63,6 +63,12 @@ func SubRuntimePath(id string) string {
 	return filepath.Join(SubDir(id), "config.runtime.json")
 }
 
+// SubOverridePath stores the subscription's structured local override, the
+// layer between the downloaded source and derivation.
+func SubOverridePath(id string) string {
+	return filepath.Join(SubDir(id), "override.json")
+}
+
 func SubListPath() string {
 	return filepath.Join(DataDir(), "subscriptions.json")
 }

@@ -198,6 +198,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/subs", s.authMiddleware(s.handleSubs))
 	mux.HandleFunc("/localapi/v0/subs/use", s.authMiddleware(s.handleSubUse))
 	mux.HandleFunc("/localapi/v0/subs/update", s.authMiddleware(s.handleSubUpdate))
+	mux.HandleFunc("/localapi/v0/subs/override", s.authMiddleware(s.handleSubOverride))
 	mux.HandleFunc("/localapi/v0/subs/progress", s.authMiddleware(s.handleSubsProgress))
 
 	mux.HandleFunc("/localapi/v0/nodes", s.authMiddleware(s.handleNodes))
@@ -561,6 +562,62 @@ func (s *Server) handleSubUse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "activeId": s.subMgr.ActiveID()})
+}
+
+// handleSubOverride reads (GET) or saves (PUT/POST) a subscription's
+// structured local override. Saving validates the merged document against
+// the stored source, so a conflicting override is rejected up front; when
+// the subscription is active and the core runs, the change re-applies
+// immediately.
+func (s *Server) handleSubOverride(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "missing subscription id")
+			return
+		}
+		override, err := s.subMgr.Override(id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if override == nil {
+			override = &engine.SubscriptionOverride{}
+		}
+		writeJSON(w, http.StatusOK, override)
+	case http.MethodPut, http.MethodPost:
+		var request struct {
+			ID           string   `json:"id"`
+			RulesPrepend []string `json:"rulesPrepend"`
+			RulesAppend  []string `json:"rulesAppend"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&request); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid override request")
+			return
+		}
+		if request.ID == "" {
+			writeError(w, http.StatusBadRequest, "missing subscription id")
+			return
+		}
+		override := &engine.SubscriptionOverride{
+			RulesPrepend: request.RulesPrepend,
+			RulesAppend:  request.RulesAppend,
+		}
+		if err := s.subMgr.SetOverride(request.ID, override); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if s.subMgr.ActiveID() == request.ID && s.engineMgr.IsRunning() {
+			if err := s.runtime.Configure(r.Context(), runtimeOptions{}); err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
 }
 
 func (s *Server) handleSubUpdate(w http.ResponseWriter, r *http.Request) {

@@ -81,6 +81,8 @@ export interface SubscriptionMeta {
   /** Daemon fetch health: "ok" | "transient_error" | "credential_invalid" | … */
   health?: string;
   lastErrorMessage?: string;
+  /** Which core owns this subscription: "clash" (mihomo) or "sing-box". */
+  format?: "clash" | "sing-box";
 }
 
 export function subscriptionQuota(
@@ -188,6 +190,13 @@ export interface AccountStatus {
   announcements?: AccountAnnouncement[];
   unreadCount?: number;
   overviewError?: string;
+}
+
+/** Structured local override: the layer between the downloaded source and
+ * derivation. Rules splices only; the source bytes are never rewritten. */
+export interface SubscriptionOverride {
+  rulesPrepend?: string[];
+  rulesAppend?: string[];
 }
 
 export interface SubscriptionFetchProgress {
@@ -440,6 +449,23 @@ export class LocalAPIClient {
     return this.request("/localapi/v0/subs", {
       method: "PATCH",
       body: JSON.stringify({ id, name }),
+    });
+  }
+
+  /** Structured local override spliced onto the source before derivation. */
+  async getSubOverride(id: string): Promise<SubscriptionOverride> {
+    return this.request(
+      `/localapi/v0/subs/override?id=${encodeURIComponent(id)}`,
+    );
+  }
+
+  async setSubOverride(
+    id: string,
+    override: SubscriptionOverride,
+  ): Promise<{ ok: boolean }> {
+    return this.request("/localapi/v0/subs/override", {
+      method: "PUT",
+      body: JSON.stringify({ id, ...override }),
     });
   }
 

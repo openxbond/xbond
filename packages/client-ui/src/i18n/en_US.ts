@@ -413,6 +413,14 @@ const EN = {
     remove: "Remove configuration",
     bindNote:
       "Uses a subscription credential to enroll this device. You can also sign in with xbond login.",
+    override: "Override rules",
+    overridePrepend: "Prepended rules",
+    overrideAppend: "Appended rules",
+    overrideHintClash:
+      "One rule per line (TYPE,PAYLOAD,POLICY). Saved with validation: every referenced node or group is checked, and the override rides along on every update.",
+    overrideHintSingBox:
+      "One sing-box rule JSON object per line. Saved with validation: every referenced outbound is checked, and the override rides along on every update.",
+    overrideSaved: "Override saved and applied",
     rename: "Rename",
     removeConfirm:
       "Remove this configuration? It cannot be recovered from this device.",

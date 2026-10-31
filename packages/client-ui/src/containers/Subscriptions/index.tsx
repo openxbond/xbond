@@ -53,9 +53,53 @@ export default function Subscriptions() {
   const [importFeedback, setImportFeedback] = useState<
     "idle" | "success" | "failed"
   >("idle");
+  const [overrideId, setOverrideId] = useState<string | null>(null);
+  const [overridePrepend, setOverridePrepend] = useState("");
+  const [overrideAppend, setOverrideAppend] = useState("");
+  const [overrideError, setOverrideError] = useState("");
 
   const link = (values: Record<string, string> = {}) =>
     workspaceLink(location.search, "/subscriptions", values);
+
+  function lines(value: string): string[] {
+    return value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  async function openOverride(id: string) {
+    setOverrideId(id);
+    setOverrideError("");
+    setOverridePrepend("");
+    setOverrideAppend("");
+    if (!localClient) return;
+    try {
+      const current = await localClient.getSubOverride(id);
+      setOverridePrepend((current.rulesPrepend ?? []).join("\n"));
+      setOverrideAppend((current.rulesAppend ?? []).join("\n"));
+    } catch (error) {
+      setOverrideError(String(error));
+    }
+  }
+
+  async function saveOverride() {
+    if (!overrideId || !localClient) return;
+    setOverrideError("");
+    try {
+      await localClient.setSubOverride(overrideId, {
+        rulesPrepend: lines(overridePrepend),
+        rulesAppend: lines(overrideAppend),
+      });
+      await refresh();
+      setOverrideId(null);
+      success(t("overrideSaved"));
+    } catch (error) {
+      // Conflicts (missing policies, core-gate failures) stay in the dialog
+      // so the text survives for editing.
+      setOverrideError(error instanceof Error ? error.message : String(error));
+    }
+  }
 
   async function add() {
     setImportFeedback("idle");
@@ -335,6 +379,12 @@ export default function Subscriptions() {
                           {t("rename")}
                         </Button>
                         <Button
+                          disabled={pending}
+                          onClick={() => void openOverride(sub.id)}
+                        >
+                          {t("override")}
+                        </Button>
+                        <Button
                           type="danger"
                           disabled={pending}
                           onClick={() => setRemoveId(sub.id)}
@@ -406,6 +456,50 @@ export default function Subscriptions() {
             {t("removeActive")}
           </p>
         )}
+      </Modal>
+
+      <Modal
+        show={overrideId !== null}
+        title={t("override")}
+        onClose={() => setOverrideId(null)}
+        pending={pending}
+        onOk={() => void saveOverride()}
+      >
+        <div className="setting-label-col">
+          <p className="text-sm text-muted-foreground">
+            {t(
+              subscriptions.find((sub) => sub.id === overrideId)?.format ===
+                "sing-box"
+                ? "overrideHintSingBox"
+                : "overrideHintClash",
+            )}
+          </p>
+          <label className="settings-rename-label">
+            {t("overridePrepend")}
+            <textarea
+              className="subscriptions-override-textarea"
+              rows={4}
+              value={overridePrepend}
+              onChange={(event) => setOverridePrepend(event.target.value)}
+              placeholder={"DOMAIN-SUFFIX,corp.example,DIRECT"}
+            />
+          </label>
+          <label className="settings-rename-label">
+            {t("overrideAppend")}
+            <textarea
+              className="subscriptions-override-textarea"
+              rows={4}
+              value={overrideAppend}
+              onChange={(event) => setOverrideAppend(event.target.value)}
+              placeholder={"DOMAIN-SUFFIX,ads.example,REJECT"}
+            />
+          </label>
+          {overrideError && (
+            <p role="alert" className="text-sm text-destructive">
+              {overrideError}
+            </p>
+          )}
+        </div>
       </Modal>
     </div>
   );

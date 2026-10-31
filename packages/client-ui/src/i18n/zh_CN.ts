@@ -402,6 +402,14 @@ const CN = {
     readonly: "由远程核心管理",
     remove: "移除配置",
     bindNote: "使用订阅凭据接入本设备；账号登录也可通过 xbond login 完成。",
+    override: "覆盖规则",
+    overridePrepend: "前置规则",
+    overrideAppend: "追加规则",
+    overrideHintClash:
+      "每行一条规则（TYPE,PAYLOAD,POLICY）。保存时校验：引用的节点或策略组会被核对，覆盖随每次更新自动生效。",
+    overrideHintSingBox:
+      "每行一个 sing-box 规则 JSON 对象。保存时校验：引用的出站会被核对，覆盖随每次更新自动生效。",
+    overrideSaved: "覆盖已保存并应用",
     rename: "重命名",
     removeConfirm: "移除此配置？移除后无法从本机恢复。",
     removeActive: "移除正在使用的配置会先断开当前连接。",
