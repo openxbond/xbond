@@ -411,6 +411,7 @@ const KO = {
     bindNote:
       "구독 자격 증명으로 이 기기를 등록합니다. xbond login으로 로그인할 수도 있습니다.",
     override: "규칙 재정의",
+    overrideDns: "DNS 재정의",
     overridePrepend: "앞에 추가하는 규칙",
     overrideAppend: "뒤에 추가하는 규칙",
     overrideHintClash:

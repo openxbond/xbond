@@ -414,6 +414,7 @@ const EN = {
     bindNote:
       "Uses a subscription credential to enroll this device. You can also sign in with xbond login.",
     override: "Override rules",
+    overrideDns: "DNS override",
     overridePrepend: "Prepended rules",
     overrideAppend: "Appended rules",
     overrideHintClash:

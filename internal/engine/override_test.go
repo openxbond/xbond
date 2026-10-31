@@ -145,3 +145,94 @@ func TestApplyOverrideZeroIsIdentity(t *testing.T) {
 		t.Fatal("unparseable source must fail")
 	}
 }
+
+const clashDNSFixture = `proxies:
+  - name: edge
+    type: trojan
+    server: example.invalid
+    port: 443
+    password: fixture-only
+proxy-groups:
+  - name: policy
+    type: select
+    proxies: [edge]
+rules:
+  - MATCH,policy
+dns:
+  enable: true
+  nameserver: [1.1.1.1]
+  nameserver-policy:
+    a.test: 8.8.8.8
+`
+
+// The DNS override deep-merges into the source's dns section: nested maps
+// merge (nameserver-policy gains keys), scalars and lists replace.
+func TestApplyOverrideClashDNSMerges(t *testing.T) {
+	merged, err := ApplyOverride([]byte(clashDNSFixture), &SubscriptionOverride{
+		DNS: "nameserver:\n  - 8.8.8.8\nnameserver-policy:\n  b.test: 8.8.4.4\n",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw map[string]any
+	if err := yaml.Unmarshal(merged, &raw); err != nil {
+		t.Fatal(err)
+	}
+	dns, _ := raw["dns"].(map[string]any)
+	if dns["enable"] != true {
+		t.Fatalf("source dns fields must survive: %v", dns)
+	}
+	if nameserver, _ := dns["nameserver"].([]any); len(nameserver) != 1 || nameserver[0] != "8.8.8.8" {
+		t.Fatalf("list values must replace: %v", nameserver)
+	}
+	policy, _ := dns["nameserver-policy"].(map[string]any)
+	if policy["a.test"] != "8.8.8.8" || policy["b.test"] != "8.8.4.4" {
+		t.Fatalf("nested maps must merge recursively: %v", policy)
+	}
+	if err := Validate(merged); err != nil {
+		t.Fatalf("merged dns must pass the core gate: %v", err)
+	}
+}
+
+func TestApplyOverrideClashDNSMalformed(t *testing.T) {
+	if _, err := ApplyOverride([]byte(clashDNSFixture), &SubscriptionOverride{
+		DNS: "[[ not a mapping",
+	}); err == nil {
+		t.Fatal("malformed DNS override accepted")
+	}
+}
+
+func TestApplyOverrideSingBoxDNSMergesAndChecksReferences(t *testing.T) {
+	dnsOverride := `{
+	  "servers": [{"tag": "dns-local", "address": "8.8.8.8"}],
+	  "rules": [{"domain_suffix": [".lan"], "server": "dns-local"}]
+	}`
+	merged, err := ApplyOverride([]byte(overrideSingBoxFixture), &SubscriptionOverride{DNS: dnsOverride})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(merged); err != nil {
+		t.Fatalf("merged sing-box dns must pass the core gate: %v", err)
+	}
+
+	// A server detour naming a missing outbound conflicts.
+	badDetour := `{"servers": [{"tag": "dns-local", "address": "8.8.8.8", "detour": "ghost"}]}`
+	if _, err := ApplyOverride([]byte(overrideSingBoxFixture), &SubscriptionOverride{DNS: badDetour}); err == nil {
+		t.Fatal("DNS detour referencing a missing outbound was accepted")
+	}
+
+	// A DNS rule naming a missing server conflicts.
+	badServer := `{
+	  "servers": [{"tag": "dns-local", "address": "8.8.8.8"}],
+	  "rules": [{"domain_suffix": [".lan"], "server": "missing"}]
+	}`
+	if _, err := ApplyOverride([]byte(overrideSingBoxFixture), &SubscriptionOverride{DNS: badServer}); err == nil {
+		t.Fatal("DNS rule referencing a missing server was accepted")
+	}
+
+	if _, err := ApplyOverride([]byte(overrideSingBoxFixture), &SubscriptionOverride{
+		DNS: `{"servers": [`,
+	}); err == nil {
+		t.Fatal("malformed DNS override accepted")
+	}
+}

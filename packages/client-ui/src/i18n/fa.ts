@@ -412,6 +412,7 @@ const FA = {
     bindNote:
       "این دستگاه با اعتبار اشتراک ثبت می‌شود. ورود با xbond login هم ممکن است.",
     override: "بازنویسی قوانین",
+    overrideDns: "بازنویسی DNS",
     overridePrepend: "قوانین پیش از",
     overrideAppend: "قوانین پس از",
     overrideHintClash:

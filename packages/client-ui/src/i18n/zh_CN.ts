@@ -403,6 +403,7 @@ const CN = {
     remove: "移除配置",
     bindNote: "使用订阅凭据接入本设备；账号登录也可通过 xbond login 完成。",
     override: "覆盖规则",
+    overrideDns: "DNS 覆盖",
     overridePrepend: "前置规则",
     overrideAppend: "追加规则",
     overrideHintClash:

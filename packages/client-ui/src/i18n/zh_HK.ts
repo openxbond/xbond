@@ -403,6 +403,7 @@ const HK = {
     remove: "移除配置",
     bindNote: "使用訂閱憑據接入本裝置；帳號登入亦可透過 xbond login 完成。",
     override: "覆蓋規則",
+    overrideDns: "DNS 覆蓋",
     overridePrepend: "前置規則",
     overrideAppend: "追加規則",
     overrideHintClash:

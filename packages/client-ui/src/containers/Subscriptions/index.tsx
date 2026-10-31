@@ -56,6 +56,7 @@ export default function Subscriptions() {
   const [overrideId, setOverrideId] = useState<string | null>(null);
   const [overridePrepend, setOverridePrepend] = useState("");
   const [overrideAppend, setOverrideAppend] = useState("");
+  const [overrideDns, setOverrideDns] = useState("");
   const [overrideError, setOverrideError] = useState("");
 
   const link = (values: Record<string, string> = {}) =>
@@ -73,11 +74,13 @@ export default function Subscriptions() {
     setOverrideError("");
     setOverridePrepend("");
     setOverrideAppend("");
+    setOverrideDns("");
     if (!localClient) return;
     try {
       const current = await localClient.getSubOverride(id);
       setOverridePrepend((current.rulesPrepend ?? []).join("\n"));
       setOverrideAppend((current.rulesAppend ?? []).join("\n"));
+      setOverrideDns(current.dns ?? "");
     } catch (error) {
       setOverrideError(String(error));
     }
@@ -90,6 +93,7 @@ export default function Subscriptions() {
       await localClient.setSubOverride(overrideId, {
         rulesPrepend: lines(overridePrepend),
         rulesAppend: lines(overrideAppend),
+        dns: overrideDns.trim() || undefined,
       });
       await refresh();
       setOverrideId(null);
@@ -492,6 +496,21 @@ export default function Subscriptions() {
               value={overrideAppend}
               onChange={(event) => setOverrideAppend(event.target.value)}
               placeholder={"DOMAIN-SUFFIX,ads.example,REJECT"}
+            />
+          </label>
+          <label className="settings-rename-label">
+            {t("overrideDns")}
+            <textarea
+              className="subscriptions-override-textarea"
+              rows={4}
+              value={overrideDns}
+              onChange={(event) => setOverrideDns(event.target.value)}
+              placeholder={
+                subscriptions.find((sub) => sub.id === overrideId)?.format ===
+                "sing-box"
+                  ? '{\n  "servers": [{ "tag": "dns-local", "address": "8.8.8.8" }]\n}'
+                  : "nameserver:\n  - 8.8.8.8"
+              }
             />
           </label>
           {overrideError && (

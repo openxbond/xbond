@@ -193,10 +193,12 @@ export interface AccountStatus {
 }
 
 /** Structured local override: the layer between the downloaded source and
- * derivation. Rules splices only; the source bytes are never rewritten. */
+ * derivation. The source bytes are never rewritten. `dns` is the raw
+ * override text, parsed with the core native to the subscription format. */
 export interface SubscriptionOverride {
   rulesPrepend?: string[];
   rulesAppend?: string[];
+  dns?: string;
 }
 
 export interface SubscriptionFetchProgress {

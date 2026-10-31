@@ -12,22 +12,26 @@ import (
 // SubscriptionOverride is the structured local override spliced on top of a
 // subscription source before derivation (client-rethink §四: 来源原文 → 本地
 // 覆盖 → 宿主派生 → 校验后运行配置). The downloaded source is never
-// rewritten; the override is a separate layer that survives updates.
+// rewritten; the override is a separate layer that survives updates. DNS is
+// the raw override text, parsed with the core native to the source format
+// (Clash YAML mapping, sing-box JSON object).
 type SubscriptionOverride struct {
 	RulesPrepend []string `json:"rulesPrepend,omitempty"`
 	RulesAppend  []string `json:"rulesAppend,omitempty"`
+	DNS          string   `json:"dns,omitempty"`
 }
 
 // IsZero reports whether the override changes nothing.
 func (o *SubscriptionOverride) IsZero() bool {
-	return o == nil || (len(o.RulesPrepend) == 0 && len(o.RulesAppend) == 0)
+	return o == nil || (len(o.RulesPrepend) == 0 && len(o.RulesAppend) == 0 && strings.TrimSpace(o.DNS) == "")
 }
 
-// ApplyOverride splices the override's rules into the source document with
-// the core native to the source format, then verifies every referenced
-// policy exists. A rule pointing at a node or group the upstream removed is
-// a conflict: it fails loudly instead of silently retargeting (client-rethink
-// §四.3). Source rules are left to the core's own validation gate.
+// ApplyOverride splices the override's rules and DNS section into the source
+// document with the core native to the source format, then verifies every
+// referenced policy exists. A rule pointing at a node or group the upstream
+// removed is a conflict: it fails loudly instead of silently retargeting
+// (client-rethink §四.3). Source content is left to the core's own
+// validation gate.
 func ApplyOverride(source []byte, override *SubscriptionOverride) ([]byte, error) {
 	if override.IsZero() {
 		return source, nil
@@ -65,11 +69,51 @@ func applyClashOverride(source []byte, override *SubscriptionOverride) ([]byte, 
 		rules = append(rules, rule)
 	}
 	raw["rules"] = rules
+	if err := applyClashDNSOverride(raw, override); err != nil {
+		return nil, err
+	}
 	derived, err := yaml.Marshal(raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal overridden config: %w", err)
 	}
 	return derived, nil
+}
+
+// applyClashDNSOverride deep-merges the override's DNS mapping (Clash YAML)
+// into the source's dns section: nested maps merge recursively, scalars and
+// lists replace wholesale.
+func applyClashDNSOverride(raw map[string]any, override *SubscriptionOverride) error {
+	if strings.TrimSpace(override.DNS) == "" {
+		return nil
+	}
+	var dns map[string]any
+	if err := yaml.Unmarshal([]byte(override.DNS), &dns); err != nil {
+		return fmt.Errorf("override DNS is malformed: expected a YAML mapping: %w", err)
+	}
+	if len(dns) == 0 {
+		return nil
+	}
+	source, _ := raw["dns"].(map[string]any)
+	if source == nil {
+		source = make(map[string]any)
+	}
+	raw["dns"] = deepMergeMaps(source, dns)
+	return nil
+}
+
+// deepMergeMaps merges the override mapping into base: nested maps merge
+// recursively, scalars and lists replace.
+func deepMergeMaps(base, override map[string]any) map[string]any {
+	for key, value := range override {
+		if baseMap, ok := base[key].(map[string]any); ok {
+			if overrideMap, ok := value.(map[string]any); ok {
+				base[key] = deepMergeMaps(baseMap, overrideMap)
+				continue
+			}
+		}
+		base[key] = value
+	}
+	return base
 }
 
 // reservedPolicyNames are built into the cores and can never be a
@@ -183,12 +227,73 @@ func applySingBoxOverride(source []byte, override *SubscriptionOverride) ([]byte
 	rules = append(rules, appendRules...)
 	route["rules"] = rules
 	raw["route"] = route
+	if err := applySingBoxDNSOverride(raw, override, outboundTags); err != nil {
+		return nil, err
+	}
 
 	derived, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal overridden config: %w", err)
 	}
 	return derived, nil
+}
+
+// applySingBoxDNSOverride deep-merges the override's DNS object (JSON) into
+// the source's dns section, then checks the references DNS makes: a server's
+// detour must name an existing outbound, and a DNS rule's server must name
+// an existing DNS server tag.
+func applySingBoxDNSOverride(raw map[string]any, override *SubscriptionOverride, outboundTags map[string]bool) error {
+	if strings.TrimSpace(override.DNS) == "" {
+		return nil
+	}
+	var dns map[string]any
+	if err := json.Unmarshal([]byte(override.DNS), &dns); err != nil {
+		return fmt.Errorf("override DNS is malformed: expected a JSON object: %w", err)
+	}
+	if len(dns) == 0 {
+		return nil
+	}
+	source, _ := raw["dns"].(map[string]any)
+	if source == nil {
+		source = make(map[string]any)
+	}
+	merged := deepMergeMaps(source, dns)
+	if err := checkSingBoxDNSReferences(merged, outboundTags); err != nil {
+		return err
+	}
+	raw["dns"] = merged
+	return nil
+}
+
+func checkSingBoxDNSReferences(dns map[string]any, outboundTags map[string]bool) error {
+	serverTags := map[string]bool{}
+	if servers, _ := dns["servers"].([]any); servers != nil {
+		for _, item := range servers {
+			server, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			tag, _ := server["tag"].(string)
+			if tag != "" {
+				serverTags[tag] = true
+			}
+			if detour, _ := server["detour"].(string); detour != "" && !outboundTags[detour] {
+				return fmt.Errorf("override DNS server %q references missing outbound %q", tag, detour)
+			}
+		}
+	}
+	if rules, _ := dns["rules"].([]any); rules != nil {
+		for _, item := range rules {
+			rule, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			if server, _ := rule["server"].(string); server != "" && !serverTags[server] {
+				return fmt.Errorf("override DNS rule references missing server %q", server)
+			}
+		}
+	}
+	return nil
 }
 
 // singBoxOverrideRules parses each override line as a JSON rule object and
