@@ -109,6 +109,42 @@ func TestDetectFormat(t *testing.T) {
 	}
 }
 
+// SourcePort reads the port a subscription requests for itself: the Clash
+// `mixed-port` key or a sing-box mixed inbound. Legacy `port` and non-mixed
+// inbounds never count.
+func TestSourcePort(t *testing.T) {
+	clashWithPort := append([]byte(nil), sampleValidConfig()...)
+	clashWithPort = append(clashWithPort, []byte("mixed-port: 17897\n")...)
+	if port, err := SourcePort(clashWithPort); err != nil || port != 17897 {
+		t.Fatalf("expected mixed-port 17897, got %d (%v)", port, err)
+	}
+	if port, err := SourcePort(sampleValidConfig()); err != nil || port != 0 {
+		t.Fatalf("expected no source port, got %d (%v)", port, err)
+	}
+	outOfRange := append([]byte(nil), sampleValidConfig()...)
+	outOfRange = append(outOfRange, []byte("mixed-port: 70000\n")...)
+	if _, err := SourcePort(outOfRange); err == nil {
+		t.Fatal("out-of-range mixed-port must fail")
+	}
+
+	singBoxWithPort := []byte(`{
+	  "outbounds": [
+	    {"type": "direct", "tag": "direct"},
+	    {"type": "trojan", "tag": "edge", "server": "127.0.0.1", "server_port": 443, "password": "fixture-only"}
+	  ],
+	  "inbounds": [{"type": "mixed", "tag": "mixed-in", "listen": "127.0.0.1", "listen_port": 17898}]
+	}`)
+	if port, err := SourcePort(singBoxWithPort); err != nil || port != 17898 {
+		t.Fatalf("expected sing-box listen_port 17898, got %d (%v)", port, err)
+	}
+	if port, err := SourcePort(sampleSingBoxConfig()); err != nil || port != 0 {
+		t.Fatalf("expected no sing-box source port, got %d (%v)", port, err)
+	}
+	if _, err := SourcePort([]byte("{")); err == nil {
+		t.Fatal("garbage must fail")
+	}
+}
+
 func TestValidate(t *testing.T) {
 	isolateCoreHome(t)
 	if err := Validate(sampleValidConfig()); err != nil {

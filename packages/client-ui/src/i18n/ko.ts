@@ -433,6 +433,12 @@ const KO = {
       title: "트래픽 인계 모드",
       mixedPort: "혼합 프록시 포트",
       mixedPortDesc: "표준 HTTP / SOCKS 트래픽용 로컬 혼합 프록시 포트",
+      portNoteOverride:
+        "로컬 포트가 {{port}}(으)로 고정되어 구독 자체 포트를 덮어씁니다",
+      portNoteSubscription:
+        "구독의 mixed-port를 따르며, 없으면 기본값 7890을 사용합니다",
+      portNoteDefault: "구독에 포트가 지정되지 않아 기본값 7890을 사용합니다",
+      portFollowSubscription: "구독 따르기로 복원",
       allowLan: "LAN 연결 허용",
       allowLanDesc: "같은 LAN의 다른 기기가 이 프록시를 사용하도록 허용",
       sysproxyDesc: "브라우저와 표준 HTTP/SOCKS 트래픽을 인계합니다",

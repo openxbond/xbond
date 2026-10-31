@@ -196,6 +196,32 @@ export default function Settings() {
                 {portValidation}
               </p>
             )}
+            {hasLocalAPI && (
+              <p className="setting-note text-muted-foreground">
+                {status?.preferences.portOverride
+                  ? t("takeover.portNoteOverride", {
+                      port: status.preferences.portOverride,
+                    })
+                  : status?.preferences.portSource === "subscription"
+                    ? t("takeover.portNoteSubscription")
+                    : t("takeover.portNoteDefault")}
+              </p>
+            )}
+            {hasLocalAPI && !!status?.preferences.portOverride && (
+              <div className="mt-1">
+                <Button
+                  disabled={pending}
+                  onClick={() =>
+                    void run(async () => {
+                      await setMode({ port: 0 });
+                      await refresh();
+                    })
+                  }
+                >
+                  {t("takeover.portFollowSubscription")}
+                </Button>
+              </div>
+            )}
 
             <div className="setting-row">
               <div className="setting-label-col">

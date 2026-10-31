@@ -438,6 +438,12 @@ const EN = {
       title: "Traffic takeover mode",
       mixedPort: "Mixed proxy port",
       mixedPortDesc: "Local mixed proxy port for standard HTTP / SOCKS traffic",
+      portNoteOverride:
+        "Local port fixed at {{port}}; the subscription's own port is overridden",
+      portNoteSubscription:
+        "Following the subscription's mixed-port; default 7890 when absent",
+      portNoteDefault: "The subscription names no port; using the default 7890",
+      portFollowSubscription: "Follow subscription again",
       allowLan: "Allow LAN connections",
       allowLanDesc: "Let other devices on the same LAN use this proxy",
       sysproxyDesc: "Takes over browser and standard HTTP/SOCKS traffic",

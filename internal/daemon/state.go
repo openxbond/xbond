@@ -19,7 +19,21 @@ type RuntimePreferences struct {
 	AllowLan     bool                `json:"allowLan"`
 	ClashPort    int                 `json:"clashPort"`
 	ClashSecret  string              `json:"clashSecret"`
+	// PortOverride is an explicit local fixed port; zero follows the active
+	// subscription's own port. PortSource records how MixedPort was last
+	// resolved so status can show where the running port came from.
+	PortOverride int        `json:"portOverride,omitempty"`
+	PortSource   PortSource `json:"portSource,omitempty"`
 }
+
+// PortSource is where the effective mixed port of the last apply came from.
+type PortSource string
+
+const (
+	PortSourceDefault      PortSource = "default"
+	PortSourceSubscription PortSource = "subscription"
+	PortSourceOverride     PortSource = "override"
+)
 
 // legacyClashPort is the pre-randomization fixed default. New installs and
 // migrations move off it so the endpoint stays a daemon-owned detail.
@@ -29,7 +43,7 @@ func DefaultPreferences() RuntimePreferences {
 	return RuntimePreferences{
 		TakeoverMode: engine.ModeSysproxy,
 		RoutingMode:  engine.RoutingRule,
-		MixedPort:    7890,
+		MixedPort:    defaultMixedPort,
 		AllowLan:     false,
 		ClashPort:    legacyClashPort,
 		ClashSecret:  engine.GenerateSecret(),
@@ -50,6 +64,18 @@ func LoadPreferences() (RuntimePreferences, error) {
 	}
 	if err := json.Unmarshal(data, &prefs); err != nil {
 		return RuntimePreferences{}, fmt.Errorf("decode runtime preferences: %w", err)
+	}
+	// State files written before port following had no portOverride key and
+	// their MixedPort was the fixed port; carry it over as an explicit
+	// override so an upgrade never moves a working proxy port. New code
+	// always persists the key, so this fires at most once per install.
+	var legacy map[string]json.RawMessage
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return RuntimePreferences{}, fmt.Errorf("decode runtime preferences: %w", err)
+	}
+	if _, ok := legacy["portOverride"]; !ok {
+		prefs.PortOverride = prefs.MixedPort
+		prefs.PortSource = PortSourceOverride
 	}
 	if err := validatePreferences(prefs); err != nil {
 		return RuntimePreferences{}, err

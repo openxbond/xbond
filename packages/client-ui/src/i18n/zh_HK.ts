@@ -425,6 +425,11 @@ const HK = {
       title: "流量接管模式",
       mixedPort: "混合代理連接埠",
       mixedPortDesc: "本機 HTTP / SOCKS 混合代理監聽連接埠",
+      portNoteOverride: "已固定本機連接埠 {{port}}，訂閱自帶的連接埠將被覆蓋",
+      portNoteSubscription:
+        "連接埠跟隨訂閱自帶的 mixed-port，未指定時默認 7890",
+      portNoteDefault: "訂閱未指定連接埠，使用默認連接埠 7890",
+      portFollowSubscription: "恢復跟隨訂閱",
       allowLan: "允許區域網絡連線",
       allowLanDesc: "允許同一區域網絡內的其他裝置使用此代理",
       sysproxyDesc: "接管瀏覽器與標準 HTTP/SOCKS 流量",

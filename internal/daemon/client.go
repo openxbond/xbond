@@ -227,13 +227,18 @@ func (c *Client) GetStatusLight(ctx context.Context) (*StatusResponse, error) {
 	return c.getStatus(ctx, "?light=1")
 }
 
-func (c *Client) Up(ctx context.Context, mode engine.TakeoverMode, routing engine.RoutingMode, port int, allowLan *bool, subID string) error {
+// Up starts or reloads the core. Port is tri-state: nil leaves the saved
+// override unchanged, 0 clears it back to following the subscription, a
+// positive value fixes the local port.
+func (c *Client) Up(ctx context.Context, mode engine.TakeoverMode, routing engine.RoutingMode, port *int, allowLan *bool, subID string) error {
 	payload := map[string]any{
 		"mode":     mode,
 		"routing":  routing,
-		"port":     port,
 		"allowLan": allowLan,
 		"subId":    subID,
+	}
+	if port != nil {
+		payload["port"] = *port
 	}
 	return c.requestSlow(ctx, http.MethodPost, "/localapi/v0/up", payload, nil)
 }
@@ -254,12 +259,16 @@ func (c *Client) Restart(ctx context.Context) error {
 	return c.request(ctx, http.MethodPost, "/localapi/v0/restart", nil, nil)
 }
 
-func (c *Client) SetMode(ctx context.Context, mode engine.TakeoverMode, routing engine.RoutingMode, port int, allowLan *bool) error {
+// SetMode updates preferences. Port is tri-state like Up: nil unchanged,
+// 0 clears the override, positive fixes the port.
+func (c *Client) SetMode(ctx context.Context, mode engine.TakeoverMode, routing engine.RoutingMode, port *int, allowLan *bool) error {
 	payload := map[string]any{
 		"mode":     mode,
 		"routing":  routing,
-		"port":     port,
 		"allowLan": allowLan,
+	}
+	if port != nil {
+		payload["port"] = *port
 	}
 	return c.request(ctx, http.MethodPatch, "/localapi/v0/mode", payload, nil)
 }

@@ -435,6 +435,12 @@ const FA = {
       mixedPort: "درگاه پروکسی مرکب",
       mixedPortDesc:
         "درگاه محلی پروکسی مرکب برای ترافیک استاندارد HTTP / SOCKS",
+      portNoteOverride:
+        "درگاه محلی روی {{port}} ثابت شده و درگاه خود اشتراک نادیده گرفته می‌شود",
+      portNoteSubscription:
+        "از mixed-port خود اشتراک پیروی می‌کند؛ در نبود آن پیش‌فرض 7890",
+      portNoteDefault: "اشتراک درگاهی مشخص نکرده؛ از پیش‌فرض 7890 استفاده می‌شود",
+      portFollowSubscription: "بازگشت به پیروی از اشتراک",
       allowLan: "اجازه اتصال LAN",
       allowLanDesc:
         "به دستگاه‌های دیگر در همان LAN اجازه استفاده از این پروکسی را بدهید",

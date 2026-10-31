@@ -19,6 +19,10 @@ export interface LocalAPIEngineStatus {
 export type TakeoverMode = "sysproxy" | "tun" | "port";
 export type RoutingMode = "rule" | "global" | "direct";
 
+/** Where the effective mixed port came from: a fixed local override, the
+ * subscription's own port, or the daemon default. */
+export type PortSource = "override" | "subscription" | "default";
+
 export interface LocalAPIPreferences {
   takeoverMode: TakeoverMode;
   routingMode: RoutingMode;
@@ -26,6 +30,9 @@ export interface LocalAPIPreferences {
   allowLan: boolean;
   clashPort: number;
   clashSecret?: string;
+  /** 0 = follow the subscription's own port. */
+  portOverride: number;
+  portSource?: PortSource;
 }
 
 export interface ThreeTierStatus {

@@ -30,7 +30,7 @@ func init() {
 	// up
 	upCmd.Flags().StringVar(&upMode, "mode", "", "Traffic takeover mode: sysproxy, tun, port")
 	upCmd.Flags().StringVar(&upRouting, "routing", "", "Routing mode: rule, global, direct")
-	upCmd.Flags().IntVar(&upPort, "port", 0, "Mixed proxy inbound port (default 7890)")
+	upCmd.Flags().IntVar(&upPort, "port", 0, "Fix the mixed proxy inbound port (0 = follow the subscription)")
 	upCmd.Flags().BoolVar(&upAllowLan, "allow-lan", false, "Listen on 0.0.0.0 for LAN access")
 	upCmd.Flags().StringVar(&upSub, "sub", "", "Subscription name or ID to activate")
 	rootCmd.AddCommand(upCmd)
@@ -43,7 +43,7 @@ func init() {
 
 	// mode
 	modeCmd.Flags().StringVar(&modeRouting, "routing", "", "Switch routing mode: rule, global, direct")
-	modeCmd.Flags().IntVar(&modePort, "port", 0, "Change mixed proxy port")
+	modeCmd.Flags().IntVar(&modePort, "port", 0, "Fix the mixed proxy port (0 = follow the subscription)")
 	modeCmd.Flags().StringVar(&modeAllowLan, "allow-lan", "", "Change LAN access: true, false")
 	rootCmd.AddCommand(modeCmd)
 
@@ -72,13 +72,25 @@ Repeating ` + "`up`" + ` with unchanged arguments is a no-op — the core is not
 		if cmd.Flags().Changed("allow-lan") {
 			allowLanPtr = &upAllowLan
 		}
+		// An explicit --port fixes the local port; --port 0 returns to
+		// following the subscription's own port.
+		var upPortPtr *int
+		if cmd.Flags().Changed("port") {
+			upPortPtr = &upPort
+		}
 
 		upErr := withFetchProgress(ctx, client, func() error {
-			return client.Up(ctx, engine.TakeoverMode(upMode), engine.RoutingMode(upRouting), upPort, allowLanPtr, upSub)
+			return client.Up(ctx, engine.TakeoverMode(upMode), engine.RoutingMode(upRouting), upPortPtr, allowLanPtr, upSub)
 		})
 		if upErr != nil {
 			if strings.Contains(upErr.Error(), "bind: Only one usage") || strings.Contains(upErr.Error(), "address already in use") {
-				port := upPort
+				port := 0
+				if st, serr := client.GetStatus(ctx); serr == nil && st != nil {
+					port = st.Preferences.MixedPort
+				}
+				if port == 0 {
+					port = upPort
+				}
 				if port == 0 {
 					port = 7890
 				}
@@ -167,14 +179,20 @@ var modeCmd = &cobra.Command{
 			}
 			allowLanPtr = &val
 		}
+		// --port fixes the local port; --port 0 returns to following the
+		// subscription's own port.
+		var modePortPtr *int
+		if cmd.Flags().Changed("port") {
+			modePortPtr = &modePort
+		}
 
 		client, err := daemon.EnsureRunning(ctx)
 		if err != nil {
 			return err
 		}
 
-		if targetTakeover != "" || modeRouting != "" || modePort > 0 || allowLanPtr != nil {
-			if err := client.SetMode(ctx, targetTakeover, engine.RoutingMode(modeRouting), modePort, allowLanPtr); err != nil {
+		if targetTakeover != "" || modeRouting != "" || modePortPtr != nil || allowLanPtr != nil {
+			if err := client.SetMode(ctx, targetTakeover, engine.RoutingMode(modeRouting), modePortPtr, allowLanPtr); err != nil {
 				return err
 			}
 			fmt.Println("Mode preferences updated successfully.")
@@ -188,6 +206,14 @@ var modeCmd = &cobra.Command{
 		fmt.Printf("Takeover Mode: %s\n", st.Preferences.TakeoverMode)
 		fmt.Printf("Routing Mode:  %s\n", st.Preferences.RoutingMode)
 		fmt.Printf("Mixed Port:    %d\n", st.Preferences.MixedPort)
+		switch st.Preferences.PortSource {
+		case daemon.PortSourceSubscription:
+			fmt.Println("Port Source:   subscription")
+		case daemon.PortSourceOverride:
+			fmt.Println("Port Source:   local override")
+		default:
+			fmt.Println("Port Source:   default")
+		}
 		fmt.Printf("Allow LAN:     %v\n", st.Preferences.AllowLan)
 		return nil
 	},

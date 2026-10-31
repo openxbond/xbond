@@ -60,7 +60,8 @@ func TestLocalAPIServerAndClient(t *testing.T) {
 
 	// 2. SetMode
 	allowLan := true
-	if err := client.SetMode(ctx, engine.ModePort, engine.RoutingGlobal, 7895, &allowLan); err != nil {
+	port := 7895
+	if err := client.SetMode(ctx, engine.ModePort, engine.RoutingGlobal, &port, &allowLan); err != nil {
 		t.Fatalf("SetMode failed: %v", err)
 	}
 
@@ -93,7 +94,7 @@ func TestLocalAPIServerAndClient(t *testing.T) {
 	if status, err := client.GetStatus(ctx); err != nil || status.ActiveSub != nil {
 		t.Fatalf("failed source became active: %v", err)
 	}
-	if err := client.Up(ctx, "", "", 0, nil, ""); err == nil {
+	if err := client.Up(ctx, "", "", nil, nil, ""); err == nil {
 		t.Error("starting without an active configuration must fail")
 	}
 

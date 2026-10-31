@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -104,7 +105,8 @@ func TestRuntimeUpHTTPReturnsActualStartedCoreStatus(t *testing.T) {
 		return port
 	}
 	preferences := f.controller.Preferences()
-	preferences.MixedPort, preferences.ClashPort = freePort(), freePort()
+	mixedPort, clashPort := freePort(), freePort()
+	preferences.MixedPort, preferences.ClashPort = mixedPort, clashPort
 	core := engine.NewManager(100)
 	controller := newRuntimeController(core, f.subs, preferences)
 	server := &Server{engineMgr: core, subMgr: f.subs, runtime: controller}
@@ -113,14 +115,16 @@ func TestRuntimeUpHTTPReturnsActualStartedCoreStatus(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	response := runtimeRequest(server.handleUp, "{}")
+	// The up request fixes the mixed port explicitly, so the response must
+	// describe the actually started listener.
+	response := runtimeRequest(server.handleUp, fmt.Sprintf(`{"port":%d}`, mixedPort))
 	var result struct {
 		Status engine.EngineStatus `json:"status"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
 	}
-	if response.Code != http.StatusOK || !result.Status.Running || result.Status.MixedPort != preferences.MixedPort {
+	if response.Code != http.StatusOK || !result.Status.Running || result.Status.MixedPort != mixedPort {
 		t.Fatalf("up response did not describe the started core: %d %s", response.Code, response.Body)
 	}
 	if err := controller.Configure(context.Background(), runtimeOptions{Routing: engine.RoutingGlobal}); err != nil {

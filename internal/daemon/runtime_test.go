@@ -134,6 +134,83 @@ func assertRuntimeUnchanged(t *testing.T, f runtimeFixture, prefs RuntimePrefere
 	}
 }
 
+func intPtr(v int) *int { return &v }
+
+// The mixed port follows the subscription's own port unless the user fixed
+// it locally: the subscription port beats the daemon default, an explicit
+// override beats both, clearing the override returns to following, and a
+// subscription port colliding with the controller port fails loudly.
+func TestRuntimeMixedPortFollowsSubscriptionAndOverrideWins(t *testing.T) {
+	f := newRuntimeFixture(t)
+	portAndSource := func() (int, PortSource) {
+		prefs := f.controller.Preferences()
+		return prefs.MixedPort, prefs.PortSource
+	}
+	writeSource := func(port int) {
+		t.Helper()
+		content := fmt.Sprintf("mixed-port: %d\nproxies:\n  - name: %s\n    type: trojan\n    server: example.invalid\n    port: 443\n    password: fixture-only\n", port, f.first.Name)
+		if err := os.WriteFile(paths.SubSourcePath(f.first.ID), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// The fixture source names no port: the daemon default applies.
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if port, source := portAndSource(); port != defaultMixedPort || source != PortSourceDefault {
+		t.Fatalf("expected default port %d (default), got %d (%s)", defaultMixedPort, port, source)
+	}
+
+	// The subscription's own mixed-port wins while following.
+	writeSource(17897)
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if port, source := portAndSource(); port != 17897 || source != PortSourceSubscription {
+		t.Fatalf("expected subscription port 17897, got %d (%s)", port, source)
+	}
+
+	// An explicit local override wins over the subscription port.
+	if err := f.controller.Configure(context.Background(), runtimeOptions{Port: intPtr(18080)}); err != nil {
+		t.Fatal(err)
+	}
+	if port, source := portAndSource(); port != 18080 || source != PortSourceOverride {
+		t.Fatalf("expected override port 18080, got %d (%s)", port, source)
+	}
+	if prefs := f.controller.Preferences(); prefs.PortOverride != 18080 {
+		t.Fatalf("override not persisted: %+v", prefs)
+	}
+
+	// Clearing the override returns to following the subscription.
+	if err := f.controller.Configure(context.Background(), runtimeOptions{Port: intPtr(0)}); err != nil {
+		t.Fatal(err)
+	}
+	if prefs := f.controller.Preferences(); prefs.PortOverride != 0 {
+		t.Fatalf("override not cleared: %+v", prefs)
+	}
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if port, source := portAndSource(); port != 17897 || source != PortSourceSubscription {
+		t.Fatalf("expected to follow subscription port 17897 again, got %d (%s)", port, source)
+	}
+
+	// A subscription port colliding with the controller port fails before
+	// the core is touched and keeps the previous working state.
+	writeSource(f.controller.Preferences().ClashPort)
+	config := f.core.configuration()
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err == nil {
+		t.Fatal("a source port colliding with the controller port must fail loudly")
+	}
+	if port, source := portAndSource(); port != 17897 || source != PortSourceSubscription {
+		t.Fatalf("failed apply changed the effective port: %d (%s)", port, source)
+	}
+	if !f.core.IsRunning() || !bytes.Equal(config, f.core.configuration()) {
+		t.Fatal("failed apply touched the running core")
+	}
+}
+
 func TestRuntimeInvalidConfigurationAndReloadFailureKeepLastWorkingState(t *testing.T) {
 	for _, failure := range []string{"invalid-source", "reload", "invalid-mode"} {
 		t.Run(failure, func(t *testing.T) {
@@ -141,7 +218,7 @@ func TestRuntimeInvalidConfigurationAndReloadFailureKeepLastWorkingState(t *test
 			before := f.controller.Preferences()
 			config := f.core.configuration()
 			preferencesFile := readRuntimeFile(t, paths.RuntimeStatePath())
-			options := runtimeOptions{SubID: f.second.ID, Routing: engine.RoutingGlobal, Port: 17891}
+			options := runtimeOptions{SubID: f.second.ID, Routing: engine.RoutingGlobal, Port: intPtr(17891)}
 			switch failure {
 			case "invalid-source":
 				if err := os.WriteFile(paths.SubSourcePath(f.second.ID), []byte("{"), 0o600); err != nil {
@@ -253,7 +330,7 @@ func TestRuntimeOwnsProxyUntilReleasedAndDoesNotClaimFailedStopSucceeded(t *test
 	if err := f.controller.Configure(context.Background(), runtimeOptions{Mode: engine.ModeSysproxy}); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.controller.Configure(context.Background(), runtimeOptions{Port: 17892}); err != nil {
+	if err := f.controller.Configure(context.Background(), runtimeOptions{Port: intPtr(17892)}); err != nil {
 		t.Fatal(err)
 	}
 	snapshot, err := sysproxy.LoadSnapshot()

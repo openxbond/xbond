@@ -32,9 +32,28 @@ func (e *runtimeInputError) Unwrap() error { return e.cause }
 type runtimeOptions struct {
 	Mode     engine.TakeoverMode `json:"mode"`
 	Routing  engine.RoutingMode  `json:"routing"`
-	Port     int                 `json:"port"`
-	AllowLan *bool               `json:"allowLan"`
-	SubID    string              `json:"subId"`
+	// Port is tri-state: nil leaves the override unchanged, 0 clears it back
+	// to following the subscription, a positive value fixes the local port.
+	Port     *int `json:"port"`
+	AllowLan *bool `json:"allowLan"`
+	SubID    string `json:"subId"`
+}
+
+// defaultMixedPort applies when neither the subscription nor an explicit
+// local override names a mixed port.
+const defaultMixedPort = 7890
+
+// resolveMixedPort picks the effective mixed port: an explicit local override
+// wins over the subscription's own port; without either the daemon default
+// applies.
+func resolveMixedPort(override, sourcePort int) (int, PortSource) {
+	if override > 0 {
+		return override, PortSourceOverride
+	}
+	if sourcePort > 0 {
+		return sourcePort, PortSourceSubscription
+	}
+	return defaultMixedPort, PortSourceDefault
 }
 
 type runtimeController struct {
@@ -76,6 +95,12 @@ func validatePreferences(prefs RuntimePreferences) error {
 	}
 	if prefs.MixedPort == prefs.ClashPort {
 		return errors.New("proxy and controller ports must differ")
+	}
+	if prefs.PortOverride < 0 || prefs.PortOverride > 65535 {
+		return errors.New("port override must be between 1 and 65535, or 0 to follow the subscription")
+	}
+	if prefs.PortOverride > 0 && prefs.PortOverride == prefs.ClashPort {
+		return errors.New("port override collides with the daemon controller port")
 	}
 	if prefs.ClashSecret == "" {
 		return errors.New("controller secret must not be empty")
@@ -161,8 +186,17 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	if options.Routing != "" {
 		next.RoutingMode = options.Routing
 	}
-	if options.Port != 0 {
-		next.MixedPort = options.Port
+	if options.Port != nil {
+		next.PortOverride = *options.Port
+		if *options.Port > 0 {
+			// An explicit override decides the port regardless of any
+			// subscription content, so even a stopped apply can report the
+			// effective port immediately; a running apply re-resolves below.
+			next.MixedPort = *options.Port
+			next.PortSource = PortSourceOverride
+		}
+		// Clearing the override (0) keeps the last applied port until the
+		// next apply resolves the source port again.
 	}
 	if options.AllowLan != nil {
 		next.AllowLan = *options.AllowLan
@@ -205,6 +239,20 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		}
 		if err != nil {
 			return fmt.Errorf("read source configuration: %w", err)
+		}
+		// The effective port follows the source unless the user fixed it
+		// locally; the resolved value is what gets persisted and reported.
+		sourcePort, err := engine.SourcePort(source)
+		if err != nil {
+			return fmt.Errorf("read source port: %w", err)
+		}
+		next.MixedPort, next.PortSource = resolveMixedPort(next.PortOverride, sourcePort)
+		if next.MixedPort == next.ClashPort {
+			return &runtimeInputError{fmt.Errorf("proxy port %d collides with the daemon-owned controller port; set a fixed port instead", next.MixedPort)}
+		}
+		prefsJSON, err = json.MarshalIndent(next, "", "  ")
+		if err != nil {
+			return err
 		}
 		runtimeJSON, err = engine.DeriveRuntimeConfig(source, next.TakeoverMode, next.RoutingMode, next.MixedPort, next.AllowLan, next.ClashPort, next.ClashSecret)
 		if err != nil {

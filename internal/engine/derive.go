@@ -74,6 +74,51 @@ func validateSingBox(configJSON []byte) error {
 	return nil
 }
 
+// SourcePort reports the mixed proxy port a subscription requests for
+// itself, if any: the Clash YAML `mixed-port` key or a sing-box mixed
+// inbound's listen_port. Zero means the source does not name a port and the
+// daemon default applies.
+func SourcePort(source []byte) (int, error) {
+	format, err := DetectFormat(source)
+	if err != nil {
+		return 0, err
+	}
+	switch format {
+	case FormatClash:
+		var head struct {
+			MixedPort int `yaml:"mixed-port"`
+		}
+		if err := yaml.Unmarshal(source, &head); err != nil {
+			return 0, fmt.Errorf("failed to parse source config: %w", err)
+		}
+		if head.MixedPort < 0 || head.MixedPort > 65535 {
+			return 0, fmt.Errorf("source mixed-port %d is out of range", head.MixedPort)
+		}
+		return head.MixedPort, nil
+	case FormatSingBox:
+		var raw struct {
+			Inbounds []struct {
+				Type       string `json:"type"`
+				ListenPort int    `json:"listen_port"`
+			} `json:"inbounds"`
+		}
+		if err := json.Unmarshal(source, &raw); err != nil {
+			return 0, fmt.Errorf("failed to parse source config: %w", err)
+		}
+		for _, inbound := range raw.Inbounds {
+			if inbound.Type == "mixed" && inbound.ListenPort > 0 {
+				if inbound.ListenPort > 65535 {
+					return 0, fmt.Errorf("source listen_port %d is out of range", inbound.ListenPort)
+				}
+				return inbound.ListenPort, nil
+			}
+		}
+		return 0, nil
+	default:
+		return 0, fmt.Errorf("unsupported core format %q", format)
+	}
+}
+
 // DeriveRuntimeConfig merges a subscription's configuration with the
 // daemon-owned listeners, takeover and controller settings, using the core
 // native to the source format. Everything under the daemon's ownership is
