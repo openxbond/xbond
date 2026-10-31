@@ -3,7 +3,6 @@ package sub
 import (
 	"bytes"
 	"encoding/base64"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/paths"
-	"gopkg.in/yaml.v3"
 )
 
 const clashNodeFixture = `proxies:
@@ -28,18 +26,32 @@ const clashNodeFixture = `proxies:
         Host: ws.example.invalid
 `
 
+const singBoxFixture = `{
+  "outbounds": [
+    {"type": "direct", "tag": "direct"},
+    {"type": "block", "tag": "block"},
+    {"type": "trojan", "tag": "edge", "server": "example.invalid", "server_port": 443, "password": "fixture-only"},
+    {"type": "selector", "tag": "Proxy", "outbounds": ["Auto", "edge", "direct"]},
+    {"type": "urltest", "tag": "Auto", "outbounds": ["edge"], "url": "https://www.gstatic.com/generate_204", "interval": "3m"}
+  ],
+  "route": {"rules": [{"domain_suffix": [".example.invalid"], "outbound": "direct"}], "final": "Proxy"},
+  "dns": {"servers": [{"tag": "local-udp", "address": "8.8.8.8"}]}
+}`
+
 func validateWithCore(t *testing.T, converted []byte) {
 	t.Helper()
 	if err := engine.Validate(converted); err != nil {
-		t.Fatalf("converted config is not usable by pinned core: %v", err)
+		t.Fatalf("config is not usable by its native core: %v", err)
 	}
 }
 
-// With the mihomo core, Clash YAML is the native format: every section the
-// core can run — rules, DNS, TUN, fallback/load-balance groups, providers —
-// passes through untouched.
-func TestClashYAMLPassesThroughNatively(t *testing.T) {
-	input := clashNodeFixture + `proxy-groups:
+// Each format is native to its core and passes through untouched: Clash YAML
+// (rules, DNS, TUN, fallback/load-balance groups, providers) to mihomo,
+// sing-box JSON to sing-box. No subscription semantics are ever converted.
+func TestFormatsPassThroughNatively(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+
+	clashInput := "# subscription-userinfo: upload=1; download=2; total=10; expire=1800000000\n" + clashNodeFixture + `proxy-groups:
   - name: policy
     type: fallback
     proxies: [edge, DIRECT]
@@ -54,40 +66,51 @@ dns:
   enable: true
   nameserver: [8.8.8.8]
 `
-	converted, quota, err := DetectAndConvert([]byte(input), false)
+	converted, format, quota, err := DetectAndConvert([]byte(clashInput))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(converted) != strings.TrimSpace(input) {
+	if format != engine.FormatClash {
+		t.Fatalf("expected clash format, got %q", format)
+	}
+	if string(converted) != strings.TrimSpace(clashInput) {
 		t.Fatalf("Clash YAML must pass through verbatim:\n%s", converted)
-	}
-	if quota != nil {
-		t.Fatalf("no quota comment present, got %+v", quota)
-	}
-	validateWithCore(t, converted)
-
-	withQuota := "# subscription-userinfo: upload=1; download=2; total=10; expire=1800000000\n" + input
-	_, quota, err = DetectAndConvert([]byte(withQuota), false)
-	if err != nil {
-		t.Fatal(err)
 	}
 	if quota == nil || quota.TotalBytes != 10 {
 		t.Fatalf("expected quota parsed from comment, got %+v", quota)
 	}
+	validateWithCore(t, converted)
+
+	singboxConverted, format, quota, err := DetectAndConvert([]byte(singBoxFixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if format != engine.FormatSingBox {
+		t.Fatalf("expected sing-box format, got %q", format)
+	}
+	if string(singboxConverted) != strings.TrimSpace(singBoxFixture) {
+		t.Fatalf("sing-box JSON must pass through verbatim:\n%s", singboxConverted)
+	}
+	validateWithCore(t, singboxConverted)
 }
 
-// DetectAndConvert no longer deep-validates passthrough content — the core's
-// validation gate (engine.Validate, wired into Update) is the authority. It
-// still rejects documents with nothing usable at all.
-func TestClashPassthroughDelegatesValidationToCore(t *testing.T) {
+// DetectAndConvert no longer deep-validates passthrough content — the
+// core's validation gate (engine.Validate, wired into Update) is the
+// authority. It still rejects documents with nothing usable at all.
+func TestPassthroughDelegatesValidationToCore(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+
 	empty := "rules:\n  - MATCH,DIRECT\n"
-	if _, _, err := DetectAndConvert([]byte(empty), false); err == nil {
+	if _, _, _, err := DetectAndConvert([]byte(empty)); err == nil {
 		t.Fatal("configuration without proxies or providers must be rejected")
 	}
 	providers := clashNodeFixture + "proxy-providers:\n  remote:\n    type: http\n    url: https://example.invalid/sub\n"
-	converted, _, err := DetectAndConvert([]byte(providers), false)
+	converted, format, _, err := DetectAndConvert([]byte(providers))
 	if err != nil {
 		t.Fatalf("provider-style configuration must pass through: %v", err)
+	}
+	if format != engine.FormatClash {
+		t.Fatalf("expected clash format, got %q", format)
 	}
 	validateWithCore(t, converted)
 
@@ -96,7 +119,7 @@ func TestClashPassthroughDelegatesValidationToCore(t *testing.T) {
 		strings.Replace(clashNodeFixture, "type: trojan", "type: unsupported", 1),
 		clashNodeFixture + "proxy-groups: [{name: policy, type: select, proxies: [missing]}]\n",
 	} {
-		converted, _, err := DetectAndConvert([]byte(broken), false)
+		converted, _, _, err := DetectAndConvert([]byte(broken))
 		if err != nil {
 			t.Fatalf("detection must not gate passthrough content: %v", err)
 		}
@@ -106,137 +129,10 @@ func TestClashPassthroughDelegatesValidationToCore(t *testing.T) {
 	}
 }
 
-// sing-box JSON converts strictly: unknown outbound types, DNS sections,
-// rule sets and unmappable rules are rejected instead of silently degraded;
-// explicit node-only mode keeps just the proxy nodes.
-// realityKey is a structurally valid X25519 public key (32 bytes) so the
-// core's REALITY validation accepts the fixture; the handshake never runs.
-var realityKey = base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x01}, 32))
-
-func TestSingBoxToClashConversion(t *testing.T) {
-	t.Setenv("XBOND_DATA_DIR", t.TempDir())
-	source := fmt.Sprintf(`{
-  "log": {"level": "info"},
-  "outbounds": [
-    {"type": "direct", "tag": "direct"},
-    {"type": "block", "tag": "block"},
-    {"type": "trojan", "tag": "edge", "server": "example.invalid", "server_port": 443,
-     "password": "fixture-only", "tls": {"enabled": true, "server_name": "tls.example.invalid"},
-     "transport": {"type": "ws", "path": "/socket", "headers": {"Host": "ws.example.invalid"}}},
-    {"type": "vless", "tag": "reality-node", "server": "example.invalid", "server_port": 443,
-     "uuid": "7b0125c9-42d8-4ea1-b2a7-fbf082d29646", "flow": "xtls-rprx-vision",
-     "tls": {"enabled": true, "server_name": "reality.example.invalid",
-             "utls": {"enabled": true, "fingerprint": "chrome"},
-             "reality": {"enabled": true, "public_key": %q, "short_id": "0123abcd"}}},
-    {"type": "shadowsocks", "tag": "ss-node", "server": "example.invalid", "server_port": 8388,
-     "method": "aes-128-gcm", "password": "fixture-only"},
-    {"type": "selector", "tag": "Proxy", "outbounds": ["Auto", "edge", "direct"]},
-    {"type": "urltest", "tag": "Auto", "outbounds": ["edge", "ss-node"], "interval": "3m", "tolerance": 50}
-  ],
-  "route": {
-    "rules": [
-      {"domain_suffix": [".example.invalid"], "outbound": "direct"},
-      {"ip_cidr": ["10.0.0.0/8"], "outbound": "direct"},
-      {"port": 443, "outbound": "Proxy"}
-    ],
-    "final": "Proxy"
-  }
-}`, realityKey)
-	converted, _, err := DetectAndConvert([]byte(source), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var doc struct {
-		Proxies []map[string]any `yaml:"proxies"`
-		Groups  []map[string]any `yaml:"proxy-groups"`
-		Rules   []string         `yaml:"rules"`
-	}
-	if err := yaml.Unmarshal(converted, &doc); err != nil {
-		t.Fatal(err)
-	}
-	if len(doc.Proxies) != 3 || len(doc.Groups) != 2 || len(doc.Rules) != 4 {
-		t.Fatalf("unexpected conversion shape: %d proxies, %d groups, %d rules", len(doc.Proxies), len(doc.Groups), len(doc.Rules))
-	}
-	reality := doc.Proxies[1]
-	if reality["reality-opts"] == nil || reality["client-fingerprint"] != "chrome" || reality["flow"] != "xtls-rprx-vision" {
-		t.Fatalf("REALITY fields not mapped: %v", reality)
-	}
-	edge := doc.Proxies[0]
-	if edge["network"] != "ws" || edge["sni"] != "tls.example.invalid" {
-		t.Fatalf("trojan transport/TLS not mapped: %v", edge)
-	}
-	if doc.Rules[len(doc.Rules)-1] != "MATCH,Proxy" {
-		t.Fatalf("route.final not mapped to MATCH: %v", doc.Rules)
-	}
-	validateWithCore(t, converted)
-
-	for name, broken := range map[string]string{
-		"dns section":      `{"outbounds":[{"type":"trojan","tag":"a","server":"s","server_port":443,"password":"p"}],"dns":{"servers":["8.8.8.8"]}}`,
-		"rule set":         `{"outbounds":[{"type":"trojan","tag":"a","server":"s","server_port":443,"password":"p"}],"route":{"rule_set":[{"type":"remote","tag":"x"}],"rules":[{"rule_set":["x"],"outbound":"direct"}]}}`,
-		"grpc transport":   `{"outbounds":[{"type":"trojan","tag":"a","server":"s","server_port":443,"password":"p","transport":{"type":"grpc","service_name":"x"}}]}`,
-		"unknown type":     `{"outbounds":[{"type":"hysteria2","tag":"a","server":"s","server_port":443}]}`,
-		"unknown field":    `{"outbounds":[{"type":"trojan","tag":"a","server":"s","server_port":443,"password":"p"}],"ntp":{"enabled":true}}`,
-		"logical rule":     `{"outbounds":[{"type":"trojan","tag":"a","server":"s","server_port":443,"password":"p"}],"route":{"rules":[{"logic":"and","rules":[],"outbound":"direct"}]}}`,
-		"unknown rule key": `{"outbounds":[{"type":"trojan","tag":"a","server":"s","server_port":443,"password":"p"}],"route":{"rules":[{"protocol":"dns","outbound":"direct"}]}}`,
-	} {
-		if _, _, err := DetectAndConvert([]byte(broken), false); err == nil {
-			t.Fatalf("%s was silently degraded", name)
-		} else if strings.Contains(err.Error(), "fixture") {
-			t.Fatalf("%s leaked content: %v", name, err)
-		}
-	}
-
-	// nodesOnly keeps only the nodes and builds the default group pair.
-	nodesOnly, _, err := DetectAndConvert([]byte(source), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var nodesDoc struct {
-		Proxies []map[string]any `yaml:"proxies"`
-		Groups  []map[string]any `yaml:"proxy-groups"`
-		Rules   []string         `yaml:"rules"`
-	}
-	if err := yaml.Unmarshal(nodesOnly, &nodesDoc); err != nil {
-		t.Fatal(err)
-	}
-	if len(nodesDoc.Proxies) != 3 || len(nodesDoc.Groups) != 2 || len(nodesDoc.Rules) != 1 || nodesDoc.Rules[0] != "MATCH,Proxy" {
-		t.Fatalf("unexpected node-only shape: %d proxies, %d groups, %d rules", len(nodesDoc.Proxies), len(nodesDoc.Groups), len(nodesDoc.Rules))
-	}
-	if nodesDoc.Groups[0]["name"] != "Proxy" || nodesDoc.Groups[1]["name"] != "Auto" {
-		t.Fatalf("node-only mode must build default groups, got %v", nodesDoc.Groups)
-	}
-	validateWithCore(t, nodesOnly)
-}
-
-func TestURIImportRejectsPartialSuccessAndNeverEchoesCredentials(t *testing.T) {
-	t.Setenv("XBOND_DATA_DIR", t.TempDir())
-	valid := "trojan://fixture-only@example.invalid:443?sni=tls.example.invalid#edge"
-	for _, bad := range []string{
-		"trojan://example.invalid:443",
-		"ss://fixture-secret@example.invalid:443",
-		"trojan://fixture-secret@example.invalid:443?type=grpc",
-		"trojan://fixture-secret@example.invalid:443?unsupported=fixture-secret",
-		"trojan://fixture-secret@example.invalid:443/ignored",
-	} {
-		if _, _, err := DetectAndConvert([]byte(valid+"\n"+bad), false); err == nil {
-			t.Fatal("partially supported list was accepted")
-		} else if strings.Contains(err.Error(), "fixture-secret") {
-			t.Fatalf("credential exposed: %v", err)
-		}
-	}
-	for _, encoding := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
-		converted, _, err := DetectAndConvert([]byte(encoding.EncodeToString([]byte(valid))), false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		validateWithCore(t, converted)
-	}
-}
-
-// The manager-level guarantees survive the core swap: a failed update keeps
-// the last known-good source untouched, and an explicit node-only import
-// policy persists across refreshes.
-func TestClashImportPolicyPersistsAndFailedUpdatesKeepKnownGoodConfiguration(t *testing.T) {
+// The manager-level guarantees survive the dual-core swap: a failed update
+// keeps the last known-good source untouched, and each format is stored
+// verbatim with the owning core recorded on the meta.
+func TestImportFormatsPersistAndFailedUpdatesKeepKnownGoodConfiguration(t *testing.T) {
 	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	manager, err := NewManager()
 	if err != nil {
@@ -246,13 +142,16 @@ func TestClashImportPolicyPersistsAndFailedUpdatesKeepKnownGoodConfiguration(t *
 	if err := os.WriteFile(source, []byte(clashNodeFixture), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	imported, err := manager.AddUniversal(source, "example", 24, true, false)
+	imported, err := manager.AddUniversal(source, "example", 24, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	initial, err := manager.Update(imported.ID, true, false, 0)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if initial.Meta.Format != engine.FormatClash {
+		t.Fatalf("expected clash format on meta, got %q", initial.Meta.Format)
 	}
 	before, err := os.ReadFile(paths.SubSourcePath(imported.ID))
 	if err != nil {
@@ -270,49 +169,55 @@ func TestClashImportPolicyPersistsAndFailedUpdatesKeepKnownGoodConfiguration(t *
 		t.Fatal("failed conversion changed known good state")
 	}
 
-	nodes, err := manager.AddUniversal(source, "nodes", 24, false, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if nodes.ID == imported.ID || manager.ActiveID() != imported.ID {
-		t.Fatal("node-only import overwrote or activated the strict source")
-	}
-	if _, err := manager.Update(nodes.ID, true, false, 0); err == nil {
-		t.Fatal("node-only import accepted an invalid configuration")
-	}
-
-	validSingBox := `{"outbounds":[{"type":"trojan","tag":"edge","server":"example.invalid","server_port":443,"password":"fixture-only"}]}`
 	singbox := filepath.Join(paths.DataDir(), "singbox.json")
-	if err := os.WriteFile(singbox, []byte(validSingBox), 0o600); err != nil {
+	if err := os.WriteFile(singbox, []byte(singBoxFixture), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	fromSingBox, err := manager.AddUniversal(singbox, "singbox", 24, false, true)
+	fromSingBox, err := manager.AddUniversal(singbox, "singbox", 24, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := manager.Update(fromSingBox.ID, true, false, 0); err != nil {
 		t.Fatal(err)
 	}
-	restarted, err := NewManager()
-	if err != nil {
-		t.Fatal(err)
-	}
-	saved, err := restarted.Get(fromSingBox.ID)
-	if err != nil || !saved.ClashNodesOnly {
-		t.Fatal("explicit import policy was not persisted")
-	}
-	if _, err := restarted.Update(fromSingBox.ID, true, false, 0); err != nil {
-		t.Fatalf("refresh did not retain node-only mode: %v", err)
-	}
 	stored, err := os.ReadFile(paths.SubSourcePath(fromSingBox.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var doc struct {
-		Proxies []map[string]any `yaml:"proxies"`
-		Groups  []map[string]any `yaml:"proxy-groups"`
+	if string(stored) != strings.TrimSpace(singBoxFixture) {
+		t.Fatalf("sing-box source must be stored verbatim, got: %s", stored)
 	}
-	if err := yaml.Unmarshal(stored, &doc); err != nil || len(doc.Proxies) == 0 || len(doc.Groups) != 2 {
-		t.Fatalf("sing-box source was not stored as canonical Clash YAML: %s", stored)
+	saved, err := manager.Get(fromSingBox.ID)
+	if err != nil || saved.Format != engine.FormatSingBox {
+		t.Fatalf("sing-box format not recorded on meta: %+v (%v)", saved, err)
+	}
+	validateWithCore(t, stored)
+}
+
+func TestURIImportRejectsPartialSuccessAndNeverEchoesCredentials(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	valid := "trojan://fixture-only@example.invalid:443?sni=tls.example.invalid#edge"
+	for _, bad := range []string{
+		"trojan://example.invalid:443",
+		"ss://fixture-secret@example.invalid:443",
+		"trojan://fixture-secret@example.invalid:443?type=grpc",
+		"trojan://fixture-secret@example.invalid:443?unsupported=fixture-secret",
+		"trojan://fixture-secret@example.invalid:443/ignored",
+	} {
+		if _, _, _, err := DetectAndConvert([]byte(valid + "\n" + bad)); err == nil {
+			t.Fatal("partially supported list was accepted")
+		} else if strings.Contains(err.Error(), "fixture-secret") {
+			t.Fatalf("credential exposed: %v", err)
+		}
+	}
+	for _, encoding := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		converted, format, _, err := DetectAndConvert([]byte(encoding.EncodeToString([]byte(valid))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if format != engine.FormatClash {
+			t.Fatalf("share links must land on the clash core, got %q", format)
+		}
+		validateWithCore(t, converted)
 	}
 }

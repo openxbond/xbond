@@ -3,6 +3,8 @@ package engine
 import (
 	"sync"
 	"time"
+
+	slog "github.com/sagernet/sing-box/log"
 )
 
 type LogLevel string
@@ -41,6 +43,25 @@ func NewRingLogger(capacity int) *RingLogger {
 		capacity: capacity,
 		entries:  make([]LogEntry, capacity),
 	}
+}
+
+// WriteMessage implements sing-box's PlatformLogWriter so the sing-box core
+// streams its log lines into the same ring the mihomo pump feeds.
+func (r *RingLogger) WriteMessage(level slog.Level, message string) {
+	var l LogLevel
+	switch level {
+	case slog.LevelDebug, slog.LevelTrace:
+		l = LogLevelDebug
+	case slog.LevelInfo:
+		l = LogLevelInfo
+	case slog.LevelWarn:
+		l = LogLevelWarn
+	case slog.LevelError, slog.LevelFatal, slog.LevelPanic:
+		l = LogLevelError
+	default:
+		l = LogLevelInfo
+	}
+	r.Append(l, message)
 }
 
 func (r *RingLogger) Append(level LogLevel, msg string) {

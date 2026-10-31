@@ -5,8 +5,9 @@ import { fileURLToPath } from "node:url";
 // Single source of the Go build tags: every go invocation must run against the
 // same feature set, and the gomobile binds in scripts/mobile.ts consume this
 // too, so a tag can never drift between the CLI and the mobile bindings.
-// mihomo needs only with_gvisor: QUIC, uTLS and the Clash API are built in.
-export const BUILD_TAGS = "with_gvisor";
+// sing-box needs with_quic/with_utls/with_clash_api; mihomo ignores them and
+// uses with_gvisor for its TUN stack.
+export const BUILD_TAGS = "with_gvisor,with_quic,with_utls,with_clash_api";
 
 // Every Go package tree in the module. gofmt walks these raw because
 // `go fmt` would skip the tagged files without the build tags.

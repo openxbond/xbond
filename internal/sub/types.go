@@ -1,6 +1,10 @@
 package sub
 
-import "time"
+import (
+	"time"
+
+	"github.com/openxbond/xbond/internal/engine"
+)
 
 type SubscriptionType string
 
@@ -39,12 +43,15 @@ type UpdateDiff struct {
 }
 
 type SubscriptionMeta struct {
-	ID                  string             `json:"id"`
-	Name                string             `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Format records which core natively runs the stored configuration; the
+	// daemon derives and starts that core. Legacy records are backfilled at
+	// daemon start by MigrateLegacySources.
+	Format              engine.CoreFormat  `json:"format,omitempty"`
 	NameCustomized      bool               `json:"nameCustomized,omitempty"`
 	Type                SubscriptionType   `json:"type"`
 	SourceURL           string             `json:"sourceUrl,omitempty"`
-	ClashNodesOnly      bool               `json:"clashNodesOnly,omitempty"`
 	Token               string             `json:"token,omitempty"`
 	Origin              string             `json:"origin,omitempty"`
 	FallbackOrigins     []string           `json:"fallbackOrigins,omitempty"`

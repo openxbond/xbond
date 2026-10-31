@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -20,18 +21,110 @@ import (
 	"github.com/metacubex/mihomo/hub"
 	"github.com/metacubex/mihomo/hub/executor"
 	mihomoLog "github.com/metacubex/mihomo/log"
+	"github.com/sagernet/sing-box"
+	_ "github.com/sagernet/sing-box/experimental/clashapi" // registers the clash API server
+	"github.com/sagernet/sing-box/option"
+	singJson "github.com/sagernet/sing/common/json"
 
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/version"
 )
 
+// coreDriver isolates the lifecycle of one embedded core. Exactly one core
+// runs at a time; the active subscription's format picks which one, and a
+// format switch on Reload restarts onto the other core.
+type coreDriver interface {
+	start(config []byte, m *Manager) error
+	stop() error
+	kind() CoreFormat
+}
+
+// mihomoCore drives the Clash-format core.
+type mihomoCore struct {
+	logSub observable.Subscription[mihomoLog.Event]
+}
+
+func (c *mihomoCore) kind() CoreFormat { return FormatClash }
+
+func (c *mihomoCore) start(config []byte, m *Manager) error {
+	if err := initCoreHome(); err != nil {
+		return err
+	}
+	c.logSub = mihomoLog.Subscribe()
+	go m.pumpMihomoLogs(c.logSub)
+	if err := hub.Parse(config); err != nil {
+		mihomoLog.UnSubscribe(c.logSub)
+		c.logSub = nil
+		return fmt.Errorf("failed to start mihomo core: %w", err)
+	}
+	return nil
+}
+
+func (c *mihomoCore) stop() error {
+	executor.Shutdown()
+	// Release mihomo's cache.db file lock: the bbolt singleton would
+	// otherwise stay open for the process lifetime and block data-dir
+	// deletion on Windows. In-session selection memory is covered by the
+	// daemon's own SavedSelections mechanism.
+	if cache := cachefile.Cache(); cache != nil && cache.DB != nil {
+		_ = cache.DB.Close()
+	}
+	return nil
+}
+
+// singBoxCore drives the sing-box-format core.
+type singBoxCore struct {
+	instance *box.Box
+	cancel   context.CancelFunc
+}
+
+func (c *singBoxCore) kind() CoreFormat { return FormatSingBox }
+
+func (c *singBoxCore) start(config []byte, m *Manager) error {
+	boxCtx, cancel := context.WithCancel(NewBoxContext())
+	options, err := singJson.UnmarshalExtendedContext[option.Options](boxCtx, config)
+	if err != nil {
+		cancel()
+		return fmt.Errorf("failed to unmarshal runtime config options: %w", err)
+	}
+	instance, err := box.New(box.Options{
+		Context:           boxCtx,
+		Options:           options,
+		PlatformLogWriter: m.ringLogger,
+	})
+	if err != nil {
+		cancel()
+		return fmt.Errorf("failed to create box instance: %w", err)
+	}
+	if err := instance.Start(); err != nil {
+		_ = instance.Close()
+		cancel()
+		return fmt.Errorf("failed to start box instance: %w", err)
+	}
+	c.instance = instance
+	c.cancel = cancel
+	return nil
+}
+
+func (c *singBoxCore) stop() error {
+	var closeErr error
+	if c.instance != nil {
+		closeErr = c.instance.Close()
+		c.instance = nil
+	}
+	if c.cancel != nil {
+		c.cancel()
+		c.cancel = nil
+	}
+	return closeErr
+}
+
 type Manager struct {
-	mu sync.RWMutex
-	// logSub is closed by UnSubscribe on stop, which also ends pumpLogs.
-	logSub      observable.Subscription[mihomoLog.Event]
-	running     bool
-	startedAt   time.Time
-	runtimeYAML []byte
+	mu            sync.RWMutex
+	core          coreDriver
+	running       bool
+	startedAt     time.Time
+	runtimeConfig []byte
 
 	takeoverMode TakeoverMode
 	routingMode  RoutingMode
@@ -77,9 +170,14 @@ func (m *Manager) Status() EngineStatus {
 	if m.running && !m.startedAt.IsZero() {
 		uptime = int64(time.Since(m.startedAt).Seconds())
 	}
+	var core CoreFormat
+	if m.core != nil {
+		core = m.core.kind()
+	}
 
 	return EngineStatus{
 		Running:       m.running,
+		Core:          core,
 		TakeoverMode:  m.takeoverMode,
 		RoutingMode:   m.routingMode,
 		MixedPort:     m.mixedPort,
@@ -101,7 +199,7 @@ func (m *Manager) RingLog() *RingLogger {
 	return m.ringLogger
 }
 
-func (m *Manager) Start(runtimeYAML []byte) error {
+func (m *Manager) Start(runtimeConfig []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -109,60 +207,54 @@ func (m *Manager) Start(runtimeYAML []byte) error {
 		return fmt.Errorf("engine is already running")
 	}
 
-	return m.startLocked(runtimeYAML)
+	return m.startLocked(runtimeConfig)
 }
 
-// initCoreHome points mihomo's home dir (cache.db, geodata) at the xbond
-// data dir before ANY core interaction. It must run before Validate too:
-// config parsing touches the cachefile singleton, and with the default home
-// (~/.config/mihomo, usually nonexistent) a failed open would poison the
-// singleton with a nil DB for the whole process lifetime.
-func initCoreHome() error {
-	homeDir := paths.DataDir()
-	if err := os.MkdirAll(homeDir, 0o700); err != nil {
-		return fmt.Errorf("prepare core data dir: %w", err)
+func (m *Manager) startLocked(runtimeConfig []byte) error {
+	format, err := DetectFormat(runtimeConfig)
+	if err != nil {
+		return fmt.Errorf("detect core: %w", err)
 	}
-	C.SetHomeDir(homeDir)
-	// The module's ldflags version stamp is absent when embedded; report the
-	// pinned core version the binary was actually built against.
-	C.Version = version.CoreVersion
-	return nil
-}
+	var driver coreDriver
+	switch format {
+	case FormatClash:
+		driver = &mihomoCore{}
+	case FormatSingBox:
+		driver = &singBoxCore{}
+	default:
+		return fmt.Errorf("unsupported core format %q", format)
+	}
 
-func (m *Manager) startLocked(runtimeYAML []byte) error {
-	if err := initCoreHome(); err != nil {
+	if err := driver.start(runtimeConfig, m); err != nil {
 		return err
 	}
 
-	logSub := mihomoLog.Subscribe()
-	go m.pumpLogs(logSub)
+	m.extractMetadata(format, runtimeConfig)
 
-	if err := hub.Parse(runtimeYAML); err != nil {
-		mihomoLog.UnSubscribe(logSub)
-		return fmt.Errorf("failed to start mihomo core: %w", err)
-	}
-
-	m.extractMetadata(runtimeYAML)
-
-	// mihomo applies config without failing on bind errors: the external
-	// controller and proxy listeners start asynchronously and only log a
-	// conflict. Probe both so a port conflict is a start failure that
-	// triggers rollback, not a half-running core.
+	// mihomo applies config without failing on bind errors (listeners start
+	// asynchronously and only log a conflict); probing both cores makes a
+	// port conflict a start failure that triggers rollback.
 	if err := m.awaitCoreReady(); err != nil {
-		executor.Shutdown()
-		closeCoreCache()
-		mihomoLog.UnSubscribe(logSub)
-		return fmt.Errorf("mihomo core did not become ready: %w", err)
+		_ = driver.stop()
+		return fmt.Errorf("core did not become ready: %w", err)
 	}
 
-	m.logSub = logSub
+	m.core = driver
 	m.running = true
 	m.startedAt = time.Now()
-	m.runtimeYAML = append([]byte(nil), runtimeYAML...)
+	m.runtimeConfig = append([]byte(nil), runtimeConfig...)
 	m.client = NewClashClient(m.clashPort, m.clashSecret)
 
-	m.ringLogger.Append(LogLevelInfo, fmt.Sprintf("mihomo v%s started (mixed: %d, clash: %d)", version.CoreVersion, m.mixedPort, m.clashPort))
+	m.ringLogger.Append(LogLevelInfo, fmt.Sprintf("%s v%s core started (mixed: %d, clash: %d)",
+		coreDisplayName(format), versionForCore(format), m.mixedPort, m.clashPort))
 	return nil
+}
+
+func versionForCore(format CoreFormat) string {
+	if format == FormatSingBox {
+		return version.SingBoxVersion
+	}
+	return version.CoreVersion
 }
 
 func (m *Manager) Stop() error {
@@ -177,34 +269,22 @@ func (m *Manager) Stop() error {
 }
 
 func (m *Manager) stopLocked() error {
-	if m.logSub != nil {
-		mihomoLog.UnSubscribe(m.logSub)
-		m.logSub = nil
+	var stopErr error
+	if m.core != nil {
+		stopErr = m.core.stop()
 	}
-	executor.Shutdown()
-	closeCoreCache()
+	m.core = nil
 	m.running = false
 	m.client = nil
 	m.startedAt = time.Time{}
-	m.ringLogger.Append(LogLevelInfo, "mihomo core stopped")
-	return nil
+	m.ringLogger.Append(LogLevelInfo, "core stopped")
+	return stopErr
 }
 
-// closeCoreCache releases mihomo's cache.db file lock. mihomo keeps the
-// bbolt singleton open for the process lifetime, which would block data-dir
-// deletion on Windows; closing it means in-session restarts lose only the
-// cache-based convenience persistence (selections restore through the
-// daemon's own SavedSelections mechanism instead).
-func closeCoreCache() {
-	if cache := cachefile.Cache(); cache != nil && cache.DB != nil {
-		_ = cache.DB.Close()
-	}
-}
-
-func (m *Manager) Reload(runtimeYAML []byte, savedSelections map[string]string) error {
+func (m *Manager) Reload(runtimeConfig []byte, savedSelections map[string]string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if err := Validate(runtimeYAML); err != nil {
+	if err := Validate(runtimeConfig); err != nil {
 		return fmt.Errorf("new runtime config failed validation: %w", err)
 	}
 
@@ -229,7 +309,7 @@ func (m *Manager) Reload(runtimeYAML []byte, savedSelections map[string]string) 
 		savedSelections = maps.Clone(savedSelections)
 	}
 	wasRunning := m.running
-	previous := append([]byte(nil), m.runtimeYAML...)
+	previous := append([]byte(nil), m.runtimeConfig...)
 	var applyErr error
 	if wasRunning {
 		if err := m.stopLocked(); err != nil {
@@ -237,7 +317,7 @@ func (m *Manager) Reload(runtimeYAML []byte, savedSelections map[string]string) 
 		}
 	}
 	if applyErr == nil {
-		applyErr = m.startLocked(runtimeYAML)
+		applyErr = m.startLocked(runtimeConfig)
 	}
 	if applyErr == nil {
 		applyErr = m.restoreSelectionsLocked(savedSelections)
@@ -289,8 +369,115 @@ func (m *Manager) restoreSelectionsLocked(selections map[string]string) error {
 	return nil
 }
 
+// initCoreHome points mihomo's home dir (cache.db, geodata) at the xbond
+// data dir before ANY core interaction. It must run before Validate too:
+// config parsing touches the cachefile singleton, and with the default home
+// (~/.config/mihomo, usually nonexistent) a failed open would poison the
+// singleton with a nil DB for the whole process lifetime.
+func initCoreHome() error {
+	homeDir := paths.DataDir()
+	if err := os.MkdirAll(homeDir, 0o700); err != nil {
+		return fmt.Errorf("prepare core data dir: %w", err)
+	}
+	C.SetHomeDir(homeDir)
+	// The module's ldflags version stamp is absent when embedded; report the
+	// pinned core version the binary was actually built against.
+	C.Version = version.CoreVersion
+	return nil
+}
+
+func (m *Manager) extractMetadata(format CoreFormat, runtimeConfig []byte) {
+	switch format {
+	case FormatClash:
+		m.extractMihomoMetadata(runtimeConfig)
+	case FormatSingBox:
+		m.extractSingBoxMetadata(runtimeConfig)
+	}
+}
+
+func (m *Manager) extractMihomoMetadata(runtimeYAML []byte) {
+	raw, err := config.UnmarshalRawConfig(runtimeYAML)
+	if err != nil {
+		return
+	}
+
+	if raw.Tun.Enable {
+		m.takeoverMode = ModeTun
+	} else {
+		m.takeoverMode = ModePort
+	}
+	m.allowLan = raw.AllowLan && (raw.BindAddress == "*" || raw.BindAddress == "0.0.0.0" || raw.BindAddress == "::")
+	if raw.MixedPort > 0 {
+		m.mixedPort = raw.MixedPort
+	}
+	switch raw.Mode.String() {
+	case "rule":
+		m.routingMode = RoutingRule
+	case "global":
+		m.routingMode = RoutingGlobal
+	case "direct":
+		m.routingMode = RoutingDirect
+	}
+
+	if raw.ExternalController != "" {
+		if _, portStr, err := net.SplitHostPort(raw.ExternalController); err == nil {
+			if port, err := strconv.Atoi(portStr); err == nil && port > 0 {
+				m.clashPort = port
+			}
+		}
+		m.clashSecret = raw.Secret
+	}
+}
+
+func (m *Manager) extractSingBoxMetadata(runtimeJSON []byte) {
+	var raw struct {
+		Inbounds []struct {
+			Type       string `json:"type"`
+			Listen     string `json:"listen"`
+			ListenPort int    `json:"listen_port"`
+		} `json:"inbounds"`
+		Experimental struct {
+			ClashAPI struct {
+				ExternalController string `json:"external_controller"`
+				Secret             string `json:"secret"`
+				DefaultMode        string `json:"default_mode"`
+			} `json:"clash_api"`
+		} `json:"experimental"`
+	}
+
+	if err := json.Unmarshal(runtimeJSON, &raw); err != nil {
+		return
+	}
+
+	m.takeoverMode = ModePort
+	m.allowLan = false
+	for _, in := range raw.Inbounds {
+		if in.Type == "tun" {
+			m.takeoverMode = ModeTun
+		}
+		if in.Type == "mixed" && in.ListenPort > 0 {
+			m.mixedPort = in.ListenPort
+			m.allowLan = in.Listen == "0.0.0.0" || in.Listen == "::"
+		}
+	}
+
+	if raw.Experimental.ClashAPI.ExternalController != "" {
+		if _, portStr, err := net.SplitHostPort(raw.Experimental.ClashAPI.ExternalController); err == nil {
+			if port, err := strconv.Atoi(portStr); err == nil && port > 0 {
+				m.clashPort = port
+			}
+		}
+		m.clashSecret = raw.Experimental.ClashAPI.Secret
+		if raw.Experimental.ClashAPI.DefaultMode != "" {
+			m.routingMode = RoutingMode(raw.Experimental.ClashAPI.DefaultMode)
+		}
+	}
+}
+
 // awaitCoreReady confirms the controller answers and the mixed listener is
-// bound. Retries absorb the async listener startup inside mihomo.
+// bound. Retries absorb the async listener startup inside mihomo; a foreign
+// passive listener on a port never answers the probe request, so a conflict
+// still fails startup.
 func (m *Manager) awaitCoreReady() error {
 	client := NewClashClient(m.clashPort, m.clashSecret)
 	deadline := time.Now().Add(3 * time.Second)
@@ -343,41 +530,7 @@ func probeMixedListener(port int) error {
 	return nil
 }
 
-func (m *Manager) extractMetadata(runtimeYAML []byte) {
-	raw, err := config.UnmarshalRawConfig(runtimeYAML)
-	if err != nil {
-		return
-	}
-
-	if raw.Tun.Enable {
-		m.takeoverMode = ModeTun
-	} else {
-		m.takeoverMode = ModePort
-	}
-	m.allowLan = raw.AllowLan && (raw.BindAddress == "*" || raw.BindAddress == "0.0.0.0" || raw.BindAddress == "::")
-	if raw.MixedPort > 0 {
-		m.mixedPort = raw.MixedPort
-	}
-	switch raw.Mode.String() {
-	case "rule":
-		m.routingMode = RoutingRule
-	case "global":
-		m.routingMode = RoutingGlobal
-	case "direct":
-		m.routingMode = RoutingDirect
-	}
-
-	if raw.ExternalController != "" {
-		if _, portStr, err := net.SplitHostPort(raw.ExternalController); err == nil {
-			if port, err := strconv.Atoi(portStr); err == nil && port > 0 {
-				m.clashPort = port
-			}
-		}
-		m.clashSecret = raw.Secret
-	}
-}
-
-func (m *Manager) pumpLogs(sub observable.Subscription[mihomoLog.Event]) {
+func (m *Manager) pumpMihomoLogs(sub observable.Subscription[mihomoLog.Event]) {
 	for event := range sub {
 		// Subscribers receive every event regardless of the configured
 		// console level; mirror the console filter so the ring matches what

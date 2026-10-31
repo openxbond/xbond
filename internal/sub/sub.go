@@ -288,7 +288,6 @@ func (m *Manager) AddUniversal(
 	urlOrPath, name string,
 	intervalHours int,
 	activate bool,
-	clashNodesOnly bool,
 ) (*SubscriptionMeta, error) {
 	if urlOrPath == "" {
 		return nil, fmt.Errorf("url or path cannot be empty")
@@ -297,11 +296,7 @@ func (m *Manager) AddUniversal(
 		intervalHours = 24
 	}
 
-	identity := urlOrPath
-	if clashNodesOnly {
-		identity += "\nclash-nodes-only"
-	}
-	subID := fmt.Sprintf("uni_%s", hashString(identity)[:12])
+	subID := fmt.Sprintf("uni_%s", hashString(urlOrPath)[:12])
 	if name == "" {
 		name = fmt.Sprintf("Universal-%s", subID[4:8])
 	}
@@ -311,7 +306,6 @@ func (m *Manager) AddUniversal(
 		Name:                name,
 		Type:                SubTypeUniversal,
 		SourceURL:           urlOrPath,
-		ClashNodesOnly:      clashNodesOnly,
 		AutoUpdate:          true,
 		UpdateIntervalHours: intervalHours,
 		Health:              HealthOK,
@@ -328,7 +322,6 @@ func (m *Manager) AddUniversalContent(
 	content, name string,
 	intervalHours int,
 	activate bool,
-	clashNodesOnly bool,
 ) (*SubscriptionMeta, error) {
 	if strings.TrimSpace(content) == "" {
 		return nil, fmt.Errorf("content cannot be empty")
@@ -337,11 +330,7 @@ func (m *Manager) AddUniversalContent(
 		intervalHours = 24
 	}
 
-	identity := content
-	if clashNodesOnly {
-		identity += "\nclash-nodes-only"
-	}
-	subID := fmt.Sprintf("uni_%s", hashString(identity)[:12])
+	subID := fmt.Sprintf("uni_%s", hashString(content)[:12])
 	if name == "" {
 		name = fmt.Sprintf("Universal-%s", subID[4:8])
 	}
@@ -357,7 +346,6 @@ func (m *Manager) AddUniversalContent(
 		Name:                name,
 		Type:                SubTypeUniversal,
 		SourceURL:           sourcePath,
-		ClashNodesOnly:      clashNodesOnly,
 		AutoUpdate:          true,
 		UpdateIntervalHours: intervalHours,
 		Health:              HealthOK,
@@ -562,8 +550,8 @@ func (m *Manager) Update(
 		}, nil
 	}
 
-	// 2. Format conversion & validation gate
-	convertedJSON, quotaFromYAML, err := DetectAndConvert(rawContent, subMeta.ClashNodesOnly)
+	// 2. Format detection & validation gate
+	convertedJSON, format, quotaFromYAML, err := DetectAndConvert(rawContent)
 	if err != nil {
 		m.recordError(subMeta.ID, HealthTransientError, fmt.Sprintf("format detection failed: %v", err))
 		return nil, err
@@ -620,6 +608,7 @@ func (m *Manager) Update(
 			m.store.Subscriptions[i].LastCheckedAt = time.Now()
 			m.store.Subscriptions[i].LastUpdatedAt = time.Now()
 			m.store.Subscriptions[i].ContentHash = newHash
+			m.store.Subscriptions[i].Format = format
 			if etagFromResp != "" {
 				m.store.Subscriptions[i].ETag = etagFromResp
 			}

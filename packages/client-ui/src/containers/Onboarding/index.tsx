@@ -1,5 +1,4 @@
 import { Button, ButtonSelect, XBondIcon } from "@components";
-import { ClashImportOption } from "@components/ClashImportOption";
 import {
   useAccount,
   useLanguage,
@@ -45,7 +44,6 @@ export default function Onboarding({
   const { addSub } = useSubscriptions();
 
   const [showImport, setShowImport] = useState(signedInNoSub);
-  const [clashNodesOnly, setClashNodesOnly] = useState(false);
   const [mode, setMode] = useState<ImportMode>("url");
   const [url, setUrl] = useState("");
   const [paste, setPaste] = useState("");
@@ -113,7 +111,6 @@ export default function Onboarding({
           : { content: mode === "file" ? await readSelectedFile() : paste };
       const res = await addSub({
         ...params,
-        clashNodesOnly,
         lang: subscriptionLang(lang),
       });
       await refreshStatus();
@@ -221,12 +218,6 @@ export default function Onboarding({
               }}
             />
           </div>
-
-          <ClashImportOption
-            checked={clashNodesOnly}
-            disabled={busy}
-            onChange={setClashNodesOnly}
-          />
 
           {mode === "url" && (
             <input

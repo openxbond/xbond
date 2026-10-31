@@ -18,28 +18,21 @@ import (
 func TestFormatDetection(t *testing.T) {
 	// 1. sing-box JSON converts to canonical Clash YAML
 	validSingBox := []byte(`{"outbounds": [{"type": "trojan", "tag": "HK-01", "server": "1.2.3.4", "server_port": 443, "password": "pass"}]}`)
-	converted, _, err := DetectAndConvert(validSingBox, false)
+	converted, format, _, err := DetectAndConvert(validSingBox)
 	if err != nil {
-		t.Fatalf("expected sing-box json to convert, got: %v", err)
+		t.Fatalf("expected sing-box json to pass through, got: %v", err)
 	}
-	var convertedDoc struct {
-		Proxies []map[string]any `yaml:"proxies"`
-		Groups  []map[string]any `yaml:"proxy-groups"`
+	if format != "sing-box" {
+		t.Errorf("expected sing-box format, got %q", format)
 	}
-	if err := yaml.Unmarshal(converted, &convertedDoc); err != nil {
-		t.Fatalf("failed to parse converted yaml: %v", err)
-	}
-	if len(convertedDoc.Proxies) != 1 || convertedDoc.Proxies[0]["name"] != "HK-01" {
-		t.Fatalf("expected converted node, got %v", convertedDoc.Proxies)
-	}
-	if len(convertedDoc.Groups) != 2 {
-		t.Errorf("expected default Proxy/Auto groups, got %v", convertedDoc.Groups)
+	if string(converted) != strings.TrimSpace(string(validSingBox)) {
+		t.Errorf("expected verbatim sing-box json passthrough")
 	}
 
-	// A sing-box config without convertible nodes is useless as a subscription.
-	directOnly := []byte(`{"outbounds": [{"type": "direct", "tag": "direct"}]}`)
-	if _, _, err := DetectAndConvert(directOnly, false); err == nil {
-		t.Fatalf("expected direct-only sing-box config to fail")
+	// A sing-box config without outbounds is not a subscription.
+	directOnly := []byte(`{}`)
+	if _, _, _, err := DetectAndConvert(directOnly); err == nil {
+		t.Fatalf("expected json without outbounds to fail")
 	}
 
 	// 2. Clash YAML passes through verbatim
@@ -56,9 +49,12 @@ proxy-groups:
     type: select
     proxies: ["HK-01"]
 `)
-	convertedYAML, quota, err := DetectAndConvert(clashYaml, false)
+	convertedYAML, format, quota, err := DetectAndConvert(clashYaml)
 	if err != nil {
 		t.Fatalf("expected clash yaml to convert, got: %v", err)
+	}
+	if format != "clash" {
+		t.Fatalf("expected clash format, got %q", format)
 	}
 	if quota == nil || quota.TotalBytes != 1000 {
 		t.Errorf("expected quota to be parsed from yaml comment, got: %+v", quota)
@@ -70,7 +66,7 @@ proxy-groups:
 	// 3. Base64 trojan link
 	link := "trojan://password123@hk.node.com:443?sni=hk.node.com#HongKong-01\n"
 	b64 := base64.StdEncoding.EncodeToString([]byte(link))
-	convertedB64, _, err := DetectAndConvert([]byte(b64), false)
+	convertedB64, format, _, err := DetectAndConvert([]byte(b64))
 	if err != nil {
 		t.Fatalf("expected base64 link to convert, got: %v", err)
 	}

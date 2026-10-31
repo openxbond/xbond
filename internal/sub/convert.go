@@ -8,38 +8,35 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/openxbond/xbond/internal/engine"
 	"gopkg.in/yaml.v3"
 )
 
-// DetectAndConvert normalizes any supported subscription format into the
-// canonical internal format: a Clash (mihomo) YAML document. Clash YAML is
-// the core's native format and passes through untouched; sing-box JSON and
-// share-link lists are converted. nodesOnly is the explicit escape hatch for
-// inputs whose semantics cannot be preserved (currently sing-box JSON).
-func DetectAndConvert(rawContent []byte, nodesOnly bool) ([]byte, *QuotaInfo, error) {
+// DetectAndConvert normalizes any supported subscription input into the
+// format its native core runs: Clash (mihomo) YAML or sing-box JSON. Both
+// are native formats and pass through untouched; share-link lists become
+// Clash YAML with default groups. The returned format records which core
+// owns the subscription.
+func DetectAndConvert(rawContent []byte) ([]byte, engine.CoreFormat, *QuotaInfo, error) {
 	trimmed := bytes.TrimSpace(rawContent)
 	if len(trimmed) == 0 {
-		return nil, nil, fmt.Errorf("configuration content is empty")
+		return nil, "", nil, fmt.Errorf("configuration content is empty")
 	}
 
 	quota := parseQuotaComment(trimmed)
 
-	// 1. sing-box JSON
+	// 1. sing-box JSON — passthrough for the sing-box core.
 	if trimmed[0] == '{' {
 		var probe map[string]any
 		if err := json.Unmarshal(trimmed, &probe); err == nil {
 			if _, hasOutbounds := probe["outbounds"]; hasOutbounds {
-				converted, err := convertSingBoxToClash(trimmed, nodesOnly)
-				if err != nil {
-					return nil, nil, err
-				}
-				return converted, quota, nil
+				return trimmed, engine.FormatSingBox, quota, nil
 			}
 		}
 	}
 
-	// 2. Clash YAML — passthrough; the core's own validation gate
-	// (engine.Validate) is the authority on whether it runs.
+	// 2. Clash YAML — passthrough for the mihomo core; the core's own
+	// validation gate (engine.Validate) is the authority on whether it runs.
 	var fields map[string]any
 	if err := yaml.Unmarshal(trimmed, &fields); err == nil {
 		proxies, _ := fields["proxies"].([]any)
@@ -48,9 +45,9 @@ func DetectAndConvert(rawContent []byte, nodesOnly bool) ([]byte, *QuotaInfo, er
 		_, hasRules := fields["rules"]
 		if len(proxies) > 0 || len(providers) > 0 || hasGroups || hasRules {
 			if len(proxies) == 0 && len(providers) == 0 {
-				return nil, nil, fmt.Errorf("Clash configuration has neither inline proxies nor proxy-providers")
+				return nil, "", nil, fmt.Errorf("Clash configuration has neither inline proxies nor proxy-providers")
 			}
-			return trimmed, quota, nil
+			return trimmed, engine.FormatClash, quota, nil
 		}
 	}
 
@@ -58,17 +55,17 @@ func DetectAndConvert(rawContent []byte, nodesOnly bool) ([]byte, *QuotaInfo, er
 	decoded := tryDecodeBase64(trimmed)
 	proxies, err := parseShareLinks(decoded)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 	if len(proxies) > 0 {
 		converted, err := buildClashFromProxies(proxies)
 		if err != nil {
-			return nil, nil, err
+			return nil, "", nil, err
 		}
-		return converted, nil, nil
+		return converted, engine.FormatClash, nil, nil
 	}
 
-	return nil, nil, fmt.Errorf("unrecognized subscription format (neither Clash YAML, sing-box JSON, nor URI list)")
+	return nil, "", nil, fmt.Errorf("unrecognized subscription format (neither Clash YAML, sing-box JSON, nor URI list)")
 }
 
 func tryDecodeBase64(content []byte) []byte {

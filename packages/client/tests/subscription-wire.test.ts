@@ -9,7 +9,6 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
     id: "profile",
     name: "Example",
     type: "universal",
-    clashNodesOnly: true,
     autoUpdate: true,
     updateIntervalHours: 24,
     quota: {
@@ -58,12 +57,10 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
     (
       await client.addSub({
         urlOrFile: "https://example.invalid",
-        clashNodesOnly: true,
       })
     ).meta,
   ]) {
     assert.ok(meta);
-    assert.equal(meta.clashNodesOnly, true);
     assert.equal(meta.upload + meta.download, 20);
     assert.equal(meta.total, 100);
     assert.equal(meta.expire, 1800000000);
@@ -74,6 +71,5 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
   }
   assert.deepEqual(imported, {
     urlOrFile: "https://example.invalid",
-    clashNodesOnly: true,
   });
 });

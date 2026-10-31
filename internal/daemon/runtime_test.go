@@ -81,7 +81,7 @@ func newRuntimeFixture(t *testing.T) runtimeFixture {
 		if err := os.WriteFile(source, []byte(fixture), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		meta, err := manager.AddUniversal(source, name, 24, active, false)
+		meta, err := manager.AddUniversal(source, name, 24, active)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -14,7 +14,7 @@ func TestRenameSubscriptionHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta, err := m.AddUniversal("https://example.invalid/config", "original", 24, true, false)
+	meta, err := m.AddUniversal("https://example.invalid/config", "original", 24, true)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,20 +1,44 @@
 package engine
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/hub/executor"
+	"github.com/sagernet/sing-box"
+	_ "github.com/sagernet/sing-box/experimental/clashapi" // registers the clash API server
+	"github.com/sagernet/sing-box/include"
+	"github.com/sagernet/sing-box/option"
+	singJson "github.com/sagernet/sing/common/json"
 	"gopkg.in/yaml.v3"
 )
 
-// Validate parses and resolves the configuration without starting any
-// listener. Remote proxy/rule providers are fetched lazily by the running
-// core, so validation never touches the network.
+func NewBoxContext() context.Context {
+	return include.Context(context.Background())
+}
+
+// Validate parses and resolves the configuration with its native core
+// without starting any listener. Remote providers fetch lazily from the
+// running core, so validation never touches the network (geodata for
+// GEOIP/GEOSITE rules is the core's only on-demand download).
 func Validate(configBytes []byte) error {
-	if err := initCoreHome(); err != nil {
+	format, err := DetectFormat(configBytes)
+	if err != nil {
 		return err
 	}
+	switch format {
+	case FormatClash:
+		return validateClash(configBytes)
+	case FormatSingBox:
+		return validateSingBox(configBytes)
+	default:
+		return fmt.Errorf("unsupported core format %q", format)
+	}
+}
+
+func validateClash(configBytes []byte) error {
 	raw, err := config.UnmarshalRawConfig(configBytes)
 	if err != nil {
 		return fmt.Errorf("failed to parse mihomo configuration: %w", err)
@@ -28,10 +52,32 @@ func Validate(configBytes []byte) error {
 	return nil
 }
 
-// DeriveRuntimeConfig merges a subscription's Clash YAML with the daemon-owned
-// listeners, takeover and controller settings. Everything under the daemon's
-// ownership is overwritten; subscription content (proxies, groups, rules,
-// DNS choices) is preserved as-is except where TUN mode requires DNS.
+func validateSingBox(configJSON []byte) error {
+	ctx := NewBoxContext()
+	options, err := singJson.UnmarshalExtendedContext[option.Options](ctx, configJSON)
+	if err != nil {
+		return fmt.Errorf("failed to parse sing-box options: %w", err)
+	}
+
+	if len(options.Outbounds) == 0 {
+		return fmt.Errorf("configuration contains no outbounds")
+	}
+
+	instance, err := box.New(box.Options{
+		Context: ctx,
+		Options: options,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create sing-box instance: %w", err)
+	}
+	_ = instance.Close()
+	return nil
+}
+
+// DeriveRuntimeConfig merges a subscription's configuration with the
+// daemon-owned listeners, takeover and controller settings, using the core
+// native to the source format. Everything under the daemon's ownership is
+// overwritten; subscription content is preserved as-is.
 func DeriveRuntimeConfig(
 	source []byte,
 	takeoverMode TakeoverMode,
@@ -54,19 +100,18 @@ func DeriveRuntimeConfig(
 		routingMode = RoutingRule
 	}
 
-	raw, err := decodeYAMLMap(source)
+	format, err := DetectFormat(source)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse source config: %w", err)
+		return nil, err
 	}
-
-	applyGeneral(raw, routingMode, mixedPort, allowLan, clashPort, clashSecret)
-	applyTakeover(raw, takeoverMode)
-
-	derived, err := yaml.Marshal(raw)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal derived config: %w", err)
+	switch format {
+	case FormatClash:
+		return deriveClashRuntime(source, takeoverMode, routingMode, mixedPort, allowLan, clashPort, clashSecret)
+	case FormatSingBox:
+		return deriveSingBoxRuntime(source, takeoverMode, routingMode, mixedPort, allowLan, clashPort, clashSecret)
+	default:
+		return nil, fmt.Errorf("unsupported core format %q", format)
 	}
-	return derived, nil
 }
 
 // DeriveMobileRuntimeConfig is the VPN-flavoured derivation: the platform TUN
@@ -89,6 +134,54 @@ func DeriveMobileRuntimeConfig(
 		routingMode = RoutingRule
 	}
 
+	format, err := DetectFormat(source)
+	if err != nil {
+		return nil, err
+	}
+	switch format {
+	case FormatClash:
+		return deriveClashMobile(source, tunFd, routingMode, clashPort, clashSecret)
+	case FormatSingBox:
+		return deriveSingBoxMobile(source, tunFd, routingMode, clashPort, clashSecret)
+	default:
+		return nil, fmt.Errorf("unsupported core format %q", format)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// mihomo (Clash YAML)
+
+func deriveClashRuntime(
+	source []byte,
+	takeoverMode TakeoverMode,
+	routingMode RoutingMode,
+	mixedPort int,
+	allowLan bool,
+	clashPort int,
+	clashSecret string,
+) ([]byte, error) {
+	raw, err := decodeYAMLMap(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source config: %w", err)
+	}
+
+	applyClashGeneral(raw, routingMode, mixedPort, allowLan, clashPort, clashSecret)
+	applyClashTakeover(raw, takeoverMode)
+
+	derived, err := yaml.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal derived config: %w", err)
+	}
+	return derived, nil
+}
+
+func deriveClashMobile(
+	source []byte,
+	tunFd int32,
+	routingMode RoutingMode,
+	clashPort int,
+	clashSecret string,
+) ([]byte, error) {
 	raw, err := decodeYAMLMap(source)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse source config: %w", err)
@@ -138,10 +231,10 @@ func decodeYAMLMap(source []byte) (map[string]any, error) {
 	return raw, nil
 }
 
-// applyGeneral overwrites the general section the daemon owns. Listener
+// applyClashGeneral overwrites the general section the daemon owns. Listener
 // configuration from the subscription never survives: takeover is a
 // user-controlled app setting, not subscription content.
-func applyGeneral(
+func applyClashGeneral(
 	raw map[string]any,
 	routingMode RoutingMode,
 	mixedPort int,
@@ -182,7 +275,7 @@ func mergeProfile(raw map[string]any) {
 	raw["profile"] = profile
 }
 
-func applyTakeover(raw map[string]any, takeoverMode TakeoverMode) {
+func applyClashTakeover(raw map[string]any, takeoverMode TakeoverMode) {
 	tun, _ := raw["tun"].(map[string]any)
 	if tun == nil {
 		tun = make(map[string]any)
@@ -224,4 +317,163 @@ func ensureDNSForTun(raw map[string]any) {
 		dns["fake-ip-filter"] = []any{"*.lan", "*.local"}
 	}
 	raw["dns"] = dns
+}
+
+// ---------------------------------------------------------------------------
+// sing-box (JSON)
+
+func deriveSingBoxRuntime(
+	sourceJSON []byte,
+	takeoverMode TakeoverMode,
+	routingMode RoutingMode,
+	mixedPort int,
+	allowLan bool,
+	clashPort int,
+	clashSecret string,
+) ([]byte, error) {
+	var raw map[string]any
+	if err := json.Unmarshal(sourceJSON, &raw); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal source config: %w", err)
+	}
+
+	inbounds, _ := raw["inbounds"].([]any)
+	filteredInbounds := make([]any, 0, len(inbounds)+2)
+
+	listenAddr := "127.0.0.1"
+	if allowLan {
+		listenAddr = "0.0.0.0"
+	}
+
+	var hasMixed bool
+	for _, item := range inbounds {
+		inboundMap, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		inboundType, _ := inboundMap["type"].(string)
+
+		if inboundType == "tun" {
+			// Takeover is app-controlled; a subscription TUN never runs.
+			continue
+		}
+		if inboundType == "mixed" {
+			inboundMap["listen"] = listenAddr
+			inboundMap["listen_port"] = mixedPort
+			filteredInbounds = append(filteredInbounds, inboundMap)
+			hasMixed = true
+			continue
+		}
+		filteredInbounds = append(filteredInbounds, inboundMap)
+	}
+
+	if !hasMixed {
+		mixedInbound := map[string]any{
+			"type":        "mixed",
+			"tag":         "mixed-in",
+			"listen":      listenAddr,
+			"listen_port": mixedPort,
+		}
+		filteredInbounds = append([]any{mixedInbound}, filteredInbounds...)
+	}
+
+	if takeoverMode == ModeTun {
+		tunInbound := map[string]any{
+			"type":           "tun",
+			"tag":            "tun-in",
+			"interface_name": "sing-tun",
+			"auto_route":     true,
+			"strict_route":   true,
+			"stack":          "mixed",
+		}
+		filteredInbounds = append([]any{tunInbound}, filteredInbounds...)
+	}
+
+	raw["inbounds"] = filteredInbounds
+
+	exp, _ := raw["experimental"].(map[string]any)
+	if exp == nil {
+		exp = make(map[string]any)
+	}
+	exp["clash_api"] = map[string]any{
+		"external_controller": fmt.Sprintf("127.0.0.1:%d", clashPort),
+		"secret":              clashSecret,
+		"default_mode":        string(routingMode),
+	}
+	cacheFile, _ := exp["cache_file"].(map[string]any)
+	if cacheFile == nil {
+		cacheFile = make(map[string]any)
+	}
+	cacheFile["enabled"] = true
+	cacheFile["store_fakeip"] = true
+	exp["cache_file"] = cacheFile
+	raw["experimental"] = exp
+
+	derivedJSON, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal derived config: %w", err)
+	}
+	return derivedJSON, nil
+}
+
+func deriveSingBoxMobile(
+	sourceJSON []byte,
+	tunFd int32,
+	routingMode RoutingMode,
+	clashPort int,
+	clashSecret string,
+) ([]byte, error) {
+	var raw map[string]any
+	if err := json.Unmarshal(sourceJSON, &raw); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal source config: %w", err)
+	}
+
+	inbounds, _ := raw["inbounds"].([]any)
+	filteredInbounds := make([]any, 0, len(inbounds)+1)
+
+	for _, item := range inbounds {
+		inboundMap, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		inboundType, _ := inboundMap["type"].(string)
+		if inboundType == "tun" || inboundType == "mixed" {
+			continue
+		}
+		filteredInbounds = append(filteredInbounds, inboundMap)
+	}
+
+	tunInbound := map[string]any{
+		"type":            "tun",
+		"tag":             "tun-in",
+		"file_descriptor": tunFd,
+		"stack":           "mixed",
+		"auto_route":      false,
+		"strict_route":    false,
+	}
+	filteredInbounds = append([]any{tunInbound}, filteredInbounds...)
+	raw["inbounds"] = filteredInbounds
+
+	exp, _ := raw["experimental"].(map[string]any)
+	if exp == nil {
+		exp = make(map[string]any)
+	}
+	exp["clash_api"] = map[string]any{
+		"external_controller": fmt.Sprintf("127.0.0.1:%d", clashPort),
+		"secret":              clashSecret,
+		"default_mode":        string(routingMode),
+	}
+	cacheFile, _ := exp["cache_file"].(map[string]any)
+	if cacheFile == nil {
+		cacheFile = make(map[string]any)
+	}
+	cacheFile["enabled"] = true
+	cacheFile["store_fakeip"] = true
+	exp["cache_file"] = cacheFile
+	raw["experimental"] = exp
+
+	derivedJSON, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal derived mobile config: %w", err)
+	}
+	return derivedJSON, nil
 }

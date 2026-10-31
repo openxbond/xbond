@@ -15,7 +15,7 @@ func TestAddUniversalContentSnapshotsAndReusesID(t *testing.T) {
 	}
 	content := "proxies:\n  - {name: edge, type: trojan, server: example.invalid, port: 443, password: fixture-only}\n"
 
-	meta, err := manager.AddUniversalContent(content, "", 24, true, false)
+	meta, err := manager.AddUniversalContent(content, "", 24, true)
 	if err != nil {
 		t.Fatalf("add pasted content: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestAddUniversalContentSnapshotsAndReusesID(t *testing.T) {
 		t.Errorf("activate: active %q, want %q", manager.ActiveID(), meta.ID)
 	}
 
-	again, err := manager.AddUniversalContent(content, "", 24, false, false)
+	again, err := manager.AddUniversalContent(content, "", 24, false)
 	if err != nil {
 		t.Fatalf("re-add: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestAddUniversalContentRejectsBlank(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new manager: %v", err)
 	}
-	if _, err := manager.AddUniversalContent("   \n", "", 24, false, false); err == nil {
+	if _, err := manager.AddUniversalContent("   \n", "", 24, false); err == nil {
 		t.Fatal("blank content must be rejected")
 	}
 }

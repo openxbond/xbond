@@ -32,7 +32,7 @@ flowchart TD
 | packages/client-ui | React 畫面、互動、Jotai／SWR、語系及樣式；目前的瀏覽器／Tauri 探測亦留在這裡 |
 | cmd/xbond | 命令列參數、呈現及入口裝配 |
 | internal/daemon | LocalAPI、HTTP 裝配及本機運行流程；daemon/service 子包註冊使用者級自啟（systemd --user／LaunchAgent／HKCU Run） |
-| internal/engine | mihomo 執行、配置驗證與衍生 |
+| internal/engine | 雙核心執行（mihomo／sing-box）、格式判定、配置驗證與衍生 |
 | internal/sub | 訂閱來源、快取及更新 |
 | internal/platform | 作業系統資料位置與系統代理 |
 | mobile | gomobile 相容的公開入口與平台回呼 |

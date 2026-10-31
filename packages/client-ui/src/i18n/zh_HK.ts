@@ -387,9 +387,6 @@ const HK = {
     title: "訂閱",
     xbondTrack: "XBond 專屬雲憑據",
     universalTrack: "通用訂閱連結",
-    clashNodesOnly: "只匯入節點",
-    clashNodesOnlyHint:
-      "捨棄配置的規則、DNS 及策略組，只保留節點並使用預設策略。僅對 sing-box JSON 生效；Clash YAML 原樣運行，無需勾選。",
     tokenPlaceholder: "輸入 XBond 憑據（例如 sub-xxxx…）",
     urlPlaceholder: "輸入通用 Clash / sing-box 訂閱 URL 或本地路徑",
     namePlaceholder: "訂閱名稱（選填）",

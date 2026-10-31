@@ -70,7 +70,7 @@ func TestLocalAPIServerAndClient(t *testing.T) {
 	}
 
 	// 3. Add and list subscriptions
-	added, err := client.AddSub(ctx, sub.SubTypeUniversal, "", "", nil, "", "", "TestSub", "local.json", 12, true, false)
+	added, err := client.AddSub(ctx, sub.SubTypeUniversal, "", "", nil, "", "", "TestSub", "local.json", 12, true)
 	if err != nil {
 		t.Fatalf("AddSub failed: %v", err)
 	}

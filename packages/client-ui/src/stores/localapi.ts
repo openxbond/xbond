@@ -113,7 +113,6 @@ export function useSubscriptions() {
       token?: string;
       urlOrFile?: string;
       content?: string;
-      clashNodesOnly?: boolean;
       name?: string;
       protocol?: string;
       lang?: string;

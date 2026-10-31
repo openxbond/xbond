@@ -20,6 +20,7 @@ const (
 
 type EngineStatus struct {
 	Running       bool         `json:"running"`
+	Core          CoreFormat   `json:"core,omitempty"`
 	TakeoverMode  TakeoverMode `json:"takeoverMode"`
 	RoutingMode   RoutingMode  `json:"routingMode"`
 	MixedPort     int          `json:"mixedPort"`
