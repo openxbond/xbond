@@ -79,6 +79,13 @@ func AccountSessionPath() string {
 	return filepath.Join(DataDir(), "account.json")
 }
 
+// AccountOverviewPath caches the last fetched account overview (identity,
+// service status, announcements) so the UI shows it instantly at boot and
+// offline. Logout deletes it.
+func AccountOverviewPath() string {
+	return filepath.Join(DataDir(), "account-overview.json")
+}
+
 func LocalAPITokenPath() string {
 	return filepath.Join(DataDir(), "localapi.token")
 }

@@ -538,6 +538,13 @@ const KO = {
     pending: "인증 대기 중…",
     retry: "재시도",
     failed: "로그인 실패",
+    serviceExpires: "만료: {{date}}",
+    serviceQuotaBlocked: "트래픽 소진",
+    noService: "활성 서비스 없음 — 콘솔에서 구매 후 동기화하세요",
+    overviewFailed: "계정 상태를 가져오지 못했습니다: {{error}}",
+    announcements: "공지",
+    openConsole: "콘솔 열기",
+    logout: "로그아웃",
   },
 } as const;
 

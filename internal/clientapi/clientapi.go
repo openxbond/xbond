@@ -133,24 +133,47 @@ func FetchSubscriptionLinkWithRefresh(
 	origin string,
 	token *oauth2.Token,
 ) (*SubscriptionLink, error) {
-	conf := NewConfig(origin)
-	src := conf.TokenSource(ctx, token)
-	current, err := src.Token()
+	var link *SubscriptionLink
+	err := fetchWithRefresh(ctx, origin, token, func(ctx context.Context, access string) error {
+		result, fetchErr := FetchSubscriptionLink(ctx, origin, access)
+		if fetchErr != nil {
+			return fetchErr
+		}
+		link = result
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	link, err := FetchSubscriptionLink(ctx, origin, current.AccessToken)
-	if !errors.Is(err, ErrUnauthorized) {
-		return link, err
+	return link, nil
+}
+
+// fetchWithRefresh runs fetch with the token source's current access token;
+// ErrUnauthorized forces one refresh and a retry. Rotated values are written
+// back into token so callers persisting the token set stay current.
+func fetchWithRefresh(
+	ctx context.Context,
+	origin string,
+	token *oauth2.Token,
+	fetch func(context.Context, string) error,
+) error {
+	conf := NewConfig(origin)
+	current, err := conf.TokenSource(ctx, token).Token()
+	if err != nil {
+		return err
+	}
+	firstErr := fetch(ctx, current.AccessToken)
+	if !errors.Is(firstErr, ErrUnauthorized) {
+		return firstErr
 	}
 	// Force a refresh independent of the source's expiry cache.
 	forced := &oauth2.Token{RefreshToken: current.RefreshToken}
 	refreshed, refreshErr := conf.TokenSource(ctx, forced).Token()
 	if refreshErr != nil {
-		return nil, errors.Join(err, refreshErr)
+		return errors.Join(firstErr, refreshErr)
 	}
 	token.AccessToken = refreshed.AccessToken
 	token.RefreshToken = refreshed.RefreshToken
 	token.Expiry = refreshed.Expiry
-	return FetchSubscriptionLink(ctx, origin, token.AccessToken)
+	return fetch(ctx, token.AccessToken)
 }

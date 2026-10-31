@@ -143,6 +143,29 @@ export interface LocalAPIStatusResponse {
   activeSub: SubscriptionMeta | null;
 }
 
+/** Service status from user.billing.subscription (billing-disabled collapses
+ * to plan "free" with enabled false). */
+export interface AccountServiceStatus {
+  enabled: boolean;
+  plan: string;
+  status?: string;
+  planSlug?: string;
+  servicePeriodEnd?: string;
+  quotaState?: string;
+  dataLimitBytes?: number | null;
+  dataUsedBytes?: number | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export interface AccountAnnouncement {
+  id: string;
+  title: string;
+  summary?: string;
+  category?: string;
+  publishedAt?: string;
+  readAt?: string | null;
+}
+
 export interface AccountStatus {
   status: "signed_out" | "pending" | "signed_in" | "error";
   method?: "pkce" | "device";
@@ -155,6 +178,16 @@ export interface AccountStatus {
   startedAt?: string;
   subscription?: SubscriptionMeta | null;
   updateError?: string;
+  /** Identity, service status and announcements from the last overview sync
+   * (cached across daemon restarts; absent until the first sync). */
+  email?: string;
+  name?: string;
+  /** Trusted console entry: the session's own origin + /dash. */
+  consoleUrl?: string;
+  service?: AccountServiceStatus | null;
+  announcements?: AccountAnnouncement[];
+  unreadCount?: number;
+  overviewError?: string;
 }
 
 export interface SubscriptionFetchProgress {

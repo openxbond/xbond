@@ -435,7 +435,7 @@ func (s *Server) handleSubsProgress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	removed, err := s.account.logout()
+	removed, err := s.account.logout(r.Context())
 	if err != nil {
 		writeRuntimeError(w, err)
 		return

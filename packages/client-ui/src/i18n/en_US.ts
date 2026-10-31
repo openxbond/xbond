@@ -545,6 +545,13 @@ const EN = {
     pending: "Waiting for authorization…",
     retry: "Retry",
     failed: "Sign-in failed",
+    serviceExpires: "Expires {{date}}",
+    serviceQuotaBlocked: "Quota used up",
+    noService: "No active service — subscribe in the console and resync",
+    overviewFailed: "Account status unavailable: {{error}}",
+    announcements: "Announcements",
+    openConsole: "Open console",
+    logout: "Sign out",
   },
 } as const;
 

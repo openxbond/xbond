@@ -523,6 +523,13 @@ const CN = {
     pending: "等待授权…",
     retry: "重试",
     failed: "登录失败",
+    serviceExpires: "到期 {{date}}",
+    serviceQuotaBlocked: "流量已用尽",
+    noService: "暂无生效服务——在控制台购买后同步",
+    overviewFailed: "账户状态获取失败：{{error}}",
+    announcements: "公告",
+    openConsole: "打开控制台",
+    logout: "退出登录",
   },
 } as const;
 

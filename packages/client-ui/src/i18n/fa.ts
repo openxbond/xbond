@@ -542,6 +542,13 @@ const FA = {
     pending: "در انتظار تأیید…",
     retry: "تلاش دوباره",
     failed: "ورود ناموفق بود",
+    serviceExpires: "انقضا: {{date}}",
+    serviceQuotaBlocked: "ترافیک تمام شده",
+    noService: "سرویس فعالی وجود ندارد — پس از خرید در کنسول همگام‌سازی کنید",
+    overviewFailed: "دریافت وضعیت حساب ناموفق بود: {{error}}",
+    announcements: "اعلان‌ها",
+    openConsole: "باز کردن کنسول",
+    logout: "خروج",
   },
 } as const;
 

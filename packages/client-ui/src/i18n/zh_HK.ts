@@ -524,6 +524,13 @@ const HK = {
     pending: "等待授權…",
     retry: "重試",
     failed: "登入失敗",
+    serviceExpires: "到期 {{date}}",
+    serviceQuotaBlocked: "流量已用盡",
+    noService: "暫無生效服務——在控制台購買後同步",
+    overviewFailed: "賬戶狀態獲取失敗：{{error}}",
+    announcements: "公告",
+    openConsole: "打開控制台",
+    logout: "退出登入",
   },
 } as const;
 

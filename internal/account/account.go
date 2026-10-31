@@ -104,19 +104,25 @@ func (s *Session) Token() *oauth2.Token {
 
 type Flow func(context.Context, LoginOptions, func(Progress)) (*oauth2.Token, error)
 type LinkFetcher func(context.Context, string, *oauth2.Token) (*clientapi.SubscriptionLink, error)
+type OverviewFetcher func(context.Context, string, *oauth2.Token) (*clientapi.AccountOverview, error)
+type TokenRevoker func(context.Context, string, string) error
 
 // Manager owns the persisted session and the OAuth/link operations.
 type Manager struct {
-	sessionPath string
-	flow        Flow
-	fetchLink   LinkFetcher
+	sessionPath   string
+	flow          Flow
+	fetchLink     LinkFetcher
+	fetchOverview OverviewFetcher
+	revoke        TokenRevoker
 }
 
 func NewManager(sessionPath string) *Manager {
 	return &Manager{
-		sessionPath: sessionPath,
-		flow:        Authenticate,
-		fetchLink:   clientapi.FetchSubscriptionLinkWithRefresh,
+		sessionPath:   sessionPath,
+		flow:          Authenticate,
+		fetchLink:     clientapi.FetchSubscriptionLinkWithRefresh,
+		fetchOverview: clientapi.FetchAccountOverviewWithRefresh,
+		revoke:        clientapi.RevokeToken,
 	}
 }
 
@@ -199,7 +205,38 @@ func (m *Manager) RefreshLink(ctx context.Context) (*clientapi.SubscriptionLink,
 	return link, nil
 }
 
-func (m *Manager) Logout() error {
+// Overview reads the account overview (identity, service status,
+// announcements) with the saved session and persists any rotated tokens.
+// It is the read path behind the daemon's account status.
+func (m *Manager) Overview(ctx context.Context) (*clientapi.AccountOverview, error) {
+	session, err := m.Session()
+	if err != nil {
+		return nil, err
+	}
+	token := session.Token()
+	overview, err := m.fetchOverview(ctx, session.Origin, token)
+	if err != nil {
+		return nil, err
+	}
+	session.AccessToken = token.AccessToken
+	session.RefreshToken = token.RefreshToken
+	session.TokenType = token.TokenType
+	session.Expiry = token.Expiry
+	if err := SaveSession(m.sessionPath, session); err != nil {
+		return nil, err
+	}
+	return overview, nil
+}
+
+// Logout revokes the refresh chain at the Cloud (best effort: a network
+// failure must not strand local credentials) and removes the local session.
+// Revoking an already-dead session is a no-op per RFC 7009.
+func (m *Manager) Logout(ctx context.Context) error {
+	if session, err := m.Session(); err == nil && session.RefreshToken != "" {
+		revokeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		_ = m.revoke(revokeCtx, session.Origin, session.RefreshToken)
+		cancel()
+	}
 	if err := os.Remove(m.sessionPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}

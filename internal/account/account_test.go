@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +12,9 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/openxbond/xbond/internal/clientapi"
+	"golang.org/x/oauth2"
 )
 
 func TestDeviceLoginPersistsSessionAndResolvesLink(t *testing.T) {
@@ -269,17 +273,56 @@ func TestRefreshLinkPersistsRotatedToken(t *testing.T) {
 	}
 }
 
-func TestLogoutRemovesSession(t *testing.T) {
+// Logout revokes the refresh chain (best effort — even a failing network
+// must not strand local credentials) and removes the session file.
+func TestLogoutRevokesAndRemovesSession(t *testing.T) {
 	sessionPath := filepath.Join(t.TempDir(), "account.json")
 	manager := NewManager(sessionPath)
-	if err := SaveSession(sessionPath, &Session{AccessToken: "at", Origin: DefaultOrigin}); err != nil {
+	if err := SaveSession(sessionPath, &Session{AccessToken: "at", RefreshToken: "rt", Origin: DefaultOrigin}); err != nil {
 		t.Fatalf("save session: %v", err)
 	}
-	if err := manager.Logout(); err != nil {
+	var revokedOrigin, revokedToken string
+	manager.revoke = func(_ context.Context, origin, token string) error {
+		revokedOrigin, revokedToken = origin, token
+		return errors.New("network down")
+	}
+	if err := manager.Logout(context.Background()); err != nil {
 		t.Fatalf("logout: %v", err)
+	}
+	if revokedOrigin != DefaultOrigin || revokedToken != "rt" {
+		t.Fatalf("refresh token not revoked: %q %q", revokedOrigin, revokedToken)
 	}
 	if _, err := manager.Session(); !os.IsNotExist(err) {
 		t.Fatalf("session still present: %v", err)
+	}
+}
+
+// Overview reads with the saved session and persists rotated tokens.
+func TestOverviewPersistsRotatedTokens(t *testing.T) {
+	sessionPath := filepath.Join(t.TempDir(), "account.json")
+	manager := NewManager(sessionPath)
+	if err := SaveSession(sessionPath, &Session{AccessToken: "at-1", RefreshToken: "rt-1", Origin: DefaultOrigin}); err != nil {
+		t.Fatalf("save session: %v", err)
+	}
+	manager.fetchOverview = func(_ context.Context, origin string, token *oauth2.Token) (*clientapi.AccountOverview, error) {
+		if origin != DefaultOrigin || token.AccessToken != "at-1" {
+			t.Errorf("unexpected fetch context: %q %q", origin, token.AccessToken)
+		}
+		token.AccessToken = "at-2"
+		return &clientapi.AccountOverview{
+			Profile: clientapi.Profile{Email: "user@example.invalid", Name: "User"},
+		}, nil
+	}
+	overview, err := manager.Overview(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if overview.Profile.Email != "user@example.invalid" {
+		t.Fatalf("unexpected overview: %+v", overview)
+	}
+	session, err := manager.Session()
+	if err != nil || session.AccessToken != "at-2" {
+		t.Fatalf("rotated token not persisted: %+v (%v)", session, err)
 	}
 }
 

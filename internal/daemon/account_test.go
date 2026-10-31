@@ -16,6 +16,8 @@ type fakeAccountManager struct {
 	login       func(context.Context, account.LoginOptions, func(account.Progress)) (*account.Credentials, error)
 	link        *clientapi.SubscriptionLink
 	refreshErr  error
+	overview    *clientapi.AccountOverview
+	overviewErr error
 	logoutCalls int
 }
 
@@ -41,7 +43,17 @@ func (f *fakeAccountManager) RefreshLink(context.Context) (*clientapi.Subscripti
 	return f.link, nil
 }
 
-func (f *fakeAccountManager) Logout() error {
+func (f *fakeAccountManager) Overview(context.Context) (*clientapi.AccountOverview, error) {
+	if f.overviewErr != nil {
+		return nil, f.overviewErr
+	}
+	if f.overview == nil {
+		return nil, errors.New("no overview")
+	}
+	return f.overview, nil
+}
+
+func (f *fakeAccountManager) Logout(context.Context) error {
 	f.logoutCalls++
 	return nil
 }
@@ -61,6 +73,7 @@ func waitForAccountStatus(t *testing.T, controller *accountController, want stri
 }
 
 func TestAccountControllerLoginSuccess(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	release := make(chan struct{})
 	manager := &fakeAccountManager{}
 	manager.login = func(
@@ -125,6 +138,7 @@ func TestAccountControllerLoginError(t *testing.T) {
 }
 
 func TestAccountControllerHydrateFromSession(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	manager := &fakeAccountManager{session: &account.Session{AccessToken: "at", Origin: account.DefaultOrigin}}
 	controller := newAccountController(
 		manager,
@@ -138,6 +152,7 @@ func TestAccountControllerHydrateFromSession(t *testing.T) {
 }
 
 func TestAccountControllerLogoutCancelsPendingLogin(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	started := make(chan struct{})
 	manager := &fakeAccountManager{}
 	manager.login = func(ctx context.Context, _ account.LoginOptions, _ func(account.Progress)) (*account.Credentials, error) {
@@ -160,7 +175,7 @@ func TestAccountControllerLogoutCancelsPendingLogin(t *testing.T) {
 
 	controller.start(account.LoginOptions{}, accountBindOptions{})
 	<-started
-	removed, err := controller.logout()
+	removed, err := controller.logout(context.Background())
 	if err != nil {
 		t.Fatalf("logout: %v", err)
 	}
@@ -176,11 +191,17 @@ func TestAccountControllerLogoutCancelsPendingLogin(t *testing.T) {
 }
 
 func TestAccountControllerRefreshBindsSubscription(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	manager := &fakeAccountManager{
 		session: &account.Session{AccessToken: "at", Origin: account.DefaultOrigin},
 		link: &clientapi.SubscriptionLink{
 			SubscriptionToken: "sub-abc",
 			FallbackDomains:   []string{"https://sub-01.xbond.dev"},
+		},
+		overview: &clientapi.AccountOverview{
+			Profile:       clientapi.Profile{Email: "user@example.invalid", Name: "User"},
+			Service:       &clientapi.ServiceStatus{Plan: "Pro", ServicePeriodEnd: "2026-12-31T00:00:00Z"},
+			Announcements: []clientapi.Announcement{},
 		},
 	}
 	var boundToken string
@@ -203,5 +224,83 @@ func TestAccountControllerRefreshBindsSubscription(t *testing.T) {
 	}
 	if state.Status != "signed_in" || state.Subscription == nil {
 		t.Errorf("refresh state: %+v", state)
+	}
+	// The overview folded in: identity, service and a console link derived
+	// from the session's own origin.
+	if state.Email != "user@example.invalid" || state.Service == nil || state.Service.Plan != "Pro" {
+		t.Errorf("overview not folded into state: %+v", state)
+	}
+	if state.ConsoleURL != "https://www.xbond.net/dash" {
+		t.Errorf("unexpected console URL: %q", state.ConsoleURL)
+	}
+	if loadOverviewCache() == nil {
+		t.Error("overview cache not persisted")
+	}
+}
+
+// Hydrate shows the cached overview immediately even while the Cloud is
+// unreachable; a failed background sync surfaces as OverviewError without
+// discarding the cache.
+func TestAccountControllerHydrateShowsCachedOverviewAndKeepsItOnFailure(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	saveOverviewCache(&clientapi.AccountOverview{
+		Profile: clientapi.Profile{Email: "cached@example.invalid", Name: "Cached"},
+		Service: &clientapi.ServiceStatus{Plan: "Pro"},
+	})
+	manager := &fakeAccountManager{
+		session:     &account.Session{AccessToken: "at", Origin: account.DefaultOrigin},
+		overviewErr: errors.New("cloud down"),
+	}
+	controller := newAccountController(
+		manager,
+		nil,
+		nil,
+		func() *sub.SubscriptionMeta { return nil },
+	)
+
+	state := controller.snapshot()
+	if state.Email != "cached@example.invalid" || state.Service == nil {
+		t.Fatalf("cached overview not shown at hydrate: %+v", state)
+	}
+	controller.syncOverviewCtx(context.Background())
+	state = controller.snapshot()
+	if state.OverviewError == "" {
+		t.Error("failed overview sync not surfaced")
+	}
+	if state.Email != "cached@example.invalid" || state.Service == nil {
+		t.Errorf("failed sync discarded the cached overview: %+v", state)
+	}
+}
+
+// Logout clears the cached overview along with the session and subscriptions.
+func TestAccountControllerLogoutClearsOverviewAndCache(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	manager := &fakeAccountManager{
+		session: &account.Session{AccessToken: "at", Origin: account.DefaultOrigin},
+		overview: &clientapi.AccountOverview{
+			Profile:       clientapi.Profile{Email: "user@example.invalid"},
+			Announcements: []clientapi.Announcement{},
+		},
+	}
+	controller := newAccountController(
+		manager,
+		nil,
+		func() ([]sub.SubscriptionMeta, error) { return nil, nil },
+		func() *sub.SubscriptionMeta { return nil },
+	)
+	controller.syncOverviewCtx(context.Background())
+	if state := controller.snapshot(); state.Email == "" {
+		t.Fatalf("overview not synced: %+v", state)
+	}
+
+	if _, err := controller.logout(context.Background()); err != nil {
+		t.Fatalf("logout: %v", err)
+	}
+	if loadOverviewCache() != nil {
+		t.Error("overview cache survived logout")
+	}
+	state := controller.snapshot()
+	if state.Email != "" || state.Service != nil || state.ConsoleURL != "" {
+		t.Errorf("overview fields survived logout: %+v", state)
 	}
 }

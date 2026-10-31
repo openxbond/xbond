@@ -4,30 +4,44 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/openxbond/xbond/internal/account"
 	"github.com/openxbond/xbond/internal/clientapi"
+	"github.com/openxbond/xbond/internal/platform/atomicfile"
 	"github.com/openxbond/xbond/internal/platform/browser"
+	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/sub"
 )
 
 // AccountState is the only account shape LocalAPI consumers see. The OAuth
-// token set never leaves the daemon.
+// token set never leaves the daemon. Identity, service status and
+// announcements come from the last successful overview sync (identity/service
+// via OAuth Bearer; the console link derives from the session's own origin,
+// the issuer the tokens actually came from).
 type AccountState struct {
-	Status                  string                `json:"status"`
-	Method                  string                `json:"method,omitempty"`
-	AuthURL                 string                `json:"authUrl,omitempty"`
-	VerificationURI         string                `json:"verificationUri,omitempty"`
-	VerificationURIComplete string                `json:"verificationUriComplete,omitempty"`
-	UserCode                string                `json:"userCode,omitempty"`
-	ErrorCode               string                `json:"errorCode,omitempty"`
-	Error                   string                `json:"error,omitempty"`
-	StartedAt               *time.Time            `json:"startedAt,omitempty"`
-	Subscription            *sub.SubscriptionMeta `json:"subscription,omitempty"`
-	UpdateError             string                `json:"updateError,omitempty"`
+	Status                  string                    `json:"status"`
+	Method                  string                    `json:"method,omitempty"`
+	AuthURL                 string                    `json:"authUrl,omitempty"`
+	VerificationURI         string                    `json:"verificationUri,omitempty"`
+	VerificationURIComplete string                    `json:"verificationUriComplete,omitempty"`
+	UserCode                string                    `json:"userCode,omitempty"`
+	ErrorCode               string                    `json:"errorCode,omitempty"`
+	Error                   string                    `json:"error,omitempty"`
+	StartedAt               *time.Time                `json:"startedAt,omitempty"`
+	Subscription            *sub.SubscriptionMeta     `json:"subscription,omitempty"`
+	UpdateError             string                    `json:"updateError,omitempty"`
+	Email                   string                    `json:"email,omitempty"`
+	Name                    string                    `json:"name,omitempty"`
+	ConsoleURL              string                    `json:"consoleUrl,omitempty"`
+	Service                 *clientapi.ServiceStatus  `json:"service,omitempty"`
+	Announcements           []clientapi.Announcement  `json:"announcements,omitempty"`
+	UnreadCount             int                       `json:"unreadCount,omitempty"`
+	OverviewError           string                    `json:"overviewError,omitempty"`
 }
 
 type accountBindOptions struct {
@@ -40,7 +54,8 @@ type accountLoginManager interface {
 	Login(context.Context, account.LoginOptions, func(account.Progress)) (*account.Credentials, error)
 	Session() (*account.Session, error)
 	RefreshLink(context.Context) (*clientapi.SubscriptionLink, error)
-	Logout() error
+	Overview(context.Context) (*clientapi.AccountOverview, error)
+	Logout(context.Context) error
 }
 
 type accountController struct {
@@ -48,9 +63,12 @@ type accountController struct {
 	manager    accountLoginManager
 	state      AccountState
 	cancel     context.CancelFunc
+	syncGen    int
 	bind       func(context.Context, *account.Credentials, accountBindOptions) (*sub.SubscriptionMeta, string, error)
 	logoutSubs func() ([]sub.SubscriptionMeta, error)
 	listXBond  func() *sub.SubscriptionMeta
+	// overview is the overview fetch seam; defaults to manager.Overview.
+	overview func(context.Context) (*clientapi.AccountOverview, error)
 }
 
 func newAccountController(
@@ -65,16 +83,18 @@ func newAccountController(
 		logoutSubs: logoutSubs,
 		listXBond:  listXBond,
 	}
+	controller.overview = manager.Overview
 	controller.hydrate()
 	return controller
 }
 
 // hydrate derives the initial state from persisted evidence. An XBond
 // subscription created by the CLI also counts as signed in: the subscription
-// token is the durable credential the daemon already owns.
+// token is the durable credential the daemon already owns. The cached
+// overview shows immediately; a signed-in session then refreshes it in the
+// background.
 func (c *accountController) hydrate() {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.state = AccountState{Status: "signed_out"}
 	if _, err := c.manager.Session(); err == nil {
 		c.state.Status = "signed_in"
@@ -82,6 +102,15 @@ func (c *accountController) hydrate() {
 	if meta := c.listXBond(); meta != nil {
 		c.state.Status = "signed_in"
 		c.state.Subscription = meta
+	}
+	if c.state.Status == "signed_in" {
+		if cached := loadOverviewCache(); cached != nil {
+			c.applyOverviewLocked(cached, "")
+		}
+	}
+	c.mu.Unlock()
+	if c.state.Status == "signed_in" {
+		go c.syncOverview()
 	}
 }
 
@@ -154,6 +183,11 @@ func (c *accountController) run(
 		}
 	}
 
+	// The overview sync rides the login context before the state flips to
+	// signed_in: the UI stops polling once signed in, so identity must be
+	// present in that flip.
+	c.syncOverviewCtx(ctx)
+
 	c.mu.Lock()
 	c.state.Status = "signed_in"
 	c.state.Subscription = meta
@@ -171,17 +205,25 @@ func (c *accountController) fail(err error) {
 		code = accountErr.Code
 	}
 	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.state.Status == "signed_out" && c.cancel == nil {
+		// A logout or reset already cleared the flow; do not resurrect an
+		// error state over it.
+		return
+	}
 	c.state.Status = "error"
 	c.state.ErrorCode = code
 	c.state.Error = err.Error()
 	c.cancel = nil
-	c.mu.Unlock()
 }
 
 func (c *accountController) cancelPending() {
 	c.mu.Lock()
 	cancel := c.cancel
 	c.cancel = nil
+	// Invalidate any in-flight overview sync so it cannot resurrect state
+	// over the reset below.
+	c.syncGen++
 	c.state = AccountState{Status: "signed_out"}
 	c.mu.Unlock()
 	if cancel != nil {
@@ -189,9 +231,10 @@ func (c *accountController) cancelPending() {
 	}
 }
 
-func (c *accountController) logout() ([]sub.SubscriptionMeta, error) {
+func (c *accountController) logout(ctx context.Context) ([]sub.SubscriptionMeta, error) {
 	c.cancelPending()
-	err := c.manager.Logout()
+	err := c.manager.Logout(ctx)
+	removeOverviewCache()
 	removed, logoutErr := c.logoutSubs()
 	return removed, errors.Join(err, logoutErr)
 }
@@ -237,6 +280,8 @@ func (c *accountController) refresh(ctx context.Context) (AccountState, error) {
 		}
 	}
 
+	c.syncOverviewCtx(ctx)
+
 	c.mu.Lock()
 	c.state.Status = "signed_in"
 	c.state.Subscription = meta
@@ -246,6 +291,108 @@ func (c *accountController) refresh(ctx context.Context) (AccountState, error) {
 	state := c.state
 	c.mu.Unlock()
 	return state, nil
+}
+
+// syncOverview refreshes the overview in the background; failures keep the
+// last cached values visible.
+func (c *accountController) syncOverview() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	c.syncOverviewCtx(ctx)
+}
+
+func (c *accountController) syncOverviewCtx(ctx context.Context) {
+	c.mu.Lock()
+	if c.state.Status == "signed_out" {
+		c.mu.Unlock()
+		return // signed out: nothing to sync
+	}
+	generation := c.syncGen
+	c.mu.Unlock()
+	overview, err := c.overview(ctx)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return // signed out: nothing to sync
+		}
+		c.mu.Lock()
+		if c.syncGen == generation {
+			c.state.OverviewError = err.Error()
+		}
+		c.mu.Unlock()
+		return
+	}
+	degraded := ""
+	if overview.Service == nil {
+		degraded = "service status unavailable"
+	}
+	if overview.Announcements == nil {
+		degraded = joinDegraded(degraded, "notifications unavailable")
+	}
+	c.mu.Lock()
+	if c.syncGen != generation {
+		c.mu.Unlock()
+		return // superseded by a logout or reset
+	}
+	c.applyOverviewLocked(overview, degraded)
+	c.mu.Unlock()
+}
+
+// applyOverviewLocked folds a fetched or cached overview into the state.
+// Callers hold c.mu.
+func (c *accountController) applyOverviewLocked(overview *clientapi.AccountOverview, degraded string) {
+	c.state.Email = overview.Profile.Email
+	c.state.Name = overview.Profile.Name
+	c.state.Service = overview.Service
+	c.state.Announcements = overview.Announcements
+	c.state.UnreadCount = overview.UnreadCount
+	c.state.ConsoleURL = c.consoleURLLocked()
+	c.state.OverviewError = degraded
+	if degraded == "" && overview.Profile.Email != "" {
+		saveOverviewCache(overview)
+	}
+}
+
+// consoleURLLocked derives the trusted console entry from the session's own
+// origin — the issuer the tokens actually came from, not user input.
+func (c *accountController) consoleURLLocked() string {
+	session, err := c.manager.Session()
+	if err != nil || session.Origin == "" {
+		return ""
+	}
+	return session.Origin + "/dash"
+}
+
+func loadOverviewCache() *clientapi.AccountOverview {
+	data, err := os.ReadFile(paths.AccountOverviewPath())
+	if err != nil {
+		return nil
+	}
+	var overview clientapi.AccountOverview
+	if err := json.Unmarshal(data, &overview); err != nil {
+		return nil
+	}
+	return &overview
+}
+
+// saveOverviewCache persists the overview as a display cache. Failures only
+// cost boot-time freshness, so they never fail the sync itself.
+func saveOverviewCache(overview *clientapi.AccountOverview) {
+	data, err := json.MarshalIndent(overview, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = atomicfile.Write(paths.AccountOverviewPath(), data, 0o600)
+}
+
+func removeOverviewCache() {
+	_ = os.Remove(paths.AccountOverviewPath())
+}
+
+func joinDegraded(first, second string) string {
+	if first == "" {
+		return second
+	}
+	return first + "; " + second
 }
 
 func (s *Server) handleAccountStatus(w http.ResponseWriter, r *http.Request) {
@@ -290,7 +437,7 @@ func (s *Server) handleAccountLogout(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	removed, err := s.account.logout()
+	removed, err := s.account.logout(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
