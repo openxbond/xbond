@@ -25,7 +25,6 @@
       "@containers/*": ["./packages/client-ui/src/containers/*"],
       "@i18n": ["./packages/client-ui/src/i18n"],
       "@i18n/*": ["./packages/client-ui/src/i18n/*"],
-      "@nav": ["./packages/client-ui/src/nav.ts"],
       "@stores": ["./packages/client-ui/src/stores"],
       "@stores/*": ["./packages/client-ui/src/stores/*"],
       "@models": ["./packages/client-ui/src/models"],

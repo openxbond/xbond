@@ -1,6 +1,5 @@
 import { Header } from "@components";
 import Connections from "@containers/Connections";
-import Diagnostics from "@containers/Diagnostics";
 import Logs from "@containers/Logs";
 import { useCapabilities, useStreamReader, useStreamState } from "@stores";
 import { formatRate } from "@xbond/client/activity";
@@ -12,19 +11,14 @@ import { useSearchParams } from "react-router-dom";
 
 import "./style.scss";
 
-const VIEWS = ["logs", "connections", "diagnostics"] as const;
-type ActivityView = (typeof VIEWS)[number];
-
 export default function Activity() {
   const { t: sb } = useTranslation("sidebar");
   const { t: r } = useTranslation("runtime");
   const { t: ov } = useTranslation("overview");
   const caps = useCapabilities();
   const [params, setParams] = useSearchParams();
-  const requested = params.get("view") as ActivityView | null;
-  const activeTab: ActivityView = VIEWS.includes(requested as ActivityView)
-    ? (requested as ActivityView)
-    : "logs";
+  const activeTab =
+    params.get("view") === "connections" ? "connections" : "logs";
   const traffic = useStreamReader<{ up: number; down: number }>("traffic");
   const state = useStreamState(traffic);
   const connections = useStreamReader<Snapshot>("connections");
@@ -54,7 +48,7 @@ export default function Activity() {
     memory.subscribe("data", onData);
     return () => memory.unsubscribe("data", onData);
   }, [memory]);
-  function select(view: ActivityView) {
+  function select(view: string) {
     setParams(
       (previous) => {
         previous.set("view", view);
@@ -62,10 +56,6 @@ export default function Activity() {
       },
       { replace: true },
     );
-  }
-  function cycle(current: ActivityView, step: number): ActivityView {
-    const index = VIEWS.indexOf(current);
-    return VIEWS[(index + step + VIEWS.length) % VIEWS.length];
   }
   return (
     <div className="page activity-page">
@@ -105,7 +95,7 @@ export default function Activity() {
         )}
       </dl>
       <div className="activity-tabs" role="tablist" aria-label={sb("activity")}>
-        {VIEWS.map((view) => (
+        {(["logs", "connections"] as const).map((view) => (
           <button
             type="button"
             key={view}
@@ -122,33 +112,38 @@ export default function Activity() {
                 event.preventDefault();
                 const next =
                   event.key === "Home"
-                    ? VIEWS[0]
+                    ? "logs"
                     : event.key === "End"
-                      ? VIEWS[VIEWS.length - 1]
-                      : cycle(view, event.key === "ArrowRight" ? 1 : -1);
+                      ? "connections"
+                      : view === "logs"
+                        ? "connections"
+                        : "logs";
                 select(next);
                 document.getElementById("tab-" + next)?.focus();
               }
             }}
           >
-            {sb(view)}
+            {sb(view === "logs" ? "logs" : "connections")}
           </button>
         ))}
       </div>
       <div className="activity-content">
-        {VIEWS.map((view) => (
-          <div
-            key={view}
-            id={"panel-" + view}
-            role="tabpanel"
-            aria-labelledby={"tab-" + view}
-            hidden={activeTab !== view}
-          >
-            {view === "logs" && <Logs />}
-            {view === "connections" && <Connections />}
-            {view === "diagnostics" && <Diagnostics />}
-          </div>
-        ))}
+        <div
+          id="panel-logs"
+          role="tabpanel"
+          aria-labelledby="tab-logs"
+          hidden={activeTab !== "logs"}
+        >
+          <Logs />
+        </div>
+        <div
+          id="panel-connections"
+          role="tabpanel"
+          aria-labelledby="tab-connections"
+          hidden={activeTab !== "connections"}
+        >
+          <Connections />
+        </div>
       </div>
     </div>
   );

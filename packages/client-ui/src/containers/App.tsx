@@ -1,14 +1,17 @@
 import Activity from "@containers/Activity";
 import Connect from "@containers/Connect";
+import Connections from "@containers/Connections";
+import Diagnostics from "@containers/Diagnostics";
 import ExternalControllerModal from "@containers/ExternalControllerDrawer";
+import Logs from "@containers/Logs";
 import Onboarding from "@containers/Onboarding";
 import Proxies from "@containers/Proxies";
+import Rules from "@containers/Rules";
 import Settings from "@containers/Settings";
 import SideBar from "@containers/Sidebar";
 import Subscriptions from "@containers/Subscriptions";
 import { isClashX } from "@lib/jsBridge";
 import { detectLocalAPIConfig, isDesktopApp } from "@lib/localapi-bootstrap";
-import { NAV_REDIRECTS } from "@nav";
 import {
   identityAtom,
   useAccount,
@@ -22,15 +25,6 @@ import { Route, Navigate, Routes, useLocation, Outlet } from "react-router-dom";
 
 import "../styles/common.scss";
 import "../styles/iconfont.scss";
-
-/** Keeps the workspace query (controller selection) and adds the secondary
- * view parameter for a pre-NAV-01 top-level route. */
-function LegacyRedirect({ to, view }: { to: string; view: string }) {
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  params.set("view", view);
-  return <Navigate replace to={{ pathname: to, search: params.toString() }} />;
-}
 
 export default function App() {
   const client = useClient();
@@ -72,9 +66,17 @@ export default function App() {
     );
   }
 
+  // Mobile bottom navigation targets (4 core destinations)
+  const mobileRoutes = [
+    { path: "/connect", name: "Connect" },
+    { path: "/proxies", name: "Proxies" },
+    { path: "/activity", name: "Activity" },
+    { path: "/settings", name: "Settings" },
+  ];
+
   const layout = (
     <div className={classnames("app", { "not-clashx": !isClashX() })}>
-      <SideBar />
+      <SideBar routes={mobileRoutes} />
       <div className="page-container">
         <ControllerPage key={client.id} />
       </div>
@@ -98,23 +100,18 @@ export default function App() {
           }
         />
 
-        {/* Five primary destinations (client-rethink §二): 连接 / 策略 /
-            配置 / 活动 / 设置. Rules and diagnostics are secondary views of
-            策略 and 活动 respectively. */}
+        {/* 8 Distinct Dedicated Routes */}
         <Route path="/connect" element={<Connect />} />
         <Route path="/proxies" element={<Proxies />} />
         <Route path="/subscriptions" element={<Subscriptions />} />
-        <Route path="/activity" element={<Activity />} />
+        <Route path="/connections" element={<Connections />} />
+        <Route path="/rules" element={<Rules />} />
+        <Route path="/logs" element={<Logs />} />
+        <Route path="/diagnostics" element={<Diagnostics />} />
         <Route path="/settings" element={<Settings />} />
 
-        {/* Pre-NAV-01 top-level routes keep working as deep links. */}
-        {Object.entries(NAV_REDIRECTS).map(([path, { to, view }]) => (
-          <Route
-            key={path}
-            path={path}
-            element={<LegacyRedirect to={to} view={view} />}
-          />
-        ))}
+        {/* Mobile Activity Hub */}
+        <Route path="/activity" element={<Activity />} />
 
         {/* Fallback Redirects */}
         <Route
