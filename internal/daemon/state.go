@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
@@ -39,6 +40,41 @@ const (
 // migrations move off it so the endpoint stays a daemon-owned detail.
 const legacyClashPort = 9090
 
+// applyEnvOverrides folds deployment-environment overrides into the
+// preferences: headless hosts (containers, servers) cannot click through a
+// UI, so the operator states intent up front. Env always wins over the
+// stored file, and an invalid value refuses to start — operator intent that
+// cannot be parsed is an error, not a silent default (daemon-runtime spec:
+// 不静默降级).
+func applyEnvOverrides(prefs *RuntimePreferences) error {
+	if mode := os.Getenv("XBOND_TAKEOVER_MODE"); mode != "" {
+		takeover := engine.TakeoverMode(mode)
+		switch takeover {
+		case engine.ModeSysproxy, engine.ModeTun, engine.ModePort:
+			prefs.TakeoverMode = takeover
+		default:
+			return fmt.Errorf("XBOND_TAKEOVER_MODE %q is invalid (want sysproxy, tun or port)", mode)
+		}
+	}
+	if raw := os.Getenv("XBOND_ALLOW_LAN"); raw != "" {
+		allowLan, err := strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("XBOND_ALLOW_LAN %q is invalid (want true or false)", raw)
+		}
+		prefs.AllowLan = allowLan
+	}
+	if raw := os.Getenv("XBOND_MIXED_PORT"); raw != "" {
+		port, err := strconv.Atoi(raw)
+		if err != nil || port < 1 || port > 65535 {
+			return fmt.Errorf("XBOND_MIXED_PORT %q is invalid (want 1-65535)", raw)
+		}
+		prefs.MixedPort = port
+		prefs.PortOverride = port
+		prefs.PortSource = PortSourceOverride
+	}
+	return nil
+}
+
 func DefaultPreferences() RuntimePreferences {
 	return RuntimePreferences{
 		TakeoverMode: engine.ModeSysproxy,
@@ -54,6 +90,9 @@ func LoadPreferences() (RuntimePreferences, error) {
 	prefs := DefaultPreferences()
 	data, err := os.ReadFile(paths.RuntimeStatePath())
 	if errors.Is(err, os.ErrNotExist) {
+		if err := applyEnvOverrides(&prefs); err != nil {
+			return RuntimePreferences{}, err
+		}
 		if err := ensureDaemonOwnedClashEndpoint(&prefs); err != nil {
 			return RuntimePreferences{}, err
 		}
@@ -76,6 +115,9 @@ func LoadPreferences() (RuntimePreferences, error) {
 	if _, ok := legacy["portOverride"]; !ok {
 		prefs.PortOverride = prefs.MixedPort
 		prefs.PortSource = PortSourceOverride
+	}
+	if err := applyEnvOverrides(&prefs); err != nil {
+		return RuntimePreferences{}, err
 	}
 	if err := validatePreferences(prefs); err != nil {
 		return RuntimePreferences{}, err

@@ -138,6 +138,22 @@ func (s *Server) Token() string {
 	return s.token
 }
 
+// Autostart brings the active subscription's core up after boot when the
+// deployment environment asks for it (XBOND_AUTOSTART=1, the container
+// default): a proxy container that stays down after `docker restart` is a
+// footgun. Desktop keeps the explicit connect — env-free hosts never call
+// this. A failure is logged by the caller and does not kill the daemon: the
+// UI still works and the user can retry the connect.
+func (s *Server) Autostart(ctx context.Context) error {
+	if s.subMgr.ActiveID() == "" {
+		return nil
+	}
+	if err := s.runtime.Up(ctx, runtimeOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Server) Start() error {
 	go s.runScheduledUpdates()
 	return s.httpServer.Serve(s.listener)
@@ -930,9 +946,12 @@ func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
 		prefs := s.runtime.Preferences()
 		clashPort, clashSecret := prefs.ClashPort, prefs.ClashSecret
 
+		// The token rides the served page; no address meta — the UI talks to
+		// its own origin (relative paths), which keeps remote management
+		// working from any host that can reach this listener. The daemon
+		// publishes this port as the management boundary.
 		metaTag := fmt.Sprintf(`<meta name="external-controller" content="http://:%s@127.0.0.1:%d">
-    <meta name="localapi-token" content="%s">
-    <meta name="localapi-addr" content="http://%s">`, clashSecret, clashPort, s.token, s.addr)
+    <meta name="localapi-token" content="%s">`, clashSecret, clashPort, s.token)
 		html := strings.Replace(string(indexBytes), "<head>", "<head>\n    "+metaTag, 1)
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

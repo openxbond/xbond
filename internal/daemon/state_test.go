@@ -2,7 +2,10 @@ package daemon
 
 import (
 	"os"
+	"strings"
 	"testing"
+
+	"github.com/openxbond/xbond/internal/engine"
 
 	"github.com/openxbond/xbond/internal/platform/paths"
 )
@@ -40,4 +43,48 @@ func TestLegacyPreferencesCarryTheirFixedPortAsOverride(t *testing.T) {
 	if preferences.MixedPort != 10808 || preferences.PortOverride != 10808 || preferences.PortSource != PortSourceOverride {
 		t.Fatalf("legacy fixed port must survive as an explicit override: %+v", preferences)
 	}
+}
+
+// Deployment-environment overrides win over the stored file and over fresh
+// defaults; an invalid value refuses to start instead of silently defaulting.
+func TestEnvOverridesDriveHeadlessPreferences(t *testing.T) {
+	t.Run("fresh defaults with env", func(t *testing.T) {
+		t.Setenv("XBOND_DATA_DIR", t.TempDir())
+		t.Setenv("XBOND_TAKEOVER_MODE", "port")
+		t.Setenv("XBOND_ALLOW_LAN", "true")
+		t.Setenv("XBOND_MIXED_PORT", "7890")
+		preferences, err := LoadPreferences()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if preferences.TakeoverMode != engine.ModePort || !preferences.AllowLan || preferences.MixedPort != 7890 || preferences.PortOverride != 7890 {
+			t.Fatalf("env overrides not applied: %+v", preferences)
+		}
+	})
+
+	t.Run("env wins over stored file", func(t *testing.T) {
+		t.Setenv("XBOND_DATA_DIR", t.TempDir())
+		stored := []byte(`{"takeoverMode":"sysproxy","routingMode":"rule","mixedPort":10808,"allowLan":false,"clashPort":19090,"clashSecret":"fixture-secret","portOverride":10808,"portSource":"override"}`)
+		if err := os.WriteFile(paths.RuntimeStatePath(), stored, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("XBOND_TAKEOVER_MODE", "port")
+		t.Setenv("XBOND_ALLOW_LAN", "true")
+		t.Setenv("XBOND_MIXED_PORT", "7890")
+		preferences, err := LoadPreferences()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if preferences.TakeoverMode != engine.ModePort || !preferences.AllowLan || preferences.MixedPort != 7890 {
+			t.Fatalf("env did not win over stored file: %+v", preferences)
+		}
+	})
+
+	t.Run("invalid env refuses to start", func(t *testing.T) {
+		t.Setenv("XBOND_DATA_DIR", t.TempDir())
+		t.Setenv("XBOND_TAKEOVER_MODE", "teleport")
+		if _, err := LoadPreferences(); err == nil || !strings.Contains(err.Error(), "XBOND_TAKEOVER_MODE") {
+			t.Fatalf("invalid mode must name the variable: %v", err)
+		}
+	})
 }
