@@ -411,6 +411,13 @@ const CN = {
       "本订阅的每次更新都经此代理。代理失效时更新报错，通道保持不变。",
     rollback: "回滚",
     rollbackDone: "已回滚到上一版本（仅来源层；覆盖与守护进程设置不变）。",
+    sourceEdit: "编辑原文",
+    sourceEditHint:
+      "原文编辑生成本地副本：与更新同一套校验，自动更新不再覆盖它。手动更新（或恢复按钮）解除固定。",
+    sourceSaved: "原文已替换并固定，自动更新不会覆盖",
+    sourcePinned: "已编辑 · 已固定",
+    resumeUpdates: "恢复自动更新",
+    resumeUpdatesDone: "已恢复自动更新。",
     overrideDns: "DNS 覆盖",
     overridePrepend: "前置规则",
     overrideAppend: "追加规则",

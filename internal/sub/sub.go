@@ -17,7 +17,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
 	"github.com/openxbond/xbond/internal/platform/paths"
 )
@@ -556,30 +555,8 @@ func (m *Manager) Update(
 		quotaFromResp = quotaFromYAML
 	}
 
-	if err := engine.Validate(convertedJSON); err != nil {
-		m.recordError(subMeta.ID, HealthTransientError, fmt.Sprintf("validation gate failed: %v", err))
-		return nil, fmt.Errorf("configuration validation gate failed: %w (source left untouched)", err)
-	}
-
-	// The local override is part of what will actually run: splice it now and
-	// re-validate the merged document. A conflict (the override references a
-	// policy the upstream removed) fails the update loudly, so the last
-	// known-good configuration and runtime stay untouched.
-	override, err := m.Override(subMeta.ID)
-	if err != nil {
-		m.recordError(subMeta.ID, HealthTransientError, fmt.Sprintf("read local override: %v", err))
-		return nil, fmt.Errorf("read local override: %w", err)
-	}
-	if !override.IsZero() {
-		merged, err := engine.ApplyOverride(convertedJSON, override)
-		if err != nil {
-			m.recordError(subMeta.ID, HealthTransientError, fmt.Sprintf("override conflict: %v", err))
-			return nil, fmt.Errorf("local override conflicts with the upstream configuration: %w", err)
-		}
-		if err := engine.Validate(merged); err != nil {
-			m.recordError(subMeta.ID, HealthTransientError, fmt.Sprintf("override validation failed: %v", err))
-			return nil, fmt.Errorf("overridden configuration failed validation: %w (source left untouched)", err)
-		}
+	if err := m.checkOverrideGate(subMeta.ID, convertedJSON, "update"); err != nil {
+		return nil, err
 	}
 
 	// 3. Compute SHA-256 hash & check if content changed

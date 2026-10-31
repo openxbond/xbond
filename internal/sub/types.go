@@ -63,8 +63,11 @@ type SubscriptionMeta struct {
 	// daemon's own mixed port when the core runs (never for bootstrapping),
 	// "proxy" rides UpdateProxy. A failing channel errors — it never
 	// silently switches (client-rethink §四.5).
-	UpdateChannel    string             `json:"updateChannel,omitempty"`
-	UpdateProxy      string             `json:"updateProxy,omitempty"`
+	UpdateChannel string `json:"updateChannel,omitempty"`
+	UpdateProxy   string `json:"updateProxy,omitempty"`
+	// SourcePinned protects an edited source copy: automatic updates skip
+	// the subscription entirely; a manual update removes the pin.
+	SourcePinned     bool               `json:"sourcePinned,omitempty"`
 	ETag             string             `json:"etag,omitempty"`
 	ContentHash      string             `json:"contentHash,omitempty"`
 	Quota            QuotaInfo          `json:"quota"`

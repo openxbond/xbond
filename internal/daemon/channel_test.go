@@ -1,7 +1,10 @@
 package daemon
 
 import (
+	"bytes"
+	"context"
 	"testing"
+	"time"
 
 	"github.com/openxbond/xbond/internal/sub"
 )
@@ -62,5 +65,37 @@ func TestResolveUpdateProxyFollowsChannelAndBootstrap(t *testing.T) {
 				t.Fatalf("expected %q, got %q", tc.want, got)
 			}
 		})
+	}
+}
+
+// A pinned (edited) source is invisible to scheduled updates; a manual
+// update removes the pin and fetches fresh content.
+func TestUpdateDueSkipsPinnedAndManualUpdateUnpins(t *testing.T) {
+	f := newRuntimeFixture(t)
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.subs.SetSourcePinned(f.first.ID, true); err != nil {
+		t.Fatal(err)
+	}
+
+	// Scheduled updates skip the pinned subscription entirely.
+	before := f.core.configuration()
+	if err := f.controller.UpdateDue(context.Background(), time.Now().Add(48*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if meta, _ := f.subs.Get(f.first.ID); !meta.SourcePinned {
+		t.Fatal("scheduled update removed the pin")
+	}
+	if !bytes.Equal(before, f.core.configuration()) {
+		t.Fatal("scheduled update changed the running core")
+	}
+
+	// A manual update is an explicit ask: it removes the pin.
+	if _, err := f.controller.Update(context.Background(), f.first.ID, false, nil); err != nil {
+		t.Fatal(err)
+	}
+	if meta, _ := f.subs.Get(f.first.ID); meta.SourcePinned {
+		t.Fatal("manual update did not remove the pin")
 	}
 }

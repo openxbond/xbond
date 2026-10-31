@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -201,6 +202,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/subs/override", s.authMiddleware(s.handleSubOverride))
 	mux.HandleFunc("/localapi/v0/subs/versions", s.authMiddleware(s.handleSubVersions))
 	mux.HandleFunc("/localapi/v0/subs/rollback", s.authMiddleware(s.handleSubRollback))
+	mux.HandleFunc("/localapi/v0/subs/source", s.authMiddleware(s.handleSubSource))
+	mux.HandleFunc("/localapi/v0/subs/unpin", s.authMiddleware(s.handleSubUnpin))
 	mux.HandleFunc("/localapi/v0/subs/progress", s.authMiddleware(s.handleSubsProgress))
 
 	mux.HandleFunc("/localapi/v0/nodes", s.authMiddleware(s.handleNodes))
@@ -985,4 +988,85 @@ func writeRuntimeError(w http.ResponseWriter, err error) {
 		status = http.StatusBadRequest
 	}
 	writeError(w, status, err.Error())
+}
+
+// handleSubSource reads (GET) the subscription's current source for the raw
+// editor, or replaces it (PUT) via EditSource: the edited copy passes the
+// detection, core and override gates, pins the subscription against
+// automatic updates, and re-applies immediately when active.
+func (s *Server) handleSubSource(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			writeError(w, http.StatusBadRequest, "missing subscription id")
+			return
+		}
+		if _, err := s.subMgr.Get(id); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		content, err := os.ReadFile(paths.SubSourcePath(id))
+		if errors.Is(err, fs.ErrNotExist) {
+			writeError(w, http.StatusNotFound, "no downloaded source; update the subscription first")
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "content": string(content)})
+	case http.MethodPut:
+		var request struct {
+			ID      string `json:"id"`
+			Content string `json:"content"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<20)).Decode(&request); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid source edit request")
+			return
+		}
+		if request.ID == "" {
+			writeError(w, http.StatusBadRequest, "missing subscription id")
+			return
+		}
+		meta, err := s.subMgr.EditSource(request.ID, []byte(request.Content))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if s.subMgr.ActiveID() == request.ID && s.engineMgr.IsRunning() {
+			if err := s.runtime.Configure(r.Context(), runtimeOptions{}); err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "meta": meta})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// handleSubUnpin removes the pin an edited source carries, restoring the
+// subscription to automatic updates.
+func (s *Server) handleSubUnpin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var request struct {
+		ID string `json:"id"`
+	}
+	if !decodeRuntimeRequest(w, r, &request) {
+		return
+	}
+	if request.ID == "" {
+		writeError(w, http.StatusBadRequest, "missing subscription id")
+		return
+	}
+	meta, err := s.subMgr.SetSourcePinned(request.ID, false)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "meta": meta})
 }

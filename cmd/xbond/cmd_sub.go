@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +35,7 @@ var (
 
 	subUpdForce    bool
 	subUpdViaProxy bool
+	subEditFile    string
 	subUpdAll      bool
 	subUpdJSON     bool
 
@@ -97,11 +99,14 @@ func init() {
 	subExportCmd.Flags().BoolVar(&subExpRedacted, "redacted", true, "Redact sensitive tokens and passwords in output")
 	subCmd.AddCommand(subExportCmd)
 
-	// sub remove, update channel, versions and rollback
+	// sub remove, update channel, versions, rollback and raw editing
 	subCmd.AddCommand(subRemoveCmd)
+	subEditCmd.Flags().StringVarP(&subEditFile, "file", "f", "", "Replacement source file, or - for stdin")
 	subCmd.AddCommand(subChannelCmd)
 	subCmd.AddCommand(subVersionsCmd)
 	subCmd.AddCommand(subRollbackCmd)
+	subCmd.AddCommand(subEditCmd)
+	subCmd.AddCommand(subUnpinCmd)
 }
 
 var loginCmd = &cobra.Command{
@@ -675,6 +680,56 @@ var subVersionsCmd = &cobra.Command{
 		for index, version := range versions {
 			fmt.Printf("%d. %s  %d bytes  %s\n", index+1, version.SavedAt.Format("2006-01-02 15:04:05"), version.Size, version.Name)
 		}
+		return nil
+	},
+}
+
+var subEditCmd = &cobra.Command{
+	Use:   "edit <name-or-id> --file <path>",
+	Short: "Replace the source with local content and pin it against auto-updates",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		client, err := daemon.EnsureRunning(ctx)
+		if err != nil {
+			return err
+		}
+		if subEditFile == "" {
+			return fmt.Errorf("--file is required (use - to read stdin)")
+		}
+		var content []byte
+		if subEditFile == "-" {
+			content, err = io.ReadAll(os.Stdin)
+		} else {
+			content, err = os.ReadFile(subEditFile)
+		}
+		if err != nil {
+			return err
+		}
+		meta, err := client.EditSource(ctx, args[0], string(content))
+		if err != nil {
+			return err
+		}
+		fmt.Println("Source replaced and pinned: automatic updates will not overwrite it.")
+		fmt.Printf("Active source hash: %s\n", meta.ContentHash)
+		return nil
+	},
+}
+
+var subUnpinCmd = &cobra.Command{
+	Use:   "unpin <name-or-id>",
+	Short: "Resume automatic updates for an edited (pinned) source",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		client, err := daemon.EnsureRunning(ctx)
+		if err != nil {
+			return err
+		}
+		if err := client.UnpinSub(ctx, args[0]); err != nil {
+			return err
+		}
+		fmt.Println("Automatic updates resumed; the next update overwrites the edited copy.")
 		return nil
 	},
 }

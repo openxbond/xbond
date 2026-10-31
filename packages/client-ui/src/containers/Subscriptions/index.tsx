@@ -61,6 +61,9 @@ export default function Subscriptions() {
   const [overrideError, setOverrideError] = useState("");
   const [proxyChannelId, setProxyChannelId] = useState<string | null>(null);
   const [proxyChannelUrl, setProxyChannelUrl] = useState("");
+  const [editorId, setEditorId] = useState<string | null>(null);
+  const [editorContent, setEditorContent] = useState("");
+  const [editorError, setEditorError] = useState("");
 
   const link = (values: Record<string, string> = {}) =>
     workspaceLink(location.search, "/subscriptions", values);
@@ -142,6 +145,43 @@ export default function Subscriptions() {
       await localClient.rollbackSub(id);
       await refresh();
       success(t("rollbackDone"));
+    });
+  }
+
+  async function openSourceEditor(id: string) {
+    setEditorId(id);
+    setEditorError("");
+    if (!localClient) return;
+    try {
+      setEditorContent(await localClient.getSubSource(id));
+    } catch (error) {
+      setEditorContent("");
+      setEditorError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  function saveSourceEditor() {
+    if (!editorId || !localClient) return;
+    void run(async () => {
+      try {
+        await localClient.editSubSource(editorId, editorContent);
+      } catch (error) {
+        // Gate failures stay in the dialog so the text survives for editing.
+        setEditorError(error instanceof Error ? error.message : String(error));
+        throw error;
+      }
+      await refresh();
+      setEditorId(null);
+      success(t("sourceSaved"));
+    }, false);
+  }
+
+  function resumeUpdates(id: string) {
+    void run(async () => {
+      if (!localClient) throw new Error("LocalAPI not available");
+      await localClient.unpinSub(id);
+      await refresh();
+      success(t("resumeUpdatesDone"));
     });
   }
 
@@ -330,6 +370,11 @@ export default function Subscriptions() {
                                 {t("active")}
                               </span>
                             )}
+                            {sub.sourcePinned && (
+                              <span className="sub-active-badge sub-pinned-badge">
+                                {t("sourcePinned")}
+                              </span>
+                            )}
                           </div>
                         </div>
                         {!isActive && (
@@ -427,6 +472,15 @@ export default function Subscriptions() {
                         >
                           {t("rollback")}
                         </Button>
+                        {sub.sourcePinned && (
+                          <Button
+                            type="warning"
+                            disabled={pending}
+                            onClick={() => resumeUpdates(sub.id)}
+                          >
+                            {t("resumeUpdates")}
+                          </Button>
+                        )}
                         {sub.urlOrFile &&
                           /^https?:\/\//i.test(sub.urlOrFile) && (
                             <CopyButton
@@ -448,6 +502,12 @@ export default function Subscriptions() {
                           onClick={() => void openOverride(sub.id)}
                         >
                           {t("override")}
+                        </Button>
+                        <Button
+                          disabled={pending}
+                          onClick={() => void openSourceEditor(sub.id)}
+                        >
+                          {t("sourceEdit")}
                         </Button>
                         <Button
                           type="danger"
@@ -521,6 +581,31 @@ export default function Subscriptions() {
             {t("removeActive")}
           </p>
         )}
+      </Modal>
+
+      <Modal
+        show={editorId !== null}
+        title={t("sourceEdit")}
+        onClose={() => setEditorId(null)}
+        bodyClassName="subscriptions-source-editor"
+        pending={pending}
+        onOk={() => saveSourceEditor()}
+      >
+        <div className="setting-label-col">
+          <p className="text-sm text-muted-foreground">{t("sourceEditHint")}</p>
+          <textarea
+            className="subscriptions-override-textarea"
+            rows={16}
+            value={editorContent}
+            onChange={(event) => setEditorContent(event.target.value)}
+            spellCheck={false}
+          />
+          {editorError && (
+            <p role="alert" className="text-sm text-destructive">
+              {editorError}
+            </p>
+          )}
+        </div>
       </Modal>
 
       <Modal

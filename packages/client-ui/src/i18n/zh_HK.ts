@@ -411,6 +411,13 @@ const HK = {
       "本訂閱的每次更新都經此代理。代理失效時更新報錯，通道保持不變。",
     rollback: "回滾",
     rollbackDone: "已回滾到上一版本（僅來源層；覆蓋與守護進程設置不變）。",
+    sourceEdit: "編輯原文",
+    sourceEditHint:
+      "原文編輯產生本地副本：與更新同一套校驗，自動更新不再覆蓋它。手動更新（或恢復按鈕）解除固定。",
+    sourceSaved: "原文已替換並固定，自動更新不會覆蓋",
+    sourcePinned: "已編輯 · 已固定",
+    resumeUpdates: "恢復自動更新",
+    resumeUpdatesDone: "已恢復自動更新。",
     overrideDns: "DNS 覆蓋",
     overridePrepend: "前置規則",
     overrideAppend: "追加規則",

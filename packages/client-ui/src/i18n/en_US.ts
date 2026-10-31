@@ -423,6 +423,13 @@ const EN = {
     rollback: "Rollback",
     rollbackDone:
       "Rolled back to the previous version (source layer; overrides and daemon settings unchanged).",
+    sourceEdit: "Edit source",
+    sourceEditHint:
+      "Raw source editing creates a local copy: it passes the same validation as an update, and automatic updates no longer overwrite it. A manual update (or the resume button) removes the pin.",
+    sourceSaved: "Source replaced and pinned against auto-updates",
+    sourcePinned: "edited · pinned",
+    resumeUpdates: "Resume updates",
+    resumeUpdatesDone: "Automatic updates resumed.",
     overrideDns: "DNS override",
     overridePrepend: "Prepended rules",
     overrideAppend: "Appended rules",

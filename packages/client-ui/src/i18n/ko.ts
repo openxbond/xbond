@@ -420,6 +420,13 @@ const KO = {
     rollback: "롤백",
     rollbackDone:
       "이전 버전으로 롤백했습니다(소스 계층만; 재정의와 데몬 설정은 변경 없음).",
+    sourceEdit: "원본 편집",
+    sourceEditHint:
+      "원본 편집은 로컬 사본을 만듭니다: 갱신과 동일한 검증을 거치며 자동 갱신이 더 이상 덮어쓰지 않습니다. 수동 갱신(또는 재개 버튼)이 고정을 해제합니다.",
+    sourceSaved: "원본이 교체되고 고정되어 자동 갱신이 덮어쓰지 않습니다",
+    sourcePinned: "편집됨 · 고정됨",
+    resumeUpdates: "자동 갱신 재개",
+    resumeUpdatesDone: "자동 갱신이 재개되었습니다.",
     overrideDns: "DNS 재정의",
     overridePrepend: "앞에 추가하는 규칙",
     overrideAppend: "뒤에 추가하는 규칙",

@@ -87,6 +87,9 @@ export interface SubscriptionMeta {
    * while the core runs) or "proxy" (a saved URL). */
   updateChannel?: "direct" | "self" | "proxy" | "";
   updateProxy?: string;
+  /** An edited source copy: automatic updates skip it; a manual update
+   * removes the pin. */
+  sourcePinned?: boolean;
 }
 
 export function subscriptionQuota(
@@ -400,6 +403,41 @@ export class LocalAPIClient {
       ...data,
       meta: data.meta ? normalizeSubscription(data.meta) : undefined,
     };
+  }
+
+  /** Reads the subscription's current source for the raw editor. */
+  async getSubSource(id: string): Promise<string> {
+    const data = await this.request<{ content: string }>(
+      `/localapi/v0/subs/source?id=${encodeURIComponent(id)}`,
+    );
+    return data.content;
+  }
+
+  /** Replaces the source with user content (detection + core + override
+   * gates) and pins it against automatic updates. */
+  async editSubSource(
+    id: string,
+    content: string,
+  ): Promise<{ ok: boolean; meta?: SubscriptionMeta }> {
+    const data = await this.request<{
+      ok: boolean;
+      meta?: SubscriptionWire;
+    }>("/localapi/v0/subs/source", {
+      method: "PUT",
+      body: JSON.stringify({ id, content }),
+    });
+    return {
+      ...data,
+      meta: data.meta ? normalizeSubscription(data.meta) : undefined,
+    };
+  }
+
+  /** Removes the pin an edited source carries, resuming auto-updates. */
+  async unpinSub(id: string): Promise<{ ok: boolean }> {
+    return this.request("/localapi/v0/subs/unpin", {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    });
   }
 
   async addSub(params: {

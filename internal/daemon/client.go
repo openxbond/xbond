@@ -518,3 +518,35 @@ func (c *Client) GetBugReport(ctx context.Context) (*diag.BugReport, error) {
 	}
 	return &res, nil
 }
+
+// SubSource reads the subscription's current source for the raw editor.
+func (c *Client) SubSource(ctx context.Context, id string) (string, error) {
+	var res struct {
+		Content string `json:"content"`
+	}
+	if err := c.request(ctx, http.MethodGet, "/localapi/v0/subs/source?id="+url.QueryEscape(id), nil, &res); err != nil {
+		return "", err
+	}
+	return res.Content, nil
+}
+
+// EditSource replaces the source with user-provided content: it passes the
+// detection, core and override gates and pins the subscription against
+// automatic updates.
+func (c *Client) EditSource(ctx context.Context, id, content string) (*sub.SubscriptionMeta, error) {
+	payload := map[string]any{"id": id, "content": content}
+	var res struct {
+		OK   bool                  `json:"ok"`
+		Meta *sub.SubscriptionMeta `json:"meta"`
+	}
+	if err := c.requestSlow(ctx, http.MethodPut, "/localapi/v0/subs/source", payload, &res); err != nil {
+		return nil, err
+	}
+	return res.Meta, nil
+}
+
+// UnpinSub removes the pin an edited source carries.
+func (c *Client) UnpinSub(ctx context.Context, id string) error {
+	payload := map[string]any{"id": id}
+	return c.request(ctx, http.MethodPost, "/localapi/v0/subs/unpin", payload, nil)
+}

@@ -286,3 +286,13 @@
   font-family: var(--font-mono, monospace);
   line-height: 1.5;
 }
+
+.subscriptions-source-editor {
+  .subscriptions-override-textarea {
+    min-height: 320px;
+  }
+}
+
+.sub-pinned-badge {
+  color: var(--warning, #b45309);
+}

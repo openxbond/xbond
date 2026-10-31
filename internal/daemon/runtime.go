@@ -523,6 +523,14 @@ func (c *runtimeController) updateLocked(ctx context.Context, id string, force b
 		}
 		return nil, err
 	}
+	// A manual update is an explicit ask for fresh content: it removes the
+	// pin an edited source carries.
+	if result.Meta != nil && result.Meta.SourcePinned {
+		if _, pinErr := c.subs.SetSourcePinned(id, false); pinErr != nil {
+			return result, pinErr
+		}
+		result.Meta.SourcePinned = false
+	}
 	if result.Meta.ID == c.subs.ActiveID() && c.engine.IsRunning() && (result.ContentChanged || c.pendingApply) {
 		c.pendingApply = true
 		if err := c.applyLocked(ctx, runtimeOptions{}, true); err != nil {
@@ -581,6 +589,11 @@ func (c *runtimeController) UpdateDue(ctx context.Context, now time.Time) error 
 		return err
 	}
 	if !meta.AutoUpdate {
+		return nil
+	}
+	// A pinned source is an edited local copy: automatic updates never
+	// overwrite it (client-rethink §四.2). A manual update removes the pin.
+	if meta.SourcePinned {
 		return nil
 	}
 	interval := time.Duration(meta.UpdateIntervalHours) * time.Hour
