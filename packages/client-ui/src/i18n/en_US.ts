@@ -414,6 +414,15 @@ const EN = {
     bindNote:
       "Uses a subscription credential to enroll this device. You can also sign in with xbond login.",
     override: "Override rules",
+    channelDirect: "Direct",
+    channelSelf: "Own proxy",
+    channelProxy: "Specific proxy",
+    channelProxyUrl: "Proxy URL",
+    channelProxyNote:
+      "Every update of this subscription rides this proxy. If it fails, the update errors and the channel stays unchanged.",
+    rollback: "Rollback",
+    rollbackDone:
+      "Rolled back to the previous version (source layer; overrides and daemon settings unchanged).",
     overrideDns: "DNS override",
     overridePrepend: "Prepended rules",
     overrideAppend: "Appended rules",

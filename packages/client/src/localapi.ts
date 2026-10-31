@@ -83,6 +83,10 @@ export interface SubscriptionMeta {
   lastErrorMessage?: string;
   /** Which core owns this subscription: "clash" (mihomo) or "sing-box". */
   format?: "clash" | "sing-box";
+  /** Update channel: "direct" (or empty), "self" (the daemon's own proxy
+   * while the core runs) or "proxy" (a saved URL). */
+  updateChannel?: "direct" | "self" | "proxy" | "";
+  updateProxy?: string;
 }
 
 export function subscriptionQuota(
@@ -358,6 +362,39 @@ export class LocalAPIClient {
     }>("/localapi/v0/subs/update", {
       method: "POST",
       body: JSON.stringify({ id: id ?? "" }),
+    });
+    return {
+      ...data,
+      meta: data.meta ? normalizeSubscription(data.meta) : undefined,
+    };
+  }
+
+  /** Persists the subscription's update channel. "proxy" requires an
+   * absolute http(s) or socks5 URL; other channels clear it. */
+  async setSubChannel(
+    id: string,
+    channel: "direct" | "self" | "proxy",
+    proxyURL = "",
+  ): Promise<{ ok: boolean }> {
+    return this.request("/localapi/v0/subs", {
+      method: "PATCH",
+      body: JSON.stringify({
+        id,
+        updateChannel: channel,
+        updateProxy: proxyURL,
+      }),
+    });
+  }
+
+  async rollbackSub(
+    id: string,
+  ): Promise<{ ok: boolean; meta?: SubscriptionMeta }> {
+    const data = await this.request<{
+      ok: boolean;
+      meta?: SubscriptionWire;
+    }>("/localapi/v0/subs/rollback", {
+      method: "POST",
+      body: JSON.stringify({ id }),
     });
     return {
       ...data,

@@ -30,12 +30,12 @@ func (e *runtimeInputError) Error() string { return e.cause.Error() }
 func (e *runtimeInputError) Unwrap() error { return e.cause }
 
 type runtimeOptions struct {
-	Mode     engine.TakeoverMode `json:"mode"`
-	Routing  engine.RoutingMode  `json:"routing"`
+	Mode    engine.TakeoverMode `json:"mode"`
+	Routing engine.RoutingMode  `json:"routing"`
 	// Port is tri-state: nil leaves the override unchanged, 0 clears it back
 	// to following the subscription, a positive value fixes the local port.
-	Port     *int `json:"port"`
-	AllowLan *bool `json:"allowLan"`
+	Port     *int   `json:"port"`
+	AllowLan *bool  `json:"allowLan"`
 	SubID    string `json:"subId"`
 }
 
@@ -232,7 +232,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		}
 		source, err := os.ReadFile(paths.SubSourcePath(targetID))
 		if errors.Is(err, fs.ErrNotExist) {
-			if _, updateErr := c.subs.Update(targetID, true, false, 0); updateErr != nil {
+			if _, updateErr := c.subs.Update(targetID, true, ""); updateErr != nil {
 				return fmt.Errorf("active subscription has no downloaded config and refresh failed: %w", updateErr)
 			}
 			source, err = os.ReadFile(paths.SubSourcePath(targetID))
@@ -493,13 +493,16 @@ func (c *runtimeController) Logout() ([]sub.SubscriptionMeta, error) {
 	return removed, nil
 }
 
-func (c *runtimeController) Update(ctx context.Context, id string, force, viaProxy bool) (*sub.UpdateResult, error) {
+// Update refreshes one subscription. viaProxy is a per-call override: nil
+// follows the subscription's update channel, true forces the local proxy,
+// false forces direct.
+func (c *runtimeController) Update(ctx context.Context, id string, force bool, viaProxy *bool) (*sub.UpdateResult, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.updateLocked(ctx, id, force, viaProxy)
 }
 
-func (c *runtimeController) updateLocked(ctx context.Context, id string, force, viaProxy bool) (*sub.UpdateResult, error) {
+func (c *runtimeController) updateLocked(ctx context.Context, id string, force bool, viaProxy *bool) (*sub.UpdateResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -509,8 +512,15 @@ func (c *runtimeController) updateLocked(ctx context.Context, id string, force, 
 	if id == "" {
 		return nil, errors.New("no subscription to update")
 	}
-	result, err := c.subs.Update(id, force, viaProxy, c.Preferences().MixedPort)
+	proxyURL, err := c.resolveUpdateProxy(id, viaProxy)
 	if err != nil {
+		return nil, err
+	}
+	result, err := c.subs.Update(id, force, proxyURL)
+	if err != nil {
+		if proxyURL != "" {
+			return nil, fmt.Errorf("%w (the update channel used the local proxy; fix it or switch the subscription's update channel to direct)", err)
+		}
 		return nil, err
 	}
 	if result.Meta.ID == c.subs.ActiveID() && c.engine.IsRunning() && (result.ContentChanged || c.pendingApply) {
@@ -520,6 +530,40 @@ func (c *runtimeController) updateLocked(ctx context.Context, id string, force, 
 		}
 	}
 	return result, nil
+}
+
+// resolveUpdateProxy turns the subscription's update channel into a fetch
+// proxy URL. "self" rides the daemon's own mixed port only while the core
+// runs — a first configuration can never bootstrap through itself. "proxy"
+// rides the stored proxy URL. The channel never silently switches: failures
+// return actionable errors.
+func (c *runtimeController) resolveUpdateProxy(id string, override *bool) (string, error) {
+	meta, err := c.subs.Get(id)
+	if err != nil {
+		return "", err
+	}
+	if override != nil {
+		if !*override {
+			return "", nil
+		}
+		return fmt.Sprintf("http://127.0.0.1:%d", c.Preferences().MixedPort), nil
+	}
+	switch meta.UpdateChannel {
+	case "", "direct":
+		return "", nil
+	case "self":
+		if !c.engine.IsRunning() {
+			return "", nil
+		}
+		return fmt.Sprintf("http://127.0.0.1:%d", c.Preferences().MixedPort), nil
+	case "proxy":
+		if meta.UpdateProxy == "" {
+			return "", errors.New("update channel is set to a specific proxy but no proxy URL is saved; set it or switch back to direct")
+		}
+		return meta.UpdateProxy, nil
+	default:
+		return "", fmt.Errorf("unknown update channel %q", meta.UpdateChannel)
+	}
 }
 
 func (c *runtimeController) UpdateDue(ctx context.Context, now time.Time) error {
@@ -546,6 +590,6 @@ func (c *runtimeController) UpdateDue(ctx context.Context, now time.Time) error 
 	if now.Sub(meta.LastCheckedAt) < interval {
 		return nil
 	}
-	_, err = c.updateLocked(ctx, id, false, false)
+	_, err = c.updateLocked(ctx, id, false, nil)
 	return err
 }

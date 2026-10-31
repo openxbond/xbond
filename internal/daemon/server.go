@@ -199,6 +199,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/subs/use", s.authMiddleware(s.handleSubUse))
 	mux.HandleFunc("/localapi/v0/subs/update", s.authMiddleware(s.handleSubUpdate))
 	mux.HandleFunc("/localapi/v0/subs/override", s.authMiddleware(s.handleSubOverride))
+	mux.HandleFunc("/localapi/v0/subs/versions", s.authMiddleware(s.handleSubVersions))
+	mux.HandleFunc("/localapi/v0/subs/rollback", s.authMiddleware(s.handleSubRollback))
 	mux.HandleFunc("/localapi/v0/subs/progress", s.authMiddleware(s.handleSubsProgress))
 
 	mux.HandleFunc("/localapi/v0/nodes", s.authMiddleware(s.handleNodes))
@@ -376,7 +378,7 @@ func (s *Server) bindSubscription(
 	}
 
 	finalMeta := meta
-	res, updateErr := s.runtime.Update(ctx, meta.ID, true, false)
+	res, updateErr := s.runtime.Update(ctx, meta.ID, true, nil)
 	updateErrMsg := ""
 	if updateErr != nil {
 		updateErrMsg = updateErr.Error()
@@ -449,16 +451,26 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPatch:
 		var req struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
+			ID            string `json:"id"`
+			Name          string `json:"name"`
+			UpdateChannel string `json:"updateChannel"`
+			UpdateProxy   string `json:"updateProxy"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid rename request")
+			writeError(w, http.StatusBadRequest, "invalid subscription patch request")
 			return
 		}
-		if err := s.subMgr.Rename(req.ID, req.Name); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
+		if req.Name != "" {
+			if err := s.subMgr.Rename(req.ID, req.Name); err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+		}
+		if req.UpdateChannel != "" {
+			if err := s.subMgr.SetUpdateChannel(req.ID, req.UpdateChannel, req.UpdateProxy); err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	case http.MethodGet:
@@ -487,14 +499,12 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 		var meta *sub.SubscriptionMeta
 		var err error
 		if req.Type == sub.SubTypeXBond || req.Token != "" {
-			writeError(w, http.StatusBadRequest, "Clash nodes-only mode is not available for XBond subscriptions")
+			// XBond subscriptions come from the login/bind flow, which owns
+			// the OAuth session; the generic import path stays universal.
+			writeError(w, http.StatusBadRequest, "XBond subscriptions are added through the login flow")
 			return
 		}
-		if req.Type == sub.SubTypeXBond || req.Token != "" {
-			meta, err = s.subMgr.AddXBond(req.Token, req.Origin, req.FallbackOrigins, req.Protocol, req.Lang, req.Name, req.IntervalHours, false)
-		} else {
-			meta, err = s.subMgr.AddUniversal(req.URLOrFile, req.Name, req.IntervalHours, false)
-		}
+		meta, err = s.subMgr.AddUniversal(req.URLOrFile, req.Name, req.IntervalHours, false)
 
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -504,7 +514,7 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 		// Initial update. The response spells out every side effect —
 		// activation, whether the running core switched, and a failed
 		// initial fetch — so the CLI can report what actually happened.
-		res, updateErr := s.runtime.Update(r.Context(), meta.ID, true, false)
+		res, updateErr := s.runtime.Update(r.Context(), meta.ID, true, nil)
 		updateErrMsg := ""
 		if updateErr != nil {
 			updateErrMsg = updateErr.Error()
@@ -620,11 +630,64 @@ func (s *Server) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleSubVersions lists the stored previous source versions of a
+// subscription, newest first.
+func (s *Server) handleSubVersions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing subscription id")
+		return
+	}
+	versions, err := s.subMgr.Versions(id)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"versions": versions})
+}
+
+// handleSubRollback restores the newest previous source version of a
+// subscription. The rollback is at the source layer — override and
+// daemon-owned derivation stay applied. When the subscription is active and
+// the core runs, the restored source re-applies immediately.
+func (s *Server) handleSubRollback(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var request struct {
+		ID string `json:"id"`
+	}
+	if !decodeRuntimeRequest(w, r, &request) {
+		return
+	}
+	if request.ID == "" {
+		writeError(w, http.StatusBadRequest, "missing subscription id")
+		return
+	}
+	meta, err := s.subMgr.Rollback(request.ID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if s.subMgr.ActiveID() == request.ID && s.engineMgr.IsRunning() {
+		if err := s.runtime.Configure(r.Context(), runtimeOptions{}); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "meta": meta})
+}
+
 func (s *Server) handleSubUpdate(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		ID       string `json:"id"`
 		Force    bool   `json:"force"`
-		ViaProxy bool   `json:"viaProxy"`
+		ViaProxy *bool  `json:"viaProxy"`
 		All      bool   `json:"all"`
 	}
 	if !decodeRuntimeRequest(w, r, &request) {

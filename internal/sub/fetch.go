@@ -18,10 +18,13 @@ import (
 )
 
 type FetchOptions struct {
-	ETag      string
-	ViaProxy  bool
-	ProxyPort int
-	Timeout   time.Duration
+	ETag string
+	// ProxyURL routes the fetch through a proxy (http:// or socks5://);
+	// empty fetches directly. The update channel resolves it — the daemon
+	// owns engine state, so "self" becomes http://127.0.0.1:<mixed-port>
+	// there.
+	ProxyURL string
+	Timeout  time.Duration
 	// OnProgress reports cumulative bytes read and the total size when the
 	// response carries Content-Length (-1 otherwise). Nil disables reporting.
 	OnProgress func(read, total int64)
@@ -82,7 +85,7 @@ func BuildXBondURL(origin, token, protocol, lang string) string {
 	return fmt.Sprintf("%s/api/subscription/config?%s", origin, q.Encode())
 }
 
-func ProbeGatewayHealth(ctx context.Context, origin string, viaProxy bool, proxyPort int) (bool, error) {
+func ProbeGatewayHealth(ctx context.Context, origin, proxyURL string) (bool, error) {
 	origin = strings.TrimSuffix(origin, "/")
 	nonceBytes := make([]byte, 16)
 	_, _ = rand.Read(nonceBytes)
@@ -90,7 +93,7 @@ func ProbeGatewayHealth(ctx context.Context, origin string, viaProxy bool, proxy
 
 	probeURL := fmt.Sprintf("%s/api/subscription/health?nonce=%s", origin, nonce)
 
-	client := createHTTPClient(viaProxy, proxyPort, 3*time.Second)
+	client := createHTTPClient(proxyURL, 3*time.Second)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, probeURL, nil)
 	if err != nil {
 		return false, err
@@ -129,7 +132,7 @@ func FetchSubscription(ctx context.Context, fetchURL string, opts FetchOptions) 
 		timeout = 120 * time.Second
 	}
 
-	client := createHTTPClient(opts.ViaProxy, opts.ProxyPort, timeout)
+	client := createHTTPClient(opts.ProxyURL, timeout)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
 	if err != nil {
@@ -279,14 +282,21 @@ func FetchSubscription(ctx context.Context, fetchURL string, opts FetchOptions) 
 	}
 }
 
-func createHTTPClient(viaProxy bool, proxyPort int, timeout time.Duration) *http.Client {
+func createHTTPClient(proxyURL string, timeout time.Duration) *http.Client {
 	transport := &http.Transport{
 		DisableKeepAlives: true,
 	}
 
-	if viaProxy && proxyPort > 0 {
-		proxyURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", proxyPort))
-		transport.Proxy = http.ProxyURL(proxyURL)
+	if proxyURL != "" {
+		if parsed, err := url.Parse(proxyURL); err == nil {
+			transport.Proxy = http.ProxyURL(parsed)
+		} else {
+			// An invalid proxy URL fails the request with the reason instead
+			// of silently falling back to direct.
+			transport.Proxy = func(*http.Request) (*url.URL, error) {
+				return nil, fmt.Errorf("invalid update proxy %q: %w", proxyURL, err)
+			}
+		}
 	} else {
 		// Explicitly disable any OS/env proxy to ensure direct-bypass
 		transport.Proxy = nil

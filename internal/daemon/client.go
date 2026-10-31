@@ -350,11 +350,16 @@ func (c *Client) UseSub(ctx context.Context, id string) error {
 	return c.request(ctx, http.MethodPost, "/localapi/v0/subs/use", payload, nil)
 }
 
-func (c *Client) UpdateSub(ctx context.Context, id string, force, viaProxy bool) (*sub.UpdateResult, error) {
+// UpdateSub refreshes one subscription. viaProxy is tri-state: nil follows
+// the subscription's update channel, true forces the local proxy, false
+// forces direct.
+func (c *Client) UpdateSub(ctx context.Context, id string, force bool, viaProxy *bool) (*sub.UpdateResult, error) {
 	payload := map[string]any{
-		"id":       id,
-		"force":    force,
-		"viaProxy": viaProxy,
+		"id":    id,
+		"force": force,
+	}
+	if viaProxy != nil {
+		payload["viaProxy"] = *viaProxy
 	}
 	var res sub.UpdateResult
 	if err := c.requestSlow(ctx, http.MethodPost, "/localapi/v0/subs/update", payload, &res); err != nil {
@@ -365,17 +370,55 @@ func (c *Client) UpdateSub(ctx context.Context, id string, force, viaProxy bool)
 
 // UpdateSubAll refreshes every subscription and returns each per-item
 // outcome; the response is always 200, so partial failure keeps all results.
-func (c *Client) UpdateSubAll(ctx context.Context, force, viaProxy bool) (*sub.BatchUpdateResult, error) {
+func (c *Client) UpdateSubAll(ctx context.Context, force bool, viaProxy *bool) (*sub.BatchUpdateResult, error) {
 	payload := map[string]any{
-		"force":    force,
-		"viaProxy": viaProxy,
-		"all":      true,
+		"force": force,
+		"all":   true,
+	}
+	if viaProxy != nil {
+		payload["viaProxy"] = *viaProxy
 	}
 	var res sub.BatchUpdateResult
 	if err := c.requestSlow(ctx, http.MethodPost, "/localapi/v0/subs/update", payload, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
+}
+
+// SetSubChannel persists the subscription's update channel: direct, self
+// (the daemon's own mixed port) or proxy (a saved http(s)/socks5 URL).
+func (c *Client) SetSubChannel(ctx context.Context, id, channel, proxyURL string) error {
+	payload := map[string]any{
+		"id":            id,
+		"updateChannel": channel,
+		"updateProxy":   proxyURL,
+	}
+	return c.request(ctx, http.MethodPatch, "/localapi/v0/subs", payload, nil)
+}
+
+// SubVersions lists the stored previous source versions, newest first.
+func (c *Client) SubVersions(ctx context.Context, id string) ([]sub.SourceVersion, error) {
+	var res struct {
+		Versions []sub.SourceVersion `json:"versions"`
+	}
+	if err := c.request(ctx, http.MethodGet, "/localapi/v0/subs/versions?id="+url.QueryEscape(id), nil, &res); err != nil {
+		return nil, err
+	}
+	return res.Versions, nil
+}
+
+// RollbackSub restores the newest previous source version (the source layer;
+// override and daemon-owned derivation stay applied).
+func (c *Client) RollbackSub(ctx context.Context, id string) (*sub.SubscriptionMeta, error) {
+	payload := map[string]any{"id": id}
+	var res struct {
+		OK   bool                  `json:"ok"`
+		Meta *sub.SubscriptionMeta `json:"meta"`
+	}
+	if err := c.requestSlow(ctx, http.MethodPost, "/localapi/v0/subs/rollback", payload, &res); err != nil {
+		return nil, err
+	}
+	return res.Meta, nil
 }
 
 func (c *Client) RemoveSub(ctx context.Context, id string) error {

@@ -411,6 +411,15 @@ const KO = {
     bindNote:
       "구독 자격 증명으로 이 기기를 등록합니다. xbond login으로 로그인할 수도 있습니다.",
     override: "규칙 재정의",
+    channelDirect: "직접",
+    channelSelf: "자체 프록시",
+    channelProxy: "지정 프록시",
+    channelProxyUrl: "프록시 주소",
+    channelProxyNote:
+      "이 구독의 모든 갱신은 이 프록시를 거칩니다. 프록시가 실패하면 갱신이 오류를 내고 채널은 변경되지 않습니다.",
+    rollback: "롤백",
+    rollbackDone:
+      "이전 버전으로 롤백했습니다(소스 계층만; 재정의와 데몬 설정은 변경 없음).",
     overrideDns: "DNS 재정의",
     overridePrepend: "앞에 추가하는 규칙",
     overrideAppend: "뒤에 추가하는 규칙",

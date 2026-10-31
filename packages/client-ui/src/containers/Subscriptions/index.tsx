@@ -1,6 +1,7 @@
 import {
   Header,
   Button,
+  ButtonSelect,
   Input,
   Modal,
   success,
@@ -58,6 +59,8 @@ export default function Subscriptions() {
   const [overrideAppend, setOverrideAppend] = useState("");
   const [overrideDns, setOverrideDns] = useState("");
   const [overrideError, setOverrideError] = useState("");
+  const [proxyChannelId, setProxyChannelId] = useState<string | null>(null);
+  const [proxyChannelUrl, setProxyChannelUrl] = useState("");
 
   const link = (values: Record<string, string> = {}) =>
     workspaceLink(location.search, "/subscriptions", values);
@@ -103,6 +106,43 @@ export default function Subscriptions() {
       // so the text survives for editing.
       setOverrideError(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  // Channel "proxy" needs a URL first: the modal collects it, other
+  // channels persist immediately.
+  function selectChannel(id: string, channel: "direct" | "self" | "proxy") {
+    if (channel === "proxy") {
+      setProxyChannelId(id);
+      setProxyChannelUrl("");
+      return;
+    }
+    void run(async () => {
+      if (!localClient) throw new Error("LocalAPI not available");
+      await localClient.setSubChannel(id, channel);
+      await refresh();
+    });
+  }
+
+  function saveProxyChannel() {
+    if (!proxyChannelId || !localClient) return;
+    void run(async () => {
+      await localClient.setSubChannel(
+        proxyChannelId,
+        "proxy",
+        proxyChannelUrl.trim(),
+      );
+      await refresh();
+      setProxyChannelId(null);
+    });
+  }
+
+  function rollback(id: string) {
+    void run(async () => {
+      if (!localClient) throw new Error("LocalAPI not available");
+      await localClient.rollbackSub(id);
+      await refresh();
+      success(t("rollbackDone"));
+    });
   }
 
   async function add() {
@@ -366,6 +406,27 @@ export default function Subscriptions() {
                         >
                           {t("updateBtn")}
                         </Button>
+                        <ButtonSelect
+                          value={sub.updateChannel || "direct"}
+                          disabled={pending}
+                          options={[
+                            { label: t("channelDirect"), value: "direct" },
+                            { label: t("channelSelf"), value: "self" },
+                            { label: t("channelProxy"), value: "proxy" },
+                          ]}
+                          onSelect={(channel) =>
+                            selectChannel(
+                              sub.id,
+                              channel as "direct" | "self" | "proxy",
+                            )
+                          }
+                        />
+                        <Button
+                          disabled={pending}
+                          onClick={() => rollback(sub.id)}
+                        >
+                          {t("rollback")}
+                        </Button>
                         {sub.urlOrFile &&
                           /^https?:\/\//i.test(sub.urlOrFile) && (
                             <CopyButton
@@ -460,6 +521,28 @@ export default function Subscriptions() {
             {t("removeActive")}
           </p>
         )}
+      </Modal>
+
+      <Modal
+        show={proxyChannelId !== null}
+        title={t("channelProxy")}
+        onClose={() => setProxyChannelId(null)}
+        okDisabled={!proxyChannelUrl.trim()}
+        pending={pending}
+        onOk={() => saveProxyChannel()}
+      >
+        <label className="settings-rename-label">
+          {t("channelProxyUrl")}
+          <Input
+            value={proxyChannelUrl}
+            onChange={setProxyChannelUrl}
+            align="left"
+            placeholder="http://127.0.0.1:7890"
+          />
+        </label>
+        <p className="setting-note mt-2 text-muted-foreground">
+          {t("channelProxyNote")}
+        </p>
       </Modal>
 
       <Modal

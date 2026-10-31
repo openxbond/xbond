@@ -24,24 +24,24 @@ import (
 // via OAuth Bearer; the console link derives from the session's own origin,
 // the issuer the tokens actually came from).
 type AccountState struct {
-	Status                  string                    `json:"status"`
-	Method                  string                    `json:"method,omitempty"`
-	AuthURL                 string                    `json:"authUrl,omitempty"`
-	VerificationURI         string                    `json:"verificationUri,omitempty"`
-	VerificationURIComplete string                    `json:"verificationUriComplete,omitempty"`
-	UserCode                string                    `json:"userCode,omitempty"`
-	ErrorCode               string                    `json:"errorCode,omitempty"`
-	Error                   string                    `json:"error,omitempty"`
-	StartedAt               *time.Time                `json:"startedAt,omitempty"`
-	Subscription            *sub.SubscriptionMeta     `json:"subscription,omitempty"`
-	UpdateError             string                    `json:"updateError,omitempty"`
-	Email                   string                    `json:"email,omitempty"`
-	Name                    string                    `json:"name,omitempty"`
-	ConsoleURL              string                    `json:"consoleUrl,omitempty"`
-	Service                 *clientapi.ServiceStatus  `json:"service,omitempty"`
-	Announcements           []clientapi.Announcement  `json:"announcements,omitempty"`
-	UnreadCount             int                       `json:"unreadCount,omitempty"`
-	OverviewError           string                    `json:"overviewError,omitempty"`
+	Status                  string                   `json:"status"`
+	Method                  string                   `json:"method,omitempty"`
+	AuthURL                 string                   `json:"authUrl,omitempty"`
+	VerificationURI         string                   `json:"verificationUri,omitempty"`
+	VerificationURIComplete string                   `json:"verificationUriComplete,omitempty"`
+	UserCode                string                   `json:"userCode,omitempty"`
+	ErrorCode               string                   `json:"errorCode,omitempty"`
+	Error                   string                   `json:"error,omitempty"`
+	StartedAt               *time.Time               `json:"startedAt,omitempty"`
+	Subscription            *sub.SubscriptionMeta    `json:"subscription,omitempty"`
+	UpdateError             string                   `json:"updateError,omitempty"`
+	Email                   string                   `json:"email,omitempty"`
+	Name                    string                   `json:"name,omitempty"`
+	ConsoleURL              string                   `json:"consoleUrl,omitempty"`
+	Service                 *clientapi.ServiceStatus `json:"service,omitempty"`
+	Announcements           []clientapi.Announcement `json:"announcements,omitempty"`
+	UnreadCount             int                      `json:"unreadCount,omitempty"`
+	OverviewError           string                   `json:"overviewError,omitempty"`
 }
 
 type accountBindOptions struct {

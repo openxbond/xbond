@@ -48,27 +48,33 @@ type SubscriptionMeta struct {
 	// Format records which core natively runs the stored configuration; the
 	// daemon derives and starts that core. Legacy records are backfilled at
 	// daemon start by MigrateLegacySources.
-	Format              engine.CoreFormat  `json:"format,omitempty"`
-	NameCustomized      bool               `json:"nameCustomized,omitempty"`
-	Type                SubscriptionType   `json:"type"`
-	SourceURL           string             `json:"sourceUrl,omitempty"`
-	Token               string             `json:"token,omitempty"`
-	Origin              string             `json:"origin,omitempty"`
-	FallbackOrigins     []string           `json:"fallbackOrigins,omitempty"`
-	Protocol            string             `json:"protocol,omitempty"`
-	Lang                string             `json:"lang,omitempty"`
-	AutoUpdate          bool               `json:"autoUpdate"`
-	UpdateIntervalHours int                `json:"updateIntervalHours"`
-	ETag                string             `json:"etag,omitempty"`
-	ContentHash         string             `json:"contentHash,omitempty"`
-	Quota               QuotaInfo          `json:"quota"`
-	WebPageURL          string             `json:"webPageUrl,omitempty"`
-	Health              SubscriptionHealth `json:"health"`
-	LastErrorMessage    string             `json:"lastErrorMessage,omitempty"`
-	LastCheckedAt       time.Time          `json:"lastCheckedAt"`
-	LastUpdatedAt       time.Time          `json:"lastUpdatedAt"`
-	SavedSelections     map[string]string  `json:"savedSelections,omitempty"`
-	LastDiff            *UpdateDiff        `json:"lastDiff,omitempty"`
+	Format              engine.CoreFormat `json:"format,omitempty"`
+	NameCustomized      bool              `json:"nameCustomized,omitempty"`
+	Type                SubscriptionType  `json:"type"`
+	SourceURL           string            `json:"sourceUrl,omitempty"`
+	Token               string            `json:"token,omitempty"`
+	Origin              string            `json:"origin,omitempty"`
+	FallbackOrigins     []string          `json:"fallbackOrigins,omitempty"`
+	Protocol            string            `json:"protocol,omitempty"`
+	Lang                string            `json:"lang,omitempty"`
+	AutoUpdate          bool              `json:"autoUpdate"`
+	UpdateIntervalHours int               `json:"updateIntervalHours"`
+	// Update channel: "" or "direct" fetches directly, "self" rides the
+	// daemon's own mixed port when the core runs (never for bootstrapping),
+	// "proxy" rides UpdateProxy. A failing channel errors — it never
+	// silently switches (client-rethink §四.5).
+	UpdateChannel    string             `json:"updateChannel,omitempty"`
+	UpdateProxy      string             `json:"updateProxy,omitempty"`
+	ETag             string             `json:"etag,omitempty"`
+	ContentHash      string             `json:"contentHash,omitempty"`
+	Quota            QuotaInfo          `json:"quota"`
+	WebPageURL       string             `json:"webPageUrl,omitempty"`
+	Health           SubscriptionHealth `json:"health"`
+	LastErrorMessage string             `json:"lastErrorMessage,omitempty"`
+	LastCheckedAt    time.Time          `json:"lastCheckedAt"`
+	LastUpdatedAt    time.Time          `json:"lastUpdatedAt"`
+	SavedSelections  map[string]string  `json:"savedSelections,omitempty"`
+	LastDiff         *UpdateDiff        `json:"lastDiff,omitempty"`
 }
 
 type SubscriptionsStore struct {

@@ -201,14 +201,14 @@ func RunDoctor(
 				activeSub = s
 				if s.Origin != "" {
 					gwRes.PrimaryOrigin = s.Origin
-					healthy, _ := sub.ProbeGatewayHealth(ctx, s.Origin, false, 0)
+					healthy, _ := sub.ProbeGatewayHealth(ctx, s.Origin, "")
 					gwRes.PrimaryHealthy = healthy
 				}
 				if len(s.FallbackOrigins) > 0 {
 					gwRes.FallbackOrigins = s.FallbackOrigins
 					gwRes.FallbackStatuses = make([]bool, len(s.FallbackOrigins))
 					for i, fb := range s.FallbackOrigins {
-						h, _ := sub.ProbeGatewayHealth(ctx, fb, false, 0)
+						h, _ := sub.ProbeGatewayHealth(ctx, fb, "")
 						gwRes.FallbackStatuses[i] = h
 					}
 				}

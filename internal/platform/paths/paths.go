@@ -69,6 +69,11 @@ func SubOverridePath(id string) string {
 	return filepath.Join(SubDir(id), "override.json")
 }
 
+// SubVersionsPath stores previous source snapshots for rollback.
+func SubVersionsPath(id string) string {
+	return filepath.Join(SubDir(id), "versions")
+}
+
 func SubListPath() string {
 	return filepath.Join(DataDir(), "subscriptions.json")
 }

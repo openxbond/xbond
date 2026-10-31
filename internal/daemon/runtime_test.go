@@ -85,7 +85,7 @@ func newRuntimeFixture(t *testing.T) runtimeFixture {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := manager.Update(meta.ID, true, false, 0); err != nil {
+		if _, err := manager.Update(meta.ID, true, ""); err != nil {
 			t.Fatal(err)
 		}
 		return meta, source
@@ -364,7 +364,7 @@ func TestRuntimeUpdateFailureRetriesCachedConfigurationOnManualOrScheduledUpdate
 				t.Fatal(err)
 			}
 			f.core.reloadError = errors.New("injected update reload failure")
-			if _, err := f.controller.Update(context.Background(), f.first.ID, true, false); err == nil {
+			if _, err := f.controller.Update(context.Background(), f.first.ID, true, nil); err == nil {
 				t.Fatal("update reload failure was hidden")
 			}
 			if !bytes.Equal(before, f.core.configuration()) {
@@ -378,7 +378,7 @@ func TestRuntimeUpdateFailureRetriesCachedConfigurationOnManualOrScheduledUpdate
 					t.Fatal(err)
 				}
 			} else {
-				result, err := f.controller.Update(context.Background(), f.first.ID, false, false)
+				result, err := f.controller.Update(context.Background(), f.first.ID, false, nil)
 				if err != nil {
 					t.Fatal(err)
 				}

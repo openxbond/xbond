@@ -97,8 +97,11 @@ func init() {
 	subExportCmd.Flags().BoolVar(&subExpRedacted, "redacted", true, "Redact sensitive tokens and passwords in output")
 	subCmd.AddCommand(subExportCmd)
 
-	// sub remove
+	// sub remove, update channel, versions and rollback
 	subCmd.AddCommand(subRemoveCmd)
+	subCmd.AddCommand(subChannelCmd)
+	subCmd.AddCommand(subVersionsCmd)
+	subCmd.AddCommand(subRollbackCmd)
 }
 
 var loginCmd = &cobra.Command{
@@ -626,6 +629,76 @@ var subRemoveCmd = &cobra.Command{
 	},
 }
 
+var subChannelCmd = &cobra.Command{
+	Use:   "channel <name-or-id> <direct|self|proxy> [proxy-url]",
+	Short: "Set the update channel: direct, the daemon's own proxy, or a specific proxy",
+	Args:  cobra.RangeArgs(2, 3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		client, err := daemon.EnsureRunning(ctx)
+		if err != nil {
+			return err
+		}
+		channel, proxyURL := args[1], ""
+		if channel == "proxy" {
+			if len(args) < 3 {
+				return fmt.Errorf("the proxy channel needs a proxy URL: http(s)://host:port or socks5://host:port")
+			}
+			proxyURL = args[2]
+		}
+		if err := client.SetSubChannel(ctx, args[0], channel, proxyURL); err != nil {
+			return err
+		}
+		fmt.Printf("Update channel set to %s\n", channel)
+		return nil
+	},
+}
+
+var subVersionsCmd = &cobra.Command{
+	Use:   "versions <name-or-id>",
+	Short: "List stored previous source versions (rollback points)",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		client, err := daemon.EnsureRunning(ctx)
+		if err != nil {
+			return err
+		}
+		versions, err := client.SubVersions(ctx, args[0])
+		if err != nil {
+			return err
+		}
+		if len(versions) == 0 {
+			fmt.Println("No previous versions stored yet.")
+			return nil
+		}
+		for index, version := range versions {
+			fmt.Printf("%d. %s  %d bytes  %s\n", index+1, version.SavedAt.Format("2006-01-02 15:04:05"), version.Size, version.Name)
+		}
+		return nil
+	},
+}
+
+var subRollbackCmd = &cobra.Command{
+	Use:   "rollback <name-or-id>",
+	Short: "Restore the newest previous source version (source layer only)",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		client, err := daemon.EnsureRunning(ctx)
+		if err != nil {
+			return err
+		}
+		meta, err := client.RollbackSub(ctx, args[0])
+		if err != nil {
+			return err
+		}
+		fmt.Println("Rolled back to the previous version. The override layer and daemon-owned settings are unchanged.")
+		fmt.Printf("Active source hash: %s\n", meta.ContentHash)
+		return nil
+	},
+}
+
 func runUpdate(cmd *cobra.Command, args []string) error {
 	if subUpdAll && len(args) > 0 {
 		return fmt.Errorf("update --all takes no target argument")
@@ -636,11 +709,18 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// --via-proxy is tri-state: omitted follows the subscription's update
+	// channel; given, it overrides for this call (0 value forces direct).
+	var viaProxyOverride *bool
+	if cmd.Flags().Changed("via-proxy") {
+		viaProxyOverride = &subUpdViaProxy
+	}
+
 	if subUpdAll {
 		var res *sub.BatchUpdateResult
 		err = withFetchProgress(ctx, client, func() error {
 			var updateErr error
-			res, updateErr = client.UpdateSubAll(ctx, subUpdForce, subUpdViaProxy)
+			res, updateErr = client.UpdateSubAll(ctx, subUpdForce, viaProxyOverride)
 			return updateErr
 		})
 		if err != nil {
@@ -675,7 +755,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	var res *sub.UpdateResult
 	err = withFetchProgress(ctx, client, func() error {
 		var updateErr error
-		res, updateErr = client.UpdateSub(ctx, target, subUpdForce, subUpdViaProxy)
+		res, updateErr = client.UpdateSub(ctx, target, subUpdForce, viaProxyOverride)
 		return updateErr
 	})
 	if err != nil {

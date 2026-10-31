@@ -1,0 +1,66 @@
+package daemon
+
+import (
+	"testing"
+
+	"github.com/openxbond/xbond/internal/sub"
+)
+
+func boolPtr(v bool) *bool { return &v }
+
+func setCoreRunning(t *testing.T, core *testRuntimeCore, running bool) {
+	t.Helper()
+	core.mu.Lock()
+	core.running = running
+	core.mu.Unlock()
+}
+
+// resolveUpdateProxy turns the update channel into a fetch proxy URL: the
+// per-call override wins, "self" rides the daemon's own mixed port only
+// while the core runs (a first configuration can never bootstrap through
+// itself), "proxy" rides the stored URL, and the channel never silently
+// switches on failure.
+func TestResolveUpdateProxyFollowsChannelAndBootstrap(t *testing.T) {
+	f := newRuntimeFixture(t)
+	selfURL := "http://127.0.0.1:7890" // the fixture's default mixed port
+
+	cases := []struct {
+		name     string
+		channel  string
+		proxy    string
+		running  bool
+		override *bool
+		want     string
+		wantErr  bool
+	}{
+		{name: "default-direct", channel: "", proxy: "", running: false, override: nil, want: ""},
+		{name: "direct-channel", channel: sub.ChannelDirect, proxy: "", running: true, override: nil, want: ""},
+		{name: "self-bootstrap", channel: sub.ChannelSelf, proxy: "", running: false, override: nil, want: ""},
+		{name: "self-running", channel: sub.ChannelSelf, proxy: "", running: true, override: nil, want: selfURL},
+		{name: "proxy-channel", channel: sub.ChannelProxy, proxy: "socks5://127.0.0.1:1080", running: false, override: nil, want: "socks5://127.0.0.1:1080"},
+		{name: "override-local", channel: sub.ChannelDirect, proxy: "", running: false, override: boolPtr(true), want: selfURL},
+		{name: "override-direct", channel: sub.ChannelSelf, proxy: "", running: true, override: boolPtr(false), want: ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := f.subs.SetUpdateChannel(f.first.ID, tc.channel, tc.proxy); err != nil {
+				t.Fatal(err)
+			}
+			setCoreRunning(t, f.core, tc.running)
+			got, err := f.controller.resolveUpdateProxy(f.first.ID, tc.override)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected an error, got %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Fatalf("expected %q, got %q", tc.want, got)
+			}
+		})
+	}
+}

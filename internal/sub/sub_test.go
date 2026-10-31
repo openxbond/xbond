@@ -239,7 +239,7 @@ rules:
 	}
 
 	// 2. Fetch update (200 OK)
-	res, err := mgr.Update(subMeta.ID, false, false, 0)
+	res, err := mgr.Update(subMeta.ID, false, "")
 	if err != nil {
 		t.Fatalf("Update failed: %v", err)
 	}
@@ -254,7 +254,7 @@ rules:
 	}
 
 	// 3. Update again with ETag -> 304 Not Modified
-	res304, err := mgr.Update(subMeta.ID, false, false, 0)
+	res304, err := mgr.Update(subMeta.ID, false, "")
 	if err != nil {
 		t.Fatalf("Update 304 failed: %v", err)
 	}
@@ -264,7 +264,7 @@ rules:
 
 	// 4. Test 401 Credential Invalid
 	subInvalid, _ := mgr.AddXBond("sub-invalid", server.URL, nil, "vless-reality", "zh-HK", "InvalidSub", 24, false)
-	_, err = mgr.Update(subInvalid.ID, false, false, 0)
+	_, err = mgr.Update(subInvalid.ID, false, "")
 	if err == nil {
 		t.Fatalf("expected error on 401, got nil")
 	}
@@ -275,7 +275,7 @@ rules:
 
 	// 5. Test 403 Quota Exhausted
 	subExhausted, _ := mgr.AddXBond("sub-exhausted", server.URL, nil, "vless-reality", "zh-HK", "ExhaustedSub", 24, false)
-	_, err = mgr.Update(subExhausted.ID, false, false, 0)
+	_, err = mgr.Update(subExhausted.ID, false, "")
 	if err == nil {
 		t.Fatalf("expected error on 403, got nil")
 	}
@@ -285,7 +285,7 @@ rules:
 	}
 
 	// 6. Test gateway probe
-	ok, err := ProbeGatewayHealth(context.Background(), server.URL, false, 0)
+	ok, err := ProbeGatewayHealth(context.Background(), server.URL, "")
 	if err != nil || !ok {
 		t.Fatalf("ProbeGatewayHealth failed: ok=%v, err=%v", ok, err)
 	}

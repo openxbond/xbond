@@ -429,8 +429,7 @@ func (m *Manager) Progress() FetchProgress {
 func (m *Manager) Update(
 	idOrName string,
 	force bool,
-	viaProxy bool,
-	proxyPort int,
+	proxyURL string,
 ) (*UpdateResult, error) {
 	subMeta, err := m.Get(idOrName)
 	if err != nil {
@@ -461,22 +460,20 @@ func (m *Manager) Update(
 		m.setFetchProgress(true, subMeta.ID, subMeta.Name)
 		resp, err := FetchSubscription(ctx, fetchURL, FetchOptions{
 			ETag:       etag,
-			ViaProxy:   viaProxy,
-			ProxyPort:  proxyPort,
+			ProxyURL:   proxyURL,
 			OnProgress: m.setFetchProgressBytes,
 		})
 
 		// Try fallback origins if primary fails with transient error
 		if err != nil && len(subMeta.FallbackOrigins) > 0 {
 			for _, fallback := range subMeta.FallbackOrigins {
-				if ok, _ := ProbeGatewayHealth(ctx, fallback, viaProxy, proxyPort); ok {
+				if ok, _ := ProbeGatewayHealth(ctx, fallback, proxyURL); ok {
 					subMeta.Origin = fallback
 					fetchURL = BuildXBondURL(fallback, subMeta.Token, subMeta.Protocol, subMeta.Lang)
 					m.setFetchProgress(true, subMeta.ID, subMeta.Name)
 					resp, err = FetchSubscription(ctx, fetchURL, FetchOptions{
 						ETag:       etag,
-						ViaProxy:   viaProxy,
-						ProxyPort:  proxyPort,
+						ProxyURL:   proxyURL,
 						OnProgress: m.setFetchProgressBytes,
 					})
 					if err == nil {
@@ -509,8 +506,7 @@ func (m *Manager) Update(
 			m.setFetchProgress(true, subMeta.ID, subMeta.Name)
 			resp, err := FetchSubscription(ctx, subMeta.SourceURL, FetchOptions{
 				ETag:       etag,
-				ViaProxy:   viaProxy,
-				ProxyPort:  proxyPort,
+				ProxyURL:   proxyURL,
 				OnProgress: m.setFetchProgressBytes,
 			})
 			if resp != nil {
@@ -614,7 +610,13 @@ func (m *Manager) Update(
 		}, nil
 	}
 
-	// 4. Atomically write source config
+	// 4. Atomically write source config. The outgoing source becomes a
+	// rollback version first; a snapshot failure fails the update loudly.
+	if len(oldSource) > 0 {
+		if err := m.snapshotVersion(subMeta.ID, oldSource); err != nil {
+			return nil, fmt.Errorf("snapshot previous source version: %w", err)
+		}
+	}
 	if err := atomicfile.Write(paths.SubSourcePath(subMeta.ID), convertedJSON, 0o600); err != nil {
 		return nil, fmt.Errorf("failed to write source config: %w", err)
 	}
