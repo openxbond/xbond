@@ -377,3 +377,37 @@ func TestDeriveMobileRuntimeConfig(t *testing.T) {
 		t.Fatalf("expected sing-box tun inbound with fd 43, got %v", tunInbound)
 	}
 }
+
+// A mobile derivation (no mixed listener, platform-owned TUN fd) starts
+// cleanly: the readiness probe must skip the listener check instead of
+// probing the construction-default port forever. The fake fd means the TUN
+// itself cannot carry traffic — core lifecycle is what's under test here.
+func TestManagerMobileStartSkipsListenerProbe(t *testing.T) {
+	isolateCoreHome(t)
+	secret := GenerateSecret()
+	clashPort := getFreePort(t)
+
+	mgr := NewManager(100)
+	derived, err := DeriveMobileRuntimeConfig(sampleValidConfig(), 4242, RoutingRule, clashPort, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mgr.Start(derived); err != nil {
+		t.Fatalf("mobile derivation failed to start: %v", err)
+	}
+	t.Cleanup(func() { _ = mgr.Stop() })
+
+	status := mgr.Status()
+	// Start must SUCCEED (probe skipped): the core runs over the platform
+	// TUN even though this test's fd is fake — listener readiness is what
+	// used to block mobile starts forever.
+	if !status.Running {
+		t.Fatalf("mobile start did not come up: %+v", status)
+	}
+	if status.MixedPort != 0 {
+		t.Fatalf("mobile status must report no mixed listener, got %d", status.MixedPort)
+	}
+	if status.Core != FormatClash {
+		t.Fatalf("unexpected core: %q", status.Core)
+	}
+}

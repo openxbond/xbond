@@ -1,4 +1,4 @@
-package net.xbond.client
+package net.xbond.app
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -22,9 +22,9 @@ import mobile.TunnelService
  *    per-app split), the foreground notification, and protect() — supplied to
  *    Go through [mobile.PlatformBridge].
  *  - The Go side owns the core lifecycle, derivation, and the controller
- *    endpoint. [TunnelService.Start] receives the descriptor and never
+ *    endpoint. [TunnelService.start] receives the descriptor and never
  *    returns it; only [stopAndShutdown] closes the interface.
- *  - The fd stays valid across subscription reloads ([TunnelService.Reload]
+ *  - The fd stays valid across subscription reloads ([TunnelService.reload]
  *    restarts only the core), so content updates never bounce the VPN.
  *
  * This file needs the gomobile AAR (`pnpm mobile:bind:android` →
@@ -41,9 +41,14 @@ class XBondVpnService : VpnService() {
     private var lastAllowed: Array<String> = emptyArray()
 
     companion object {
+        private var active: XBondVpnService? = null
+
+        /** Latest Go-side status JSON, or null while no service runs. */
+        fun statusJSON(): String? = active?.statusJSONInternal()
+
         const val TAG = "XBondVpnService"
-        const val ACTION_START = "net.xbond.client.START"
-        const val ACTION_STOP = "net.xbond.client.STOP"
+        const val ACTION_START = "net.xbond.app.START"
+        const val ACTION_STOP = "net.xbond.app.STOP"
         const val EXTRA_CONFIG = "config"
         /** Package names excluded from the VPN (split tunneling). */
         const val EXTRA_DISALLOWED = "disallowedPackages"
@@ -63,7 +68,14 @@ class XBondVpnService : VpnService() {
 
     override fun onCreate() {
         super.onCreate()
+        active = this
         tunnel = TunnelService(PlatformBridgeImpl(), LogListener())
+    }
+
+    private fun statusJSONInternal(): String? = try {
+        tunnel?.getStatusJSON()
+    } catch (e: Exception) {
+        null
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -91,6 +103,12 @@ class XBondVpnService : VpnService() {
             stopSelf()
             return
         }
+        // Re-START with new content is a config swap: tear the previous
+        // tunnel down first instead of double-establishing (the core would
+        // reject the second start and the catch would tear down everything).
+        runCatching { tunnel?.stop() }
+        vpnInterface?.close()
+        vpnInterface = null
         try {
             goForeground("Establishing XBond VPN…")
 
@@ -118,12 +136,12 @@ class XBondVpnService : VpnService() {
             val fd = pfd.fd
             Log.i(TAG, "Established VPN interface with fd=$fd")
 
-            tunnel?.Start(lastConfig, fd)
+            tunnel?.start(lastConfig, fd)
             goForeground("XBond VPN active")
             Log.i(TAG, "Core started over fd=$fd")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting VPN tunnel: ${e.message}", e)
-            tunnel?.Stop()
+            tunnel?.stop()
             vpnInterface?.close()
             vpnInterface = null
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -135,7 +153,7 @@ class XBondVpnService : VpnService() {
         try {
             // Order matters: stop the core first (it reads from the fd),
             // then close the descriptor and the service.
-            tunnel?.Stop()
+            tunnel?.stop()
         } catch (e: Exception) {
             Log.e(TAG, "Core stop failed: ${e.message}", e)
         }
@@ -198,36 +216,39 @@ class XBondVpnService : VpnService() {
 
     override fun onDestroy() {
         try {
-            tunnel?.Stop()
+            tunnel?.stop()
         } finally {
             vpnInterface?.close()
             vpnInterface = null
+            active = null
         }
         super.onDestroy()
     }
 
     /** Bridges Go core callbacks onto this service's protect()/notifications. */
     private inner class PlatformBridgeImpl : mobile.PlatformBridge {
+        override fun dataDir(): String = filesDir.absolutePath
+
         // gomobile maps Go (int32, error) to a Java (int, throws Exception)
         // method: protect failures surface as exceptions to the core.
-        override fun ProtectSocket(fd: Int) {
+        override fun protectSocket(fd: Int) {
             if (!protect(fd)) {
                 throw Exception("protect(socket) was rejected")
             }
         }
 
-        override fun OnStateChanged(state: Int, message: String?) {
+        override fun onStateChanged(state: Int, message: String?) {
             Log.i(TAG, "core state $state: ${message ?: ""}")
         }
 
-        override fun OnTraffic(uploadBytes: Long, downloadBytes: Long) {
+        override fun onTraffic(uploadBytes: Long, downloadBytes: Long) {
             // Surface usage through the notification in the app slice; the
             // service only needs the callback wired for gomobile.
         }
     }
 
     private inner class LogListener : mobile.StatusListener {
-        override fun OnLog(level: String?, message: String?) {
+        override fun onLog(level: String?, message: String?) {
             Log.d(TAG, "[${level ?: "log"}] ${message ?: ""}")
         }
     }

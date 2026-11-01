@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -36,9 +37,20 @@ type TunnelService struct {
 }
 
 func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelService {
-	_ = paths.EnsureDirs()
-	subMgr, _ := sub.NewManager()
-	subMgr.MigrateLegacySources()
+	if platform != nil {
+		if dir := platform.DataDir(); dir != "" {
+			// Must precede any paths/sub call: everything resolves through
+			// this. Android processes have no HOME/XDG env.
+			_ = os.Setenv("XBOND_DATA_DIR", dir)
+		}
+	}
+	initErr := paths.EnsureDirs()
+	subMgr, mgrErr := sub.NewManager()
+	if subMgr != nil && initErr == nil && mgrErr == nil {
+		subMgr.MigrateLegacySources()
+	}
+	// A failed store init leaves subMgr nil; UpdateSubscription surfaces it
+	// and the tunnel itself (config-driven) still works.
 	return &TunnelService{
 		platform: platform,
 		listener: listener,

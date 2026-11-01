@@ -15,6 +15,7 @@ type mockPlatform struct {
 	trafficUp     int64
 	trafficDown   int64
 	failOnProtect bool
+	dataDir       string
 }
 
 func (m *mockPlatform) ProtectSocket(fd int32) error {
@@ -39,6 +40,10 @@ func (m *mockPlatform) OnTraffic(uploadBytes int64, downloadBytes int64) {
 	defer m.mu.Unlock()
 	m.trafficUp = uploadBytes
 	m.trafficDown = downloadBytes
+}
+
+func (m *mockPlatform) DataDir() string {
+	return m.dataDir
 }
 
 type mockListener struct {

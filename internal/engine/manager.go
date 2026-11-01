@@ -407,9 +407,10 @@ func (m *Manager) extractMihomoMetadata(runtimeYAML []byte) {
 		m.takeoverMode = ModePort
 	}
 	m.allowLan = raw.AllowLan && (raw.BindAddress == "*" || raw.BindAddress == "0.0.0.0" || raw.BindAddress == "::")
-	if raw.MixedPort > 0 {
-		m.mixedPort = raw.MixedPort
-	}
+	// Mobile derivations explicitly set mixed-port to 0 (no local listener):
+	// the value must override the construction default so the readiness
+	// probe skips the listener check instead of probing port 7890 forever.
+	m.mixedPort = raw.MixedPort
 	switch raw.Mode.String() {
 	case "rule":
 		m.routingMode = RoutingRule

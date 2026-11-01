@@ -14,6 +14,11 @@ type PlatformBridge interface {
 	ProtectSocket(fd int32) error
 	OnStateChanged(state int32, message string)
 	OnTraffic(uploadBytes int64, downloadBytes int64)
+	// DataDir is the app-private writable directory (Android filesDir, iOS
+	// container). Android processes have no HOME/XDG env, so the desktop
+	// DataDir resolution lands on an unwritable path — the platform owns
+	// this answer.
+	DataDir() string
 }
 
 // StatusListener receives log stream and diagnosis messages.

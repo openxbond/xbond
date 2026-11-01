@@ -255,6 +255,10 @@ func deriveClashMobile(
 		"stack":           "mixed",
 		"auto-route":      false,
 		"strict-route":    false,
+		// The VPN builder points the system resolver at an address inside the
+		// tunnel; without hijack those queries reach no server and every
+		// lookup fails ("no address associated with hostname").
+		"dns-hijack": []any{"any:53"},
 	}
 	ensureDNSForTun(raw)
 
