@@ -38,3 +38,4 @@ apps/mobile/android/build/
 apps/mobile/android/app/src/main/assets/
 apps/mobile/android/app/build/
 apps/mobile/android/local.properties
+release/

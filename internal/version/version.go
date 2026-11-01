@@ -5,12 +5,15 @@ import (
 	"runtime"
 )
 
-const (
+var (
 	Version        = "0.1.0"
 	CoreVersion    = "1.19.33"
 	SingBoxVersion = "1.13.21"
 	ClientName     = "xbond"
 )
+
+// Version is a var so release builds stamp it via -ldflags -X (see
+// scripts/build-release.ts); the rest stay compile-time constants.
 
 type Info struct {
 	ClientVersion  string `json:"clientVersion"`
