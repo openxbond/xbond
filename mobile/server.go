@@ -60,11 +60,11 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 	mux.HandleFunc("/localapi/v0/mode", auth(s.handleMode))
 	mux.HandleFunc("/localapi/v0/login", auth(s.handleLogin))
 	mux.HandleFunc("/localapi/v0/logout", auth(s.handleLogout))
-	mux.HandleFunc("/localapi/v0/account", auth(s.handleAccountUnavailable))
-	mux.HandleFunc("/localapi/v0/account/login", auth(s.handleAccountUnavailable))
-	mux.HandleFunc("/localapi/v0/account/logout", auth(s.handleAccountUnavailable))
-	mux.HandleFunc("/localapi/v0/account/refresh", auth(s.handleAccountUnavailable))
-	mux.HandleFunc("/localapi/v0/account/cancel", auth(s.handleAccountUnavailable))
+	mux.HandleFunc("/localapi/v0/account", auth(s.handleAccountStatus))
+	mux.HandleFunc("/localapi/v0/account/login", auth(s.handleAccountLogin))
+	mux.HandleFunc("/localapi/v0/account/logout", auth(s.handleAccountLogout))
+	mux.HandleFunc("/localapi/v0/account/refresh", auth(s.handleAccountRefresh))
+	mux.HandleFunc("/localapi/v0/account/cancel", auth(s.handleAccountCancel))
 	mux.HandleFunc("/localapi/v0/subs", auth(s.handleSubs))
 	mux.HandleFunc("/localapi/v0/subs/use", auth(s.handleSubUse))
 	mux.HandleFunc("/localapi/v0/subs/update", auth(s.handleSubUpdate))
@@ -300,8 +300,63 @@ func (s *apiServer) handleLogout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "removed": removed})
 }
 
-func (s *apiServer) handleAccountUnavailable(w http.ResponseWriter, r *http.Request) {
-	writeError(w, http.StatusNotImplemented, "account login is not available on this host yet")
+func (s *apiServer) handleAccountStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	writeJSON(w, http.StatusOK, s.svc.account.snapshot())
+}
+
+func (s *apiServer) handleAccountLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		Origin    string `json:"origin"`
+		Name      string `json:"name"`
+		Lang      string `json:"lang"`
+		Protocol  string `json:"protocol"`
+		Device    bool   `json:"device"`
+		NoBrowser bool   `json:"noBrowser"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid account login request")
+		return
+	}
+	if req.Lang != "" {
+		s.svc.account.lang = req.Lang
+	}
+	writeJSON(w, http.StatusOK, s.svc.account.login(req.Origin, req.Device, req.NoBrowser))
+}
+
+func (s *apiServer) handleAccountLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	removed := s.svc.account.logout()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "removed": removed})
+}
+
+func (s *apiServer) handleAccountRefresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	// The refreshed state carries UpdateError with 200, so the UI renders
+	// the retry path instead of treating the session as invalid.
+	writeJSON(w, http.StatusOK, s.svc.account.refresh(r.Context()))
+}
+
+func (s *apiServer) handleAccountCancel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	s.svc.account.cancelPending()
+	writeJSON(w, http.StatusOK, s.svc.account.snapshot())
 }
 
 func (s *apiServer) handleSubs(w http.ResponseWriter, r *http.Request) {

@@ -36,8 +36,10 @@ type TunnelService struct {
 	// stays valid across Reloads — only Stop returns it to the platform.
 	activeTunFd int32
 	// runtime owns the active-subscription apply cycle (LocalAPI up/restart/
-	// mode); api serves the in-process LocalAPI on loopback.
+	// mode); api serves the in-process LocalAPI on loopback; account carries
+	// the XBond Cloud login state.
 	runtime *mobileRuntime
+	account *mobileAccount
 	api     *apiServer
 }
 
@@ -63,6 +65,7 @@ func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelS
 		subMgr:   subMgr,
 	}
 	svc.runtime = newMobileRuntime(svc, engine.RoutingRule)
+	svc.account = newMobileAccount(svc, "zh")
 	// The in-process LocalAPI makes the app drivable by the shared web UI
 	// and by LocalAPI tooling; loopback only, token in localapi.token.
 	api, apiErr := newAPIServer(svc)
@@ -71,6 +74,7 @@ func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelS
 	} else if listener != nil {
 		listener.OnLog("error", "local API server failed to start: "+apiErr.Error())
 	}
+	svc.account.hydrate()
 	return svc
 }
 

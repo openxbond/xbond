@@ -263,6 +263,15 @@ class XBondVpnService : VpnService() {
             // service only needs the callback wired for gomobile.
         }
 
+        // Account OAuth: the Go side hands the auth URL here, the platform
+        // browser takes over (RFC 8252 loopback callback lands on this
+        // device, where the embedded listener catches it).
+        override fun openURL(url: String?) {
+            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            this@XBondVpnService.startActivity(intent)
+        }
+
         // LocalAPI /up: establish the VPN here and hand the fd to the Go
         // runtime apply. Runs on a JNI thread; consent (VpnService.prepare)
         // is the caller's problem — when it is needed this throws and the

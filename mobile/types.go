@@ -19,6 +19,9 @@ type PlatformBridge interface {
 	// DataDir resolution lands on an unwritable path — the platform owns
 	// this answer.
 	DataDir() string
+	// OpenURL opens a URL in the platform browser (account OAuth). Error
+	// when no browser/handler is available.
+	OpenURL(url string) error
 	// RequestConnect establishes the platform VPN and hands the fd to
 	// StartActive — the LocalAPI /up path. Synchronous: returns after the
 	// tunnel is up, or with an error (consent required counts as one).

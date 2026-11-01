@@ -18,6 +18,7 @@ type mockPlatform struct {
 	dataDir       string
 }
 
+func (m *mockPlatform) OpenURL(url string) error { return nil }
 func (m *mockPlatform) RequestConnect() error    { return errors.New("connect not available in tests") }
 func (m *mockPlatform) RequestDisconnect() error { return nil }
 
