@@ -1,0 +1,7 @@
+{
+  "name": "@xbond/extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "XBond browser extension (MV3): account-bound HTTPS proxy control without a native client.",
+  "type": "module"
+}

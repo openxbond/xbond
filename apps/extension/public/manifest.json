@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "XBond",
+  "short_name": "XBond",
+  "version": "0.1.0",
+  "description": "XBond browser proxy: TLS proxy with account-bound ingress, no native client required.",
+  "minimum_chrome_version": "108",
+  "permissions": [
+    "proxy",
+    "webRequest",
+    "webRequestAuthProvider",
+    "storage",
+    "alarms",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "XBond",
+    "default_popup": "src/popup/index.html"
+  },
+  "options_ui": {
+    "page": "src/page/index.html",
+    "open_in_tab": true
+  }
+}

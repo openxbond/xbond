@@ -1,6 +1,7 @@
 .idea/
 dist/
 dist-desktop/
+apps/extension/dist/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/schemas/
 node_modules/

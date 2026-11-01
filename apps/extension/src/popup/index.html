@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>XBond</title>
+    <style>
+      body {
+        font:
+          13px/1.5 system-ui,
+          sans-serif;
+        margin: 0;
+        min-width: 260px;
+        padding: 12px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0;
+      }
+      #state {
+        margin: 8px 0;
+        padding: 8px;
+        border-radius: 6px;
+        background: #f2f2f2;
+      }
+      .ok {
+        background: #e6f6e9;
+      }
+      .bad {
+        background: #fdecec;
+      }
+      button {
+        width: 100%;
+        padding: 6px;
+      }
+      a {
+        display: block;
+        margin-top: 8px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>XBond</h1>
+      <label><input type="checkbox" id="enabled" /> proxy</label>
+    </header>
+    <div id="state">loading…</div>
+    <button id="mode" type="button">mode</button>
+    <a href="../page/index.html" target="_blank">manage</a>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>XBond — manage</title>
+    <style>
+      body {
+        font:
+          13px/1.6 system-ui,
+          sans-serif;
+        margin: 0 auto;
+        max-width: 720px;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      h2 {
+        font-size: 15px;
+        margin-top: 24px;
+      }
+      label {
+        display: block;
+        margin: 6px 0;
+      }
+      input {
+        padding: 4px 6px;
+        width: 320px;
+      }
+      button {
+        padding: 5px 10px;
+      }
+      #state {
+        padding: 8px;
+        border-radius: 6px;
+        background: #f2f2f2;
+      }
+      .bad {
+        background: #fdecec;
+      }
+      .ok {
+        background: #e6f6e9;
+      }
+      #events {
+        font:
+          12px/1.5 ui-monospace,
+          monospace;
+        white-space: pre-wrap;
+        background: #fafafa;
+        border: 1px solid #e5e5e5;
+        padding: 8px;
+        max-height: 240px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>XBond browser proxy</h1>
+    <div id="state">loading…</div>
+    <label><input type="checkbox" id="enabled" /> proxy on</label>
+    <label
+      >mode
+      <select id="mode">
+        <option value="global">global</option>
+        <option value="rules">rules</option>
+      </select></label
+    >
+
+    <h2>Manual ingress (probe / local agent)</h2>
+    <label>host <input id="host" placeholder="proxy.example.com" /></label>
+    <label>port <input id="port" type="number" placeholder="8444" /></label>
+    <label
+      >proxy credential
+      <input id="credential" type="password" placeholder="px-…"
+    /></label>
+    <button id="apply" type="button">apply config</button>
+
+    <h2>Diagnostics</h2>
+    <div id="events"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
