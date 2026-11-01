@@ -9,6 +9,14 @@ plugins {
 val copyWebDist = tasks.register<Copy>("copyWebDist") {
     from("../../../../dist")
     into("src/main/assets/web")
+    doLast {
+        // Marker for MainActivity's extraction check: re-extract only when
+        // the packaged dist actually changed (path+size fingerprint).
+        val distDir = file("../../../../dist")
+        val files = fileTree(distDir).files.sortedBy { it.relativeTo(distDir).path }
+        val fingerprint = files.joinToString("|") { it.relativeTo(distDir).path + ":" + it.length() }
+        file("src/main/assets/web/xbond-dist-version.txt").writeText(fingerprint.hashCode().toString())
+    }
 }
 tasks.named("preBuild") { dependsOn(copyWebDist) }
 

@@ -72,11 +72,23 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Copies the packaged UI into the data dir where the LocalAPI serves it. */
+    /** Copies the packaged UI into the data dir where the LocalAPI serves
+     * it. Version-keyed: the packaged dist hash must differ from the
+     * extracted marker or the copy is skipped. */
     private fun extractWebAssets() {
         val outDir = File(filesDir, "web")
         outDir.mkdirs()
+        val packagedVersion = runCatching {
+            assets.open("web/xbond-dist-version.txt").bufferedReader().use { it.readText() }
+        }.getOrNull()
+        val marker = File(outDir, "xbond-dist-version.txt")
+        if (packagedVersion != null && marker.exists() && marker.readText() == packagedVersion) {
+            return
+        }
         copyAssetDir("web", outDir)
+        if (packagedVersion != null) {
+            marker.writeText(packagedVersion)
+        }
     }
 
     private fun copyAssetDir(assetPath: String, target: File) {

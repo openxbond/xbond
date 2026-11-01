@@ -282,7 +282,13 @@ class XBondVpnService : VpnService() {
             if (tunnel?.getState() == 2) {
                 return
             }
-            if (VpnService.prepare(this@XBondVpnService) != null) {
+            val consent = VpnService.prepare(this@XBondVpnService)
+            if (consent != null) {
+                // Bring the system dialog up right over the app: the LocalAPI
+                // answers 409 and the user resolves the dialog, then simply
+                // taps Connect again.
+                consent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                this@XBondVpnService.startActivity(consent)
                 throw Exception("VPN consent required")
             }
             goForeground("Establishing XBond VPN…")

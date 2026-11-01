@@ -667,9 +667,15 @@ func (s *apiServer) handleWeb(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		clashPort, clashSecret := s.svc.runtime.endpoint()
+		// The controller meta pins the proxy front (stable port, secret
+		// injected per connection), not the per-apply core controller.
+		proxyPort := 0
+		if s.svc.controller != nil {
+			proxyPort = s.svc.controller.port
+		}
+		_, clashSecret := s.svc.runtime.endpoint()
 		metaTag := fmt.Sprintf(`<meta name="external-controller" content="http://:%s@127.0.0.1:%d">
-    <meta name="localapi-token" content="%s">`, clashSecret, clashPort, s.token)
+    <meta name="localapi-token" content="%s">`, clashSecret, proxyPort, s.token)
 		html := strings.Replace(string(indexBytes), "<head>", "<head>\n    "+metaTag, 1)
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
