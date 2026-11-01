@@ -26,7 +26,7 @@ export function useAccount() {
   );
 
   const login = useCallback(
-    async (options?: { origin?: string }) => {
+    async (options?: { origin?: string; device?: boolean }) => {
       if (!client) throw new Error("LocalAPI not available");
       const status = await client.accountLogin(options);
       await mutate();
@@ -34,6 +34,15 @@ export function useAccount() {
     },
     [client, mutate],
   );
+
+  /** Aborts an in-flight login; required before switching methods (the
+   * daemon refuses a new flow while one is pending). */
+  const cancelLogin = useCallback(async () => {
+    if (!client) throw new Error("LocalAPI not available");
+    const status = await client.accountCancel();
+    await mutate();
+    return status;
+  }, [client, mutate]);
 
   const logout = useCallback(async () => {
     if (!client) throw new Error("LocalAPI not available");
@@ -59,6 +68,7 @@ export function useAccount() {
     accountError: error ?? null,
     mutateAccount: mutate,
     login,
+    cancelLogin,
     logout,
     resync,
   };

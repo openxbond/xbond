@@ -432,6 +432,18 @@ func (s *Server) handleAccountLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, state)
 }
 
+// handleAccountCancel aborts an in-flight login flow. Restarting the flow
+// with a different method needs this: start() refuses while pending, so the
+// UI must drop the pending state before switching to the device flow.
+func (s *Server) handleAccountCancel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	s.account.cancelPending()
+	writeJSON(w, http.StatusOK, s.account.snapshot())
+}
+
 func (s *Server) handleAccountLogout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")

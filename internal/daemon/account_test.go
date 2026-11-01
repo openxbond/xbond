@@ -190,6 +190,62 @@ func TestAccountControllerLogoutCancelsPendingLogin(t *testing.T) {
 	}
 }
 
+// Cancel drops a pending login so a new one can start with a different
+// method: the UI's pending state switches PKCE to the device flow through
+// exactly this sequence.
+func TestAccountControllerCancelThenRestart(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	started := make(chan struct{})
+	var methods []account.LoginOptions
+	manager := &fakeAccountManager{}
+	manager.login = func(ctx context.Context, opts account.LoginOptions, progress func(account.Progress)) (*account.Credentials, error) {
+		methods = append(methods, opts)
+		progress(account.Progress{Method: "pkce", AuthURL: "https://cloud.example.invalid/authorize"})
+		if len(methods) == 1 {
+			close(started)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		return &account.Credentials{SubscriptionToken: "sub-abc", Origin: "https://sub-01.xbond.dev"}, nil
+	}
+	controller := newAccountController(
+		manager,
+		func(context.Context, *account.Credentials, accountBindOptions) (*sub.SubscriptionMeta, string, error) {
+			return &sub.SubscriptionMeta{ID: "sub_x", Type: sub.SubTypeXBond}, "", nil
+		},
+		func() ([]sub.SubscriptionMeta, error) { return nil, nil },
+		func() *sub.SubscriptionMeta { return nil },
+	)
+
+	pending := controller.start(account.LoginOptions{}, accountBindOptions{})
+	if pending.Method != "pkce" {
+		t.Fatalf("restart not on pkce flow: %+v", pending)
+	}
+	// The auth URL arrives through the async progress callback, not the
+	// synchronous start snapshot.
+	deadline := time.Now().Add(2 * time.Second)
+	for controller.snapshot().AuthURL == "" && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if state := controller.snapshot(); state.AuthURL == "" {
+		t.Fatalf("pkce progress never surfaced: %+v", state)
+	}
+	<-started
+	controller.cancelPending()
+	if state := controller.snapshot(); state.Status != "signed_out" {
+		t.Fatalf("cancel did not reset to signed_out: %+v", state)
+	}
+
+	restarted := controller.start(account.LoginOptions{Device: true}, accountBindOptions{})
+	if restarted.Method != "device" {
+		t.Fatalf("restart not on device flow: %+v", restarted)
+	}
+	final := waitForAccountStatus(t, controller, "signed_in")
+	if final.Subscription == nil {
+		t.Errorf("restarted login did not bind: %+v", final)
+	}
+}
+
 func TestAccountControllerRefreshBindsSubscription(t *testing.T) {
 	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	manager := &fakeAccountManager{

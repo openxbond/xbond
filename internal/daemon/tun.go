@@ -6,7 +6,7 @@ package daemon
 // before deriving or touching the running core (daemon-runtime spec: 权限
 // 不足明确报错，不静默降级).
 type TUNCapability struct {
-	Tun      bool   `json:"tun"`
+	Tun bool `json:"tun"`
 	// ReasonCode is machine-readable for localization: "not_elevated"
 	// (Windows), "not_root" (unix) or "wintun_missing".
 	ReasonCode string `json:"tunReasonCode,omitempty"`

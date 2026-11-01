@@ -526,6 +526,16 @@ export class LocalAPIClient {
     return normalizeAccountStatus(data);
   }
 
+  /** Aborts an in-flight login; required before restarting with a different
+   * method (the daemon refuses a new flow while one is pending). */
+  async accountCancel(): Promise<AccountStatus> {
+    const data = await this.request<AccountStatusWire>(
+      "/localapi/v0/account/cancel",
+      { method: "POST" },
+    );
+    return normalizeAccountStatus(data);
+  }
+
   async removeSub(id: string): Promise<{ ok: boolean; deleted: string }> {
     return this.request(`/localapi/v0/subs?id=${encodeURIComponent(id)}`, {
       method: "DELETE",

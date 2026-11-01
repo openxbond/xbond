@@ -2,9 +2,13 @@
 
 ## 範圍與入口
 
-本規格定義原生客戶端讀取用戶身份、服務狀態、公告與可信控制台入口的契約，以及登出與緩存清理。入口為 `internal/clientapi/account.go`、`internal/account/account.go`、`internal/daemon/account.go`、`internal/platform/paths/paths.go`（AccountOverviewPath），共享介面由 LocalAPI 的 `/account` 族消費。OAuth 會話與流程見內部帳戶模組；訂閱匯入見 [訂閱匯入與兼容邊界](./subscription-import.md)。
+本規格定義原生客戶端讀取用戶身份、服務狀態、公告與可信控制台入口的契約，以及瀏覽器授權登入、登出與緩存清理。入口為 `internal/clientapi/account.go`、`internal/account/account.go`、`internal/account/oauth.go`（PKCE／設備流）、`internal/daemon/account.go`、`internal/platform/paths/paths.go`（AccountOverviewPath），共享介面由 LocalAPI 的 `/account` 族消費。訂閱匯入見 [訂閱匯入與兼容邊界](./subscription-import.md)。
 
 ## 行為契約
+
+### 瀏覽器登入
+
+登入默認走 PKCE 授權碼流：守護進程在本機回環隨機端口開回調監聽，經系統瀏覽器完成授權（RFC 8252：授權服務器允許回跳端口可變），換到的令牌集合落盤後再解析訂閱鏈路。回環監聽打不開或以 `device` 顯式請求時降級為 RFC 8628 設備流（Docker／SSH／無瀏覽器輸入面）。流程進度以 `method`、`authUrl`／`verificationUri`／`userCode` 暴露在狀態裡：pending 態的 UI 必須呈現可點的登入連結或設備碼——瀏覽器未自動打開（被攔截、遠端守護進程的 Web 管理）時這是唯一入口。取消端點（`POST /localapi/v0/account/cancel`）中止進行中的流程並復位 signed_out；守護進程在流程 pending 時拒絕重啟，UI 切換登入方式必須先取消。
 
 ### 概覽讀取
 
@@ -31,7 +35,8 @@
 | ACCOUNT-01c | 登出撤銷刷新令牌（盡力而為）、刪除會話與概覽緩存、遲到同步不復原狀態 | 同上 |
 | ACCOUNT-01d | 啟動展示緩存概覽，Cloud 失敗保留緩存並上報 overviewError | `internal/daemon` 測試 |
 | ACCOUNT-01e | Cloud 側 `user.profile.me` 為 Bearer 可讀身份出口，路由快照釘住 | cloud `client-oauth.test.ts`、`routes.snapshot.test.ts` |
+| ACCOUNT-02 | 瀏覽器 PKCE 登入全鏈路可用（會話授權 → 回環回跳 → 令牌 → 鏈路發現 → 訂閱綁定），pending 態呈現登入連結／設備碼，取消後可換方式重啟 | 真實鏈路冒煙（dev Cloud + 守護進程，簽入到 signed_in 並綁定訂閱）、`internal/daemon` 取消重啟測試、cloud `client-oauth.test.ts` PKCE 分支 |
 
 ## 已知限制
 
-通知為輪讀，無推送通道；已讀標記（markRead 族）本切片未接入客戶端。緩存寫入失敗只損失啟動時的新鮮度，不作為錯誤上報。控制台入口假設 dash 掛在發行方 origin 的 `/dash` 路徑。測試使用 tRPC 批量替身，不證明真實 Cloud 部署、配額數值或公告內容的正確性。
+通知為輪讀，無推送通道；已讀標記（markRead 族）本切片未接入客戶端。緩存寫入失敗只損失啟動時的新鮮度，不作為錯誤上報。控制台入口假設 dash 掛在發行方 origin 的 `/dash` 路徑。測試使用 tRPC 批量替身，不證明真實 Cloud 部署、配額數值或公告內容的正確性。瀏覽器登入已對 dev Cloud 部署全鏈路實測（含回環隨機端口回跳與訂閱綁定），對生產部署僅要求種子行在位。

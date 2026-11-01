@@ -13,7 +13,12 @@ export default function AccountPanel() {
   const { t: ta } = useTranslation("account");
   const { lang } = useLanguage();
   const { status } = useLocalAPI();
-  const { account, login: loginAccount, logout: logoutAccount } = useAccount();
+  const {
+    account,
+    login: loginAccount,
+    logout: logoutAccount,
+    cancelLogin,
+  } = useAccount();
   const { run, pending } = useAction();
 
   if (account?.status === "signed_in") {
@@ -93,7 +98,63 @@ export default function AccountPanel() {
   }
 
   if (account?.status === "pending") {
-    return <p className="text-sm text-muted-foreground">{ta("pending")}</p>;
+    // PKCE is the default: the daemon already opened the system browser, and
+    // the auth URL stays reachable here for when that did not happen (browser
+    // blocked, remote daemon). The device flow needs no loopback callback at
+    // all — it is the fallback for web management of a remote daemon, where
+    // the redirect cannot reach the machine holding the session.
+    const deviceFlow = account.method === "device";
+    return (
+      <div className="setting-label-col">
+        <p className="text-sm text-muted-foreground">{ta("pending")}</p>
+        {deviceFlow ? (
+          <div className="setting-label-col mt-2">
+            <p className="text-sm">
+              <a
+                href={
+                  account.verificationUriComplete || account.verificationUri
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="section-link"
+              >
+                {account.verificationUri}
+              </a>
+            </p>
+            <p className="text-sm">
+              {ta("deviceCode")}: <strong>{account.userCode}</strong>
+            </p>
+          </div>
+        ) : (
+          account.authUrl && (
+            <p className="text-sm mt-2">
+              <a
+                href={account.authUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="section-link"
+              >
+                {ta("openAuthPage")}
+              </a>
+            </p>
+          )
+        )}
+        <div className="setting-inline mt-2">
+          <Button
+            type="brand"
+            disabled={pending}
+            onClick={() =>
+              void run(async () => {
+                await cancelLogin();
+                await loginAccount({ device: true });
+              }, false)
+            }
+          >
+            {deviceFlow ? ta("browserLogin") : ta("deviceLogin")}
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
