@@ -3,6 +3,15 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// The shared web UI (packages/client-ui, built by `pnpm build` into the repo
+// dist/) ships inside the APK; MainActivity extracts it into the data dir
+// where the in-process LocalAPI serves it.
+val copyWebDist = tasks.register<Copy>("copyWebDist") {
+    from("../../../../dist")
+    into("src/main/assets/web")
+}
+tasks.named("preBuild") { dependsOn(copyWebDist) }
+
 android {
     namespace = "net.xbond.app"
     compileSdk = 36

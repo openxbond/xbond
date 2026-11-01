@@ -49,6 +49,9 @@ class XBondVpnService : VpnService() {
         const val TAG = "XBondVpnService"
         const val ACTION_START = "net.xbond.app.START"
         const val ACTION_STOP = "net.xbond.app.STOP"
+        /** Starts the service without touching the tunnel: the UI host keeps
+         * the TunnelService (and its in-process LocalAPI) alive. */
+        const val ACTION_ENSURE = "net.xbond.app.ENSURE"
         const val EXTRA_CONFIG = "config"
         /** Package names excluded from the VPN (split tunneling). */
         const val EXTRA_DISALLOWED = "disallowedPackages"
@@ -89,6 +92,7 @@ class XBondVpnService : VpnService() {
                 startTunnel()
             }
             ACTION_STOP -> stopAndShutdown()
+            ACTION_ENSURE -> { /* nothing: creation is the whole point */ }
             // START_STICKY restart after the process was killed delivers a
             // null intent: re-establish from the saved intent state so the
             // tunnel survives process death.
@@ -159,9 +163,15 @@ class XBondVpnService : VpnService() {
     }
 
     private fun stopAndShutdown() {
+        stopTunnelResources()
+        stopSelf()
+        Log.i(TAG, "VPN tunnel stopped")
+    }
+
+    private fun stopTunnelResources() {
         try {
             // Order matters: stop the core first (it reads from the fd),
-            // then close the descriptor and the service.
+            // then close the descriptor.
             tunnel?.stop()
         } catch (e: Exception) {
             Log.e(TAG, "Core stop failed: ${e.message}", e)
@@ -173,8 +183,6 @@ class XBondVpnService : VpnService() {
             Log.e(TAG, "Interface close failed: ${e.message}", e)
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
-        Log.i(TAG, "VPN tunnel stopped")
     }
 
     private fun goForeground(message: String) {
@@ -285,9 +293,10 @@ class XBondVpnService : VpnService() {
             Log.i(TAG, "Core started over core dup fd=$coreFd")
         }
 
-        // LocalAPI /down: full teardown; the core stops on the way.
+        // LocalAPI /down: the tunnel and interface go away; the service
+        // itself stays (the UI host keeps the LocalAPI alive).
         override fun requestDisconnect() {
-            stopAndShutdown()
+            stopTunnelResources()
         }
     }
 

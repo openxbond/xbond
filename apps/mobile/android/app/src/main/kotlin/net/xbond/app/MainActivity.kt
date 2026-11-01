@@ -2,168 +2,110 @@ package net.xbond.app
 
 import android.app.Activity
 import android.content.Intent
+import android.net.VpnService
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.webkit.WebView
+import java.io.File
 
 /**
- * Minimal control surface for the emulator slice: config in a text field,
- * prepare-then-start, live status from the running TunnelService. The full
- * React screen (subscription management, policy groups, three-tier status)
- * is a later slice — this exists to compile the VPN layer and make its
- * behavior observable on a device or emulator.
+ * Hosts the shared web UI (packages/client-ui, served by the in-process
+ * LocalAPI at http://127.0.0.1:<port>/) in a WebView. The UI drives the
+ * tunnel through the LocalAPI contract exactly as it drives the desktop
+ * daemon; nothing here knows about subscriptions or nodes.
  *
- * Headless smoke entry: `am start -e configB64 <base64 clash/sing-box JSON>`
- * starts the tunnel immediately (VPN consent must already be granted, e.g.
- * via `adb shell cmd appops set net.xbond.app ACTIVATE_VPN allow`).
+ * Boot sequence: extract the packaged UI assets into the data dir, make sure
+ * the VPN service exists (it owns the TunnelService and therefore the
+ * LocalAPI), wait for the LocalAPI address file, then load the UI. VPN
+ * consent is asked up front — the LocalAPI /up cannot show system dialogs
+ * from a service, so by the time the user presses connect it is granted.
  */
 class MainActivity : Activity() {
 
+    private lateinit var webView: WebView
     private val handler = Handler(Looper.getMainLooper())
-    private lateinit var configInput: EditText
-    private lateinit var statusView: TextView
-
-    private val pollStatus = object : Runnable {
-        override fun run() {
-            statusView.text = XBondVpnService.statusJSON() ?: "service not started"
-            handler.postDelayed(this, 1000)
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val padding = (16 * resources.displayMetrics.density).toInt()
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(padding, padding, padding, padding)
+        webView = WebView(this)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
         }
-        configInput = EditText(this).apply {
-            setText(DEFAULT_SMOKE_CONFIG)
-            minLines = 6
-        }
-        root.addView(configInput)
-        root.addView(
-            Button(this).apply {
-                text = "Connect"
-                setOnClickListener { connectAndStart() }
-            },
-        )
-        root.addView(
-            Button(this).apply {
-                text = "Disconnect"
-                setOnClickListener { stopTunnel() }
-            },
-        )
-        statusView = TextView(this).apply { setTextIsSelectable(true) }
-        root.addView(statusView)
-        setContentView(root)
+        webView.webViewClient = android.webkit.WebViewClient()
+        setContentView(webView)
 
-        // Headless smoke path: config delivered as base64 via launch intent,
-        // optional egress probe fetched through the tunnel once connected.
-        intent?.getStringExtra("configB64")?.let { encoded ->
-            try {
-                val decoded = String(
-                    android.util.Base64.decode(encoded, android.util.Base64.DEFAULT),
-                    Charsets.UTF_8,
-                )
-                configInput.setText(decoded)
-                connectAndStart()
-            } catch (e: IllegalArgumentException) {
-                statusView.text = "invalid configB64: ${e.message}"
-            }
+        // Assets before the service: the LocalAPI serves them from the data
+        // dir, so they must be in place when the UI requests the index.
+        extractWebAssets()
+
+        // Drop the previous process's address file so the poll below waits
+        // for the fresh port instead of loading a dead one.
+        File(filesDir, "localapi.addr").delete()
+
+        // The service owns the TunnelService and its in-process LocalAPI;
+        // ENSURE starts it without touching the tunnel.
+        startService(
+            Intent(this, XBondVpnService::class.java)
+                .setAction(XBondVpnService.ACTION_ENSURE),
+        )
+
+        // Consent asked up front (see class doc); result ignored — a denied
+        // consent surfaces later as the LocalAPI /up 409.
+        if (VpnService.prepare(this) != null) {
+            startActivityForResult(VpnService.prepare(this), REQUEST_CONSENT)
         }
-        intent?.getStringExtra("probeUrl")?.let { url ->
-            Thread {
-                // The app's own sockets ride the VPN into the core, so this
-                // fetch is a true data-plane check: TUN -> core -> DIRECT.
-                for (attempt in 1..6) {
-                    Thread.sleep(2000)
-                    try {
-                        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                        conn.connectTimeout = 8000
-                        conn.readTimeout = 8000
-                        val code = conn.responseCode
-                        conn.disconnect()
-                        android.util.Log.i("XBondProbe", "PROBE $url -> $code")
-                        if (code > 0) break
-                    } catch (e: Exception) {
-                        android.util.Log.i("XBondProbe", "PROBE attempt $attempt failed: ${e.message}")
-                    }
-                }
-            }.start()
-        }
-        handler.post(pollStatus)
+
+        pollAndLoad(0)
     }
 
-    private fun connectAndStart() {
-        val config = configInput.text.toString()
-        val prepare = XBondVpnService.prepare(this)
-        if (prepare != null) {
-            statusView.text = "waiting for VPN consent…"
-            startActivityForResult(prepare, REQUEST_CONSENT)
+    private fun pollAndLoad(attempt: Int) {
+        val addr = File(filesDir, "localapi.addr")
+        if (addr.exists()) {
+            val port = addr.readText().trim().substringAfterLast(':')
+            webView.loadUrl("http://127.0.0.1:$port/")
             return
         }
-        startTunnel(config)
-    }
-
-    private fun startTunnel(config: String) {
-        val intent = Intent(this, XBondVpnService::class.java).apply {
-            action = XBondVpnService.ACTION_START
-            putExtra(XBondVpnService.EXTRA_CONFIG, config)
+        if (attempt < 20) {
+            handler.postDelayed({ pollAndLoad(attempt + 1) }, 200)
         }
-        startForegroundService(intent)
     }
 
-    private fun stopTunnel() {
-        startService(
-            Intent(this, XBondVpnService::class.java).apply {
-                action = XBondVpnService.ACTION_STOP
-            },
-        )
+    /** Copies the packaged UI into the data dir where the LocalAPI serves it. */
+    private fun extractWebAssets() {
+        val outDir = File(filesDir, "web")
+        outDir.mkdirs()
+        copyAssetDir("web", outDir)
+    }
+
+    private fun copyAssetDir(assetPath: String, target: File) {
+        val children = assets.list(assetPath) ?: return
+        if (children.isEmpty()) {
+            assets.open(assetPath).use { input ->
+                target.outputStream().use { output -> input.copyTo(output) }
+            }
+            return
+        }
+        target.mkdirs()
+        for (child in children) {
+            copyAssetDir("$assetPath/$child", File(target, child))
+        }
     }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_CONSENT && resultCode == RESULT_OK) {
-            startTunnel(configInput.text.toString())
-        } else if (requestCode == REQUEST_CONSENT) {
-            statusView.text = "VPN consent denied"
-        }
+        // Consent result is not acted on: prepare() is re-checked whenever
+        // the tunnel starts.
     }
 
-    override fun onResume() {
-        super.onResume()
-        handler.post(pollStatus)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        handler.removeCallbacks(pollStatus)
+    override fun onDestroy() {
+        webView.destroy()
+        super.onDestroy()
     }
 
     private companion object {
         const val REQUEST_CONSENT = 1
-
-        // Loopback-reachable fixture for emulator smokes: the core starts,
-        // the tunnel carries traffic, no real nodes are contacted.
-        val DEFAULT_SMOKE_CONFIG = """
-proxies:
-  - name: smoke-edge
-    type: trojan
-    server: 127.0.0.1
-    port: 443
-    password: smoke-only
-proxy-groups:
-  - name: proxy-group
-    type: select
-    proxies: [smoke-edge]
-rules:
-  - MATCH,proxy-group
-""".trim()
     }
 }

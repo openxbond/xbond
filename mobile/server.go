@@ -7,7 +7,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
@@ -24,6 +27,7 @@ type apiServer struct {
 	svc    *TunnelService
 	token  string
 	port   int
+	webDir string
 	server *http.Server
 }
 
@@ -33,9 +37,10 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 		return nil, err
 	}
 	s := &apiServer{
-		svc:   svc,
-		token: randomSecret(),
-		port:  listener.Addr().(*net.TCPAddr).Port,
+		svc:    svc,
+		token:  randomSecret(),
+		port:   listener.Addr().(*net.TCPAddr).Port,
+		webDir: filepath.Join(paths.DataDir(), "web"),
 	}
 
 	mux := http.NewServeMux()
@@ -74,6 +79,13 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 	mux.HandleFunc("/localapi/v0/logs", auth(s.handleLogs))
 	mux.HandleFunc("/localapi/v0/doctor", auth(s.handleDoctor))
 	mux.HandleFunc("/localapi/v0/bugreport", auth(s.handleBugReport))
+
+	// Shared web UI, extracted from APK assets by the platform side. Same
+	// injection contract as the daemon: token and controller meta ride the
+	// page; everything else is relative to this origin. The route registers
+	// unconditionally — the service may start before the UI assets are
+	// extracted, and index is read per request.
+	mux.HandleFunc("/", s.handleWeb)
 
 	s.server = &http.Server{Handler: mux}
 	go func() {
@@ -590,6 +602,27 @@ func (s *apiServer) handleBugReport(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---------------------------------------------------------------- json
+
+func (s *apiServer) handleWeb(w http.ResponseWriter, r *http.Request) {
+	filePath := filepath.Join(s.webDir, filepath.Clean(r.URL.Path))
+	info, err := os.Stat(filePath)
+	if err != nil || info.IsDir() {
+		indexBytes, err := os.ReadFile(filepath.Join(s.webDir, "index.html"))
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		clashPort, clashSecret := s.svc.runtime.endpoint()
+		metaTag := fmt.Sprintf(`<meta name="external-controller" content="http://:%s@127.0.0.1:%d">
+    <meta name="localapi-token" content="%s">`, clashSecret, clashPort, s.token)
+		html := strings.Replace(string(indexBytes), "<head>", "<head>\n    "+metaTag, 1)
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(html))
+		return
+	}
+	http.ServeFile(w, r, filePath)
+}
 
 func writeJSON(w http.ResponseWriter, code int, data any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

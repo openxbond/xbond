@@ -1,6 +1,6 @@
 # Android VPN 層
 
-**狀態**：契約已確認；fd 交接、生命週期與分流的平台側代碼已交付（`apps/mobile/android/app/src/main/kotlin/net/xbond/app/XBondVpnService.kt`、`apps/mobile/android/AndroidManifest.xml`、Go 側 `mobile/service.go`）。已交付 gradle app 工程（包名 `net.xbond.app`）並在**模擬器上端到端驗收**（Kotlin 編譯通過、APK 裝入 API 36 x86_64 模擬器實測，見 MOB-05）；**雙核心均通過模擬器端到端**（clash 先行，sing-box 隨後補齊，見 MOB-07）；真機驗收（休眠／切網重連、Always-On、電池、按應用分流實測）仍屬後續切片。
+**狀態**：契約已確認；fd 交接、生命週期與分流的平台側代碼已交付（`apps/mobile/android/app/src/main/kotlin/net/xbond/app/XBondVpnService.kt`、`apps/mobile/android/AndroidManifest.xml`、Go 側 `mobile/service.go`）。已交付 gradle app 工程（包名 `net.xbond.app`）並在**模擬器上端到端驗收**（Kotlin 編譯通過、APK 裝入 API 36 x86_64 模擬器實測，見 MOB-05）；**雙核心均通過模擬器端到端**（clash 先行，sing-box 隨後補齊，見 MOB-07）；**共享 React UI 已上機**（WebView 宿主 + 進程內 LocalAPI，UI 驅動連接／斷開全循環，見 MOB-10）；真機驗收（休眠／切網重連、Always-On、電池、按應用分流實測）仍屬後續切片。
 
 ## 範圍與入口
 
@@ -18,6 +18,10 @@
 ### 進程內 LocalAPI 與移動運行時
 
 應用進程內嵌一份守護進程同契約的 LocalAPI（`mobile/server.go`，僅回環、token 鑑權，token 同步落 `localapi.token`、端口落 `localapi.addr`）：共享 Web UI 與 LocalAPI 工具以同一組 `/localapi/v0/*` 端點驅動移動宿主。移動運行時（`mobile/runtime.go`）是守護進程運行時的 VPN 形態孿生——活動訂閱為唯一配置源、平台 TUN fd 為唯一接管、路由模式為唯一偏好；`up` 經 PlatformBridge 新增的 `requestConnect` 同步建立 VPN（需要同意時拋錯、LocalAPI 答 409，交互流程屬 UI 切片），`down` 經 `requestDisconnect` 完整拆除。賬戶端點以 501 明確不可用（雲登錄屬後續切片）。sing-box 移動派生顯式禁用 cache_file（依賴 box.go 補丁④）。
+
+### WebView UI 宿主
+
+共享 Web UI 以 gradle `copyWebDist` 打進 APK assets，`MainActivity` 啟動時提取到數據目錄（先於服務啟動——LocalAPI 按請求讀取 index，`/` 路由無條件註冊以消解提取／啟動競態），隨後以 `ENSURE` 動作拉起服務（只創建 TunnelService 與 LocalAPI、不觸碰隧道），輪詢 `localapi.addr` 後在 WebView 內加載 `http://127.0.0.1:<port>/`。陳舊端口文件在拉起前刪除，避免加載上一進程的死端口。WebView 走 `network_security_config` 放行的回環明文白名單。VPN 同意在 Activity 首次啟動時預授權（服務上下文無法彈系統對話框；被拒的同意之後以 `/up` 的 409 浮現，交互重試屬後續 UI 切片）。`/down` 只拆隧道資源不 `stopSelf`——UI 存續期間 LocalAPI 保持可用；`ACTION_STOP` 與 `onRevoke` 仍完整收縮。
 
 ### 分流與重載
 
@@ -40,8 +44,9 @@
 | MOB-06 | 移動派生含 `dns-hijack any:53`（無此項系統 DNS 落入隧道無人應答，全部解析失敗——實測發現並修復）；移動模式 manager 就緒探針跳過 mixed 監聽（mixed-port 0 覆蓋構造默認值） | `internal/engine/derive.go`、`manager.go`；`engine_test.go` TestManagerMobileStartSkipsListenerProbe |
 | MOB-07 | **sing-box 移動端到端**（同一模擬器）：fd 經 vendored hook 注入（JSON 不再攜帶 `file_descriptor`）→ `address` 鏡像 VPN builder → cache-file 落數據目錄 → DNS 塊與 sniff/hijack-dns 規則注入 → direct 出站啟動（nil 監視器補丁）→ tun0 UP → **系統連通性校驗經隧道通過（WIFI\|VPN validation passed）**→ 停止銷毀 tun0、無 fdsan 雙關閉 | adb + logcat + dumpsys（2026-11-01 實測）；`engine_test.go` TestDeriveSingBoxTunDNSInjection、TestMobileTunFDHook |
 | MOB-09 | 進程內 LocalAPI 全鏈路（模擬器 adb forward 實測）：`/login`（content 導入→Use）→ `/restart`（運行時 apply 重載）→ `/nodes`/`/mode`（routing 切換重載）→ `/logs`（ring 經 writer 收 sing-box 日誌）→ `/rules`/`/connections`（controller 直讀）→ `/down`（tun0 銷毀、零 fdsan abort）；期間 **WIFI\|VPN 系統校驗經隧道通過** | adb forward + curl（2026-11-01 實測） |
+| MOB-10 | **共享 React UI 上機全循環**（模擬器實測）：WebView 渲染移動四標籤佈局（三層狀態卡／策略組／接管選擇器）→ UI 點 Connect → fd 交接、tun0 UP、UI 翻轉 Proxy running＋三層綠點 → UI 點 Disconnect → tun0 銷毀、回到 Not connected；服務全程保活（LocalAPI 不隨斷開消失）、零 fdsan abort | adb + screencap + input tap（2026-11-01 實測） |
 | MOB-08 | fd 所有權二分：Kotlin 以 dup 移交核心（sing-tun 關閉其所採納的 dup），原件保留在平台側、關閉即銷毀接口——任何一側都不再雙關閉同一 fd；核心 panic 在 Go/Java 邊界轉為錯誤並落棧到 `go-panic.log`（fd 2 重定向），不再殺死進程 | `XBondVpnService.kt`（dup+detach）、`mobile/service.go` guardCorePanic、`paniclog_linux.go` |
 
 ## 已知限制
 
-真機項待驗：休眠／切網重連、Always-On、電池、按應用分流實測。**應用自身流量語義**：模擬器實測顯示 VPN 擁有者應用自身的探針 DNS 解析立即失敗（uid 捕獲範圍與系統自排除語義交錯），而系統與被捕獲應用（Chrome）流量全程正常——應用內探測應走 controller 而非自身 socket，後續 UI 切片遵循。`x/mobile` 無版本標籤（@latest 偽版本）。vendored 副本的單文件補丁在升級 sing-box 或 x/net 時需重驗；若上游改用非 linkname 方案可移除補丁恢復原生模塊。iOS PacketTunnel 側未在本規格範圍。
+真機項待驗：休眠／切網重連、Always-On、電池、按應用分流實測。**WebView 宿主**：UI 資產隨 APK 分發，`sw.js` 的 PWA 緩存在 WebView 內可能滯後一個版本（資產按版本提取可兜底，尚未做哈希校驗）；控制器 WebSocket 的實時頁面（日誌流）未在本切片驗證。**應用自身流量語義**：模擬器實測顯示 VPN 擁有者應用自身的探針 DNS 解析立即失敗（uid 捕獲範圍與系統自排除語義交錯），而系統與被捕獲應用（Chrome）流量全程正常——應用內探測應走 controller 而非自身 socket，後續 UI 切片遵循。`x/mobile` 無版本標籤（@latest 偽版本）。vendored 副本的單文件補丁在升級 sing-box 或 x/net 時需重驗；若上游改用非 linkname 方案可移除補丁恢復原生模塊。iOS PacketTunnel 側未在本規格範圍。
