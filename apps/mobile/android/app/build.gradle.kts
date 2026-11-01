@@ -31,7 +31,9 @@ android {
 
 dependencies {
     // gomobile dual-core binding — regenerate with `pnpm mobile:bind:android`.
-    implementation(files("libs/xbond-mobile.aar"))
+    // Points at the bind output (../xbond-mobile.aar) directly: one file, no
+    // copy step that can go stale.
+    implementation(files("../xbond-mobile.aar"))
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
 }

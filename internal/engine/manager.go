@@ -452,6 +452,11 @@ func (m *Manager) extractSingBoxMetadata(runtimeJSON []byte) {
 
 	m.takeoverMode = ModePort
 	m.allowLan = false
+	// Baseline zero: a config without a mixed inbound has no local listener
+	// (the mobile derivation strips them), and the construction default must
+	// not make the readiness probe chase a listener that will never answer.
+	// Desktop derivations always inject a mixed inbound, so they re-set it.
+	m.mixedPort = 0
 	for _, in := range raw.Inbounds {
 		if in.Type == "tun" {
 			m.takeoverMode = ModeTun

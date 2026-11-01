@@ -34,5 +34,6 @@ release-assets/
 apps/mobile/android/xbond-mobile.aar
 apps/mobile/android/xbond-mobile-sources.jar
 apps/mobile/android/.gradle/
+apps/mobile/android/build/
 apps/mobile/android/app/build/
 apps/mobile/android/local.properties

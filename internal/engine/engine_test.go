@@ -373,9 +373,135 @@ func TestDeriveMobileRuntimeConfig(t *testing.T) {
 		t.Fatalf("expected tun inbound")
 	}
 	tunInbound, _ := inbounds[0].(map[string]any)
-	if tunInbound["type"] != "tun" || tunInbound["file_descriptor"] != float64(43) {
-		t.Fatalf("expected sing-box tun inbound with fd 43, got %v", tunInbound)
+	if tunInbound["type"] != "tun" {
+		t.Fatalf("expected sing-box tun inbound, got %v", tunInbound)
 	}
+	// v1.13 strict parsing rejects file_descriptor: the fd rides the vendored
+	// tun hook (TestMobileTunFDHook), never the config.
+	if _, has := tunInbound["file_descriptor"]; has {
+		t.Errorf("sing-box tun inbound must not carry file_descriptor: %v", tunInbound)
+	}
+	if tunInbound["auto_route"] != false {
+		t.Errorf("routing must stay platform-owned on mobile: %v", tunInbound)
+	}
+}
+
+// The sing-box TUN paths (mobile fd mode and desktop takeover) must inject
+// the DNS module and the sniff/hijack route rules: hijacked port-53 queries
+// have no server otherwise and every lookup dies inside the tunnel. Source
+// content is preserved — own servers/rules stay, no duplicate rules.
+func TestDeriveSingBoxTunDNSInjection(t *testing.T) {
+	isolateCoreHome(t)
+
+	t.Run("mobile injects dns and hijack rules", func(t *testing.T) {
+		derived, err := DeriveMobileRuntimeConfig(sampleSingBoxConfig(), 43, RoutingRule, 19091, "secret")
+		if err != nil {
+			t.Fatalf("failed to derive sing-box mobile config: %v", err)
+		}
+		raw := decodeJSON(t, derived)
+
+		dns, _ := raw["dns"].(map[string]any)
+		if dns == nil {
+			t.Fatalf("expected dns module injected, got %v", raw["dns"])
+		}
+		servers, _ := dns["servers"].([]any)
+		if len(servers) != 1 {
+			t.Fatalf("expected one fallback DNS server, got %v", servers)
+		}
+		server, _ := servers[0].(map[string]any)
+		if server["type"] != "udp" || server["server"] != "8.8.8.8" {
+			t.Errorf("unexpected fallback DNS server: %v", server)
+		}
+		if dns["final"] != "dns-fallback" {
+			t.Errorf("expected final pointing at the injected server, got %v", dns["final"])
+		}
+
+		route, _ := raw["route"].(map[string]any)
+		rules, _ := route["rules"].([]any)
+		if len(rules) < 2 {
+			t.Fatalf("expected sniff+hijack rules prepended, got %v", rules)
+		}
+		first, _ := rules[0].(map[string]any)
+		second, _ := rules[1].(map[string]any)
+		if first["action"] != "sniff" {
+			t.Errorf("expected sniff rule first, got %v", first)
+		}
+		if second["action"] != "hijack-dns" {
+			t.Errorf("expected hijack-dns rule second, got %v", second)
+		}
+
+		if err := Validate(derived); err != nil {
+			t.Errorf("derived mobile config failed validation: %v", err)
+		}
+	})
+
+	t.Run("source dns and rules are preserved without duplicates", func(t *testing.T) {
+		source := []byte(`{
+  "dns": {"servers": [{"type": "udp", "tag": "dns-own", "server": "1.1.1.1"}], "final": "dns-own"},
+  "route": {"final": "direct", "rules": [
+    {"action": "sniff"},
+    {"outbound": "dns-out"},
+    {"inbound": "dns-in", "outbound": "dns-out"},
+    {"protocol": "dns", "action": "hijack-dns"}
+  ]},
+  "outbounds": [
+    {"type": "direct", "tag": "direct"},
+    {"type": "dns", "tag": "dns-out"},
+    {"type": "trojan", "tag": "edge", "server": "127.0.0.1", "server_port": 443, "password": "fixture-only"}
+  ]
+}`)
+		derived, err := DeriveMobileRuntimeConfig(source, 44, RoutingRule, 19092, "secret")
+		if err != nil {
+			t.Fatalf("failed to derive: %v", err)
+		}
+		raw := decodeJSON(t, derived)
+
+		dns, _ := raw["dns"].(map[string]any)
+		servers, _ := dns["servers"].([]any)
+		if len(servers) != 1 || dns["final"] != "dns-own" {
+			t.Errorf("own dns servers/final must be preserved: %v", dns)
+		}
+		route, _ := raw["route"].(map[string]any)
+		rules, _ := route["rules"].([]any)
+		if len(rules) != 4 {
+			t.Fatalf("expected source rules untouched, got %v", rules)
+		}
+		if route["final"] != "direct" {
+			t.Errorf("route final must stay source-owned, got %v", route["final"])
+		}
+	})
+
+	t.Run("desktop tun takeover injects, port mode does not", func(t *testing.T) {
+		derivedTun, err := DeriveRuntimeConfig(sampleSingBoxConfig(), ModeTun, RoutingRule, 17890, false, 19090, "secret")
+		if err != nil {
+			t.Fatalf("failed to derive desktop tun config: %v", err)
+		}
+		rawTun := decodeJSON(t, derivedTun)
+		dnsTun, _ := rawTun["dns"].(map[string]any)
+		if dnsTun == nil || dnsTun["servers"] == nil {
+			t.Errorf("desktop tun derive must inject dns, got %v", rawTun["dns"])
+		}
+		routeTun, _ := rawTun["route"].(map[string]any)
+		rulesTun, _ := routeTun["rules"].([]any)
+		if len(rulesTun) < 2 {
+			t.Errorf("desktop tun derive must prepend hijack rules, got %v", rulesTun)
+		}
+		if err := Validate(derivedTun); err != nil {
+			t.Errorf("derived desktop tun config failed validation: %v", err)
+		}
+
+		derivedPort, err := DeriveRuntimeConfig(sampleSingBoxConfig(), ModePort, RoutingRule, 17891, false, 19091, "secret")
+		if err != nil {
+			t.Fatalf("failed to derive port-mode config: %v", err)
+		}
+		rawPort := decodeJSON(t, derivedPort)
+		if _, has := rawPort["dns"]; has {
+			t.Errorf("port mode must not inject a dns block, got %v", rawPort["dns"])
+		}
+		if _, has := rawPort["route"]; has {
+			t.Errorf("port mode must not inject route rules, got %v", rawPort["route"])
+		}
+	})
 }
 
 // A mobile derivation (no mixed listener, platform-owned TUN fd) starts

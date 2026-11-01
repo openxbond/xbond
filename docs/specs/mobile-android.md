@@ -1,6 +1,6 @@
 # Android VPN 層
 
-**狀態**：契約已確認；fd 交接、生命週期與分流的平台側代碼已交付（`apps/mobile/android/app/src/main/kotlin/net/xbond/app/XBondVpnService.kt`、`apps/mobile/android/AndroidManifest.xml`、Go 側 `mobile/service.go`）。已交付 gradle app 工程（包名 `net.xbond.app`）並在**模擬器上端到端驗收**（Kotlin 編譯通過、APK 裝入 API 36 x86_64 模擬器實測，見 MOB-05）；真機驗收（休眠／切網重連、Always-On、電池、按應用分流實測）仍屬後續切片。
+**狀態**：契約已確認；fd 交接、生命週期與分流的平台側代碼已交付（`apps/mobile/android/app/src/main/kotlin/net/xbond/app/XBondVpnService.kt`、`apps/mobile/android/AndroidManifest.xml`、Go 側 `mobile/service.go`）。已交付 gradle app 工程（包名 `net.xbond.app`）並在**模擬器上端到端驗收**（Kotlin 編譯通過、APK 裝入 API 36 x86_64 模擬器實測，見 MOB-05）；**雙核心均通過模擬器端到端**（clash 先行，sing-box 隨後補齊，見 MOB-07）；真機驗收（休眠／切網重連、Always-On、電池、按應用分流實測）仍屬後續切片。
 
 ## 範圍與入口
 
@@ -22,7 +22,7 @@
 
 ### 構建與依賴（vendored 補丁）
 
-`third_party/sing-box/` 是 **sing-box v1.13.21 原始模塊的完整副本**（MIT 許可與版權聲明保留於其 LICENSE；testdata 等構建無關內容已剪除），僅 `transport/v2rayhttp/force_close.go` 一個文件被補丁：上游 `go:linkname` 直指 x/net/http2 的 `connPool` **字段符號**，而依賴圖（mihomo 等）強制 x/net ≥ v0.61 後該符號在 c-shared/PIC 的 android arm／x86_64 鏈接中不再發出——gomobile bind 以 relocation 錯誤失敗（arm64 侥幸保留符號）。補丁以 `reflect` 讀同一字段，行為等價；字段缺失時返回原 transport 而非 panic。`go.mod` 以 `replace github.com/sagernet/sing-box => ./third_party/sing-box` 指向該副本，gomobile 會把本地目錄 replace 傳播進 work module（x/mobile bind.go 的既有行為），因此桌面、daemon 與移動端全部構建一致使用補丁副本；升級 sing-box 版本時需重新 vendor 並重放該補丁。除此之外全部依賴取最新穩定版（x/mobile@latest、x/net v0.61 等）。
+`third_party/sing-box/` 是 **sing-box v1.13.21 原始模塊的完整副本**（MIT 許可與版權聲明保留於其 LICENSE；testdata 等構建無關內容已剪除），三處文件被補丁（文檔副本見 `scripts/patches/`）：① `transport/v2rayhttp/force_close.go`——上游 `go:linkname` 直指 x/net/http2 的 `connPool` **字段符號**，而依賴圖（mihomo 等）強制 x/net ≥ v0.61 後該符號在 c-shared/PIC 的 android arm／x86_64 鏈接中不再發出，gomobile bind 以 relocation 錯誤失敗（arm64 侥幸保留符號）；補丁以 `reflect` 讀同一字段，行為等價，字段缺失時返回原 transport 而非 panic。② `protocol/tun/hook.go`（含 `inbound.go` 調用點一行）——`HookBeforeCreatePlatformInterface` 增帶 `*tun.Options` 參數：v1.13 已從 JSON 移除 `file_descriptor`（嚴格解析直接拒絕），fd 的唯一運行時入口是 sing-tun 的 `tun.Options.FileDescriptor`，而替代通道 libbox 平台接口的存在本身會翻轉 `ForwarderBindInterface` 並跳過 `BuildAndroidRules`，副作用嵌入式 fd 模式不能接受；xbond 側 `engine.SetMobileTunFD` 經此 hook 在設備打開前注入 fd。③ `protocol/direct/outbound.go` 的 `fetchMyAddresses`——上游不判空 `InterfaceMonitor()`，而 Android 普通應用（untrusted_app）被 SELinux 禁止 netlink socket，監視器合法地為 nil，direct 出站一啟動即 SIGSEGV（`addr=0x30`，PostStart 階段）；補丁加 nil 守衛提前返回。值得上游報告；截至 v1.13.21 無修復。`go.mod` 以 `replace github.com/sagernet/sing-box => ./third_party/sing-box` 指向該副本，gomobile 會把本地目錄 replace 傳播進 work module（x/mobile bind.go 的既有行為），因此桌面、daemon 與移動端全部構建一致使用補丁副本；升級 sing-box 版本時需重新 vendor 並重放該補丁。除此之外全部依賴取最新穩定版（x/mobile@latest、x/net v0.61 等）。
 
 ## 驗收條件
 
@@ -34,7 +34,9 @@
 | MOB-04 | 全部依賴最新穩定版；sing-box 釘 v1.13.21（vendored 補丁副本） | `go.mod` |
 | MOB-05 | **模擬器端到端**（API 36 x86_64）：安裝→appops 授權→`am start` 注入配置→fd 交接→tun0 UP→**系統連通性探測經隧道 204 成功（網絡 IS_VALIDATED）**→Chrome 經隧道開頁無錯→UI 斷開→tun0 銷毀、狀態歸零 | adb + logcat + dumpsys connectivity（2026-11-01 實測） |
 | MOB-06 | 移動派生含 `dns-hijack any:53`（無此項系統 DNS 落入隧道無人應答，全部解析失敗——實測發現並修復）；移動模式 manager 就緒探針跳過 mixed 監聽（mixed-port 0 覆蓋構造默認值） | `internal/engine/derive.go`、`manager.go`；`engine_test.go` TestManagerMobileStartSkipsListenerProbe |
+| MOB-07 | **sing-box 移動端到端**（同一模擬器）：fd 經 vendored hook 注入（JSON 不再攜帶 `file_descriptor`）→ `address` 鏡像 VPN builder → cache-file 落數據目錄 → DNS 塊與 sniff/hijack-dns 規則注入 → direct 出站啟動（nil 監視器補丁）→ tun0 UP → **系統連通性校驗經隧道通過（WIFI\|VPN validation passed）**→ 停止銷毀 tun0、無 fdsan 雙關閉 | adb + logcat + dumpsys（2026-11-01 實測）；`engine_test.go` TestDeriveSingBoxTunDNSInjection、TestMobileTunFDHook |
+| MOB-08 | fd 所有權二分：Kotlin 以 dup 移交核心（sing-tun 關閉其所採納的 dup），原件保留在平台側、關閉即銷毀接口——任何一側都不再雙關閉同一 fd；核心 panic 在 Go/Java 邊界轉為錯誤並落棧到 `go-panic.log`（fd 2 重定向），不再殺死進程 | `XBondVpnService.kt`（dup+detach）、`mobile/service.go` guardCorePanic、`paniclog_linux.go` |
 
 ## 已知限制
 
-真機項待驗：休眠／切網重連、Always-On、電池、按應用分流實測。**應用自身流量語義**：模擬器實測顯示 VPN 擁有者應用自身的探針 DNS 解析立即失敗（uid 捕獲範圍與系統自排除語義交錯），而系統與被捕獲應用（Chrome）流量全程正常——應用內探測應走 controller 而非自身 socket，後續 UI 切片遵循。sing-box 移動派生未注入 DNS 塊（clash 路徑已驗證，sing-box 訂閱在移動端解析需後續補）。`x/mobile` 無版本標籤（@latest 偽版本）。vendored 副本的單文件補丁在升級 sing-box 或 x/net 時需重驗；若上游改用非 linkname 方案可移除補丁恢復原生模塊。iOS PacketTunnel 側未在本規格範圍。
+真機項待驗：休眠／切網重連、Always-On、電池、按應用分流實測。**應用自身流量語義**：模擬器實測顯示 VPN 擁有者應用自身的探針 DNS 解析立即失敗（uid 捕獲範圍與系統自排除語義交錯），而系統與被捕獲應用（Chrome）流量全程正常——應用內探測應走 controller 而非自身 socket，後續 UI 切片遵循。`x/mobile` 無版本標籤（@latest 偽版本）。vendored 副本的單文件補丁在升級 sing-box 或 x/net 時需重驗；若上游改用非 linkname 方案可移除補丁恢復原生模塊。iOS PacketTunnel 側未在本規格範圍。

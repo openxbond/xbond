@@ -1,0 +1,7 @@
+Documentation copy (kept out of ./... builds): patched file lives at
+third_party/sing-box/protocol/direct/outbound.go. Only fetchMyAddresses
+differs from upstream v1.13.21: a nil-guard on
+h.network.InterfaceMonitor() — Android bans netlink for untrusted apps,
+the monitor is legitimately nil there, and the unguarded dereference
+panicked every direct outbound at start (SIGSEGV addr=0x30, PostStart).
+Worth reporting upstream; no upstream fix as of v1.13.21.

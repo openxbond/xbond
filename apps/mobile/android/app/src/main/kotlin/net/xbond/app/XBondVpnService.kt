@@ -133,12 +133,17 @@ class XBondVpnService : VpnService() {
             }
 
             vpnInterface = pfd
-            val fd = pfd.fd
-            Log.i(TAG, "Established VPN interface with fd=$fd")
+            // Hand the core a dup of the descriptor: sing-tun closes the fd
+            // it adopts when the core stops, while the platform side keeps
+            // the original — closing vpnInterface destroys the interface on
+            // every teardown path without ever double-closing (fdsan aborts
+            // the process on a same-fd double close).
+            val coreFd = ParcelFileDescriptor.dup(pfd.fileDescriptor).detachFd()
+            Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core dup=$coreFd)")
 
-            tunnel?.start(lastConfig, fd)
+            tunnel?.start(lastConfig, coreFd)
             goForeground("XBond VPN active")
-            Log.i(TAG, "Core started over fd=$fd")
+            Log.i(TAG, "Core started over core dup fd=$coreFd")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting VPN tunnel: ${e.message}", e)
             tunnel?.stop()

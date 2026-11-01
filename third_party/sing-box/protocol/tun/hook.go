@@ -1,3 +1,23 @@
+// Package tun — patched copy of sing-box v1.13.21's protocol/tun/hook.go
+// (MIT, © sing-box contributors).
+//
+// WHY THIS FILE DIFFERS: upstream declares
+//
+//	var HookBeforeCreatePlatformInterface func()
+//
+// with no access to the tun options, so an embedder cannot inject
+// runtime-only settings (the Android VPN file descriptor) at the only point
+// sing-tun still accepts one — tun.Options.FileDescriptor. The JSON field
+// was removed upstream (v1.13 strict parsing rejects "file_descriptor") and
+// the alternative carrier, the libbox platform interface, flips
+// ForwarderBindInterface and skips BuildAndroidRules as side effects of its
+// mere presence. Carrying *tun.Options on the hook keeps the vendored diff
+// to the hook itself and its one call site.
 package tun
 
-var HookBeforeCreatePlatformInterface func()
+import "github.com/sagernet/sing-tun"
+
+// HookBeforeCreatePlatformInterface runs just before the tun device opens
+// (sing-tun tun.New). Receives the options copy the inbound will use, so
+// embedders can set FileDescriptor and other runtime-only fields.
+var HookBeforeCreatePlatformInterface func(options *tun.Options)

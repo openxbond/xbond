@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/hub/executor"
@@ -12,11 +14,23 @@ import (
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 	singJson "github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/service/filemanager"
 	"gopkg.in/yaml.v3"
+
+	"github.com/openxbond/xbond/internal/platform/paths"
 )
 
 func NewBoxContext() context.Context {
-	return include.Context(context.Background())
+	ctx := include.Context(context.Background())
+	// Anchor sing-box's relative paths (cache.db and friends) at the xbond
+	// data dir. Without this they resolve against the process working
+	// directory, which is the exe dir on desktop and a read-only root on
+	// Android ("initialize cache-file: read-only file system").
+	dataDir := paths.DataDir()
+	if err := os.MkdirAll(dataDir, 0o700); err == nil {
+		ctx = filemanager.WithDefault(ctx, dataDir, filepath.Join(dataDir, "temp"), os.Getuid(), os.Getgid())
+	}
+	return ctx
 }
 
 // Validate parses and resolves the configuration with its native core
@@ -435,6 +449,7 @@ func deriveSingBoxRuntime(
 			"stack":          "mixed",
 		}
 		filteredInbounds = append([]any{tunInbound}, filteredInbounds...)
+		ensureSingBoxDNSForTun(raw)
 	}
 
 	raw["inbounds"] = filteredInbounds
@@ -492,15 +507,21 @@ func deriveSingBoxMobile(
 	}
 
 	tunInbound := map[string]any{
-		"type":            "tun",
-		"tag":             "tun-in",
-		"file_descriptor": tunFd,
-		"stack":           "mixed",
-		"auto_route":      false,
-		"strict_route":    false,
+		"type": "tun",
+		"tag":  "tun-in",
+		// Must mirror the platform VPN builder's addAddress: sing-box
+		// validates the interface address at start even in fd mode.
+		"address":      []any{"172.19.0.1/30"},
+		"stack":        "mixed",
+		"auto_route":   false,
+		"strict_route": false,
+		// No file_descriptor here: v1.13 strict parsing rejects the field.
+		// The fd rides the vendored tun hook (internal/engine/tun_fd.go),
+		// injected from the platform handover at device-open time.
 	}
 	filteredInbounds = append([]any{tunInbound}, filteredInbounds...)
 	raw["inbounds"] = filteredInbounds
+	ensureSingBoxDNSForTun(raw)
 
 	exp, _ := raw["experimental"].(map[string]any)
 	if exp == nil {
@@ -525,4 +546,72 @@ func deriveSingBoxMobile(
 		return nil, fmt.Errorf("failed to marshal derived mobile config: %w", err)
 	}
 	return derivedJSON, nil
+}
+
+// ensureSingBoxDNSForTun makes DNS answerable when a TUN inbound takes over
+// traffic: without a local DNS module, the hijacked port-53 queries the VPN
+// builder points at the tunnel have no server and every lookup fails — the
+// same failure mode the mihomo path solves with dns-hijack + injected
+// nameservers. A subscription that already ships DNS servers keeps them and
+// their own routing; the hijack rule is always ensured because the system
+// resolver's packets enter through the tunnel regardless of the source's
+// own DNS design.
+func ensureSingBoxDNSForTun(raw map[string]any) {
+	dns, _ := raw["dns"].(map[string]any)
+	if dns == nil {
+		dns = make(map[string]any)
+	}
+	if servers, _ := dns["servers"].([]any); len(servers) == 0 {
+		const fallbackTag = "dns-fallback"
+		dns["servers"] = []any{map[string]any{
+			"type":   "udp",
+			"tag":    fallbackTag,
+			"server": "8.8.8.8",
+		}}
+		if dns["final"] == nil {
+			dns["final"] = fallbackTag
+		}
+	}
+	raw["dns"] = dns
+
+	route, _ := raw["route"].(map[string]any)
+	if route == nil {
+		route = make(map[string]any)
+	}
+	rules, _ := route["rules"].([]any)
+	hasSniff := false
+	hasHijack := false
+	for _, item := range rules {
+		rule, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		switch rule["action"] {
+		case "sniff":
+			hasSniff = true
+		case "hijack-dns":
+			hasHijack = true
+		}
+		// Legacy pre-1.11 pattern: a dns inbound + a rule routing DNS to it.
+		if outbound, _ := rule["outbound"].(string); outbound == "dns-out" {
+			hasHijack = true
+		}
+	}
+	// Prepend so the wire order is sniff first, hijack second: the hijack
+	// condition reads the protocol sniffing produced.
+	var prepend []any
+	if !hasSniff {
+		prepend = append(prepend, map[string]any{"action": "sniff"})
+	}
+	if !hasHijack {
+		prepend = append(prepend, map[string]any{
+			"protocol": "dns",
+			"action":   "hijack-dns",
+		})
+	}
+	if len(prepend) > 0 {
+		rules = append(prepend, rules...)
+	}
+	route["rules"] = rules
+	raw["route"] = route
 }

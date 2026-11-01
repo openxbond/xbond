@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -118,10 +119,20 @@ func (s *TunnelService) Start(configJSON string, tunFd int32) error {
 		return errors.New("empty configuration")
 	}
 
+	// Capture the Go runtime's crash output in a file: gomobile's logcat
+	// forwarder loses the stack when the abort kills the pipe reader, which
+	// made emulator crashes undebuggable. Truncated per start (linux only).
+	redirectPanicLog()
+
 	s.setState(StateConnecting, "Starting VPN tunnel...")
 
 	clashPort := getFreeLoopbackPort()
 	clashSecret := randomSecret()
+
+	// The sing-box core adopts the VPN fd through the vendored tun hook at
+	// device-open time; the clash core takes it from the derived config.
+	// Cleared on Stop so a stale fd is never adopted after VPN restarts.
+	engine.SetMobileTunFD(tunFd)
 
 	derivedConfig, err := engine.DeriveMobileRuntimeConfig(
 		[]byte(configJSON),
@@ -136,7 +147,7 @@ func (s *TunnelService) Start(configJSON string, tunFd int32) error {
 	}
 
 	mgr := engine.NewManager(1000)
-	if err := mgr.Start(derivedConfig); err != nil {
+	if err := guardCorePanic(func() error { return mgr.Start(derivedConfig) }); err != nil {
 		s.setState(StateError, err.Error())
 		return fmt.Errorf("failed to start engine: %w", err)
 	}
@@ -158,6 +169,22 @@ func (s *TunnelService) Start(configJSON string, tunFd int32) error {
 	go s.trafficLoop()
 
 	return nil
+}
+
+// guardCorePanic keeps a core panic from aborting the whole app (gomobile
+// turns Go panics into process kills): it converts the panic to an error and,
+// while the stack is still unwound-to-here, dumps the full frame list to the
+// panic file — the runtime's own trace is lost with the aborted process.
+func guardCorePanic(work func() error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 1<<16)
+			buf = buf[:runtime.Stack(buf, false)]
+			fmt.Fprintf(os.Stderr, "recovered core panic: %v\n%s", r, buf)
+			err = fmt.Errorf("core panic: %v", r)
+		}
+	}()
+	return work()
 }
 
 func (s *TunnelService) Stop() error {
@@ -185,6 +212,7 @@ func (s *TunnelService) Stop() error {
 	if mgr != nil {
 		err = mgr.Stop()
 	}
+	engine.SetMobileTunFD(0)
 
 	s.setState(StateIdle, "VPN tunnel stopped")
 	return err
@@ -218,7 +246,7 @@ func (s *TunnelService) Reload(configJSON string) error {
 	if err != nil {
 		return fmt.Errorf("failed to derive mobile runtime config: %w", err)
 	}
-	if err := mgr.Reload(derivedConfig, nil); err != nil {
+	if err := guardCorePanic(func() error { return mgr.Reload(derivedConfig, nil) }); err != nil {
 		return err
 	}
 	// The old controller endpoint died with the old core: repoint the

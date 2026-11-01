@@ -94,7 +94,14 @@ func (h *Outbound) fetchMyAddresses() {
 	if len(h.myAddresses.Load()) > 0 {
 		return
 	}
-	myInterfaceNames := h.network.InterfaceMonitor().MyInterfaces()
+	// PATCHED (xbond): the interface monitor is nil when it cannot be
+	// created — Android bans netlink sockets for untrusted apps — and the
+	// unguarded dereference crashed every direct outbound at start.
+	monitor := h.network.InterfaceMonitor()
+	if monitor == nil {
+		return
+	}
+	myInterfaceNames := monitor.MyInterfaces()
 	if len(myInterfaceNames) == 0 {
 		return
 	}
