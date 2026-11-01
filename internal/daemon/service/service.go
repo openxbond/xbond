@@ -32,17 +32,39 @@ func Install(exePath string, scope Scope) error {
 	case ScopeUser:
 		return installDaemon(exePath)
 	case ScopeSystem:
-		// Explicit, never downgraded to user: the machine service backend
-		// (kardianos/service) is a separate slice per the daemon spec.
-		return fmt.Errorf("scope %q is not available in this build yet (see docs/specs/daemon-runtime.md)", scope)
+		return installSystemScope(exePath)
 	default:
 		return fmt.Errorf("unknown scope %q (want %q or %q)", scope, ScopeUser, ScopeSystem)
 	}
 }
 func Uninstall() error { return uninstallDaemon() }
-func Start() error     { return startDaemon() }
-func Stop() error      { return stopDaemon() }
-func Installed() bool  { return daemonInstalled() }
+func UninstallScope(scope Scope) error {
+	if scope == ScopeSystem {
+		return uninstallSystemScope()
+	}
+	return Uninstall()
+}
+func Start() error { return startDaemon() }
+func StartScope(scope Scope, exePath string) error {
+	if scope == ScopeSystem {
+		return startSystemScope(exePath)
+	}
+	return Start()
+}
+func Stop() error { return stopDaemon() }
+func StopScope(scope Scope, exePath string) error {
+	if scope == ScopeSystem {
+		return stopSystemScope(exePath)
+	}
+	return Stop()
+}
+func Installed() bool { return daemonInstalled() }
+func InstalledScope(scope Scope) bool {
+	if scope == ScopeSystem {
+		return systemInstalled()
+	}
+	return Installed()
+}
 
 // SelfPath resolves the running xbond binary; the service registrations all
 // point at "<self> daemon", so install always registers the binary the user

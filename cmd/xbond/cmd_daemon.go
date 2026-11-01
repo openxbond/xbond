@@ -28,19 +28,27 @@ var (
 	daemonWebDir     string
 	daemonBackground bool
 	daemonScope      string
+	daemonServiceRun bool
+	daemonDataDir    string
 )
 
 func init() {
 	// daemon — foreground control service plus its service management verbs.
 	// Runtime flags live on the `daemon` command itself, not persistently on
-	// the group: the service registration always launches plain `xbond
-	// daemon`, so install/start/stop must not accept options that would be
-	// silently dropped.
+	// the group: the user-scope service registration always launches plain
+	// `xbond daemon`, so install/start/stop must not accept options that
+	// would be silently dropped. (The system-scope registration pins its
+	// own options in binPath.)
 	daemonCmd.Flags().StringVar(&daemonListen, "listen", "", "LocalAPI listen address (default 127.0.0.1:0 auto-assigned)")
 	daemonCmd.Flags().StringVar(&daemonWebDir, "web-dir", "", "Directory containing compiled web assets (dist)")
 	daemonCmd.Flags().BoolVar(&daemonBackground, "background", false, "Hide the console window (set by the service registration on Windows)")
+	daemonCmd.Flags().BoolVar(&daemonServiceRun, "service-run", false, "Run under the service control manager (set by the system service registration)")
+	daemonCmd.Flags().StringVar(&daemonDataDir, "data-dir", "", "State directory override (set by the system service registration)")
 	daemonInstallCmd.Flags().StringVar(&daemonScope, "scope", string(service.ScopeUser), "Installation scope: user or system")
-	daemonCmd.AddCommand(daemonInstallCmd, daemonUninstallCmd, daemonStartCmd, daemonStopCmd, daemonRestartCmd, daemonStatusCmd)
+	daemonUninstallCmd.Flags().StringVar(&daemonScope, "scope", string(service.ScopeUser), "Installation scope: user or system")
+	daemonStartCmd.Flags().StringVar(&daemonScope, "scope", string(service.ScopeUser), "Installation scope: user or system")
+	daemonStopCmd.Flags().StringVar(&daemonScope, "scope", string(service.ScopeUser), "Installation scope: user or system")
+	daemonCmd.AddCommand(daemonInstallCmd, daemonUninstallCmd, daemonStartCmd, daemonStopCmd, daemonRestartCmd, daemonStatusCmd, systemActionCmd)
 	rootCmd.AddCommand(daemonCmd)
 
 	// web
@@ -57,6 +65,11 @@ func init() {
 // preferences, core apply/start-stop, and update scheduling all live here.
 // Service registrations supervise this same entry; the program never forks.
 func runDaemon(cmd *cobra.Command, args []string) error {
+	if daemonDataDir != "" {
+		// Set before any paths resolution: the machine-scoped daemon runs as
+		// LocalSystem, whose profile has no writable state location.
+		_ = os.Setenv("XBOND_DATA_DIR", daemonDataDir)
+	}
 	if daemonBackground {
 		hideConsoleWindow()
 	}
@@ -74,6 +87,18 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if daemonServiceRun {
+		return service.RunSystemService(daemonListen, webDir, func(stop <-chan struct{}) error {
+			server, err := daemon.NewServer(daemonListen, webDir)
+			if err != nil {
+				return fmt.Errorf("failed to start daemon: %w", err)
+			}
+			fmt.Printf("XBond daemon v%s listening on %s (state dir: %s)\n",
+				version.Version, server.Addr(), paths.DataDir())
+			return serveDaemon(server, stop)
+		})
+	}
+
 	server, err := daemon.NewServer(daemonListen, webDir)
 	if err != nil {
 		return fmt.Errorf("failed to start daemon: %w", err)
@@ -82,6 +107,14 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 	fmt.Printf("XBond daemon v%s listening on %s (state dir: %s)\n",
 		version.Version, server.Addr(), paths.DataDir())
 
+	return serveDaemon(server, nil)
+}
+
+// serveDaemon blocks serving the daemon until a stop source fires: a signal,
+// the LocalAPI shutdown endpoint, or (system service mode) the SCM stop
+// channel. Every source converges on the same cleanup: engine down, system
+// proxy restored, credential files removed, listener closed, lock released.
+func serveDaemon(server *daemon.Server, stop <-chan struct{}) error {
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Start() }()
 
@@ -106,10 +139,9 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 		return nil
 	case <-sigChan:
 	case <-server.ShutdownRequested():
+	case <-stop:
 	}
 
-	// Signal and LocalAPI shutdown converge here: engine down, system proxy
-	// restored, credential files removed, listener closed, lock released.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := server.Stop(ctx); err != nil {
@@ -159,7 +191,7 @@ var daemonUninstallCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "shutdown request failed (%v); falling back to the supervisor\n", err)
 			}
 		}
-		if err := service.Uninstall(); err != nil {
+		if err := service.UninstallScope(service.Scope(daemonScope)); err != nil {
 			return err
 		}
 		if err := waitDaemonExit(5 * time.Second); err != nil {
@@ -175,10 +207,15 @@ var daemonStartCmd = &cobra.Command{
 	Short: "Start the registered background daemon service",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if !service.Installed() {
-			return fmt.Errorf("daemon service is not installed; run: xbond daemon install")
+		scope := service.Scope(daemonScope)
+		if !service.InstalledScope(scope) {
+			return fmt.Errorf("daemon service is not installed; run: xbond daemon install --scope %s", scope)
 		}
-		if err := service.Start(); err != nil {
+		exePath, err := service.SelfPath()
+		if err != nil {
+			return err
+		}
+		if err := service.StartScope(scope, exePath); err != nil {
 			return err
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -217,6 +254,20 @@ var daemonStopCmd = &cobra.Command{
 			}
 		}
 
+		scope := service.Scope(daemonScope)
+		if scope == service.ScopeSystem {
+			// The system daemon's LocalAPI lives in another data dir; skip
+			// the graceful-first dance and let the SCM stop it.
+			exePath, err := service.SelfPath()
+			if err != nil {
+				return err
+			}
+			if err := service.StopScope(scope, exePath); err != nil {
+				return err
+			}
+			fmt.Println("Daemon service stopped.")
+			return nil
+		}
 		installed := service.Installed()
 		if !reachable && !installed {
 			fmt.Println("Daemon service is not running.")
@@ -272,7 +323,26 @@ var daemonStatusCmd = &cobra.Command{
 			return nil
 		}
 		fmt.Println("not installed")
+		if state, err := service.SystemStatus(); err == nil {
+			fmt.Printf("system scope: %s\n", state)
+		}
 		return nil
+	},
+}
+
+// systemActionCmd continues a mutating system-scope action inside the
+// elevated copy launched by the service package (UAC accepted).
+var systemActionCmd = &cobra.Command{
+	Use:    "system-action",
+	Short:  "Continue an elevated system-scope action (internal)",
+	Args:   cobra.ExactArgs(1),
+	Hidden: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		exe, err := service.SelfPath()
+		if err != nil {
+			return err
+		}
+		return service.RunSystemAction(exe, service.SystemAction(args[0]))
 	},
 }
 
