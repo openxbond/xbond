@@ -18,6 +18,9 @@ type mockPlatform struct {
 	dataDir       string
 }
 
+func (m *mockPlatform) RequestConnect() error    { return errors.New("connect not available in tests") }
+func (m *mockPlatform) RequestDisconnect() error { return nil }
+
 func (m *mockPlatform) ProtectSocket(fd int32) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

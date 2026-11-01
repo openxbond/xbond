@@ -131,7 +131,13 @@ func New(options Options) (*Box, error) {
 	var needCacheFile bool
 	var needClashAPI bool
 	var needV2RayAPI bool
-	if experimentalOptions.CacheFile != nil && experimentalOptions.CacheFile.Enabled || options.PlatformLogWriter != nil {
+	// PATCHED (xbond): an explicit cache_file.enabled=false used to be
+	// overridden whenever a PlatformLogWriter was present, forcing the
+	// cachefile service on. Its bbolt close is broken on Android (funlock
+	// EBADF) and killed every core reload there. The writer no longer
+	// forces the cache when the config explicitly disables it.
+	cacheExplicitlyDisabled := experimentalOptions.CacheFile != nil && !experimentalOptions.CacheFile.Enabled
+	if experimentalOptions.CacheFile != nil && experimentalOptions.CacheFile.Enabled || options.PlatformLogWriter != nil && !cacheExplicitlyDisabled {
 		needCacheFile = true
 	}
 	if experimentalOptions.ClashAPI != nil || options.PlatformLogWriter != nil {

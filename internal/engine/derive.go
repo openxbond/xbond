@@ -532,13 +532,12 @@ func deriveSingBoxMobile(
 		"secret":              clashSecret,
 		"default_mode":        string(routingMode),
 	}
-	cacheFile, _ := exp["cache_file"].(map[string]any)
-	if cacheFile == nil {
-		cacheFile = make(map[string]any)
-	}
-	cacheFile["enabled"] = true
-	cacheFile["store_fakeip"] = true
-	exp["cache_file"] = cacheFile
+	// Cache file stays off on mobile: nothing depends on persisted
+	// selections or fake-ip state, and its bbolt close is broken on Android
+	// (funlock EBADF killed every Reload). Disabling needs the vendored
+	// box.go patch — upstream forces the cache on whenever a log writer is
+	// present, ignoring this field.
+	exp["cache_file"] = map[string]any{"enabled": false}
 	raw["experimental"] = exp
 
 	derivedJSON, err := json.MarshalIndent(raw, "", "  ")

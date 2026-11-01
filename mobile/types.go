@@ -19,6 +19,13 @@ type PlatformBridge interface {
 	// DataDir resolution lands on an unwritable path — the platform owns
 	// this answer.
 	DataDir() string
+	// RequestConnect establishes the platform VPN and hands the fd to
+	// StartActive — the LocalAPI /up path. Synchronous: returns after the
+	// tunnel is up, or with an error (consent required counts as one).
+	RequestConnect() error
+	// RequestDisconnect tears the platform VPN down; the core stops on the
+	// way. Synchronous: returns after the tunnel is down.
+	RequestDisconnect() error
 }
 
 // StatusListener receives log stream and diagnosis messages.

@@ -112,21 +112,7 @@ class XBondVpnService : VpnService() {
         try {
             goForeground("Establishing XBond VPN…")
 
-            val builder = Builder()
-                .setSession("XBond")
-                .setMtu(1500)
-                .addAddress("172.19.0.1", 30)
-                .addDnsServer("172.19.0.2")
-                .addRoute("0.0.0.0", 0)
-            // Split tunneling: an explicit allowlist wins; otherwise the
-            // disallowlist excludes packages. Both are optional.
-            if (lastAllowed.isNotEmpty()) {
-                for (pkg in lastAllowed) builder.addAllowedApplication(pkg)
-            } else {
-                for (pkg in lastDisallowed) builder.addDisallowedApplication(pkg)
-            }
-
-            val pfd = builder.establish() ?: run {
+            val pfd = buildVpnInterface() ?: run {
                 Log.e(TAG, "Failed to establish VPN interface (not prepared?)")
                 goForeground("XBond VPN needs permission")
                 return
@@ -152,6 +138,24 @@ class XBondVpnService : VpnService() {
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
+    }
+
+    /** Shared VPN builder: address, DNS, routes and the per-app split. */
+    private fun buildVpnInterface(): ParcelFileDescriptor? {
+        val builder = Builder()
+            .setSession("XBond")
+            .setMtu(1500)
+            .addAddress("172.19.0.1", 30)
+            .addDnsServer("172.19.0.2")
+            .addRoute("0.0.0.0", 0)
+        // Split tunneling: an explicit allowlist wins; otherwise the
+        // disallowlist excludes packages. Both are optional.
+        if (lastAllowed.isNotEmpty()) {
+            for (pkg in lastAllowed) builder.addAllowedApplication(pkg)
+        } else {
+            for (pkg in lastDisallowed) builder.addDisallowedApplication(pkg)
+        }
+        return builder.establish()
     }
 
     private fun stopAndShutdown() {
@@ -249,6 +253,41 @@ class XBondVpnService : VpnService() {
         override fun onTraffic(uploadBytes: Long, downloadBytes: Long) {
             // Surface usage through the notification in the app slice; the
             // service only needs the callback wired for gomobile.
+        }
+
+        // LocalAPI /up: establish the VPN here and hand the fd to the Go
+        // runtime apply. Runs on a JNI thread; consent (VpnService.prepare)
+        // is the caller's problem — when it is needed this throws and the
+        // LocalAPI answers 409, and the UI slice drives the interactive flow.
+        override fun requestConnect() {
+            // Mirrors the Go mobile package's StateConnected (not exported by
+            // gomobile): getState() 2 = connected, and /up is idempotent then.
+            if (tunnel?.getState() == 2) {
+                return
+            }
+            if (VpnService.prepare(this@XBondVpnService) != null) {
+                throw Exception("VPN consent required")
+            }
+            goForeground("Establishing XBond VPN…")
+
+            val pfd = buildVpnInterface() ?: run {
+                throw Exception("Failed to establish VPN interface (not prepared?)")
+            }
+            vpnInterface = pfd
+            // Ownership split (see startTunnel): the core gets a dup it may
+            // close; the original stays ours and its close destroys the
+            // interface on every teardown path.
+            val coreFd = ParcelFileDescriptor.dup(pfd.fileDescriptor).detachFd()
+            Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core dup=$coreFd)")
+
+            tunnel?.startActive(coreFd)
+            goForeground("XBond VPN active")
+            Log.i(TAG, "Core started over core dup fd=$coreFd")
+        }
+
+        // LocalAPI /down: full teardown; the core stops on the way.
+        override fun requestDisconnect() {
+            stopAndShutdown()
         }
     }
 

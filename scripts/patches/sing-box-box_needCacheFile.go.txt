@@ -1,0 +1,8 @@
+Documentation copy (kept out of ./... builds): patched file lives at
+third_party/sing-box/box.go. Only the needCacheFile condition differs from
+upstream v1.13.21: upstream forces the cachefile service on whenever a
+PlatformLogWriter is present, even when the config explicitly sets
+cache_file.enabled=false. sing-box's cachefile (bbolt) close fails on
+Android with "funlock error: bad file descriptor" and broke every core
+reload in the embedded app. With the patch, an explicit disable wins; the
+writer-only default (SFA semantics) is unchanged. Worth reporting upstream.

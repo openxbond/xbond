@@ -35,6 +35,10 @@ type TunnelService struct {
 	// activeTunFd is the descriptor the platform handed over at Start. It
 	// stays valid across Reloads — only Stop returns it to the platform.
 	activeTunFd int32
+	// runtime owns the active-subscription apply cycle (LocalAPI up/restart/
+	// mode); api serves the in-process LocalAPI on loopback.
+	runtime *mobileRuntime
+	api     *apiServer
 }
 
 func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelService {
@@ -52,12 +56,56 @@ func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelS
 	}
 	// A failed store init leaves subMgr nil; UpdateSubscription surfaces it
 	// and the tunnel itself (config-driven) still works.
-	return &TunnelService{
+	svc := &TunnelService{
 		platform: platform,
 		listener: listener,
 		state:    StateIdle,
 		subMgr:   subMgr,
 	}
+	svc.runtime = newMobileRuntime(svc, engine.RoutingRule)
+	// The in-process LocalAPI makes the app drivable by the shared web UI
+	// and by LocalAPI tooling; loopback only, token in localapi.token.
+	api, apiErr := newAPIServer(svc)
+	if apiErr == nil {
+		svc.api = api
+	} else if listener != nil {
+		listener.OnLog("error", "local API server failed to start: "+apiErr.Error())
+	}
+	return svc
+}
+
+// engineManager returns the live engine manager, creating it lazily so the
+// runtime controller and the API server hold a stable reference. Callers
+// under s.mu must not re-enter.
+func (s *TunnelService) engineManager() *engine.Manager {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.manager == nil {
+		s.manager = engine.NewManager(1000)
+	}
+	return s.manager
+}
+
+func (s *TunnelService) managerStatus() engine.EngineStatus {
+	return s.engineManager().Status()
+}
+
+// LocalAPIPort reports the loopback port the in-process LocalAPI listens on
+// (0 when it failed to start).
+func (s *TunnelService) LocalAPIPort() int32 {
+	if s.api == nil {
+		return 0
+	}
+	return int32(s.api.port)
+}
+
+// LocalAPIToken reports the bearer token for the in-process LocalAPI. The
+// same value is written to localapi.token in the data dir.
+func (s *TunnelService) LocalAPIToken() string {
+	if s.api == nil {
+		return ""
+	}
+	return s.api.token
 }
 
 func (s *TunnelService) GetState() int32 {
@@ -146,7 +194,7 @@ func (s *TunnelService) Start(configJSON string, tunFd int32) error {
 		return fmt.Errorf("failed to derive mobile runtime config: %w", err)
 	}
 
-	mgr := engine.NewManager(1000)
+	mgr := s.engineManager()
 	if err := guardCorePanic(func() error { return mgr.Start(derivedConfig) }); err != nil {
 		s.setState(StateError, err.Error())
 		return fmt.Errorf("failed to start engine: %w", err)
@@ -185,6 +233,44 @@ func guardCorePanic(work func() error) (err error) {
 		}
 	}()
 	return work()
+}
+
+// StartActive connects the tunnel over the active subscription. Called by
+// the platform bridge after it establishes the VPN: the fd is new, the config
+// comes from the runtime controller's active subscription.
+func (s *TunnelService) StartActive(tunFd int32) error {
+	s.mu.Lock()
+	if s.state == StateConnected || s.state == StateConnecting {
+		s.mu.Unlock()
+		return errors.New("VPN service is already running")
+	}
+	s.mu.Unlock()
+	if tunFd <= 0 {
+		return fmt.Errorf("invalid TUN file descriptor: %d", tunFd)
+	}
+
+	s.setState(StateConnecting, "Starting VPN tunnel...")
+
+	// Seed the shared manager reference before the runtime apply touches it.
+	_ = s.engineManager()
+	if err := s.runtime.apply(tunFd); err != nil {
+		engine.SetMobileTunFD(0)
+		s.setState(StateError, err.Error())
+		return err
+	}
+
+	clashPort, clashSecret := s.runtime.endpoint()
+	s.mu.Lock()
+	s.clashClient = engine.NewClashClient(clashPort, clashSecret)
+	s.clashPort = clashPort
+	s.clashSecret = clashSecret
+	s.activeTunFd = tunFd
+	s.stopTicker = make(chan struct{})
+	s.mu.Unlock()
+
+	s.setState(StateConnected, "VPN tunnel established")
+	go s.trafficLoop()
+	return nil
 }
 
 func (s *TunnelService) Stop() error {

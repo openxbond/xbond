@@ -15,6 +15,10 @@
 3. **粘性恢復**：`START_STICKY`；進程被殺後系統以空 intent 重啟時，用保存的配置重建隧道。`onRevoke`（用戶撤權或他方 VPN 接管）清空保存配置並完整拆除，粘性重啟不得無權復活。
 4. **停止**：先 `TunnelService.Stop()`（核心先停，避免讀已關閉的 fd），再關閉接口、移除通知、退出前台。
 
+### 進程內 LocalAPI 與移動運行時
+
+應用進程內嵌一份守護進程同契約的 LocalAPI（`mobile/server.go`，僅回環、token 鑑權，token 同步落 `localapi.token`、端口落 `localapi.addr`）：共享 Web UI 與 LocalAPI 工具以同一組 `/localapi/v0/*` 端點驅動移動宿主。移動運行時（`mobile/runtime.go`）是守護進程運行時的 VPN 形態孿生——活動訂閱為唯一配置源、平台 TUN fd 為唯一接管、路由模式為唯一偏好；`up` 經 PlatformBridge 新增的 `requestConnect` 同步建立 VPN（需要同意時拋錯、LocalAPI 答 409，交互流程屬 UI 切片），`down` 經 `requestDisconnect` 完整拆除。賬戶端點以 501 明確不可用（雲登錄屬後續切片）。sing-box 移動派生顯式禁用 cache_file（依賴 box.go 補丁④）。
+
 ### 分流與重載
 
 - 按應用分流是**平台側職責**：`EXTRA_ALLOWED` 非空時僅允許清單內應用（addAllowedApplication），否則 `EXTRA_DISALLOWED` 排除清單（addDisallowedApplication）。
@@ -22,7 +26,7 @@
 
 ### 構建與依賴（vendored 補丁）
 
-`third_party/sing-box/` 是 **sing-box v1.13.21 原始模塊的完整副本**（MIT 許可與版權聲明保留於其 LICENSE；testdata 等構建無關內容已剪除），三處文件被補丁（文檔副本見 `scripts/patches/`）：① `transport/v2rayhttp/force_close.go`——上游 `go:linkname` 直指 x/net/http2 的 `connPool` **字段符號**，而依賴圖（mihomo 等）強制 x/net ≥ v0.61 後該符號在 c-shared/PIC 的 android arm／x86_64 鏈接中不再發出，gomobile bind 以 relocation 錯誤失敗（arm64 侥幸保留符號）；補丁以 `reflect` 讀同一字段，行為等價，字段缺失時返回原 transport 而非 panic。② `protocol/tun/hook.go`（含 `inbound.go` 調用點一行）——`HookBeforeCreatePlatformInterface` 增帶 `*tun.Options` 參數：v1.13 已從 JSON 移除 `file_descriptor`（嚴格解析直接拒絕），fd 的唯一運行時入口是 sing-tun 的 `tun.Options.FileDescriptor`，而替代通道 libbox 平台接口的存在本身會翻轉 `ForwarderBindInterface` 並跳過 `BuildAndroidRules`，副作用嵌入式 fd 模式不能接受；xbond 側 `engine.SetMobileTunFD` 經此 hook 在設備打開前注入 fd。③ `protocol/direct/outbound.go` 的 `fetchMyAddresses`——上游不判空 `InterfaceMonitor()`，而 Android 普通應用（untrusted_app）被 SELinux 禁止 netlink socket，監視器合法地為 nil，direct 出站一啟動即 SIGSEGV（`addr=0x30`，PostStart 階段）；補丁加 nil 守衛提前返回。值得上游報告；截至 v1.13.21 無修復。`go.mod` 以 `replace github.com/sagernet/sing-box => ./third_party/sing-box` 指向該副本，gomobile 會把本地目錄 replace 傳播進 work module（x/mobile bind.go 的既有行為），因此桌面、daemon 與移動端全部構建一致使用補丁副本；升級 sing-box 版本時需重新 vendor 並重放該補丁。除此之外全部依賴取最新穩定版（x/mobile@latest、x/net v0.61 等）。
+`third_party/sing-box/` 是 **sing-box v1.13.21 原始模塊的完整副本**（MIT 許可與版權聲明保留於其 LICENSE；testdata 等構建無關內容已剪除），三處文件被補丁（文檔副本見 `scripts/patches/`）：① `transport/v2rayhttp/force_close.go`——上游 `go:linkname` 直指 x/net/http2 的 `connPool` **字段符號**，而依賴圖（mihomo 等）強制 x/net ≥ v0.61 後該符號在 c-shared/PIC 的 android arm／x86_64 鏈接中不再發出，gomobile bind 以 relocation 錯誤失敗（arm64 侥幸保留符號）；補丁以 `reflect` 讀同一字段，行為等價，字段缺失時返回原 transport 而非 panic。② `protocol/tun/hook.go`（含 `inbound.go` 調用點一行）——`HookBeforeCreatePlatformInterface` 增帶 `*tun.Options` 參數：v1.13 已從 JSON 移除 `file_descriptor`（嚴格解析直接拒絕），fd 的唯一運行時入口是 sing-tun 的 `tun.Options.FileDescriptor`，而替代通道 libbox 平台接口的存在本身會翻轉 `ForwarderBindInterface` 並跳過 `BuildAndroidRules`，副作用嵌入式 fd 模式不能接受；xbond 側 `engine.SetMobileTunFD` 經此 hook 在設備打開前注入 fd。③ `protocol/direct/outbound.go` 的 `fetchMyAddresses`——上游不判空 `InterfaceMonitor()`，而 Android 普通應用（untrusted_app）被 SELinux 禁止 netlink socket，監視器合法地為 nil，direct 出站一啟動即 SIGSEGV（`addr=0x30`，PostStart 階段）；補丁加 nil 守衛提前返回。④ `box.go` 的 `needCacheFile`——上游在存在 PlatformLogWriter 時無視配置強制開啟 cachefile，而其 bbolt close 在 Android 上以 `funlock EBADF` 失敗、殺死每一次核心重載；補丁讓顯式 `cache_file.enabled=false` 勝過 writer（僅 writer、無顯式配置時維持上游默認）。①③④均值得上游報告；截至 v1.13.21 無修復。`go.mod` 以 `replace github.com/sagernet/sing-box => ./third_party/sing-box` 指向該副本，gomobile 會把本地目錄 replace 傳播進 work module（x/mobile bind.go 的既有行為），因此桌面、daemon 與移動端全部構建一致使用補丁副本；升級 sing-box 版本時需重新 vendor 並重放該補丁。除此之外全部依賴取最新穩定版（x/mobile@latest、x/net v0.61 等）。
 
 ## 驗收條件
 
@@ -35,6 +39,7 @@
 | MOB-05 | **模擬器端到端**（API 36 x86_64）：安裝→appops 授權→`am start` 注入配置→fd 交接→tun0 UP→**系統連通性探測經隧道 204 成功（網絡 IS_VALIDATED）**→Chrome 經隧道開頁無錯→UI 斷開→tun0 銷毀、狀態歸零 | adb + logcat + dumpsys connectivity（2026-11-01 實測） |
 | MOB-06 | 移動派生含 `dns-hijack any:53`（無此項系統 DNS 落入隧道無人應答，全部解析失敗——實測發現並修復）；移動模式 manager 就緒探針跳過 mixed 監聽（mixed-port 0 覆蓋構造默認值） | `internal/engine/derive.go`、`manager.go`；`engine_test.go` TestManagerMobileStartSkipsListenerProbe |
 | MOB-07 | **sing-box 移動端到端**（同一模擬器）：fd 經 vendored hook 注入（JSON 不再攜帶 `file_descriptor`）→ `address` 鏡像 VPN builder → cache-file 落數據目錄 → DNS 塊與 sniff/hijack-dns 規則注入 → direct 出站啟動（nil 監視器補丁）→ tun0 UP → **系統連通性校驗經隧道通過（WIFI\|VPN validation passed）**→ 停止銷毀 tun0、無 fdsan 雙關閉 | adb + logcat + dumpsys（2026-11-01 實測）；`engine_test.go` TestDeriveSingBoxTunDNSInjection、TestMobileTunFDHook |
+| MOB-09 | 進程內 LocalAPI 全鏈路（模擬器 adb forward 實測）：`/login`（content 導入→Use）→ `/restart`（運行時 apply 重載）→ `/nodes`/`/mode`（routing 切換重載）→ `/logs`（ring 經 writer 收 sing-box 日誌）→ `/rules`/`/connections`（controller 直讀）→ `/down`（tun0 銷毀、零 fdsan abort）；期間 **WIFI\|VPN 系統校驗經隧道通過** | adb forward + curl（2026-11-01 實測） |
 | MOB-08 | fd 所有權二分：Kotlin 以 dup 移交核心（sing-tun 關閉其所採納的 dup），原件保留在平台側、關閉即銷毀接口——任何一側都不再雙關閉同一 fd；核心 panic 在 Go/Java 邊界轉為錯誤並落棧到 `go-panic.log`（fd 2 重定向），不再殺死進程 | `XBondVpnService.kt`（dup+detach）、`mobile/service.go` guardCorePanic、`paniclog_linux.go` |
 
 ## 已知限制
