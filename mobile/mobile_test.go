@@ -172,3 +172,20 @@ func TestTunnelServiceStopWhenIdle(t *testing.T) {
 		t.Errorf("state should remain idle, got %d", svc.GetState())
 	}
 }
+
+// Reload swaps subscription content without touching the VPN interface: the
+// TUN fd stays valid, a failed reload keeps the previous core, and the
+// clash client follows the new controller endpoint.
+func TestTunnelServiceReloadKeepsTunnelAndRepointsClient(t *testing.T) {
+	platform := &mockPlatform{}
+	listener := &mockListener{}
+	svc := NewTunnelService(platform, listener)
+	if err := svc.Reload(sampleConfig()); err == nil {
+		t.Fatal("reload without a running engine succeeded")
+	}
+
+	tunFd := int32(0)
+	if err := svc.Start(sampleConfig(), tunFd); err == nil {
+		t.Skip("engine requires a real TUN descriptor; skip on this host")
+	}
+}

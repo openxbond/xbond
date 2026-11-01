@@ -31,3 +31,5 @@ release-assets/
 /localapi.token
 /localapi.addr
 
+apps/mobile/android/xbond-mobile.aar
+apps/mobile/android/xbond-mobile-sources.jar

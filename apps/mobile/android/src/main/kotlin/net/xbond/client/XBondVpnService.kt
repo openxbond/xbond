@@ -1,82 +1,234 @@
 package net.xbond.client
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.net.VpnService
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import mobile.TunnelService
 
 /**
- * XBond Android VpnService implementation.
+ * XBond Android VpnService: owns the TUN interface and hands its file
+ * descriptor to the gomobile `mobile.TunnelService`, which runs the dual-
+ * core engine (mihomo primary, sing-box secondary, picked by subscription
+ * format) in userspace over that descriptor.
  *
- * Integrates with gomobile-generated `mobile.TunnelService` by providing
- * the TUN interface file descriptor and Android `protect(socket)` anti-loopback calls.
+ * Layering contract (docs/specs/mobile-android.md):
+ *  - The platform side owns prepare/permission, the builder (address, routes,
+ *    per-app split), the foreground notification, and protect() — supplied to
+ *    Go through [mobile.PlatformBridge].
+ *  - The Go side owns the core lifecycle, derivation, and the controller
+ *    endpoint. [TunnelService.Start] receives the descriptor and never
+ *    returns it; only [stopAndShutdown] closes the interface.
+ *  - The fd stays valid across subscription reloads ([TunnelService.Reload]
+ *    restarts only the core), so content updates never bounce the VPN.
+ *
+ * This file needs the gomobile AAR (`pnpm mobile:bind:android` →
+ * xbond-mobile.aar) on the app's compile classpath; it cannot compile
+ * standalone. Real-device acceptance (prepare prompt, sleep/network
+ * switches, Always-On) is a separate mobile slice.
  */
 class XBondVpnService : VpnService() {
 
     private var vpnInterface: ParcelFileDescriptor? = null
-    private var tunnelService: Any? = null // mobile.TunnelService once bound
+    private var tunnel: TunnelService? = null
+    private var lastConfig: String = ""
+    private var lastDisallowed: Array<String> = emptyArray()
+    private var lastAllowed: Array<String> = emptyArray()
 
     companion object {
         const val TAG = "XBondVpnService"
         const val ACTION_START = "net.xbond.client.START"
         const val ACTION_STOP = "net.xbond.client.STOP"
         const val EXTRA_CONFIG = "config"
+        /** Package names excluded from the VPN (split tunneling). */
+        const val EXTRA_DISALLOWED = "disallowedPackages"
+        /** When non-empty, ONLY these packages ride the VPN. */
+        const val EXTRA_ALLOWED = "allowedPackages"
+        const val NOTIFICATION_ID = 1
+        const val CHANNEL_ID = "xbond_vpn"
+
+        /**
+         * Permission contract for the future UI activity: returns the
+         * intent to launch when the user must confirm VPN permission
+         * (non-null means "ask first"), null once prepared.
+         */
+        fun prepare(context: android.content.Context): Intent? =
+            VpnService.prepare(context)
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        tunnel = TunnelService(PlatformBridgeImpl(), LogListener())
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val config = intent.getStringExtra(EXTRA_CONFIG) ?: ""
-                startTunnel(config)
+                lastConfig = intent.getStringExtra(EXTRA_CONFIG) ?: lastConfig
+                lastDisallowed =
+                    intent.getStringArrayExtra(EXTRA_DISALLOWED) ?: lastDisallowed
+                lastAllowed =
+                    intent.getStringArrayExtra(EXTRA_ALLOWED) ?: lastAllowed
+                startTunnel()
             }
-            ACTION_STOP -> {
-                stopTunnel()
-            }
+            ACTION_STOP -> stopAndShutdown()
+            // START_STICKY restart after the process was killed delivers a
+            // null intent: re-establish from the saved intent state so the
+            // tunnel survives process death.
+            null -> if (lastConfig.isNotEmpty()) startTunnel()
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
-    private fun startTunnel(config: String) {
+    private fun startTunnel() {
+        if (lastConfig.isEmpty()) {
+            Log.e(TAG, "START without configuration; ignoring")
+            stopSelf()
+            return
+        }
         try {
+            goForeground("Establishing XBond VPN…")
+
             val builder = Builder()
                 .setSession("XBond")
                 .setMtu(1500)
                 .addAddress("172.19.0.1", 30)
                 .addDnsServer("172.19.0.2")
                 .addRoute("0.0.0.0", 0)
+            // Split tunneling: an explicit allowlist wins; otherwise the
+            // disallowlist excludes packages. Both are optional.
+            if (lastAllowed.isNotEmpty()) {
+                for (pkg in lastAllowed) builder.addAllowedApplication(pkg)
+            } else {
+                for (pkg in lastDisallowed) builder.addDisallowedApplication(pkg)
+            }
 
             val pfd = builder.establish() ?: run {
-                Log.e(TAG, "Failed to establish VPN interface")
+                Log.e(TAG, "Failed to establish VPN interface (not prepared?)")
+                goForeground("XBond VPN needs permission")
                 return
             }
 
             vpnInterface = pfd
             val fd = pfd.fd
             Log.i(TAG, "Established VPN interface with fd=$fd")
+
+            tunnel?.Start(lastConfig, fd)
+            goForeground("XBond VPN active")
+            Log.i(TAG, "Core started over fd=$fd")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting VPN tunnel: ${e.message}", e)
+            tunnel?.Stop()
+            vpnInterface?.close()
+            vpnInterface = null
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
     }
 
-    private fun stopTunnel() {
+    private fun stopAndShutdown() {
+        try {
+            // Order matters: stop the core first (it reads from the fd),
+            // then close the descriptor and the service.
+            tunnel?.Stop()
+        } catch (e: Exception) {
+            Log.e(TAG, "Core stop failed: ${e.message}", e)
+        }
         try {
             vpnInterface?.close()
             vpnInterface = null
-            stopSelf()
-            Log.i(TAG, "VPN tunnel stopped")
         } catch (e: Exception) {
-            Log.e(TAG, "Error stopping VPN tunnel: ${e.message}", e)
+            Log.e(TAG, "Interface close failed: ${e.message}", e)
+        }
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+        Log.i(TAG, "VPN tunnel stopped")
+    }
+
+    private fun goForeground(message: String) {
+        val manager = getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "XBond VPN",
+                NotificationManager.IMPORTANCE_LOW,
+            )
+            manager.createNotificationChannel(channel)
+        }
+        val notification: Notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("XBond")
+                .setContentText(message)
+                .setSmallIcon(android.R.drawable.ic_lock_lock)
+                .setOngoing(true)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+                .setContentTitle("XBond")
+                .setContentText(message)
+                .setSmallIcon(android.R.drawable.ic_lock_lock)
+                .setOngoing(true)
+                .build()
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED,
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
         }
     }
 
     override fun onRevoke() {
-        Log.i(TAG, "VPN permission revoked by user or system")
-        stopTunnel()
+        // Permission revoked by the user or another VPN took over: full
+        // teardown, and the sticky restart must not resurrect without
+        // permission.
+        lastConfig = ""
+        stopAndShutdown()
         super.onRevoke()
     }
 
     override fun onDestroy() {
-        stopTunnel()
+        try {
+            tunnel?.Stop()
+        } finally {
+            vpnInterface?.close()
+            vpnInterface = null
+        }
         super.onDestroy()
+    }
+
+    /** Bridges Go core callbacks onto this service's protect()/notifications. */
+    private inner class PlatformBridgeImpl : mobile.PlatformBridge {
+        // gomobile maps Go (int32, error) to a Java (int, throws Exception)
+        // method: protect failures surface as exceptions to the core.
+        override fun ProtectSocket(fd: Int) {
+            if (!protect(fd)) {
+                throw Exception("protect(socket) was rejected")
+            }
+        }
+
+        override fun OnStateChanged(state: Int, message: String?) {
+            Log.i(TAG, "core state $state: ${message ?: ""}")
+        }
+
+        override fun OnTraffic(uploadBytes: Long, downloadBytes: Long) {
+            // Surface usage through the notification in the app slice; the
+            // service only needs the callback wired for gomobile.
+        }
+    }
+
+    private inner class LogListener : mobile.StatusListener {
+        override fun OnLog(level: String?, message: String?) {
+            Log.d(TAG, "[${level ?: "log"}] ${message ?: ""}")
+        }
     }
 }

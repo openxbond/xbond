@@ -55,6 +55,7 @@
 
   // .gitignore is read automatically (node_modules, dist, .impeccable).
   "ignorePatterns": [
+    "third_party/**",
     "packages/client-ui/src/**/*.jsx",
     "packages/*/tests/**/*.jsx"
   ]

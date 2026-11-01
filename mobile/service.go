@@ -30,6 +30,9 @@ type TunnelService struct {
 	stopTicker   chan struct{}
 	lastUpload   int64
 	lastDownload int64
+	// activeTunFd is the descriptor the platform handed over at Start. It
+	// stays valid across Reloads — only Stop returns it to the platform.
+	activeTunFd int32
 }
 
 func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelService {
@@ -133,6 +136,7 @@ func (s *TunnelService) Start(configJSON string, tunFd int32) error {
 	s.clashClient = clashClient
 	s.clashPort = clashPort
 	s.clashSecret = clashSecret
+	s.activeTunFd = tunFd
 	s.stopTicker = make(chan struct{})
 	s.mu.Unlock()
 
@@ -172,6 +176,53 @@ func (s *TunnelService) Stop() error {
 
 	s.setState(StateIdle, "VPN tunnel stopped")
 	return err
+}
+
+// Reload swaps the running core over to new subscription content without
+// tearing down the Android VPN interface: the TUN file descriptor stays
+// open and owned by the platform, so only the core restarts. Selections are
+// preserved and a failed reload rolls the previous core back (manager
+// guarantee), leaving the tunnel on the last known-good configuration.
+func (s *TunnelService) Reload(configJSON string) error {
+	s.mu.RLock()
+	mgr := s.manager
+	s.mu.RUnlock()
+
+	if mgr == nil {
+		return errors.New("VPN engine is not running")
+	}
+	if len(configJSON) == 0 {
+		return errors.New("empty configuration")
+	}
+
+	clashPort, clashSecret := s.currentClashEndpoint()
+	derivedConfig, err := engine.DeriveMobileRuntimeConfig(
+		[]byte(configJSON),
+		s.activeTunFd,
+		engine.RoutingRule,
+		clashPort,
+		clashSecret,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to derive mobile runtime config: %w", err)
+	}
+	if err := mgr.Reload(derivedConfig, nil); err != nil {
+		return err
+	}
+	// The old controller endpoint died with the old core: repoint the
+	// client so traffic polling and node selection follow the new one.
+	s.mu.Lock()
+	s.clashPort = clashPort
+	s.clashSecret = clashSecret
+	s.clashClient = engine.NewClashClient(clashPort, clashSecret)
+	s.mu.Unlock()
+	return nil
+}
+
+// currentClashEndpoint re-picks a fresh loopback endpoint for a reload: the
+// old listener is being torn down with the old core.
+func (s *TunnelService) currentClashEndpoint() (int, string) {
+	return getFreeLoopbackPort(), randomSecret()
 }
 
 func (s *TunnelService) trafficLoop() {
