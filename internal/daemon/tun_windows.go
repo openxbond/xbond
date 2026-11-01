@@ -10,6 +10,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/openxbond/xbond/internal/platform/wintun"
 )
 
 var (
@@ -36,10 +38,12 @@ func tunCapability() TUNCapability {
 			Reason:     "TUN takeover requires administrator privileges; restart the daemon as Administrator",
 		}
 	}
-	if !wintunDLLPresent() {
+	// The packaged DLL ships inside the binary: extract beside the
+	// executable before reporting it missing.
+	if !wintun.EnsureLocal() {
 		return TUNCapability{
 			ReasonCode: "wintun_missing",
-			Reason:     "wintun.dll was not found next to the executable or in System32; place it beside the daemon for TUN takeover",
+			Reason:     "wintun.dll could not be extracted next to the executable and was not found in System32",
 		}
 	}
 	return TUNCapability{Tun: true}
