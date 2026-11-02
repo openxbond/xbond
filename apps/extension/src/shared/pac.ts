@@ -24,8 +24,6 @@ import {
   type Selection,
 } from "./workspace.ts";
 
-export type RoutingMode = "rule" | "global" | "direct";
-
 type Entry =
   | { kind: "domain"; domain: string; priority: number; action: string }
   | { kind: "domain-suffix"; suffix: string; priority: number; action: string }
@@ -247,6 +245,7 @@ function FindProxyForURL(url, host) {
   function consider(hit) { if (hit !== undefined && (best === null || hit[0] < best[0])) best = hit; }
 
   consider(EXACT[h]);
+  consider(SUFFIX[h]);
   // suffix walk: a.b.example.com -> a.b.example.com / b.example.com / example.com / com
   var dot = h.indexOf(".");
   while (dot !== -1) {
@@ -274,8 +273,13 @@ export function generateGlobalPacSource(
   config: ExtensionConfig,
   selection: Selection,
   bypassHosts: string[] = [],
+  target?: string,
 ): string {
-  const primary = leafToProxyString(resolvePrimary(config, selection));
+  const primary = leafToProxyString(
+    target
+      ? resolveLeaf(config, selection, target)
+      : resolvePrimary(config, selection),
+  );
   const bypassObject: Record<string, true> = {};
   for (const host of bypassHosts) bypassObject[host.toLowerCase()] = true;
   return `// XBond PAC (global)

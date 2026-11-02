@@ -9,6 +9,8 @@ import {
   parseUserInfo,
 } from "./extension-config.ts";
 
+const API_TIMEOUT_MS = 15_000;
+
 /** OAuth 客户端注册（Cloud db/defaults/oauth-clients.ts 的 DEVICE_CODE_GRANT）。 */
 export const CLIENT_ID = "xbond-app";
 export const SUBSCRIPTION_RESOURCE = "urn:xbond:api:subscription";
@@ -65,6 +67,7 @@ export class ApiClient {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams(body).toString(),
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });
   }
 
@@ -174,6 +177,7 @@ export class ApiClient {
       res = await this.fetchFn(url, {
         headers: { authorization: `Bearer ${accessToken}` },
         cache: "no-store",
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
       });
     } catch (error) {
       throw new ApiError(`network: ${String(error)}`, true);

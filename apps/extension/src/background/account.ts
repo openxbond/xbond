@@ -5,12 +5,15 @@
 import { ApiClient, ApiError } from "../shared/api.ts";
 import type { ExtensionConfig } from "../shared/extension-config.ts";
 import {
+  clearLoginEnded,
   clearPendingLogin,
   clearTokens,
   loadPendingLogin,
   loadTokens,
   logEvent,
   saveConfig,
+  saveConfigError,
+  saveLoginEnded,
   savePendingLogin,
   saveQuota,
   saveTokens,
@@ -56,17 +59,26 @@ export function createAccount(origin: string) {
     if (!pending) return "failed";
     if (Date.now() > pending.expiresAt) {
       await clearPendingLogin();
+      await saveLoginEnded("expired");
       logEvent("warn", "device login expired");
       return "expired";
     }
-    const result = await api.pollDeviceFlow(pending.deviceCode);
+    let result: Awaited<ReturnType<typeof api.pollDeviceFlow>>;
+    try {
+      result = await api.pollDeviceFlow(pending.deviceCode);
+    } catch {
+      logEvent("warn", "device login polling interrupted; retrying");
+      return "pending";
+    }
     if (result instanceof ApiError) {
       if (result.retryable) return "pending";
       await clearPendingLogin();
+      await saveLoginEnded("failed");
       logEvent("error", `device login failed: ${result.code}`);
       return "failed";
     }
     await clearPendingLogin();
+    await clearLoginEnded();
     await saveTokens(result);
     logEvent("info", "device login approved");
     await refreshConfig(result);
@@ -79,10 +91,18 @@ export function createAccount(origin: string) {
   ): Promise<ExtensionConfig | null> {
     let tokens = freshTokens ?? (await loadTokens());
     if (!tokens) return null;
-    try {
-      const { config, quota } = await api.fetchConfig(tokens.accessToken);
+    const apply = async (active: StoredTokens): Promise<ExtensionConfig> => {
+      const { config, quota } = await api.fetchConfig(active.accessToken);
       await saveConfig(config);
-      if (quota) await saveQuota(quota);
+      await saveQuota(quota);
+      return config;
+    };
+    try {
+      if (!tokens.accessToken || tokens.accessTokenExpiresAt <= Date.now()) {
+        tokens = await api.refreshTokens(tokens.refreshToken);
+        await saveTokens(tokens);
+      }
+      const config = await apply(tokens);
       logEvent(
         "info",
         `extension config applied (${config.nodes.length} nodes)`,
@@ -93,15 +113,19 @@ export function createAccount(origin: string) {
         !(error instanceof ApiError) ||
         error.code !== "config_unauthorized"
       ) {
+        await saveConfigError(String(error));
+        if (
+          error instanceof ApiError &&
+          ["invalid_grant", "invalid_token"].includes(error.code)
+        )
+          await clearTokens();
         logEvent("error", `config fetch failed: ${String(error)}`);
         return null;
       }
       try {
         tokens = await api.refreshTokens(tokens.refreshToken);
         await saveTokens(tokens);
-        const { config, quota } = await api.fetchConfig(tokens.accessToken);
-        await saveConfig(config);
-        if (quota) await saveQuota(quota);
+        const config = await apply(tokens);
         logEvent(
           "info",
           `extension config applied after refresh (${config.nodes.length} nodes)`,
@@ -112,7 +136,14 @@ export function createAccount(origin: string) {
           "error",
           `token refresh failed; signing out: ${String(refreshError)}`,
         );
-        await clearTokens();
+        await saveConfigError(String(refreshError));
+        if (
+          refreshError instanceof ApiError &&
+          ["invalid_grant", "invalid_token", "http_401"].includes(
+            refreshError.code,
+          )
+        )
+          await clearTokens();
         return null;
       }
     }
@@ -120,6 +151,7 @@ export function createAccount(origin: string) {
 
   async function cancelLogin(): Promise<void> {
     await clearPendingLogin();
+    await clearLoginEnded();
     logEvent("info", "device login cancelled");
   }
 
@@ -127,6 +159,7 @@ export function createAccount(origin: string) {
   async function logout(): Promise<void> {
     await clearTokens();
     await clearPendingLogin();
+    await clearLoginEnded();
     logEvent("info", "signed out");
   }
 

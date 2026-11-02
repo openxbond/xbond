@@ -3,5 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "description": "XBond browser extension (MV3): account-bound HTTPS proxy control without a native client.",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.0.0",
+    "@xbond/client": "workspace:*",
+    "@xbond/client-ui": "workspace:*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
 }

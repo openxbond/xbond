@@ -29,14 +29,21 @@ export function resetAuthGate(gate: AuthGate): void {
 export function nodeForChallenger(
   config: ExtensionConfig,
   challengerHost: string,
+  challengerPort?: number,
 ): { proxyToken: string; password: string } | null {
   const host = challengerHost.toLowerCase();
   const prefixed = config.nodes.find(
     (node) =>
-      host === `${node.password.slice(0, 12)}.${node.server}`.toLowerCase(),
+      host === `${node.password.slice(0, 12)}.${node.server}`.toLowerCase() &&
+      (challengerPort === undefined || node.port === challengerPort),
   );
   const bare =
-    prefixed ?? config.nodes.find((node) => host === node.server.toLowerCase());
+    prefixed ??
+    config.nodes.find(
+      (node) =>
+        host === node.server.toLowerCase() &&
+        (challengerPort === undefined || node.port === challengerPort),
+    );
   if (!bare) return null;
   return { proxyToken: config.proxyToken, password: bare.password };
 }
@@ -52,7 +59,11 @@ export function createAuthHandler(
     if (!details.isProxy) return undefined;
     const config = await configProvider();
     if (!config) return undefined;
-    const credentials = nodeForChallenger(config, details.challenger.host);
+    const credentials = nodeForChallenger(
+      config,
+      details.challenger.host,
+      details.challenger.port,
+    );
     if (!credentials) return undefined;
     if (gate.exhausted) return undefined;
 
@@ -85,6 +96,12 @@ export function createAuthHandler(
     details: chrome.webRequest.AuthRequiredDetails,
     callback: (response?: chrome.webRequest.AuthChallengeResponse) => void,
   ): void => {
-    void answer(details).then((response) => callback(response));
+    void answer(details).then(
+      (response) => callback(response),
+      () => {
+        notify("warn", "proxy credential lookup failed");
+        callback();
+      },
+    );
   };
 }

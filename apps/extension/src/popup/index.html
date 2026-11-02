@@ -2,80 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>XBond</title>
-    <style>
-      body {
-        font:
-          13px/1.5 system-ui,
-          sans-serif;
-        margin: 0;
-        width: 400px;
-        padding: 12px;
-      }
-      header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 8px;
-      }
-      h1 {
-        font-size: 14px;
-        margin: 0;
-      }
-      #state {
-        margin: 8px 0;
-        padding: 8px;
-        border-radius: 6px;
-        background: #f2f2f2;
-      }
-      .ok {
-        background: #e6f6e9;
-      }
-      .bad {
-        background: #fdecec;
-      }
-      label.row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 6px 0;
-      }
-      select {
-        flex: 1;
-        padding: 4px;
-      }
-      button {
-        width: 100%;
-        padding: 6px;
-        margin-top: 6px;
-      }
-      a {
-        display: block;
-        margin-top: 8px;
-        font-size: 12px;
-      }
-    </style>
   </head>
-  <body>
-    <header>
-      <h1>XBond</h1>
-      <label><input type="checkbox" id="enabled" /> proxy</label>
-    </header>
-    <div id="state">loading…</div>
-    <label class="row"
-      ><span>mode</span>
-      <select id="mode">
-        <option value="rule">rule</option>
-        <option value="global">global</option>
-        <option value="direct">direct</option>
-      </select>
-    </label>
-    <label class="row" id="primary-label" hidden
-      ><span>node</span
-      ><select id="node" hidden></select
-    ></label>
-    <button id="action" type="button" hidden></button>
-    <a id="manage" href="#">manage</a>
-    <script type="module" src="./main.ts"></script>
+  <body data-surface="popup">
+    <div id="root"></div>
+    <script type="module" src="../ui/main.tsx"></script>
   </body>
 </html>

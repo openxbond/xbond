@@ -40,6 +40,9 @@ declare namespace chrome.proxy {
   };
 
   namespace settings {
+    namespace onChange {
+      function addListener(callback: (value: SettingRead) => void): void;
+    }
     function get(
       details: SettingDetails,
       callback: (result: SettingRead) => void,
@@ -53,6 +56,26 @@ declare namespace chrome.proxy {
 }
 
 declare namespace chrome.webRequest {
+  interface RequestDetails {
+    requestId: string | number;
+    url: string;
+    type?: string;
+    timeStamp?: number;
+    initiator?: string;
+    error?: string;
+  }
+  namespace onBeforeRequest {
+    function addListener(
+      callback: (details: RequestDetails) => void,
+      filter: { urls: string[] },
+    ): void;
+  }
+  namespace onCompleted {
+    function addListener(
+      callback: (details: RequestDetails) => void,
+      filter: { urls: string[] },
+    ): void;
+  }
   type AuthChallengeResponse = {
     authCredentials?: { username: string; password: string };
     cancel?: boolean;
@@ -83,6 +106,9 @@ declare namespace chrome.webRequest {
       requestId: number;
       url: string;
       error: string;
+      timeStamp?: number;
+      type?: string;
+      initiator?: string;
       fromProxy?: boolean;
     };
     type Event = {
@@ -159,6 +185,9 @@ declare namespace chrome.runtime {
       ): void;
     };
     const addListener: Event["addListener"];
+    function removeListener(
+      callback: Parameters<Event["addListener"]>[0],
+    ): void;
   }
   const lastError: { message?: string } | undefined;
 }

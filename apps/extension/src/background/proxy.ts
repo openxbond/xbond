@@ -10,6 +10,7 @@ import {
   generatePacSource,
   toPacPayload,
 } from "../shared/pac.ts";
+import { withOverrides, type WebsiteOverride } from "../shared/routing.ts";
 import type { Selection } from "../shared/workspace.ts";
 import type { RoutingMode } from "./store.ts";
 
@@ -18,25 +19,40 @@ import type { RoutingMode } from "./store.ts";
 function hostOf(origin: string | null): string[] {
   if (!origin) return [];
   try {
-    return [new URL(origin).host];
+    return [new URL(origin).hostname];
   } catch {
     return [];
   }
 }
 
 /** 生成期望的 ProxyConfig；direct/off 返回 null（表示 clear）。 */
-export function expectedProxyValue(
-  config: ExtensionConfig,
-  selection: Selection,
-  mode: RoutingMode,
-  controlOrigin: string | null,
-): chrome.proxy.ProxyConfig | null {
+export type ProxyInputs = {
+  config: ExtensionConfig;
+  selection: Selection;
+  mode: RoutingMode;
+  controlOrigin: string | null;
+  overrides?: WebsiteOverride[];
+  globalTarget?: string;
+};
+
+export function expectedProxyValue({
+  config,
+  selection,
+  mode,
+  controlOrigin,
+  overrides = [],
+  globalTarget,
+}: ProxyInputs): chrome.proxy.ProxyConfig | null {
   if (mode === "direct") return null;
   const bypassHosts = hostOf(controlOrigin);
   const pacSource =
     mode === "global"
-      ? generateGlobalPacSource(config, selection, bypassHosts)
-      : generatePacSource(config, selection, bypassHosts);
+      ? generateGlobalPacSource(config, selection, bypassHosts, globalTarget)
+      : generatePacSource(
+          withOverrides(config, overrides),
+          selection,
+          bypassHosts,
+        );
   assertPacContainsNoCredentials(pacSource, config);
   return {
     mode: "pac_script",

@@ -13,13 +13,13 @@ XBond 账号登录（设备流） → background 以 Bearer 拉取 target=extens
 ```
 
 - **凭据口径**：username 准入用户、password 选出口，与 Trojan 客户端同源同口径；PAC 里的节点密码前缀只用于隔离 Chromium 的认证缓存与连接池（不同节点出口可并发），服务端只按 SNI 后缀命中可信域名，不读前缀。
-- **认证应答**：`onAuthRequired`（webRequestAuthProvider + asyncBlocking）按 challenger 主机（`{prefix}.{server}`）反查节点回填凭据；同一入口 30 秒内最多应答 3 次，超限显式 `auth-failed`，交回浏览器而不是无限循环。
+- **认证应答**：`onAuthRequired`（webRequestAuthProvider + asyncBlocking）按 challenger 主机（`{prefix}.{server}`）反查节点回填凭据；同一入口 30 秒内最多应答 16 次，超限显式 `auth-failed`，交回浏览器而不是无限循环。
 - **PAC 边界**：只承载可验证条件——`domain`/`domain_suffix`/`domain_keyword` 与 Lan 的 IPv4 `ip_cidr`（isInNet）；IPv6 段无法表达直接剔除；不生成 REJECT（REJECT 以 `PROXY 127.0.0.1:65535` 本地立即失败）；**入口不可达不静默 DIRECT 兜底**——是显式 `unreachable` 状态。控制通道（订阅源域名）在 PAC 里直连放行，入口故障时订阅刷新仍能重试。
 - **O(1) 索引**：精确域名与后缀各一张哈希表（后缀逐级查找），关键字线性扫描；规则规模上的每请求开销只有 3~4 次查找。
 
 ## 状态机与恢复
 
-`off / ok / no-subscription / auth-failed / unreachable / control-lost / invalid-config / error`。MV3 SW 随时休眠：一切决策从 storage 出发（reconcile），安装/启动/alarms（5 分钟核对 + 每日订阅刷新）/storage 变化都触发重核对；每次核对比较 chrome.proxy 实际设置与 `levelOfControl`——策略或其他扩展夺权是显式 `control-lost`（不自愈、不夺权），本扩展持有设置时偏差自愈（重放 PAC）。刷新失败保留上一份有效配置（宁可旧配置继续可用）。
+`off / ok / signed-out / pending-login / no-config / auth-failed / unreachable / control-lost / error`。MV3 SW 随时休眠：一切决策从 storage 出发（reconcile），安装/启动/alarms（5 分钟核对 + 每日配置刷新）/storage 变化都触发重核对；每次核对比较 chrome.proxy 实际设置与 `levelOfControl`——策略或其他扩展夺权是显式 `control-lost`（不自愈、不夺权），本扩展持有设置时偏差自愈（重放 PAC）。存储中解析失败的配置与无配置同等对待（`no-config`/`error`，不带独立状态）；`unreachable` 表示「最近观察到入口错误」：观察到任一请求重新完成即重核对回到 `ok`（设置与控制权仍须通过），无流量时由 5 分钟核对兜底。刷新失败保留上一份有效配置（宁可旧配置继续可用）。
 
 ## 控制权语义
 

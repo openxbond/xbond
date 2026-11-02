@@ -20,10 +20,20 @@
   },
   "action": {
     "default_title": "XBond",
-    "default_popup": "src/popup/index.html"
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "icon.png",
+      "32": "icon.png"
+    }
   },
   "options_ui": {
     "page": "src/page/index.html",
     "open_in_tab": true
+  },
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
   }
 }
