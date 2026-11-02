@@ -23,7 +23,7 @@ import "./style.scss";
 /** Route display names map to sidebar message keys. */
 function navLabel(name: string) {
   const keys = {
-    Connect: "connect",
+    Connect: "home",
     Activity: "activity",
     Proxies: "proxies",
     Settings: "settings",

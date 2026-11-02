@@ -103,7 +103,10 @@ const EN = {
     allowLan: "Allow LAN connections",
     takeoverMode: "Traffic takeover",
     terminalEnvHint: "Terminal proxy environment variable",
-    copyProxyCommand: "Copy PowerShell proxy command",
+    readyToConnect: "Subscription ready — connect to start.",
+    via: "Via",
+    memory: "Memory",
+    copyProxyCommand: "Copy proxy command",
     quickLinks: {
       connections: "Connection details",
       rules: "Routing rules",
@@ -130,8 +133,6 @@ const EN = {
     expand: "Show group members",
     collapse: "Hide group members",
     speedTest: "Speed test",
-    breakConnections:
-      "Close connections through the group when its node changes",
     searchPlaceholder: "Search nodes or groups",
     testUrl: "Test URL",
     timeout: "Timeout (ms)",
@@ -455,6 +456,15 @@ const EN = {
     title: "Settings",
     preferences: "Appearance & language",
     network: "Network & ports",
+    subscriptionsEntry: "Subscriptions & profiles",
+    subscriptionsEntryDesc:
+      "Manage subscription sources, import profiles and check quota.",
+    terminalCommand: "Terminal proxy command",
+    terminalCommandDesc:
+      "Copy the proxy environment variable for your terminal format.",
+    breakConnections: "Break connections on node change",
+    breakConnectionsDesc:
+      "When the selected node changes, close existing connections through that group so the new node takes effect immediately.",
     theme: "Theme",
     themeDesc: "Switch between light, dark and system appearance.",
     language: "Language",
@@ -495,8 +505,15 @@ const EN = {
       localDaemon: "Local daemon",
       externalCore: "External core",
     },
+    core: {
+      title: "System & core",
+      localApi: "Local service status",
+      localApiRunning: "Running",
+      localApiDown: "Unreachable",
+      localApiNone: "No local service configured",
+    },
     about: {
-      title: "System & about",
+      title: "About",
       appVersion: "App version",
       coreVersion: "Core version",
       logLevel: "Log level",

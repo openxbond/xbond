@@ -6,13 +6,17 @@
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  max-width: 1080px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-@media (max-width: 960px) {
+@media (min-width: 1200px) {
   .settings-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    align-items: start;
   }
 }
 
@@ -162,34 +166,90 @@
   font-size: 12.5px;
 }
 
-.system-fact-list {
+/* 移動端專屬:訂閱與配置入口行、接管模式(桌面由首頁環境帶承載) */
+
+.mobile-only {
+  display: none;
+}
+
+.settings-entry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--foreground);
+  min-height: 44px;
+}
+
+.settings-entry-text {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  font-size: 13px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  gap: 2px;
 }
 
-.system-fact-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+.settings-entry-text strong {
+  font-size: 13.5px;
+  font-weight: 600;
 }
 
-.system-fact-list li:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.system-fact-list span {
+.settings-entry-text span {
+  font-size: 12px;
   color: var(--muted-foreground);
 }
 
-.system-fact-list strong {
-  font-weight: 500;
+.settings-entry-row svg {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.setting-select {
+  height: 36px;
+  min-width: 132px;
+  padding: 0 10px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
   color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+}
+
+.setting-select:focus {
+  border-color: var(--brand);
+}
+
+.setting-select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.terminal-preview {
+  margin: -8px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.terminal-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.terminal-row .setting-inline {
+  flex-wrap: wrap;
+}
+
+.terminal-copy-btn {
+  white-space: nowrap;
+}
+
+/* 與側欄移動端斷點一致（≤768），訂閱入口與接管模式在 641–768 也需可達 */
+@media (max-width: 768px) {
+  .mobile-only {
+    display: flex;
+  }
+
+  .setting-row {
+    flex-wrap: wrap;
+  }
 }

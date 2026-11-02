@@ -1,15 +1,8 @@
-import {
-  EmptyState,
-  Header,
-  Button,
-  success,
-  QuotaRing,
-  Stat,
-} from "@components";
+import { Button, Drawer, Header, success } from "@components";
 import { CopyButton } from "@components/CopyButton";
 import { useAction } from "@lib/actions";
-import { hasDaemonConfig } from "@lib/localapi-bootstrap";
 import { useNodeSelection } from "@lib/node-selection";
+import { proxyEndpoint, proxyTerminalCommand } from "@lib/proxy-endpoint";
 import {
   useAPIInfo,
   useCapabilities,
@@ -19,7 +12,6 @@ import {
   useLocalAPI,
   useProxy,
   useProxyMapping,
-  useSubscriptions,
   useVersion,
   useStreamReader,
   useStreamState,
@@ -48,6 +40,7 @@ interface TrafficSample {
   at: number;
 }
 
+/** 即時走勢：真面積圖，資料不足如實顯示取樣提示。 */
 function TrafficChart({
   samples,
   title,
@@ -61,23 +54,23 @@ function TrafficChart({
   downloadLabel: string;
   uploadLabel: string;
 }) {
-  if (samples.length < 2) return <p className="home-chart-empty">{empty}</p>;
+  if (samples.length < 2) return <p className="chart-empty">{empty}</p>;
   const maximum = Math.max(
     1,
     ...samples.flatMap((sample) => [sample.up, sample.down]),
   );
-  const points = (direction: "up" | "down") =>
+  const linePath = (direction: "up" | "down") =>
     samples
       .map(
         (sample, index) =>
-          (index / (samples.length - 1)) * 600 +
-          "," +
-          (80 - (sample[direction] / maximum) * 70),
+          `${index ? "L" : "M"}${(index / (samples.length - 1)) * 600},${
+            160 - (sample[direction] / maximum) * 140
+          }`,
       )
-      .join(" ");
+      .join("");
   return (
-    <div className="home-chart-wrapper">
-      <div className="home-chart-legend">
+    <div className="live-chart">
+      <div className="live-chart-legend">
         <span className="legend-item download">
           <span className="dot" /> {downloadLabel}
         </span>
@@ -86,16 +79,30 @@ function TrafficChart({
         </span>
         <span className="peak-rate">{formatRate(maximum)}</span>
       </div>
-      <div className="home-chart">
-        <svg viewBox="0 0 600 80" preserveAspectRatio="none" aria-label={title}>
-          <title>{title}</title>
-          <path d="M0 10h600M0 45h600M0 75h600" className="chart-grid" />
-          <polyline points={points("down")} className="download-line" />
-          <polyline points={points("up")} className="upload-line" />
-        </svg>
-      </div>
+      <svg viewBox="0 0 600 170" preserveAspectRatio="none" aria-label={title}>
+        <title>{title}</title>
+        <defs>
+          <linearGradient id="live-download-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--info)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--info)" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        <path d="M0 40h600M0 90h600M0 140h600" className="chart-grid" />
+        <path
+          d={`${linePath("down")} L600,170 L0,170 Z`}
+          fill="url(#live-download-fill)"
+        />
+        <path d={linePath("down")} className="download-line" />
+        <path d={linePath("up")} className="upload-line" />
+      </svg>
     </div>
   );
+}
+
+function latencyClass(delay: number) {
+  if (delay < 150) return "is-fast";
+  if (delay <= 400) return "is-mid";
+  return "is-slow";
 }
 
 const focusAtom = atomWithStorage<Record<string, string>>(
@@ -116,7 +123,6 @@ export default function Connect() {
   const { general, update } = useGeneral();
   const caps = useCapabilities();
   const version = useVersion();
-  const { updateSub } = useSubscriptions();
   const nodeSelection = useNodeSelection();
   const { groups, global } = useProxy();
   const mapping = useProxyMapping();
@@ -134,11 +140,16 @@ export default function Connect() {
   const { run, pending } = useAction();
   const setIdentity = useSetAtom(identityAtom);
   const [focus, setFocus] = useAtom(focusAtom);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerGroupName, setPickerGroupName] = useState<string | null>(null);
+  const [pendingNode, setPendingNode] = useState<string | null>(null);
 
   const available = general.mode.toLowerCase() === "global" ? [global] : groups;
   const focusKey = controllerIdentity(controller.id, controller.url);
   const group = focusedGroup(available, focus[focusKey]);
   const chain = strategyPath(group, mapping);
+  const pickerGroup =
+    available.find((item) => item.name === pickerGroupName) ?? group;
 
   const traffic = useStreamReader<{ up: number; down: number }>("traffic");
   const trafficState = useStreamState(traffic);
@@ -151,8 +162,6 @@ export default function Connect() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [memoryBytes, setMemoryBytes] = useState<number | null>(null);
   const [history, setHistory] = useState<TrafficSample[]>([]);
-  const [pingDelay, setPingDelay] = useState<number | null>(null);
-  const [pinging, setPinging] = useState(false);
 
   useEffect(() => {
     const onData = (items: { inuse: number }[]) =>
@@ -192,33 +201,83 @@ export default function Connect() {
   const mixedPort = hasLocalAPI
     ? status?.engine.mixedPort || 7890
     : general.mixedPort || 7890;
-  // The proxy inbound address follows the target: loopback for the local
-  // daemon, the remote controller's own host for anything else — a remote
-  // proxy never lives on this machine's loopback.
-  const proxyAddress = hasLocalAPI
-    ? `127.0.0.1:${mixedPort}`
-    : controller.hostname
-      ? `${controller.hostname}:${mixedPort}`
-      : `:${mixedPort}`;
+  const proxyAddress = proxyEndpoint(
+    hasLocalAPI,
+    controller.hostname,
+    mixedPort,
+  );
 
-  async function testCurrentNode() {
-    if (!group?.now) return;
-    setPinging(true);
-    try {
-      const res = await client.getProxyDelay(group.now);
-      setPingDelay(res.data.delay);
-    } catch {
-      setPingDelay(-1);
-    } finally {
-      setPinging(false);
-    }
-  }
+  // Latest known delay for a node, from the same history the proxies page reads.
+  const nodeDelay = (name: string) => {
+    const item = mapping.get(name);
+    if (!item || !("history" in item)) return null;
+    const last = item.history[item.history.length - 1];
+    return last && last.delay > 0 ? last.delay : null;
+  };
+
+  const stateWord = hasLocalAPI
+    ? running
+      ? t("connected")
+      : t("stopped")
+    : r(trafficState);
+  const stateNote = hasLocalAPI
+    ? running
+      ? t("uptime", { duration: status?.engine.uptime || "0m" })
+      : sub
+        ? t("readyToConnect")
+        : t("noConfig")
+    : t("remoteNote");
+
+  const facts = [
+    {
+      ok: status?.threeTier.coreReachable || active,
+      label: t("tiers.core"),
+      value: hasLocalAPI
+        ? status?.engine.running
+          ? version.version || "mihomo"
+          : t("stopped")
+        : r(trafficState),
+    },
+    {
+      ok: status?.threeTier.trafficIntercepted,
+      label: t("tiers.takeover"),
+      value: takeover ? t(takeover) : tc("unknown"),
+    },
+    {
+      ok: status?.threeTier.egressVerified,
+      label: t("tiers.egress"),
+      value: status?.threeTier.egressVerified
+        ? status.threeTier.egressLatencyMs > 0
+          ? `${status.threeTier.egressLatencyMs}ms`
+          : t("egressVerified")
+        : tc("unknown"),
+    },
+  ];
+
+  const currentDelay = group?.now ? nodeDelay(group.now) : null;
+  const quotaPercent =
+    sub && quota ? Math.max(0, Math.min(100, quota.remainingPercent)) : null;
 
   function copyTerminalCommand() {
-    const cmd = `$env:all_proxy="http://${proxyAddress}"`;
+    const cmd = proxyTerminalCommand("powershell", proxyAddress);
     navigator.clipboard.writeText(cmd).then(() => {
       success(tc("copied"));
     });
+  }
+
+  async function pickNode(name: string) {
+    if (!pickerGroup) return;
+    setPendingNode(name);
+    try {
+      await nodeSelection.select(pickerGroup.name, name);
+    } finally {
+      setPendingNode(null);
+    }
+  }
+
+  function openPicker() {
+    setPickerGroupName(group?.name ?? null);
+    setPickerOpen(true);
   }
 
   return (
@@ -234,10 +293,7 @@ export default function Connect() {
       </Header>
 
       {localConfig && !status && (
-        <aside
-          className="home-status-notice card"
-          role={localError ? "alert" : "status"}
-        >
+        <div className="status-notice" role={localError ? "alert" : "status"}>
           <span>{localError ? t("statusReadFailed") : tc("loading")}</span>
           {localError && (
             <Button
@@ -247,266 +303,159 @@ export default function Connect() {
               {tc("retry")}
             </Button>
           )}
-        </aside>
+        </div>
       )}
 
-      {/* Bento Grid layout */}
-      <div className="connect-bento-grid">
-        {/* CARD 1: 連線與三層狀態主控卡 (6 columns) */}
-        <section
-          className={`bento-card card connect-master-card ${active ? "is-running" : ""}`}
-        >
-          <div className="card-top-row">
-            <div className="master-title-area">
-              <div className="master-aura-wrap">
-                <span className={`master-aura ${active ? "active" : ""}`} />
-              </div>
-              <div className="master-status-text">
-                <h2>
-                  {hasLocalAPI
-                    ? running
-                      ? t("connected")
-                      : t("stopped")
-                    : r(trafficState)}
-                </h2>
-                <span className="master-subtext">
-                  {hasLocalAPI
-                    ? running
-                      ? t("uptime", {
-                          duration: status?.engine.uptime || "0m",
-                        })
-                      : t("noConfig")
-                    : t("remoteNote")}
-                </span>
-              </div>
-            </div>
-
-            <div className="master-actions">
-              {hasLocalAPI ? (
-                <Button
-                  type={running ? "normal" : "brand"}
-                  disabled={pending || (!running && !sub)}
-                  className="connect-toggle-btn"
-                  onClick={() =>
-                    void run(() => (running ? down() : up()), false)
-                  }
-                >
-                  {pending
-                    ? tc("loading")
-                    : running
-                      ? t("disconnect")
-                      : t("connect")}
-                </Button>
+      {/* 非對稱控制台：左側連線儀器，右側即時儀表 */}
+      <div className="console">
+        <section className="console-control" aria-label={t("connect")}>
+          {hasLocalAPI ? (
+            <button
+              type="button"
+              className={`orb ${active ? "is-on" : "is-off"}`}
+              disabled={pending || (!running && !sub)}
+              aria-pressed={active}
+              aria-label={`${stateWord} — ${running ? t("disconnect") : t("connect")}`}
+              onClick={() => void run(() => (running ? down() : up()), false)}
+            >
+              <span className="orb-ring" aria-hidden="true" />
+              {pending ? (
+                <span className="orb-spinner" aria-hidden="true" />
               ) : (
-                // A plain Clash-API remote has nothing this dashboard can
-                // start or stop: the honest main action is managing the
-                // target itself (switch / add / test in the controller
-                // manager), per the approved interaction design.
-                <Button onClick={() => setIdentity(false)}>
-                  {t("manageController")}
-                </Button>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="36"
+                  height="36"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 2v10" />
+                  <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
+                </svg>
               )}
-            </div>
-          </div>
-
-          <div className="port-info-bar">
-            <span className="port-label">{t("port")}:</span>
-            <code className="port-val">{proxyAddress}</code>
-            <CopyButton value={proxyAddress} label={tc("copy")} />
-          </div>
-
-          {/* Three-Tier Status Row (Straightforward, Uncollapsed) */}
-          <div className="three-tier-row">
-            <div
-              className={`tier-pill ${status?.threeTier.coreReachable || active ? "ok" : ""}`}
+            </button>
+          ) : (
+            // A plain Clash-API remote has nothing this dashboard can start
+            // or stop: the honest main action is managing the target itself.
+            <button
+              type="button"
+              className="orb is-remote"
+              aria-label={t("manageController")}
+              onClick={() => setIdentity(false)}
             >
-              <span className="tier-indicator" />
-              <div className="tier-content">
-                <span className="tier-name">{t("tiers.core")}</span>
-                <span className="tier-desc">
-                  {hasLocalAPI
-                    ? status?.engine.running
-                      ? version.version || "mihomo"
-                      : t("stopped")
-                    : r(trafficState)}
-                </span>
-              </div>
-            </div>
-
-            <div
-              className={`tier-pill ${status?.threeTier.trafficIntercepted ? "ok" : ""}`}
-            >
-              <span className="tier-indicator" />
-              <div className="tier-content">
-                <span className="tier-name">{t("tiers.takeover")}</span>
-                <span className="tier-desc">
-                  {takeover ? t(takeover) : tc("unknown")}
-                </span>
-              </div>
-            </div>
-
-            <div
-              className={`tier-pill ${status?.threeTier.egressVerified ? "ok" : ""}`}
-            >
-              <span className="tier-indicator" />
-              <div className="tier-content">
-                <span className="tier-name">{t("tiers.egress")}</span>
-                <span className="tier-desc">
-                  {status?.threeTier.egressVerified
-                    ? status.threeTier.egressLatencyMs > 0
-                      ? `${status.threeTier.egressLatencyMs}ms`
-                      : t("egressVerified")
-                    : tc("unknown")}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* CARD 2: 當前節點快捷卡 (6 columns) */}
-        <section className="bento-card card node-quick-card">
-          <div className="card-header-line">
-            <div className="card-title-group">
-              <h3 className="card-title">{t("strategy.title")}</h3>
-              <span className="strategy-chain-text">
-                {chain.join(" → ") || t("noGroup")}
-              </span>
-            </div>
-            <Link to="/proxies" className="section-link">
-              {sb("proxies")} &rarr;
-            </Link>
-          </div>
-
-          <div className="node-quick-controls">
-            <div className="control-field">
-              <span className="control-label">{t("chooseGroup")}</span>
-              <select
-                className="select-input"
-                value={group?.name || ""}
-                onChange={(e) =>
-                  setFocus((previous) => ({
-                    ...previous,
-                    [focusKey]: e.target.value,
-                  }))
-                }
+              <span className="orb-ring" aria-hidden="true" />
+              <svg
+                viewBox="0 0 24 24"
+                width="32"
+                height="32"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
               >
-                <option value="">{t("chooseGroup")}</option>
-                {available.map((item) => (
-                  <option key={item.name} value={item.name}>
-                    {item.name} ({item.all.length})
-                  </option>
-                ))}
-              </select>
-            </div>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+            </button>
+          )}
 
-            <div className="control-field">
-              <span className="control-label">{t("currentNode")}</span>
-              <div className="node-select-row">
-                <select
-                  className="select-input flex-1"
-                  value={group?.now || ""}
-                  disabled={
-                    !group || group.type !== "Selector" || nodeSelection.pending
-                  }
-                  onChange={(event) => {
-                    if (group) {
-                      void nodeSelection.select(group.name, event.target.value);
-                    }
-                  }}
-                >
-                  {group ? (
-                    group.all.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">{t("strategy.noNodeSelected")}</option>
-                  )}
-                </select>
-                <Button
-                  disabled={!group?.now || pinging}
-                  onClick={() => void testCurrentNode()}
-                  className="ping-btn"
-                >
-                  {pinging
-                    ? "..."
-                    : pingDelay !== null
-                      ? pingDelay > 0
-                        ? `${pingDelay}ms`
-                        : px("timedOut")
-                      : t("strategy.testDelay")}
-                </Button>
-              </div>
-            </div>
+          <h2 className="dial-state">{stateWord}</h2>
+          <p className="dial-note">{stateNote}</p>
+          {!hasLocalAPI && (
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => setIdentity(false)}
+            >
+              {t("manageController")}
+            </button>
+          )}
+
+          <ul className="dial-facts">
+            {facts.map((fact) => (
+              <li key={fact.label} className={fact.ok ? "ok" : ""}>
+                <span className="fact-dot" aria-hidden="true" />
+                {fact.label} <b>{fact.value}</b>
+              </li>
+            ))}
+          </ul>
+
+          {group ? (
+            <button type="button" className="node-chip" onClick={openPicker}>
+              <span className="node-chip-label">
+                {t("via")} <b>{group.now || t("strategy.noNodeSelected")}</b>
+              </span>
+              {currentDelay && (
+                <span className={`node-latency ${latencyClass(currentDelay)}`}>
+                  {currentDelay}ms
+                </span>
+              )}
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+          ) : (
+            <Link to="/proxies" className="text-btn">
+              {sb("proxies")} →
+            </Link>
+          )}
+
+          <div className="dial-meta">
+            <span className="address-chip">
+              <code>{proxyAddress}</code>
+              <CopyButton value={proxyAddress} label={tc("copy")} />
+            </span>
+            <button
+              type="button"
+              className="text-btn"
+              onClick={copyTerminalCommand}
+            >
+              {t("copyProxyCommand")}
+            </button>
           </div>
 
-          <div className="node-footer-meta">
-            {group?.now && (
-              <div className="active-node-name">
-                <span className="badge">{group.type}</span>
-                <span className="node-label-text">{group.now}</span>
-                <CopyButton value={group.now} label={t("copyNode")} />
-              </div>
-            )}
-            {(nodeSelection.pending || nodeSelection.result !== "idle") && (
-              <span className="node-switch-notice">
-                {px(
-                  nodeSelection.pending
-                    ? "switching"
-                    : nodeSelection.result === "success"
-                      ? "switched"
-                      : "switchFailed",
-                )}
-              </span>
-            )}
-          </div>
-        </section>
-
-        {/* CARD 3: 網絡接管與路由模式卡 (6 columns) */}
-        <section className="bento-card card mode-control-card">
-          <div className="mode-block">
-            <div className="mode-label-row">
-              <h3 className="card-title">{t("takeoverMode")}</h3>
-              <span className="mode-desc-text">
-                {takeover === "tun"
-                  ? st("takeover.tunDesc")
-                  : takeover === "port"
-                    ? st("takeover.portDesc")
-                    : st("takeover.sysproxyDesc")}
-              </span>
-            </div>
-            {hasLocalAPI ? (
-              <div className="segmented-control">
+          <div className="dial-modes">
+            {hasLocalAPI && (
+              <div
+                className="segmented-control"
+                role="group"
+                aria-label={t("takeoverMode")}
+              >
                 {(["sysproxy", "tun", "port"] as const).map((mode) => (
                   <button
                     type="button"
                     key={mode}
                     className={`segment-btn ${takeover === mode ? "active" : ""}`}
                     disabled={pending}
+                    title={st(`takeover.${mode}Desc` as const)}
                     onClick={() => void run(() => setMode({ mode }))}
                   >
                     {t(mode)}
                   </button>
                 ))}
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">{t("remoteNote")}</p>
             )}
-          </div>
-
-          <div className="mode-block">
-            <div className="mode-label-row">
-              <h3 className="card-title">{tc("routingMode.title")}</h3>
-              <span className="mode-desc-text">
-                {currentMode === "global"
-                  ? tc("routingMode.global")
-                  : currentMode === "direct"
-                    ? tc("routingMode.direct")
-                    : tc("routingMode.rule")}
-              </span>
-            </div>
-            <div className="segmented-control">
+            <div
+              className="segmented-control"
+              role="group"
+              aria-label={tc("routingMode.title")}
+            >
               {(["rule", "global", "direct"] as const).map((mode) => (
                 <button
                   type="button"
@@ -531,220 +480,216 @@ export default function Connect() {
           </div>
         </section>
 
-        {/* CARD 4: 活躍訂閱與配額環卡 (6 columns) */}
-        <section className="bento-card card active-sub-card">
-          <div className="card-header-line">
-            <div className="card-title-group">
-              <h3 className="card-title">{t("quota.title")}</h3>
-              {sub && <span className="sub-source-text">{sub.name}</span>}
-            </div>
-            {sub && (
-              <Link to="/subscriptions" className="section-link">
-                {t("manage")} &rarr;
-              </Link>
-            )}
-          </div>
-
-          {sub && quota ? (
-            <div className="sub-quota-showcase">
-              <QuotaRing percent={quota.remainingPercent} />
-
-              <div className="quota-text-details">
-                <Stat label={t("quota.remaining")}>
-                  {formatTraffic(quota.remaining)}
-                </Stat>
-                <div className="quota-stat-secondary">
-                  <span>
-                    {t("used")}: {formatTraffic(quota.used)} /{" "}
-                    {formatTraffic(sub.total)}
-                  </span>
-                  {sub.expire > 0 && (
-                    <span>
-                      {t("expiry")}:{" "}
-                      {new Date(sub.expire * 1000).toLocaleDateString(
-                        lang.replace("_", "-"),
-                      )}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : sub ? (
-            <EmptyState
-              className="sub-quota-unknown"
-              message={t("quota.unknown")}
-              description={t("quota.unknownDesc")}
-            />
-          ) : (
-            <EmptyState
-              className="sub-empty-panel"
-              icon={
-                <svg
-                  className="sub-empty-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
-                  <path d="M12 3v10" />
-                  <path d="m8 9 4 4 4-4" />
-                </svg>
-              }
-              message={t(hasDaemonConfig() ? "noConfig" : "noConfigRemote")}
-              action={
-                hasDaemonConfig() ? (
-                  <Link to="/subscriptions" className="button button-brand">
-                    {t("importConfig")}
-                  </Link>
-                ) : undefined
-              }
-            />
-          )}
-
-          {sub && (
-            <div className="sub-footer-actions">
-              <Button
-                disabled={pending}
-                onClick={() =>
-                  void run(async () => {
-                    await updateSub(sub.id);
-                    await refresh();
-                  })
-                }
-              >
-                {t("updateSubscription")}
-              </Button>
-              {sub.urlOrFile && /^https?:\/\//i.test(sub.urlOrFile) && (
-                <CopyButton value={sub.urlOrFile} label={t("copyLink")} />
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* CARD 5: 流量羅盤與即時走勢卡 (8 columns) */}
-        <section className="bento-card card traffic-compass-card">
-          <div className="card-header-line">
-            <h3 className="card-title">{t("compass")}</h3>
-            <span className="traffic-live-indicator">
-              <span
-                className={`status-dot ${trafficState === "open" ? "info" : ""}`}
-              />
-              {trafficState === "open" ? "Live" : r(trafficState)}
-            </span>
-          </div>
-
-          <div className="traffic-chart-box">
-            <TrafficChart
-              samples={history}
-              title={t("trafficHistory")}
-              empty={t("collectingSamples")}
-              downloadLabel={t("download")}
-              uploadLabel={t("upload")}
-            />
-          </div>
-
-          <div className="traffic-metrics-grid">
-            <div className="metric-box">
-              <Stat label={t("download")}>
+        <section className="console-live" aria-label={t("compass")}>
+          <div className="live-numbers">
+            <div className="live-number">
+              <span className="glance-value">
                 {trafficState === "open" && speed
                   ? formatRate(speed.down)
                   : "—"}
-              </Stat>
+              </span>
+              <span className="glance-label">{t("download")}</span>
             </div>
-            <div className="metric-box">
-              <Stat label={t("upload")}>
+            <div className="live-number">
+              <span className="glance-value">
                 {trafficState === "open" && speed ? formatRate(speed.up) : "—"}
-              </Stat>
+              </span>
+              <span className="glance-label">{t("upload")}</span>
             </div>
-            <div className="metric-box">
-              <Stat label={t("total")}>
-                {connectionState === "open" && snapshot
-                  ? formatTraffic(snapshot.uploadTotal + snapshot.downloadTotal)
-                  : "—"}
-              </Stat>
-            </div>
-            <div className="metric-box">
-              <Stat label={t("activeConnections")}>
+            <div className="live-number">
+              <span className="glance-value">
                 {connectionState === "open" && snapshot
                   ? snapshot.connections.length
                   : 0}
-                {caps.memory && memoryBytes
-                  ? ` (${formatTraffic(memoryBytes)})`
-                  : ""}
-              </Stat>
-            </div>
-          </div>
-        </section>
-
-        {/* CARD 6: 環境與快捷工具卡 (4 columns) */}
-        <section className="bento-card card quick-tools-card">
-          <div className="card-header-line">
-            <h3 className="card-title">{t("environment")}</h3>
-            <Link to="/diagnostics" className="section-link">
-              {sb("diagnostics")} &rarr;
-            </Link>
-          </div>
-
-          <div className="tools-list">
-            <div className="tool-item">
-              <span className="tool-label">{t("allowLan")}</span>
-              <input
-                type="checkbox"
-                checked={
-                  hasLocalAPI
-                    ? (status?.preferences.allowLan ?? false)
-                    : general.allowLan
-                }
-                disabled={
-                  pending ||
-                  (isLocalTarget && !hasLocalAPI) ||
-                  (!hasLocalAPI && !caps.editLan)
-                }
-                onChange={(event) => {
-                  const allowLan = event.target.checked;
-                  void run(async () => {
-                    if (hasLocalAPI) await setMode({ allowLan });
-                    else {
-                      await client.updateConfig({ "allow-lan": allowLan });
-                      await update();
-                    }
-                  });
-                }}
-              />
-            </div>
-
-            <div className="tool-item">
-              <span className="tool-label">{t("port")}</span>
-              <code className="text-xs font-mono">{mixedPort}</code>
-            </div>
-
-            <div className="tool-action-box">
-              <span className="text-xs text-muted-foreground block mb-1">
-                {t("terminalEnvHint")}
               </span>
-              <Button onClick={copyTerminalCommand} className="w-full text-xs">
-                {t("copyProxyCommand")}
-              </Button>
-            </div>
-
-            <div className="quick-links-group">
-              <Link to="/connections" className="quick-link-pill">
-                {t("quickLinks.connections")}
-              </Link>
-              <Link to="/rules" className="quick-link-pill">
-                {t("quickLinks.rules")}
-              </Link>
-              <Link to="/logs" className="quick-link-pill">
-                {t("quickLinks.logs")}
-              </Link>
+              <span className="glance-label">
+                {t("activeConnections")}
+                {caps.memory && memoryBytes
+                  ? ` · ${t("memory")} ${formatTraffic(memoryBytes)}`
+                  : ""}
+              </span>
             </div>
           </div>
+
+          <TrafficChart
+            samples={history}
+            title={t("trafficHistory")}
+            empty={t("collectingSamples")}
+            downloadLabel={t("download")}
+            uploadLabel={t("upload")}
+          />
+
+          {sub && quota ? (
+            <div className="quota-bar-row">
+              <div className="quota-bar">
+                <div
+                  className="quota-bar-fill"
+                  style={{ width: `${quotaPercent ?? 0}%` }}
+                  role="meter"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(quotaPercent ?? 0)}
+                  aria-label={t("quota.remaining")}
+                />
+              </div>
+              <span className="quota-bar-text">
+                {t("quota.remaining")} <b>{formatTraffic(quota.remaining)}</b> ·{" "}
+                {t("used")} {formatTraffic(quota.used)} /{" "}
+                {formatTraffic(sub.total)}
+                {sub.expire > 0
+                  ? ` · ${t("expiry")} ${new Date(sub.expire * 1000).toLocaleDateString(lang.replace("_", "-"))}`
+                  : ""}
+              </span>
+            </div>
+          ) : sub ? (
+            <div className="quota-bar-row">
+              <p className="quota-bar-text">{t("quota.unknown")}</p>
+              <p className="quota-bar-text">{t("quota.unknownDesc")}</p>
+            </div>
+          ) : hasLocalAPI ? (
+            <Link to="/subscriptions" className="quota-import-link">
+              {t("importConfig")} →
+            </Link>
+          ) : (
+            <p className="quota-bar-text">{t("noConfigRemote")}</p>
+          )}
         </section>
       </div>
+
+      <footer className="dial-links">
+        <Link to="/diagnostics" className="text-btn">
+          {sb("diagnostics")}
+        </Link>
+        <Link to="/connections" className="text-btn">
+          {t("quickLinks.connections")}
+        </Link>
+        <Link to="/rules" className="text-btn">
+          {t("quickLinks.rules")}
+        </Link>
+        <Link to="/logs" className="text-btn">
+          {t("quickLinks.logs")}
+        </Link>
+      </footer>
+
+      {/* 節點切換抽屜：首次打開才掛載，避免常駐離屏層 */}
+      {pickerOpen && (
+        <Drawer
+          visible={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          width={360}
+        >
+          <div className="node-picker">
+            <header className="picker-head">
+              <h3>{t("strategy.title")}</h3>
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => setPickerOpen(false)}
+                aria-label={tc("close")}
+              >
+                ✕
+              </button>
+            </header>
+
+            {available.length > 1 && (
+              <div className="picker-groups">
+                {available.map((item) => (
+                  <button
+                    type="button"
+                    key={item.name}
+                    aria-pressed={pickerGroup?.name === item.name}
+                    className={`picker-group-chip ${pickerGroup?.name === item.name ? "active" : ""}`}
+                    onClick={() => {
+                      setPickerGroupName(item.name);
+                      setFocus((previous) => ({
+                        ...previous,
+                        [focusKey]: item.name,
+                      }));
+                    }}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {pickerGroup ? (
+              <>
+                <p className="picker-chain">
+                  {chain.join(" → ") || pickerGroup.name}
+                </p>
+                <ul className="picker-nodes">
+                  {pickerGroup.all.map((name) => {
+                    const delay = nodeDelay(name);
+                    const selected = pickerGroup.now === name;
+                    return (
+                      <li key={name}>
+                        <button
+                          type="button"
+                          className={`picker-node-row ${selected ? "selected" : ""}`}
+                          disabled={
+                            pickerGroup.type !== "Selector" ||
+                            pendingNode !== null
+                          }
+                          onClick={() => void pickNode(name)}
+                        >
+                          <span className="node-name">{name}</span>
+                          {pendingNode === name ? (
+                            <span className="node-latency">
+                              {px("switching")}
+                            </span>
+                          ) : delay ? (
+                            <span
+                              className={`node-latency ${latencyClass(delay)}`}
+                            >
+                              {delay}ms
+                            </span>
+                          ) : null}
+                          {selected && (
+                            <svg
+                              viewBox="0 0 24 24"
+                              width="16"
+                              height="16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.4"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="picker-check"
+                              aria-hidden="true"
+                            >
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <footer className="picker-foot">
+                  {(nodeSelection.pending ||
+                    nodeSelection.result !== "idle") && (
+                    <span
+                      className={`node-switch-notice ${nodeSelection.result === "failed" ? "failed" : ""}`}
+                      role="status"
+                    >
+                      {px(
+                        nodeSelection.pending
+                          ? "switching"
+                          : nodeSelection.result === "success"
+                            ? "switched"
+                            : "switchFailed",
+                      )}
+                    </span>
+                  )}
+                </footer>
+              </>
+            ) : (
+              <p className="dial-empty">{t("noGroup")}</p>
+            )}
+          </div>
+        </Drawer>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Header, Icon, Checkbox, Button } from "@components";
+import { Header, Icon, Button } from "@components";
 import { RequestStatus } from "@components/RequestStatus";
 import { useRound } from "@lib/hook";
 import {
@@ -42,7 +42,6 @@ export { compareDesc };
 function ProxyGroups() {
   const { groups, global } = useProxy();
   const search = useContext(SearchContext).toLowerCase();
-  const { data: config, set: setConfig } = useConfig();
   const { general } = useGeneral();
   const { t } = useTranslation("proxies");
   const [params, setParams] = useSearchParams();
@@ -75,12 +74,6 @@ function ProxyGroups() {
     <section className="proxy-groups-section">
       <div className="section-heading">
         <h2>{t("groups")}</h2>
-        <Checkbox
-          checked={config.breakConnections}
-          onChange={(value) => setConfig("breakConnections", value)}
-        >
-          {t("breakConnections")}
-        </Checkbox>
       </div>
       <label className="mobile-group-picker">
         {t("groups")}

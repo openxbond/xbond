@@ -103,7 +103,10 @@ const FA = {
     allowLan: "اجازه اتصال LAN",
     takeoverMode: "هدایت ترافیک",
     terminalEnvHint: "متغیر محیطی پروکسی ترمینال",
-    copyProxyCommand: "کپی فرمان پروکسی PowerShell",
+    readyToConnect: "اشتراک آماده است — برای شروع متصل شوید.",
+    via: "از طریق",
+    memory: "حافظه",
+    copyProxyCommand: "کپی فرمان پروکسی",
     quickLinks: {
       connections: "جزئیات اتصال‌ها",
       rules: "قوانین مسیریابی",
@@ -130,8 +133,6 @@ const FA = {
     expand: "نمایش اعضای گروه",
     collapse: "پنهان‌کردن اعضای گروه",
     speedTest: "تست سرعت",
-    breakConnections:
-      "با تغییر گره، اتصال‌هایی که از این گروه می‌گذرند بسته می‌شوند",
     searchPlaceholder: "جست‌وجوی گره یا گروه",
     testUrl: "URL تست",
     timeout: "زمان انتظار (ms)",
@@ -450,6 +451,14 @@ const FA = {
   settings: {
     title: "تنظیمات",
     network: "شبکه و درگاه‌ها",
+    subscriptionsEntry: "اشتراک‌ها و پیکربندی‌ها",
+    subscriptionsEntryDesc:
+      "مدیریت منابع اشتراک، وارد کردن پیکربندی و بررسی سهمیه.",
+    terminalCommand: "فرمان پروکسی ترمینال",
+    terminalCommandDesc: "متغیر محیطی پروکسی را در قالب ترمینال شما کپی می‌کند.",
+    breakConnections: "قطع اتصال‌ها هنگام تغییر گره",
+    breakConnectionsDesc:
+      "با تغییر گره، اتصال‌های موجود از آن گروه بسته می‌شوند تا گره جدید فوراً اعمال شود.",
     preferences: "ظاهر و زبان",
     theme: "پوسته",
     themeDesc: "جابه‌جایی بین روشن، تاریک و هم‌رنگ سیستم.",
@@ -494,8 +503,15 @@ const FA = {
       localDaemon: "دیمن محلی",
       externalCore: "هسته بیرونی",
     },
+    core: {
+      title: "سیستم و هسته",
+      localApi: "وضعیت سرویس محلی",
+      localApiRunning: "در حال اجرا",
+      localApiDown: "در دسترس نیست",
+      localApiNone: "سرویس محلی پیکربندی نشده است",
+    },
     about: {
-      title: "سیستم و درباره",
+      title: "درباره",
       appVersion: "نسخه داشبورد",
       coreVersion: "نسخه هسته mihomo",
       logLevel: "سطح لاگ",
