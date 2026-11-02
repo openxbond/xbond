@@ -15,7 +15,7 @@
   padding: 20px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
 }
 
 .subscription-import-tabs {
@@ -141,7 +141,7 @@
   padding: 18px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;

@@ -6,9 +6,9 @@
 .proxy-command-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   padding: 16px 20px;
-  box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
+  box-shadow: var(--elevation-card);
 }
 
 .command-card-main {
@@ -177,11 +177,11 @@
   display: grid;
   grid-template-columns: 330px minmax(0, 1fr);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   background: var(--card);
   height: 680px;
   overflow: hidden;
-  box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
+  box-shadow: var(--elevation-card);
 }
 
 @media (max-width: 900px) {
@@ -414,7 +414,7 @@
     width: 100%;
     font: inherit;
     min-height: 44px;
-    box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
+    box-shadow: var(--elevation-card);
   }
   .proxies-list {
     grid-template-columns: 1fr;

@@ -56,34 +56,68 @@ body {
   outline-offset: 2px;
 }
 
+/* ------------------------------------------------------------------ */
+/* App shell: glass rail on the left, canvas on the right.             */
+/* Mobile: fixed glass top bar + floating bottom island.               */
+/* ------------------------------------------------------------------ */
+
 .app {
-  min-height: 100dvh;
-  padding-left: 248px;
+  box-sizing: border-box;
+  height: 100dvh;
+  min-height: 0;
+  padding: 12px 12px 12px 212px;
+  overflow: hidden;
 }
 
 .app.not-clashx {
-  background: var(--background);
+  background:
+    radial-gradient(ellipse at top left, var(--surface-inset), transparent 65%),
+    var(--background);
 }
 
 .page-container {
+  box-sizing: border-box;
   width: 100%;
-  height: 100dvh;
-  padding-left: 0;
-  overflow-y: scroll;
+  height: 100%;
+  overflow-y: auto;
+  min-width: 0;
 }
 
 .page {
-  padding: 32px 40px 40px;
+  padding: 24px;
   width: 100%;
-  // Fill the page island exactly; the island (.page-container) is the sole
-  // page-level scroller, so a dvh-based minimum here would always overflow
-  // it by the app shell's padding and force a second scrollbar.
   min-height: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  max-width: 1560px;
   gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .app {
+    padding: calc(var(--topbar-height) + env(safe-area-inset-top)) 0
+      calc(84px + env(safe-area-inset-bottom));
+  }
+
+  .page-container {
+    height: 100%;
+    padding: 0 12px;
+    -webkit-overflow-scrolling: touch;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .page {
+    padding: 16px 4px 20px;
+    height: auto;
+  }
+
+  select,
+  .input {
+    min-height: 44px;
+  }
 }
 
 button,
@@ -117,22 +151,30 @@ button:disabled {
   font-size: 16px;
   font-weight: 600;
 }
+// 任務卡：乳白實面（約 96% 不透明）、極細描邊與柔和向下陰影；
+// 玻璃只留給導覽與浮層。
+.card-surface {
+  background: color-mix(in srgb, var(--card) 96%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  border-radius: var(--radius-card);
+  box-shadow: var(--elevation-card);
+}
 .segmented-control {
   display: inline-flex;
   background: var(--surface-inset);
-  border: 1px solid var(--border);
-  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: var(--radius-control);
   padding: 3px;
-  gap: 3px;
+  gap: 2px;
 }
 .segmented-control button {
   border: 0;
   background: transparent;
-  color: var(--muted-foreground);
+  color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
   font: inherit;
   font-size: 13px;
-  padding: 6px 14px;
-  border-radius: 6px;
+  padding: 7px 16px;
+  border-radius: 9px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -142,10 +184,10 @@ button:disabled {
 .segmented-control button[aria-checked="true"],
 .segmented-control button[aria-pressed="true"],
 .segmented-control button.active {
-  background: var(--card);
-  color: var(--brand-text);
+  background: var(--brand);
+  color: var(--brand-foreground);
   font-weight: 600;
-  box-shadow: 0 1px 3px oklch(0 0 0 / 8%);
+  box-shadow: 0 1px 4px oklch(0.66 0.18 52 / 35%);
 }
 .client-message {
   font-size: 13px;
@@ -173,7 +215,7 @@ input {
   color: var(--foreground);
   background: var(--card);
   border: 1px solid var(--border-strong);
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: calc(var(--radius-control) - 2px);
   cursor: pointer;
   transition: border-color var(--duration-fast) ease;
 
@@ -208,8 +250,6 @@ input {
   }
 }
 
-// Centered empty-state bodies live with the EmptyState component.
-
 // Header strip above tabular lists (rules, logs, connections): quiet label
 // type on the inset surface with a hairline separator. Column layout,
 // sticky behavior and resizers stay with each table.
@@ -232,39 +272,14 @@ input {
   align-items: flex-end;
   gap: 12px;
   padding: 16px 20px;
-  background: var(--card);
+  background: color-mix(in srgb, var(--card) 96%, transparent);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
+  border-radius: var(--radius-card);
+  box-shadow: var(--elevation-card);
 }
 
 .page-toolbar .input {
   height: 36px;
-}
-
-@media (max-width: 768px) {
-  .app {
-    padding-left: 0;
-    padding-top: 0;
-    padding-bottom: calc(68px + env(safe-area-inset-bottom));
-  }
-
-  .page-container {
-    width: 100%;
-    padding: 0 12px;
-    height: calc(100dvh - 68px - env(safe-area-inset-bottom));
-    -webkit-overflow-scrolling: touch;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
-
-  .page {
-    padding: 16px 4px 20px;
-    height: auto;
-    min-height: 100%;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -272,49 +287,5 @@ input {
   *::before,
   *::after {
     scroll-behavior: auto !important;
-  }
-}
-@media (max-width: 768px) {
-  .page {
-    padding-top: calc(16px + env(safe-area-inset-top));
-  }
-  select,
-  .input {
-    min-height: 44px;
-  }
-}
-
-.app {
-  box-sizing: border-box;
-  height: 100dvh;
-  min-height: 0;
-  padding: 12px 12px 12px 248px;
-  overflow: hidden;
-}
-.page-container {
-  box-sizing: border-box;
-  height: 100%;
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--elevation-card);
-  overflow-y: auto;
-  min-width: 0;
-}
-.app .page {
-  max-width: none;
-}
-.subscriptions-page .settings-detail {
-  max-width: none;
-}
-@media (max-width: 768px) {
-  .app {
-    padding: 0;
-  }
-  .page-container {
-    height: calc(100dvh - 68px - env(safe-area-inset-bottom));
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
   }
 }

@@ -50,7 +50,7 @@
   padding: 20px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   display: flex;
   flex-direction: column;
   gap: 12px;

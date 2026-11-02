@@ -291,6 +291,7 @@ export default function Settings() {
                 <span>{t("takeover.allowLanDesc")}</span>
               </div>
               <Switch
+                label={t("takeover.allowLan")}
                 checked={status?.preferences.allowLan ?? general.allowLan}
                 disabled={
                   pending ||
@@ -407,6 +408,7 @@ export default function Settings() {
                 <span>{t("breakConnectionsDesc")}</span>
               </div>
               <Switch
+                label={t("breakConnections")}
                 checked={profile.breakConnections}
                 onChange={(value) => setProfile("breakConnections", value)}
               />

@@ -8,7 +8,7 @@
   padding: 24px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
 }
 .activity-summary > div {
   display: flex;
@@ -30,22 +30,29 @@
   gap: 4px;
   background: var(--surface-inset);
   padding: 4px;
-  border-radius: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
 }
 .activity-tabs button {
   border: 0;
   background: transparent;
-  padding: 10px 24px;
-  border-radius: 6px;
+  padding: 8px 22px;
+  border-radius: 8px;
   color: var(--muted-foreground);
   font: inherit;
-  font-size: 14px;
+  font-size: 13.5px;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+.activity-tabs button:hover {
+  color: var(--foreground);
 }
 .activity-tabs button[aria-selected="true"] {
-  background: var(--card);
-  color: var(--foreground);
-  box-shadow: 0 1px 3px oklch(0 0 0 / 8%);
+  background: var(--brand);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px oklch(0.66 0.18 52 / 32%);
 }
 @media (max-width: 768px) {
   .activity-tabs button {

@@ -19,3 +19,4 @@ export * from "./CountryFlag";
 export * from "./EmptyState";
 export * from "./QuotaRing";
 export * from "./Stat";
+export * from "./Segmented";

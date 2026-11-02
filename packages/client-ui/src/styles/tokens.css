@@ -15,21 +15,21 @@
   --row-hover: oklch(0.145 0 0 / 3%);
   --row-selected: oklch(0.7163 0.1706 53.45 / 8%);
   --overlay: oklch(0 0 0 / 40%);
-  --brand-soft: oklch(0.7163 0.1706 53.45 / 9%);
+  --brand-soft: oklch(0.965 0.035 60);
   --strategy-surface: var(--card);
   --strategy-surface-foreground: var(--foreground);
   --strategy-surface-muted: var(--muted-foreground);
   --strategy-surface-border: var(--border);
   --strategy-surface-inset: var(--surface-inset);
 
-  --radius: 0.625rem;
-  --background: oklch(0.975 0 0);
+  --radius: 0.75rem;
+  --background: oklch(0.975 0.003 90);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --surface-inset: oklch(0.955 0 0);
+  --surface-inset: oklch(0.958 0.002 90);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.96 0 0);
@@ -38,14 +38,14 @@
   --muted-foreground: oklch(0.5 0 0);
   --accent: oklch(0.96 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --border: oklch(0.915 0 0);
+  --border: oklch(0.92 0 0);
   --border-strong: oklch(0.86 0 0);
   --input: oklch(0.86 0 0);
   --ring: oklch(0.7163 0.1706 53.45);
   --brand: oklch(0.7163 0.1706 53.45);
-  --brand-strong: oklch(0.66 0.18 52);
-  --brand-foreground: oklch(0.187 0 0);
-  --brand-text: oklch(0.55 0.15 45);
+  --brand-strong: oklch(0.64 0.19 50);
+  --brand-foreground: oklch(0.99 0 0);
+  --brand-text: oklch(0.6 0.18 48);
   --success: oklch(0.54 0.16 153);
   --success-foreground: oklch(0.985 0 0);
   --success-text: oklch(0.489 0.116 156.7);
@@ -72,11 +72,32 @@
   --sidebar-border: oklch(0 0 0 / 6%);
   --sidebar-ring: oklch(0.7163 0.1706 53.45);
   --highlight: inset 0 1px 0 oklch(1 0 0 / 70%);
+  /* 柔和景深：環境陰影帶少許品牌暖調，貼近參考圖的乳白層次。 */
   --elevation-card:
-    0 1px 3px oklch(0.145 0 0 / 0.03), 0 6px 20px oklch(0.145 0 0 / 0.05);
+    0 1px 3px rgba(0, 0, 0, 0.02), 0 10px 28px -6px oklch(0.5 0.06 60 / 0.08);
   --elevation-raised:
-    0 4px 12px oklch(0.145 0 0 / 0.06), 0 18px 36px oklch(0.145 0 0 / 0.08);
+    0 4px 10px rgba(0, 0, 0, 0.03), 0 22px 48px -10px oklch(0.5 0.06 60 / 0.15);
   --theme-color: #f7f7f7;
+
+  /* 原生客戶端視覺基準（DESIGN.md「原生客戶端视觉基准」；R3）。
+     玻璃只承擔導覽與浮層，工作卡保持乳白實面；形狀由控制 12px、
+     卡 24px 到浮島 28px 逐級柔化。 */
+  --radius-control: 12px;
+  --radius-card: 24px;
+  --radius-rail: 28px;
+  --glass-bg: color-mix(in srgb, var(--sidebar) 85%, transparent);
+  --glass-border: var(--sidebar-border);
+  --glass-blur: 20px;
+  --orb-gradient: radial-gradient(
+    circle at 36% 30%,
+    oklch(0.85 0.14 65) 0%,
+    var(--brand) 62%,
+    var(--brand-strong) 100%
+  );
+  --orb-glow:
+    0 16px 38px -4px oklch(0.66 0.18 52 / 0.48),
+    0 0 45px 8px oklch(0.72 0.17 53 / 0.22);
+  --topbar-height: 56px;
 }
 .dark {
   color-scheme: dark;
@@ -110,7 +131,7 @@
   --ring: oklch(0.7163 0.1706 53.45);
   --brand: oklch(0.7163 0.1706 53.45);
   --brand-strong: oklch(0.66 0.18 52);
-  --brand-foreground: oklch(0.187 0 0);
+  --brand-foreground: oklch(0.99 0 0);
   --brand-text: oklch(0.78 0.13 58);
   --success: oklch(0.72 0.16 150);
   --success-foreground: oklch(0.15 0 0);
@@ -136,8 +157,21 @@
   --sidebar-ring: oklch(0.7163 0.1706 53.45);
   --highlight: inset 0 1px 0 oklch(1 0 0 / 7%);
   --elevation-card:
-    inset 0 1px 0 oklch(1 0 0 / 7%), 0 2px 8px oklch(0 0 0 / 25%);
+    inset 0 1px 0 oklch(1 0 0 / 6%), 0 2px 6px oklch(0 0 0 / 22%),
+    0 12px 32px -10px oklch(0 0 0 / 35%);
   --elevation-raised:
-    inset 0 1px 0 oklch(1 0 0 / 10%), 0 8px 24px oklch(0 0 0 / 45%);
+    inset 0 1px 0 oklch(1 0 0 / 9%), 0 6px 16px oklch(0 0 0 / 30%),
+    0 20px 48px -12px oklch(0 0 0 / 50%);
   --theme-color: #0a0a0a;
+
+  /* 深色玻璃維持石墨階梯：表面不透明度提高補償對比，形狀與淺色一致。 */
+  --glass-bg: color-mix(in srgb, var(--sidebar) 88%, transparent);
+  --glass-border: var(--sidebar-border);
+  --orb-gradient: linear-gradient(
+    145deg,
+    oklch(0.78 0.16 60) 0%,
+    var(--brand) 52%,
+    oklch(0.58 0.17 47) 100%
+  );
+  --orb-glow: 0 20px 44px -16px oklch(0.66 0.18 52 / 0.42);
 }

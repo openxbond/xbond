@@ -1,17 +1,8 @@
 import { XBondIcon } from "@components";
 import { hasDaemonConfig } from "@lib/localapi-bootstrap";
-import { DASHBOARD_VERSION, parseClientInfo } from "@lib/version";
-import {
-  useVersion,
-  useClashXData,
-  identityAtom,
-  useStreamReader,
-  useStreamState,
-} from "@stores";
-import { formatRate } from "@xbond/client/activity";
+import { identityAtom, useStreamReader, useStreamState } from "@stores";
 import { workspaceLink } from "@xbond/client/workspace";
 import { useSetAtom } from "jotai";
-import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
@@ -20,12 +11,17 @@ import { ControllerSwitcher } from "./ControllerSwitcher";
 
 import "./style.scss";
 
-/** Route display names map to sidebar message keys. */
+/** Route display names map to sidebar message keys (desktop 8 + mobile 4). */
 function navLabel(name: string) {
   const keys = {
     Connect: "home",
-    Activity: "activity",
     Proxies: "proxies",
+    Subscriptions: "subscriptions",
+    Connections: "connections",
+    Rules: "rules",
+    Logs: "logs",
+    Diagnostics: "diagnostics",
+    Activity: "activity",
     Settings: "settings",
   } as const;
   return keys[name as keyof typeof keys] ?? "home";
@@ -41,6 +37,7 @@ interface SidebarProps {
 function getRouteIcon(name: string) {
   switch (name) {
     case "Connect":
+      // 首頁入口用屋形，與流動底欄一致；電源符號保留給連線主操作。
       return (
         <svg
           viewBox="0 0 24 24"
@@ -54,7 +51,8 @@ function getRouteIcon(name: string) {
           className="nav-icon"
           aria-hidden="true"
         >
-          <path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0" />
+          <path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <path d="M9 21v-8h6v8" />
         </svg>
       );
     case "Proxies":
@@ -172,6 +170,7 @@ function getRouteIcon(name: string) {
         </svg>
       );
     case "Activity":
+      // 活動頁以長條圖表達「用量監察」，與舊脈衝線區分。
       return (
         <svg
           viewBox="0 0 24 24"
@@ -185,7 +184,9 @@ function getRouteIcon(name: string) {
           className="nav-icon"
           aria-hidden="true"
         >
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="18" y1="20" x2="18" y2="10" />
         </svg>
       );
     case "Settings":
@@ -211,130 +212,102 @@ function getRouteIcon(name: string) {
   }
 }
 
+function NavLink({
+  item,
+  compact,
+}: {
+  item: { path: string; name: string };
+  compact?: boolean;
+}) {
+  const location = useLocation();
+  const isActive = location.pathname === item.path;
+  const { t } = useTranslation("sidebar");
+  const label = t(navLabel(item.name));
+  return (
+    <li className="item">
+      <Link
+        to={workspaceLink(location.search, item.path)}
+        className={isActive ? "active" : undefined}
+        aria-current={isActive ? "page" : undefined}
+        aria-label={compact ? label : undefined}
+      >
+        {getRouteIcon(item.name)}
+        <span className="nav-label">{label}</span>
+      </Link>
+    </li>
+  );
+}
+
 export default function Sidebar(props: SidebarProps) {
   const { routes } = props;
-  const { version, premium, meta } = useVersion();
-  const { data } = useClashXData();
   const { t } = useTranslation("sidebar");
-  const location = useLocation();
   const setIdentity = useSetAtom(identityAtom);
-
   const traffic = useStreamReader<{ up: number; down: number }>("traffic");
   const trafficState = useStreamState(traffic);
-  const [speed, setSpeed] = useState<{ up: number; down: number } | null>(null);
-
-  useEffect(() => {
-    const onData = (items: { up: number; down: number }[]) => {
-      setSpeed(items.at(-1) ?? null);
-    };
-    traffic.subscribe("data", onData);
-    return () => traffic.unsubscribe("data", onData);
-  }, [traffic]);
-
-  const clientInfo = useMemo(
-    () => parseClientInfo(version, data?.isClashX, premium, meta),
-    [version, data?.isClashX, premium, meta],
-  );
 
   // 无 daemon 的纯前端只通过远程控制器管理：不出现订阅入口（App 同步重定向）。
   const daemonConfigured = hasDaemonConfig();
   const desktopItems = [
-    { path: "/connect", name: "Connect", label: t("home") },
-    { path: "/proxies", name: "Proxies", label: t("proxies") },
-    {
-      path: "/subscriptions",
-      name: "Subscriptions",
-      label: t("subscriptions"),
-    },
-    { path: "/connections", name: "Connections", label: t("connections") },
-    { path: "/rules", name: "Rules", label: t("rules") },
-    { path: "/logs", name: "Logs", label: t("logs") },
-    { path: "/diagnostics", name: "Diagnostics", label: t("diagnostics") },
-    { path: "/settings", name: "Settings", label: t("settings") },
+    { path: "/connect", name: "Connect" },
+    { path: "/proxies", name: "Proxies" },
+    { path: "/subscriptions", name: "Subscriptions" },
+    { path: "/connections", name: "Connections" },
+    { path: "/rules", name: "Rules" },
+    { path: "/logs", name: "Logs" },
+    { path: "/diagnostics", name: "Diagnostics" },
+    { path: "/settings", name: "Settings" },
   ].filter((item) => !(!daemonConfigured && item.name === "Subscriptions"));
 
-  const desktopLinks = desktopItems.map((item) => {
-    const isActive = location.pathname === item.path;
-    return (
-      <li className="item" key={item.name}>
-        <Link
-          to={workspaceLink(location.search, item.path)}
-          className={isActive ? "active" : undefined}
-          aria-current={isActive ? "page" : undefined}
-        >
-          {getRouteIcon(item.name)}
-          <span className="nav-label">{item.label}</span>
-        </Link>
-      </li>
-    );
-  });
-
-  const mobileLinks = routes.map(({ path, name }) => {
-    const isActive = location.pathname === path;
-    return (
-      <li className="item" key={name}>
-        <Link
-          to={workspaceLink(location.search, path)}
-          className={isActive ? "active" : undefined}
-          aria-current={isActive ? "page" : undefined}
-        >
-          {getRouteIcon(name)}
-          <span className="nav-label">{t(navLabel(name))}</span>
-        </Link>
-      </li>
-    );
-  });
-
   return (
-    <nav className="sidebar" aria-label="Main Navigation">
-      <div className="sidebar-brand">
-        <XBondIcon className="sidebar-logo" />
-        <span className="sidebar-brand-name">XBond</span>
-      </div>
-
-      <ul className="sidebar-menu desktop-menu">{desktopLinks}</ul>
-      <ul className="sidebar-menu mobile-menu">{mobileLinks}</ul>
-
-      <div className="sidebar-footer desktop-only">
-        {trafficState === "open" && speed && (
-          <div className="sidebar-telemetry">
-            <div className="telemetry-item down">
-              <span className="arrow" aria-hidden="true">
-                &darr;
-              </span>
-              <span className="rate">{formatRate(speed.down)}</span>
-            </div>
-            <div className="telemetry-item up">
-              <span className="arrow" aria-hidden="true">
-                &uarr;
-              </span>
-              <span className="rate">{formatRate(speed.up)}</span>
-            </div>
-          </div>
-        )}
-
+    <>
+      {/* 流動頂欄：品牌、控制目標與帳號常駐（client-experience-proposal §5）。 */}
+      <header className="mobile-topbar">
+        <div className="mobile-topbar-brand">
+          <XBondIcon className="mobile-topbar-logo" />
+          <span className="mobile-topbar-name">XBond</span>
+        </div>
         <ControllerSwitcher
           connected={trafficState === "open"}
           onEdit={() => setIdentity(false)}
         />
-
-        {/* Avatar account entry: identity, service status, announcements and
-            the trusted console entry (client-rethink §二). */}
-        <AccountMenu />
-
-        <div className="sidebar-version">
-          <div className="sidebar-version-item">
-            <span className="sidebar-version-label">{clientInfo.type}</span>
-            <span className="sidebar-version-text">
-              {clientInfo.version || "--"}
-            </span>
-          </div>
-          <div className="sidebar-version-item">
-            <span className="sidebar-version-label">app</span>
-            <span className="sidebar-version-text">{DASHBOARD_VERSION}</span>
-          </div>
+        <div className="mobile-topbar-account">
+          <AccountMenu variant="avatar" />
         </div>
-      </div>
-    </nav>
+      </header>
+
+      {/* 桌面玻璃浮島側欄 */}
+      <nav className="sidebar" aria-label={t("home")}>
+        <div className="sidebar-brand">
+          <XBondIcon className="sidebar-logo" />
+          <span className="sidebar-brand-name">XBond</span>
+        </div>
+
+        <div className="sidebar-target">
+          <ControllerSwitcher
+            connected={trafficState === "open"}
+            onEdit={() => setIdentity(false)}
+          />
+        </div>
+
+        <ul className="sidebar-menu">
+          {desktopItems.map((item) => (
+            <NavLink key={item.name} item={item} />
+          ))}
+        </ul>
+
+        <div className="sidebar-footer">
+          <AccountMenu variant="row" />
+        </div>
+      </nav>
+
+      {/* 流動底部浮島：四項主入口（首頁／節點／活動／設定）。 */}
+      <nav className="mobile-island" aria-label={t("home")}>
+        <ul className="mobile-island-menu">
+          {routes.map(({ path, name }) => (
+            <NavLink key={name} item={{ path, name }} compact />
+          ))}
+        </ul>
+      </nav>
+    </>
   );
 }

@@ -2,8 +2,6 @@ import { type BaseComponentProps } from "@models/BaseProps";
 import { noop } from "@xbond/client/helper";
 import classnames from "classnames";
 
-import { Icon } from "../Icon";
-
 import "./style.scss";
 
 interface SwitchProps extends BaseComponentProps {
@@ -38,8 +36,6 @@ export function Switch(props: SwitchProps) {
       disabled={disabled}
       className={classname}
       onClick={handleClick}
-    >
-      <Icon className="switch-icon font-bold" type="check" size={20} />
-    </button>
+    />
   );
 }

@@ -27,6 +27,62 @@ export function CountryFlag({ code, className }: CountryFlagProps) {
 
 const REGIONAL_INDICATOR_PAIR = /([\uD83C][\uDDE6-\uDDFF]){2}/;
 
+const COUNTRY_NAME_MAP: Array<[RegExp, string]> = [
+  [/香港|Hong\s*Kong|\bHK\b/i, "hk"],
+  [/日本|Japan|Tokyo|Osaka|\bJP\b/i, "jp"],
+  [/台湾|Taiwan|Taipei|\bTW\b/i, "tw"],
+  [/美国|United\s*States|America|USA|\bUS\b/i, "us"],
+  [/新加坡|Singapore|狮城|\bSG\b/i, "sg"],
+  [/韩国|Korea|Seoul|\bKR\b/i, "kr"],
+  [/英国|United\s*Kingdom|\bUK\b|\bGB\b|London/i, "gb"],
+  [/德国|Germany|Frankfurt|\bDE\b/i, "de"],
+  [/法国|France|Paris|\bFR\b/i, "fr"],
+  [/加拿大|Canada|\bCA\b/i, "ca"],
+  [/澳大利亚|澳洲|Australia|Sydney|\bAU\b/i, "au"],
+  [/荷兰|Netherlands|Amsterdam|\bNL\b/i, "nl"],
+  [/俄罗斯|Russia|Moscow|\bRU\b/i, "ru"],
+  [/印度|India|\bIN\b/i, "in"],
+  [/马来西亚|Malaysia|\bMY\b/i, "my"],
+  [/土耳其|Turkey|\bTR\b/i, "tr"],
+  [/巴西|Brazil|\bBR\b/i, "br"],
+  [/阿根廷|Argentina|\bAR\b/i, "ar"],
+  [/菲律宾|Philippines|\bPH\b/i, "ph"],
+  [/泰国|Thailand|\bTH\b/i, "th"],
+  [/越南|Vietnam|\bVN\b/i, "vn"],
+];
+
+/**
+ * 读取节点名称自带的旗帜 emoji（XBond 订阅的节点名前缀即旗帜）；
+ * 若无 emoji 则根据前缀或常见地区名称智能推断。
+ */
+export function nodeFlagCode(name: string): string | null {
+  if (!name) return null;
+  const match = name.match(REGIONAL_INDICATOR_PAIR);
+  if (match) {
+    const cp1 = match[0].codePointAt(0) ?? 0;
+    const cp2 = match[0].codePointAt(2) ?? 0;
+    const char1 = String.fromCharCode(cp1 - 0x1f1e6 + 65);
+    const char2 = String.fromCharCode(cp2 - 0x1f1e6 + 65);
+    return `${char1}${char2}`.toLowerCase();
+  }
+
+  const leading = name.match(/^([A-Za-z]{2})[\s-]+/);
+  if (leading) {
+    return leading[1].toLowerCase();
+  }
+
+  for (const [pattern, code] of COUNTRY_NAME_MAP) {
+    if (pattern.test(name)) return code;
+  }
+
+  return null;
+}
+
+/** 去掉名称自带的旗帜 emoji，用于旗帜已单独展示的场合，避免重复。 */
+export function stripFlagEmoji(name: string): string {
+  return name ? name.replace(REGIONAL_INDICATOR_PAIR, "").trim() : name;
+}
+
 /**
  * Parses node names with flag emojis or leading 2-letter country prefixes,
  * transforming them into standard flag-icons.

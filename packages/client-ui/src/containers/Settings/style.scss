@@ -13,7 +13,7 @@
   width: 100%;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1440px) {
   .settings-grid {
     grid-template-columns: repeat(2, 1fr);
     align-items: start;
@@ -23,11 +23,11 @@
 .settings-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 24px;
   padding: 24px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 1px 3px oklch(0 0 0 / 2%);
+  box-shadow: var(--elevation-card);
 }
 
 .settings-card-header {

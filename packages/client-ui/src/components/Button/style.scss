@@ -54,17 +54,23 @@
 }
 
 .button-brand {
-  background: var(--brand-foreground);
-  color: var(--brand);
+  background: var(--brand);
+  color: var(--brand-foreground);
+  box-shadow: 0 2px 8px oklch(0.66 0.18 52 / 28%);
+
   &:hover {
-    background: var(--foreground);
+    background: var(--brand-strong);
+    box-shadow: 0 4px 14px oklch(0.66 0.18 52 / 38%);
   }
 }
 .dark .button-brand {
   background: var(--brand);
   color: var(--brand-foreground);
+  box-shadow: 0 2px 8px oklch(0.66 0.18 52 / 32%);
+
   &:hover {
     background: var(--brand-strong);
+    box-shadow: 0 4px 14px oklch(0.66 0.18 52 / 45%);
   }
 }
 
