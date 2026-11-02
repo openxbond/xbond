@@ -7,6 +7,13 @@ import { defineConfig } from "vite";
 export default defineConfig({
   root: fileURLToPath(new URL(".", import.meta.url)),
   publicDir: fileURLToPath(new URL("public", import.meta.url)),
+  define: {
+    // 控制通道 API origin（账户与 target=extension 拉取）：本地验证可用
+    // XBOND_API_ORIGIN 覆盖，控制台域名由发布构建注入。
+    __XBOND_API_ORIGIN__: JSON.stringify(
+      process.env.XBOND_API_ORIGIN ?? "https://fallback.xbond.dev",
+    ),
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,

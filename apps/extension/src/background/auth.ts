@@ -5,7 +5,10 @@
 
 import type { ExtensionConfig } from "../shared/extension-config.ts";
 
-const AUTH_RETRY_LIMIT = 3;
+// 上界按「同一入口 30 秒窗口」计：一次页面加载会并发多条 CONNECT、每条首次
+// 都经历 407，3 次就会把正常导航误判成重试风暴；16 次足以拦住错误凭据的
+// 无限循环（Chromium 对同一请求自身的认证重试另有上限），又不误伤正常流量。
+const AUTH_RETRY_LIMIT = 16;
 const AUTH_WINDOW_MS = 30_000;
 
 export type AuthGate = {
@@ -43,9 +46,9 @@ export function createAuthHandler(
   configProvider: () => Promise<ExtensionConfig | null>,
   notify: (level: "warn" | "error", message: string) => void,
 ) {
-  return async (
+  async function answer(
     details: chrome.webRequest.AuthRequiredDetails,
-  ): Promise<chrome.webRequest.AuthChallengeResponse | undefined> => {
+  ): Promise<chrome.webRequest.AuthChallengeResponse | undefined> {
     if (!details.isProxy) return undefined;
     const config = await configProvider();
     if (!config) return undefined;
@@ -74,5 +77,14 @@ export function createAuthHandler(
         password: credentials.password,
       },
     };
+  }
+
+  // MV3 的 asyncBlocking 只认回调形式（details, callback）：返回 Promise 的
+  // 写法不会被调度为认证应答（实测 Edge 156 从不触发）。
+  return (
+    details: chrome.webRequest.AuthRequiredDetails,
+    callback: (response?: chrome.webRequest.AuthChallengeResponse) => void,
+  ): void => {
+    void answer(details).then((response) => callback(response));
   };
 }

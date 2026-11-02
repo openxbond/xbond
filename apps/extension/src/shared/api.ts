@@ -50,9 +50,11 @@ export class ApiClient {
   private readonly origin: string;
   private readonly fetchFn: typeof fetch;
 
-  constructor(origin: string, fetchFn: typeof fetch = fetch) {
+  constructor(origin: string, fetchFn?: typeof fetch) {
     this.origin = origin.replace(/\/$/, "");
-    this.fetchFn = fetchFn;
+    // fetch 必须绑定到全局作用域再调用：直接把全局 fetch 存成实例属性会在
+    // Service Worker 里触发 "Illegal invocation"（this 不再指向 WorkerGlobalScope）。
+    this.fetchFn = fetchFn ?? ((input, init) => fetch(input, init));
   }
 
   private async postForm(
