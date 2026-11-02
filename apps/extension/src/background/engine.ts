@@ -11,6 +11,7 @@ import type {
   ProxyState,
   StateMessage,
 } from "../shared/types.ts";
+import { createAccount } from "./account.ts";
 import { createAuthGate, createAuthHandler, resetAuthGate } from "./auth.ts";
 import {
   clearProxy,
@@ -21,12 +22,18 @@ import {
 } from "./proxy.ts";
 import {
   loadConfig,
-  loadPrefs,
+  loadEntitlement,
   loadEvents,
+  loadPendingLogin,
+  loadPrefs,
+  loadTokens,
   logEvent,
   saveConfig,
   savePrefs,
 } from "./store.ts";
+
+/** 控制通道 API origin（构建期注入）：账户与配置拉取都走它，bypass 列表一致。 */
+declare const __XBOND_API_ORIGIN__: string;
 
 /** 入口连续失败的判定窗口：60 秒内 5 次代理层错误 → unreachable。 */
 const UNREACHABLE_WINDOW_MS = 60_000;
@@ -35,6 +42,7 @@ const UNREACHABLE_THRESHOLD = 5;
 let state: ProxyState = { kind: "off" };
 
 const authGate = createAuthGate();
+const account = createAccount(__XBOND_API_ORIGIN__);
 const proxyErrors: number[] = [];
 
 export function currentState(): ProxyState {
@@ -54,6 +62,24 @@ function broadcastState(next: ProxyState): void {
   } catch {
     // 无接收方（popup/管理页都关着）时 sendMessage 抛错：正常，忽略。
   }
+}
+
+/** 登录轮询：一次端点轮询；仍 pending 则续排下一次（浏览器对短 alarm 有下限节流）。 */
+function scheduleDevicePoll(afterSeconds: number): void {
+  chrome.alarms.create("xbond.device-poll", {
+    when: Date.now() + afterSeconds * 1000,
+  });
+}
+
+async function devicePollTick(): Promise<void> {
+  const pending = await loadPendingLogin();
+  if (!pending) return;
+  const result = await account.pollOnce();
+  if (result.kind === "pending") {
+    scheduleDevicePoll(Math.max(pending.intervalSeconds, 5));
+    return;
+  }
+  await reconcile("device login finished");
 }
 
 /** 入口层错误采样（onErrorOccurred）；超阈值置 unreachable。 */
@@ -84,8 +110,25 @@ export async function reconcile(reason: string): Promise<ProxyState> {
 
   if (!config) {
     await releaseIfControlled("no-config");
-    setState({ kind: "no-config" });
-    logEvent("warn", `enabled without a valid config (${reason})`);
+    const pending = await loadPendingLogin();
+    if (pending) {
+      setState({
+        kind: "pending-login",
+        userCode: pending.userCode,
+        verificationUri: pending.verificationUri,
+        verificationUriComplete: pending.verificationUriComplete,
+        expiresAt: pending.expiresAt,
+      });
+      return state;
+    }
+    if (await loadTokens()) {
+      // 有凭据但还没有（可用的）配置：登录完成但拉取失败，等下一轮刷新。
+      setState({ kind: "no-config" });
+      logEvent("warn", `enabled with credentials but no config (${reason})`);
+      return state;
+    }
+    setState({ kind: "signed-out" });
+    logEvent("info", `enabled while signed out (${reason})`);
     return state;
   }
 
@@ -143,6 +186,7 @@ export async function reconcile(reason: string): Promise<ProxyState> {
     mode: prefs.mode,
     label: config.label || config.ingress.hosts[0],
     issuanceVersion: config.issuanceVersion,
+    entitlement: (await loadEntitlement()) ?? undefined,
   });
   return state;
 }
@@ -183,6 +227,37 @@ export async function handleMessage(
       await savePrefs({ ...prefs, mode: message.mode });
       resetAuthGate(authGate);
       return reconcile(`mode=${message.mode}`);
+    }
+    case "login-start": {
+      const pending = await loadPendingLogin();
+      if (pending) {
+        // 已有进行中的登录：不重复发起，直接回当前码。
+        return {
+          kind: "pending-login",
+          userCode: pending.userCode,
+          verificationUri: pending.verificationUri,
+          verificationUriComplete: pending.verificationUriComplete,
+          expiresAt: pending.expiresAt,
+        };
+      }
+      const state2 = await account.startLogin((url) =>
+        chrome.tabs.create({ url }),
+      );
+      if (state2.kind === "pending-login") scheduleDevicePoll(5);
+      await reconcile("login started");
+      return state2;
+    }
+    case "login-cancel": {
+      await account.cancelLogin();
+      return reconcile("login cancelled");
+    }
+    case "logout": {
+      await account.logout();
+      return reconcile("logout");
+    }
+    case "refresh-config": {
+      await account.refreshConfig();
+      return reconcile("manual config refresh");
     }
     case "set-manual-config": {
       let config: ExtensionConfig;
@@ -231,15 +306,19 @@ export function installListeners(): void {
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "xbond.reconcile") void reconcile("verify");
+    if (alarm.name === "xbond.config-refresh") void account.refreshConfig();
+    if (alarm.name === "xbond.device-poll") void devicePollTick();
   });
 
   chrome.runtime.onInstalled.addListener((details) => {
     chrome.alarms.create("xbond.reconcile", { periodInMinutes: 5 });
+    chrome.alarms.create("xbond.config-refresh", { periodInMinutes: 1440 });
     void reconcile(`installed ${details.reason}`);
   });
 
   chrome.runtime.onStartup.addListener(() => {
     // 浏览器重启：凭据仍在 storage.local，重新核对并恢复代理设置。
+    chrome.alarms.create("xbond.config-refresh", { periodInMinutes: 1440 });
     proxyErrors.length = 0;
     void reconcile("browser start");
   });
@@ -252,7 +331,11 @@ export function installListeners(): void {
       typed.type !== "get-events" &&
       typed.type !== "set-enabled" &&
       typed.type !== "set-mode" &&
-      typed.type !== "set-manual-config"
+      typed.type !== "set-manual-config" &&
+      typed.type !== "login-start" &&
+      typed.type !== "login-cancel" &&
+      typed.type !== "logout" &&
+      typed.type !== "refresh-config"
     ) {
       return undefined;
     }

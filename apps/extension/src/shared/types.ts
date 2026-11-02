@@ -41,13 +41,34 @@ export type ExtensionPrefs = {
  */
 export type ProxyState =
   | { kind: "off" }
-  | { kind: "ok"; mode: ProxyMode; label: string; issuanceVersion: string }
+  | {
+      kind: "ok";
+      mode: ProxyMode;
+      label: string;
+      issuanceVersion: string;
+      entitlement?: EntitlementInfo;
+    }
   | { kind: "no-config" }
+  | { kind: "signed-out" }
+  | {
+      kind: "pending-login";
+      userCode: string;
+      verificationUri: string;
+      verificationUriComplete: string | null;
+      expiresAt: number;
+    }
   | { kind: "auth-failed"; detail: string }
   | { kind: "unreachable"; detail: string }
   | { kind: "control-lost"; holder: string }
   | { kind: "invalid-config"; detail: string }
   | { kind: "error"; detail: string };
+
+/** 权益摘要（extension-config 响应携带；管理页展示余量与有效期）。 */
+export type EntitlementInfo = {
+  dataUsedBytes: number;
+  dataLimitBytes: number;
+  servicePeriodEnd: string;
+};
 
 /** popup / 管理页 → background 的消息。 */
 export type ExtensionMessage =
@@ -55,7 +76,11 @@ export type ExtensionMessage =
   | { type: "get-events" }
   | { type: "set-enabled"; enabled: boolean }
   | { type: "set-mode"; mode: ProxyMode }
-  | { type: "set-manual-config"; config: unknown };
+  | { type: "set-manual-config"; config: unknown }
+  | { type: "login-start" }
+  | { type: "login-cancel" }
+  | { type: "logout" }
+  | { type: "refresh-config" };
 
 /** background → 各页面的状态广播。 */
 export type StateMessage = { type: "state"; state: ProxyState };

@@ -5,6 +5,7 @@
 import { parseExtensionConfig } from "../shared/config.ts";
 import type {
   DiagnosticEvent,
+  EntitlementInfo,
   ExtensionConfig,
   ExtensionPrefs,
 } from "../shared/types.ts";
@@ -12,6 +13,13 @@ import type {
 const CONFIG_KEY = "xbond.config";
 const PREFS_KEY = "xbond.prefs";
 const EVENTS_KEY = "xbond.events";
+const ENTITLEMENT_KEY = "xbond.entitlement";
+/** 会话秘密（storage.session，浏览器退出即清）：access token。 */
+const ACCESS_KEY = "xbond.access";
+/** 持久凭据（storage.local，威胁模型见 docs/specs/extension-host.md）：refresh token。 */
+const REFRESH_KEY = "xbond.refresh";
+/** 进行中的设备流登录（storage.session：浏览器重启即放弃登录）。 */
+const PENDING_KEY = "xbond.pending-login";
 
 /** 诊断事件环上限：管理页只看最近的运行轨迹。 */
 const EVENT_RING_LIMIT = 200;
@@ -94,4 +102,138 @@ export function logEvent(
   message: string,
 ): void {
   void appendEvent({ at: Date.now(), level, message });
+}
+
+/** Token 对（access 在 session，refresh 在 local）。 */
+export type StoredTokens = {
+  accessToken: string;
+  accessTokenExpiresAt: number;
+  refreshToken: string;
+};
+
+export async function loadTokens(): Promise<StoredTokens | null> {
+  const [session, local] = await Promise.all([
+    sessionGet([ACCESS_KEY]),
+    localGet([REFRESH_KEY]),
+  ]);
+  const access = session[ACCESS_KEY] as
+    | { token?: unknown; expiresAt?: unknown }
+    | undefined;
+  const refresh = local[REFRESH_KEY];
+  if (typeof access?.token !== "string" || typeof refresh !== "string") {
+    return null;
+  }
+  return {
+    accessToken: access.token,
+    accessTokenExpiresAt:
+      typeof access.expiresAt === "number" ? access.expiresAt : 0,
+    refreshToken: refresh,
+  };
+}
+
+export async function saveTokens(tokens: StoredTokens): Promise<void> {
+  await Promise.all([
+    sessionSet({
+      [ACCESS_KEY]: {
+        token: tokens.accessToken,
+        expiresAt: tokens.accessTokenExpiresAt,
+      },
+    }),
+    localSet({ [REFRESH_KEY]: tokens.refreshToken }),
+  ]);
+}
+
+/** 登出清凭据：access、refresh 与权益摘要一并清除（配置保留以便比对版本）。 */
+export async function clearTokens(): Promise<void> {
+  await Promise.all([
+    sessionRemove([ACCESS_KEY]),
+    localRemove([REFRESH_KEY, ENTITLEMENT_KEY]),
+  ]);
+}
+
+function sessionGet(keys: string[]): Promise<Record<string, unknown>> {
+  return new Promise((resolve) => {
+    chrome.storage.session.get(keys, (items) => resolve(items));
+  });
+}
+
+function sessionSet(items: Record<string, unknown>): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.session.set(items, () => resolve());
+  });
+}
+
+function sessionRemove(keys: string[]): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.session.remove(keys, () => resolve());
+  });
+}
+
+function localRemove(keys: string[]): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.remove(keys, () => resolve());
+  });
+}
+
+export async function saveEntitlement(info: EntitlementInfo): Promise<void> {
+  await localSet({ [ENTITLEMENT_KEY]: info });
+}
+
+export async function loadEntitlement(): Promise<EntitlementInfo | null> {
+  const items = await localGet([ENTITLEMENT_KEY]);
+  const raw = items[ENTITLEMENT_KEY];
+  if (typeof raw !== "object" || raw === null) return null;
+  const record = raw as Partial<EntitlementInfo>;
+  if (
+    typeof record.dataUsedBytes !== "number" ||
+    typeof record.dataLimitBytes !== "number" ||
+    typeof record.servicePeriodEnd !== "string"
+  ) {
+    return null;
+  }
+  return record as EntitlementInfo;
+}
+
+/** 设备流登录的进行态（会话作用域：浏览器重启即放弃登录）。 */
+export type PendingLogin = {
+  deviceCode: string;
+  userCode: string;
+  verificationUri: string;
+  verificationUriComplete: string | null;
+  expiresAt: number;
+  intervalSeconds: number;
+};
+
+export async function loadPendingLogin(): Promise<PendingLogin | null> {
+  const items = await sessionGet([PENDING_KEY]);
+  const raw = items[PENDING_KEY];
+  if (typeof raw !== "object" || raw === null) return null;
+  const record = raw as Partial<PendingLogin>;
+  if (
+    typeof record.deviceCode !== "string" ||
+    typeof record.userCode !== "string" ||
+    typeof record.verificationUri !== "string"
+  ) {
+    return null;
+  }
+  return {
+    deviceCode: record.deviceCode,
+    userCode: record.userCode,
+    verificationUri: record.verificationUri,
+    verificationUriComplete:
+      typeof record.verificationUriComplete === "string"
+        ? record.verificationUriComplete
+        : null,
+    expiresAt: typeof record.expiresAt === "number" ? record.expiresAt : 0,
+    intervalSeconds:
+      typeof record.intervalSeconds === "number" ? record.intervalSeconds : 5,
+  };
+}
+
+export async function savePendingLogin(pending: PendingLogin): Promise<void> {
+  await sessionSet({ [PENDING_KEY]: pending });
+}
+
+export async function clearPendingLogin(): Promise<void> {
+  await sessionRemove([PENDING_KEY]);
 }

@@ -1,9 +1,12 @@
-// 管理页（骨架）：手动入口配置 + 状态 + 诊断事件。Cloud 账户链路（device
-// flow OAuth、配置签发拉取）在 background 完成后接入；本页只经消息通道与
-// background 交互，不直接触碰 chrome.proxy。
+// 管理页：账户（设备流登录/登出/权益摘要）+ 代理开关与模式 + 手动入口 +
+// 诊断事件。全部经消息通道与 background 交互，不直接触碰 chrome.proxy；
+// 设备流验证页在用户点击时才打开。
 
 import { buildManualConfig } from "../shared/config.ts";
+import { translator } from "../shared/i18n.ts";
 import type { ExtensionMessage, ProxyState } from "../shared/types.ts";
+
+const tr = translator(navigator.language);
 
 function send(message: ExtensionMessage): Promise<unknown> {
   return new Promise((resolve) => {
@@ -15,6 +18,24 @@ const stateBox = document.getElementById("state") as HTMLDivElement;
 const enabledBox = document.getElementById("enabled") as HTMLInputElement;
 const modeBox = document.getElementById("mode") as HTMLSelectElement;
 const eventsBox = document.getElementById("events") as HTMLDivElement;
+const signInButton = document.getElementById("sign-in") as HTMLButtonElement;
+const cancelButton = document.getElementById(
+  "cancel-login",
+) as HTMLButtonElement;
+const signOutButton = document.getElementById("sign-out") as HTMLButtonElement;
+const refreshButton = document.getElementById(
+  "refresh-config",
+) as HTMLButtonElement;
+const loginInfo = document.getElementById("login-info") as HTMLDivElement;
+const userCodeBox = document.getElementById(
+  "user-code",
+) as HTMLParagraphElement;
+const verificationLink = document.getElementById(
+  "verification-link",
+) as HTMLAnchorElement;
+const entitlementBox = document.getElementById(
+  "entitlement",
+) as HTMLParagraphElement;
 
 async function renderEvents(): Promise<void> {
   const result = (await send({ type: "get-events" })) as {
@@ -23,7 +44,7 @@ async function renderEvents(): Promise<void> {
   const events = result.events ?? [];
   eventsBox.textContent =
     events.length === 0
-      ? "no events yet"
+      ? tr("noEvents")
       : events
           .map(
             (event) =>
@@ -35,24 +56,31 @@ async function renderEvents(): Promise<void> {
 function describe(state: ProxyState): { text: string; bad: boolean } {
   switch (state.kind) {
     case "off":
-      return { text: "off", bad: false };
+      return { text: `${tr("proxy")}: ${tr("off")}`, bad: false };
     case "ok":
       return {
-        text: `on · ${state.mode} · ${state.label} · config ${state.issuanceVersion}`,
+        text: `${tr("on")} · ${state.mode} · ${state.label} · config ${state.issuanceVersion}`,
         bad: false,
       };
     case "no-config":
-      return { text: "on but no valid config", bad: true };
+      return { text: tr("noConfig"), bad: true };
+    case "signed-out":
+      return { text: tr("signedOut"), bad: false };
+    case "pending-login":
+      return {
+        text: `${tr("waitingApproval")} ${tr("userCode")}: ${state.userCode}`,
+        bad: false,
+      };
     case "auth-failed":
-      return { text: `auth failed — ${state.detail}`, bad: true };
+      return { text: `${tr("authFailed")} — ${state.detail}`, bad: true };
     case "unreachable":
-      return { text: `ingress unreachable — ${state.detail}`, bad: true };
+      return { text: `${tr("unreachable")} — ${state.detail}`, bad: true };
     case "control-lost":
-      return { text: `proxy control held by ${state.holder}`, bad: true };
+      return { text: `${tr("controlLost")} ${state.holder}`, bad: true };
     case "invalid-config":
-      return { text: `invalid config — ${state.detail}`, bad: true };
+      return { text: `${tr("invalidConfig")} — ${state.detail}`, bad: true };
     case "error":
-      return { text: `error — ${state.detail}`, bad: true };
+      return { text: `${tr("error")} — ${state.detail}`, bad: true };
   }
 }
 
@@ -62,12 +90,65 @@ function render(state: ProxyState): void {
   stateBox.className = view.bad ? "bad" : "ok";
   enabledBox.checked = state.kind !== "off";
   modeBox.value = state.kind === "ok" ? state.mode : "global";
+
+  // 账户区随状态切换：未登录可见登录；登录中可见码 + 验证链接 + 取消；
+  // 已登录（有权益摘要）可见登出与刷新。
+  const pending = state.kind === "pending-login";
+  const signedIn =
+    state.kind === "ok" ||
+    state.kind === "unreachable" ||
+    state.kind === "auth-failed";
+  signInButton.hidden = pending || signedIn;
+  cancelButton.hidden = !pending;
+  signOutButton.hidden = !signedIn;
+  refreshButton.hidden = !signedIn;
+  loginInfo.hidden = !pending;
+  if (pending) {
+    userCodeBox.textContent = `${tr("userCode")}: ${state.userCode}`;
+    const href = state.verificationUriComplete ?? state.verificationUri;
+    verificationLink.href = href;
+    verificationLink.textContent = tr("openVerification");
+  }
+  if (state.kind === "ok" && state.entitlement) {
+    const used = Math.floor(
+      (state.entitlement.dataUsedBytes /
+        Math.max(state.entitlement.dataLimitBytes, 1)) *
+        100,
+    );
+    entitlementBox.hidden = false;
+    entitlementBox.textContent = `${tr("usage")}: ${used}% · ${tr("expires")}: ${state.entitlement.servicePeriodEnd.slice(0, 10)}`;
+  } else {
+    entitlementBox.hidden = true;
+  }
+
   void renderEvents();
 }
 
 async function refresh(): Promise<void> {
   render((await send({ type: "get-state" })) as ProxyState);
 }
+
+signInButton.addEventListener("click", async () => {
+  const state = (await send({ type: "login-start" })) as ProxyState;
+  render(state);
+  if (state.kind === "pending-login") {
+    chrome.tabs.create({
+      url: state.verificationUriComplete ?? state.verificationUri,
+    });
+  }
+});
+
+cancelButton.addEventListener("click", () => {
+  void send({ type: "login-cancel" });
+});
+
+signOutButton.addEventListener("click", () => {
+  void send({ type: "logout" });
+});
+
+refreshButton.addEventListener("click", () => {
+  void send({ type: "refresh-config" });
+});
 
 document.getElementById("apply")?.addEventListener("click", () => {
   const host = (

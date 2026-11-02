@@ -119,7 +119,7 @@ declare namespace chrome.alarms {
   type Alarm = { name: string; scheduledTime: number };
   function create(
     name: string,
-    info: { periodInMinutes?: number; delayInMinutes?: number },
+    info: { periodInMinutes?: number; delayInMinutes?: number; when?: number },
   ): void;
   function clear(name: string, callback?: (cleared: boolean) => void): void;
   namespace onAlarm {

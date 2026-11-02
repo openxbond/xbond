@@ -66,6 +66,21 @@
       </select></label
     >
 
+    <h2 id="account-title">Account</h2>
+    <div id="account">
+      <button id="sign-in" type="button">sign in</button>
+      <button id="cancel-login" type="button" hidden>cancel</button>
+      <button id="sign-out" type="button" hidden>sign out</button>
+      <button id="refresh-config" type="button" hidden>refresh config</button>
+      <div id="login-info" hidden>
+        <p id="user-code"></p>
+        <a id="verification-link" href="#" target="_blank" rel="noreferrer"
+          >open verification page</a
+        >
+      </div>
+      <p id="entitlement" hidden></p>
+    </div>
+
     <h2>Manual ingress (probe / local agent)</h2>
     <label>host <input id="host" placeholder="proxy.example.com" /></label>
     <label>port <input id="port" type="number" placeholder="8444" /></label>
