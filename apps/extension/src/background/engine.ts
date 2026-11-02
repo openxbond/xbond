@@ -5,6 +5,7 @@
 
 import type { ExtensionConfig, Quota } from "../shared/extension-config.ts";
 import type { Selection } from "../shared/workspace.ts";
+import { createAccount } from "./account.ts";
 import { createAuthGate, createAuthHandler, resetAuthGate } from "./auth.ts";
 import {
   clearProxy,
@@ -18,9 +19,10 @@ import {
   loadEnabled,
   loadEvents,
   loadMode,
+  loadPendingLogin,
   loadQuota,
   loadSelection,
-  loadSubscription,
+  loadTokens,
   logEvent,
   saveEnabled,
   saveMode,
@@ -28,10 +30,12 @@ import {
   type DiagnosticEvent,
   type RoutingMode,
 } from "./store.ts";
-import { refreshSubscription } from "./subscription.ts";
 
 const UNREACHABLE_WINDOW_MS = 60_000;
 const UNREACHABLE_THRESHOLD = 5;
+
+/** 控制通道 API origin（构建期注入）：账户与配置请求的目标。 */
+declare const __XBOND_API_ORIGIN__: string;
 
 export type ProxyState =
   | { kind: "off" }
@@ -42,7 +46,15 @@ export type ProxyState =
       selection: Selection;
       quota: Quota | null;
     }
-  | { kind: "no-subscription" }
+  | { kind: "signed-out" }
+  | {
+      kind: "pending-login";
+      userCode: string;
+      verificationUri: string;
+      verificationUriComplete: string | null;
+      expiresAt: number;
+    }
+  | { kind: "no-config" }
   | { kind: "auth-failed"; detail: string }
   | { kind: "unreachable"; detail: string }
   | { kind: "control-lost"; holder: string }
@@ -55,13 +67,16 @@ export type ExtensionMessage =
   | { type: "set-enabled"; enabled: boolean }
   | { type: "set-mode"; mode: RoutingMode }
   | { type: "set-selection"; group: string; member: string }
-  | { type: "import-subscription"; url: string }
-  | { type: "refresh-subscription" };
+  | { type: "login-start" }
+  | { type: "login-cancel" }
+  | { type: "logout" }
+  | { type: "refresh-config" };
 
 export type StateMessage = { type: "state"; state: ProxyState };
 
 let state: ProxyState = { kind: "off" };
 
+const account = createAccount(__XBOND_API_ORIGIN__);
 const authGate = createAuthGate();
 const proxyErrors: number[] = [];
 
@@ -84,7 +99,6 @@ function broadcastState(next: ProxyState): void {
   }
 }
 
-/** 入口层错误采样（onErrorOccurred）；超阈值置 unreachable。 */
 export function recordProxyError(error: string): void {
   const now = Date.now();
   while (proxyErrors.length > 0 && now - proxyErrors[0] > UNREACHABLE_WINDOW_MS)
@@ -105,7 +119,6 @@ function okState(
   return { kind: "ok", mode, nodeCount: config.nodes.length, selection, quota };
 }
 
-/** 中心收敛：读偏好与配置，核对实际代理设置，自愈或上报。 */
 export async function reconcile(reason: string): Promise<ProxyState> {
   const enabled = await loadEnabled();
   const config = await loadConfig();
@@ -116,20 +129,34 @@ export async function reconcile(reason: string): Promise<ProxyState> {
     setState({ kind: "off" });
     return state;
   }
+
+  const pending = await loadPendingLogin();
+  if (pending) {
+    await releaseIfControlled("pending login");
+    setState({
+      kind: "pending-login",
+      userCode: pending.userCode,
+      verificationUri: pending.verificationUri,
+      verificationUriComplete: pending.verificationUriComplete,
+      expiresAt: pending.expiresAt,
+    });
+    return state;
+  }
+
   if (!config) {
-    await releaseIfControlled("no-subscription");
-    setState({ kind: "no-subscription" });
+    await releaseIfControlled("no config");
+    const tokens = await loadTokens();
+    setState(tokens ? { kind: "no-config" } : { kind: "signed-out" });
     return state;
   }
 
   const mode = await loadMode();
   const selection = await loadSelection();
-  const source = await loadSubscription();
   const expected = expectedProxyValue(
     config,
     selection,
     mode,
-    source?.url ?? null,
+    __XBOND_API_ORIGIN__,
   );
   let setting: Awaited<ReturnType<typeof readProxySetting>>;
   try {
@@ -179,7 +206,6 @@ export async function reconcile(reason: string): Promise<ProxyState> {
   return state;
 }
 
-/** 仅当设置仍归本扩展时释放（clear）；他人持有或被策略接管时不动它。 */
 async function releaseIfControlled(reason: string): Promise<void> {
   try {
     const setting = await readProxySetting();
@@ -196,7 +222,7 @@ async function releaseIfControlled(reason: string): Promise<void> {
   }
 }
 
-/** 消息入口：popup / 管理页 / content script 的唯一控制面。 */
+/** 消息入口：popup / 管理页的唯一控制面。 */
 export async function handleMessage(
   message: ExtensionMessage,
 ): Promise<ProxyState | { events: DiagnosticEvent[] }> {
@@ -221,26 +247,64 @@ export async function handleMessage(
       resetAuthGate(authGate);
       return reconcile(`selection=${message.group}->${message.member}`);
     }
-    case "import-subscription": {
-      const { importSubscription } = await import("./subscription.ts");
-      const result = await importSubscription(message.url);
-      if (!result.ok) {
-        setState({ kind: "error", detail: `import failed: ${result.error}` });
+    case "login-start": {
+      const existing = await loadPendingLogin();
+      if (existing) {
+        setState({
+          kind: "pending-login",
+          userCode: existing.userCode,
+          verificationUri: existing.verificationUri,
+          verificationUriComplete: existing.verificationUriComplete,
+          expiresAt: existing.expiresAt,
+        });
         return state;
       }
-      resetAuthGate(authGate);
-      return reconcile("subscription imported");
+      const started = await account.startLogin((url) =>
+        chrome.tabs.create({ url }),
+      );
+      if (started.kind === "error") {
+        setState({ kind: "error", detail: started.detail });
+        return state;
+      }
+      scheduleDevicePoll(Math.max(started.pending.intervalSeconds, 5));
+      await reconcile("login started");
+      return state;
     }
-    case "refresh-subscription": {
-      await refreshSubscription();
-      return reconcile("subscription refreshed");
+    case "login-cancel": {
+      await account.cancelLogin();
+      return reconcile("login cancelled");
+    }
+    case "logout": {
+      await account.logout();
+      return reconcile("logout");
+    }
+    case "refresh-config": {
+      await account.refreshConfig();
+      return reconcile("manual config refresh");
     }
   }
 }
 
 function scheduleReconcile(): void {
   chrome.alarms.create("xbond.reconcile", { periodInMinutes: 5 });
-  chrome.alarms.create("xbond.subscription-refresh", { periodInMinutes: 1440 });
+  chrome.alarms.create("xbond.config-refresh", { periodInMinutes: 1440 });
+}
+
+function scheduleDevicePoll(afterSeconds: number): void {
+  chrome.alarms.create("xbond.device-poll", {
+    when: Date.now() + afterSeconds * 1000,
+  });
+}
+
+async function devicePollTick(): Promise<void> {
+  const pending = await loadPendingLogin();
+  if (!pending) return;
+  const result = await account.pollOnce();
+  if (result === "pending") {
+    scheduleDevicePoll(Math.max(pending.intervalSeconds, 5));
+    return;
+  }
+  await reconcile("device login finished");
 }
 
 /** SW 入口装配（index.ts 调用一次；MV3 事件模型保证重复安全）。 */
@@ -276,9 +340,9 @@ export function installListeners(): void {
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "xbond.reconcile") void reconcile("verify");
-    if (alarm.name === "xbond.subscription-refresh") {
-      void refreshSubscription().then(() => reconcile("subscription refresh"));
-    }
+    if (alarm.name === "xbond.config-refresh")
+      void account.refreshConfig().then(() => reconcile("config refresh"));
+    if (alarm.name === "xbond.device-poll") void devicePollTick();
   });
 
   chrome.runtime.onInstalled.addListener((details) => {
@@ -301,8 +365,10 @@ export function installListeners(): void {
       typed.type !== "set-enabled" &&
       typed.type !== "set-mode" &&
       typed.type !== "set-selection" &&
-      typed.type !== "import-subscription" &&
-      typed.type !== "refresh-subscription"
+      typed.type !== "login-start" &&
+      typed.type !== "login-cancel" &&
+      typed.type !== "logout" &&
+      typed.type !== "refresh-config"
     ) {
       return undefined;
     }

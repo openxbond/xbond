@@ -15,17 +15,12 @@ export default defineConfig({
         background: fileURLToPath(
           new URL("src/background/index.ts", import.meta.url),
         ),
-        "content-import": fileURLToPath(
-          new URL("src/content/content-import.ts", import.meta.url),
-        ),
         popup: fileURLToPath(new URL("src/popup/index.html", import.meta.url)),
         page: fileURLToPath(new URL("src/page/index.html", import.meta.url)),
       },
       output: {
         entryFileNames: (chunk) =>
-          chunk.name === "background" || chunk.name === "content-import"
-            ? "[name].js"
-            : "assets/[name].js",
+          chunk.name === "background" ? "background.js" : "assets/[name].js",
       },
     },
   },

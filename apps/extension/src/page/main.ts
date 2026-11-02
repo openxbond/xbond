@@ -1,6 +1,5 @@
-// 管理页：订阅导入（粘贴链接或经状态页一键导入）、模式与策略组选择、节点
-// 清单、用量与诊断事件。全部经消息通道与 background 交互，不直接触碰
-// chrome.proxy。
+// 管理页：账户（XBond 账号登录/登出、设备码）、模式与策略组选择、节点清单、
+// 用量与诊断事件。全部经消息通道与 background 交互，不直接触碰 chrome.proxy。
 
 import type { ExtensionMessage, ProxyState } from "../background/engine.ts";
 import type { ExtensionConfig } from "../shared/extension-config.ts";
@@ -18,11 +17,21 @@ function send(message: ExtensionMessage): Promise<unknown> {
 const stateBox = document.getElementById("state") as HTMLDivElement;
 const enabledBox = document.getElementById("enabled") as HTMLInputElement;
 const modeBox = document.getElementById("mode") as HTMLSelectElement;
-const urlInput = document.getElementById(
-  "subscription-url",
-) as HTMLInputElement;
-const importButton = document.getElementById("import") as HTMLButtonElement;
-const refreshButton = document.getElementById("refresh") as HTMLButtonElement;
+const signInButton = document.getElementById("sign-in") as HTMLButtonElement;
+const cancelButton = document.getElementById(
+  "cancel-login",
+) as HTMLButtonElement;
+const signOutButton = document.getElementById("sign-out") as HTMLButtonElement;
+const refreshButton = document.getElementById(
+  "refresh-config",
+) as HTMLButtonElement;
+const loginInfo = document.getElementById("login-info") as HTMLDivElement;
+const userCodeBox = document.getElementById(
+  "user-code",
+) as HTMLParagraphElement;
+const verificationLink = document.getElementById(
+  "verification-link",
+) as HTMLAnchorElement;
 const groupsBox = document.getElementById("groups") as HTMLDivElement;
 const nodesBox = document.getElementById("nodes") as HTMLDivElement;
 const quotaBox = document.getElementById("quota") as HTMLParagraphElement;
@@ -40,7 +49,14 @@ function describe(state: ProxyState): { text: string; bad: boolean } {
         text: `${tr("on")} · ${state.mode} · ${state.nodeCount} ${tr("nodes")}`,
         bad: false,
       };
-    case "no-subscription":
+    case "signed-out":
+      return { text: tr("noSubscription"), bad: true };
+    case "pending-login":
+      return {
+        text: `${tr("waitingApproval")} · ${tr("userCode")}: ${state.userCode}`,
+        bad: false,
+      };
+    case "no-config":
       return { text: tr("noSubscription"), bad: true };
     case "auth-failed":
       return { text: `${tr("authFailed")} — ${state.detail}`, bad: true };
@@ -96,7 +112,6 @@ function renderNodes(selection: Selection): void {
     row.appendChild(name);
     nodesBox.appendChild(row);
   }
-  // 当前出口 = 主选择组的解析结果。
   const primary = config.groups.find((group) => group.type === "select");
   if (primary) {
     try {
@@ -135,8 +150,30 @@ function render(state: ProxyState): void {
   const view = describe(state);
   stateBox.textContent = view.text;
   stateBox.className = view.bad ? "bad" : "ok";
-  enabledBox.checked = state.kind !== "off";
+  enabledBox.checked =
+    state.kind === "ok" ||
+    state.kind === "unreachable" ||
+    state.kind === "auth-failed";
   modeBox.value = state.kind === "ok" ? state.mode : "rule";
+
+  const pending = state.kind === "pending-login";
+  const signedIn =
+    state.kind === "ok" ||
+    state.kind === "unreachable" ||
+    state.kind === "auth-failed" ||
+    state.kind === "control-lost";
+  signInButton.hidden = pending || signedIn;
+  cancelButton.hidden = !pending;
+  signOutButton.hidden = !signedIn;
+  loginInfo.hidden = !pending;
+  refreshButton.hidden = !signedIn;
+  if (pending) {
+    userCodeBox.textContent = `${tr("userCode")}: ${state.userCode}`;
+    const href = state.verificationUriComplete ?? state.verificationUri;
+    verificationLink.href = href;
+    verificationLink.textContent = tr("openVerification");
+  }
+
   if (state.kind === "ok") {
     renderGroups(state.selection);
     renderNodes(state.selection);
@@ -158,23 +195,26 @@ async function refresh(): Promise<void> {
 }
 
 function loadConfig(): void {
-  chrome.storage.local.get(["xbond.config", "xbond.subscription"], (items) => {
+  chrome.storage.local.get("xbond.config", (items) => {
     config = (items["xbond.config"] as ExtensionConfig | undefined) ?? null;
-    const source = items["xbond.subscription"] as { url?: string } | undefined;
-    if (source?.url) urlInput.value = source.url;
     render(currentState);
   });
 }
 
-importButton.addEventListener("click", async () => {
-  const url = urlInput.value.trim();
-  if (!url) return;
-  render((await send({ type: "import-subscription", url })) as ProxyState);
-  loadConfig();
+signInButton.addEventListener("click", async () => {
+  render((await send({ type: "login-start" })) as ProxyState);
+});
+
+cancelButton.addEventListener("click", () => {
+  void send({ type: "login-cancel" });
+});
+
+signOutButton.addEventListener("click", () => {
+  void send({ type: "logout" });
 });
 
 refreshButton.addEventListener("click", () => {
-  void send({ type: "refresh-subscription" });
+  void send({ type: "refresh-config" });
 });
 
 enabledBox.addEventListener("change", () => {

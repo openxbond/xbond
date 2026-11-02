@@ -28,8 +28,7 @@
       label.row span {
         min-width: 180px;
       }
-      select,
-      input[type="text"] {
+      select {
         flex: 1;
         padding: 4px 6px;
       }
@@ -77,17 +76,19 @@
       </select>
     </label>
 
-    <h2 id="subscription-title">Subscription</h2>
-    <label class="row"
-      ><span>subscription link</span>
-      <input
-        id="subscription-url"
-        type="text"
-        placeholder="https://…/api/subscription/config?token=sub-…"
-      />
-    </label>
-    <button id="import" type="button">import</button>
-    <button id="refresh" type="button">refresh</button>
+    <h2>Account</h2>
+    <div id="account">
+      <button id="sign-in" type="button">sign in</button>
+      <button id="cancel-login" type="button" hidden>cancel</button>
+      <button id="sign-out" type="button" hidden>sign out</button>
+      <button id="refresh-config" type="button" hidden>refresh config</button>
+      <div id="login-info" hidden>
+        <p id="user-code"></p>
+        <a id="verification-link" href="#" target="_blank" rel="noreferrer"
+          >open verification page</a
+        >
+      </div>
+    </div>
 
     <h2>Strategy groups</h2>
     <div id="groups"></div>

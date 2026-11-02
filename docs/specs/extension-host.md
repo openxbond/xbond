@@ -1,11 +1,11 @@
 # 扩展宿主（MV3）规格
 
-XBond 浏览器扩展是独立的交付链路：**订阅链接即凭据**——状态页一键导入或粘贴订阅链接后，扩展拉取 `target=extension` 配置，浏览器网络栈经 chrome.proxy 的 PAC 直连 Agent 的 HTTPS CONNECT 入口，无原生客户端参与。宿主落位 `apps/extension`；Cloud 侧契约见 `docs/specs/proxy-service.md` 的「浏览器扩展配置（target=extension）」与探针记录（cloud 仓库 `docs/tasks/client-extension-probe.md`）。
+XBond 浏览器扩展是独立的交付链路：**只接受 XBond 账号登录**（RFC 8628 设备流，扩展内登录/退出，没有第三方订阅可导入）——登录后以 Bearer 通道拉取 `target=extension` 配置，浏览器网络栈经 chrome.proxy 的 PAC 直连 Agent 的 HTTPS CONNECT 入口，无原生客户端参与。宿主落位 `apps/extension`；Cloud 侧契约见 `docs/specs/proxy-service.md` 的「浏览器扩展配置（target=extension）」与探针记录（cloud 仓库 `docs/tasks/client-extension-probe.md`）。
 
 ## 数据路径
 
 ```
-订阅链接（sub- 令牌） → background 拉取 target=extension（proxyToken、节点密码、策略组、规则集）
+XBond 账号登录（设备流） → background 以 Bearer 拉取 target=extension（proxyToken、节点密码、策略组、规则集）
 浏览器请求 → PAC（规则/全局/直连） → {password 前 12 位}.{Agent 域名}:443
 → TLS（可信域名受信证书，同端口 SNI 复用） → CONNECT + 407 Basic
    username = proxyToken（快照准入）  password = 节点密码（resolveRoute 选出口）
@@ -25,9 +25,9 @@ XBond 浏览器扩展是独立的交付链路：**订阅链接即凭据**——�
 
 「关闭」或「直连」模式 = 释放本扩展的代理设置（`chrome.proxy.settings.clear`，回到用户/策略自己的配置），不是显式直连。`not_controllable`（企业策略）与 `controlled_by_other_extensions` 原样上报，绝不竞争。
 
-## 威胁模型
+## 威胁模型与凭据分层
 
-订阅链接、proxyToken 与节点密码存放在 `chrome.storage.local`（未加密，扩展生态通行做法）：恶意本机进程与磁盘取证可读。PAC 文本不含 proxyToken 与完整节点密码（生成器带守卫断言）；凭据只出现在 storage 与 onAuthRequired 应答里。
+access token 存 `storage.session`（会话秘密，浏览器退出即清）；refresh token 存 `storage.local`（重启恢复的前提），proxyToken 与节点密码随配置存 `storage.local`（未加密，扩展生态通行做法）：恶意本机进程与磁盘取证可读。PAC 文本不含 proxyToken 与完整节点密码（生成器带守卫断言）；凭据只出现在 storage 与 onAuthRequired 应答里。登出即清 access/refresh 与用量摘要，配置保留以便重新登录后比对版本。
 
 ## 平台事实与未决项（2026-11-02 探针结论）
 

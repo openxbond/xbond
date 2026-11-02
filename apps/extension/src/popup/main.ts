@@ -1,9 +1,7 @@
-// Popup：开关、模式、主节点、用量摘要、管理页入口。一切状态来自 background
-// （storage 为事实源）；主节点选择改写主策略组的选中成员（≥ 400px 弹窗命中
-// 移动端响应式布局）。
+// Popup：开关、模式、主节点、用量摘要、登录入口、管理页链接。一切状态来自
+// background（storage 为事实源）；登录走 XBond 账号的设备流。
 
-import type { ProxyState } from "../background/engine.ts";
-import type { ExtensionMessage } from "../background/engine.ts";
+import type { ExtensionMessage, ProxyState } from "../background/engine.ts";
 import type { ExtensionConfig } from "../shared/extension-config.ts";
 import { translator } from "../shared/i18n.ts";
 import { resolveLeaf, type Selection } from "../shared/workspace.ts";
@@ -23,6 +21,7 @@ const nodeBox = document.getElementById("node") as HTMLSelectElement;
 const primaryLabel = document.getElementById(
   "primary-label",
 ) as HTMLLabelElement;
+const actionButton = document.getElementById("action") as HTMLButtonElement;
 const manageLink = document.getElementById("manage") as HTMLAnchorElement;
 
 let currentState: ProxyState = { kind: "off" };
@@ -38,39 +37,42 @@ function formatQuota(state: ProxyState): string {
   const used = state.quota.uploadBytes + state.quota.downloadBytes;
   const total = Math.max(state.quota.totalBytes, 1);
   const percent = Math.min(100, Math.floor((used / total) * 100));
-  const expires = new Date(state.quota.expiresAt * 1000)
-    .toISOString()
-    .slice(0, 10);
-  return ` · ${tr("quota")} ${percent}% · ${tr("expires")} ${expires}`;
+  return ` · ${tr("quota")} ${percent}%`;
+}
+
+function currentExit(selection: Selection): string {
+  if (!config) return "";
+  const primary = primaryGroup();
+  if (!primary) return "";
+  try {
+    const leaf = resolveLeaf(config, selection, primary.name);
+    return leaf.kind === "node"
+      ? leaf.node.name
+      : leaf.kind === "direct"
+        ? tr("direct")
+        : tr("reject");
+  } catch {
+    return "?";
+  }
 }
 
 function describe(state: ProxyState): { text: string; bad: boolean } {
   switch (state.kind) {
     case "off":
       return { text: `${tr("proxy")}: ${tr("off")}`, bad: false };
-    case "ok": {
-      const primary = primaryGroup();
-      const selection: Selection = state.selection;
-      let exit = "";
-      if (config && primary) {
-        try {
-          const leaf = resolveLeaf(config, selection, primary.name);
-          exit =
-            leaf.kind === "direct"
-              ? tr("direct")
-              : leaf.kind === "reject"
-                ? tr("reject")
-                : leaf.node.name;
-        } catch {
-          exit = "?";
-        }
-      }
+    case "ok":
       return {
-        text: `${tr("on")} · ${tr("currentExit")}: ${exit}${formatQuota(state)}`,
+        text: `${tr("on")} · ${tr("currentExit")}: ${currentExit(state.selection)}${formatQuota(state)}`,
         bad: false,
       };
-    }
-    case "no-subscription":
+    case "signed-out":
+      return { text: tr("noSubscription"), bad: true };
+    case "pending-login":
+      return {
+        text: `${tr("waitingApproval")} · ${tr("userCode")}: ${state.userCode}`,
+        bad: false,
+      };
+    case "no-config":
       return { text: tr("noSubscription"), bad: true };
     case "auth-failed":
       return { text: `${tr("authFailed")} — ${state.detail}`, bad: true };
@@ -90,7 +92,10 @@ function render(state: ProxyState): void {
   const view = describe(state);
   stateBox.textContent = view.text;
   stateBox.className = view.bad ? "bad" : "ok";
-  enabledBox.checked = state.kind !== "off";
+  enabledBox.checked =
+    state.kind === "ok" ||
+    state.kind === "unreachable" ||
+    state.kind === "auth-failed";
   modeBox.value = state.kind === "ok" ? state.mode : "rule";
   const primary = primaryGroup();
   primaryLabel.hidden = !primary || state.kind !== "ok";
@@ -106,10 +111,13 @@ function render(state: ProxyState): void {
       }),
     );
   }
+  const pending = state.kind === "pending-login";
+  const signedOut = state.kind === "signed-out" || state.kind === "no-config";
+  actionButton.hidden = !pending && !signedOut;
+  actionButton.textContent = pending ? tr("cancelLogin") : tr("signIn");
 }
 
-// background 只下发状态摘要；完整配置由扩展页面直接读 storage（同源共享）。
-function loadConfigForRender(): void {
+function loadConfig(): void {
   chrome.storage.local.get("xbond.config", (items) => {
     config = (items["xbond.config"] as ExtensionConfig | undefined) ?? null;
     render(currentState);
@@ -150,6 +158,14 @@ nodeBox.addEventListener("change", async () => {
   );
 });
 
+actionButton.addEventListener("click", async () => {
+  if (currentState.kind === "pending-login") {
+    render((await send({ type: "login-cancel" })) as ProxyState);
+    return;
+  }
+  render((await send({ type: "login-start" })) as ProxyState);
+});
+
 chrome.runtime.onMessage.addListener((message: unknown) => {
   if (
     typeof message === "object" &&
@@ -157,7 +173,7 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
     (message as { type?: string }).type === "state"
   ) {
     render((message as { state: ProxyState }).state);
-    void loadConfigForRender();
+    loadConfig();
   }
 });
 
@@ -167,4 +183,4 @@ manageLink.addEventListener("click", (event) => {
 });
 
 void refresh();
-void loadConfigForRender();
+loadConfig();

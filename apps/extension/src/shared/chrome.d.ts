@@ -67,7 +67,7 @@ declare namespace chrome.webRequest {
   type OnAuthRequiredCallback = (
     details: AuthRequiredDetails,
     asyncCallback: (response?: AuthChallengeResponse) => void,
-  ) => Promise<AuthChallengeResponse | undefined> | undefined;
+  ) => void;
   type OnAuthRequiredEvent = {
     addListener(
       callback: OnAuthRequiredCallback,

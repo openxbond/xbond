@@ -56,6 +56,12 @@ function cidrToMask(cidr: string): { network: string; mask: string } | null {
   return { network, mask };
 }
 
+/** PAC 的 host 为 punycode/ASCII：非 ASCII 规则条目永远匹配不上，直接丢弃。 */
+function asciiOnly(value: string): boolean {
+  // eslint-disable-next-line no-control-regex
+  return /^[\x00-\x7f]+$/.test(value);
+}
+
 /** 一条 headless 规则 → 若干匹配条目（同一优先级）。 */
 function expandHeadless(
   rule: HeadlessRule,
@@ -64,6 +70,7 @@ function expandHeadless(
 ): Entry[] {
   const entries: Entry[] = [];
   for (const domain of rule.domain ?? []) {
+    if (!asciiOnly(domain)) continue;
     entries.push({
       kind: "domain",
       domain: domain.toLowerCase(),
@@ -72,6 +79,7 @@ function expandHeadless(
     });
   }
   for (const suffix of rule.domain_suffix ?? []) {
+    if (!asciiOnly(suffix)) continue;
     entries.push({
       kind: "domain-suffix",
       suffix: suffix.toLowerCase(),
@@ -80,6 +88,7 @@ function expandHeadless(
     });
   }
   for (const keyword of rule.domain_keyword ?? []) {
+    if (!asciiOnly(keyword)) continue;
     entries.push({
       kind: "domain-keyword",
       keyword: keyword.toLowerCase(),
@@ -230,15 +239,15 @@ export function generatePacSource(
 
   const bypassObject: Record<string, true> = {};
   for (const host of bypassHosts) bypassObject[host.toLowerCase()] = true;
-  return `// XBond PAC —— 由扩展按订阅生成；先到先得、无静默直连兜底。
+  return `// XBond PAC - generated from the subscription; first match wins, no silent DIRECT fallback.
 function FindProxyForURL(url, host) {
   var h = (host || "").toLowerCase();
-  if (BYPASS[h]) return "DIRECT"; // 控制通道：订阅源本身不经代理
+  if (BYPASS[h]) return "DIRECT"; // control channel: the subscription host stays direct
   var best = null; // [priority, action]
   function consider(hit) { if (hit !== undefined && (best === null || hit[0] < best[0])) best = hit; }
 
   consider(EXACT[h]);
-  // 后缀逐级：a.b.example.com → a.b.example.com / b.example.com / example.com / com
+  // suffix walk: a.b.example.com -> a.b.example.com / b.example.com / example.com / com
   var dot = h.indexOf(".");
   while (dot !== -1) {
     consider(SUFFIX[h.slice(dot + 1)]);
@@ -297,6 +306,12 @@ export function assertPacContainsNoCredentials(
       );
     }
   }
+}
+
+/** pacScript.data 只接受 ASCII（Chromium 会 decodeURIComponent 后再解析）：
+ * 模板与数据均已保持 ASCII，这里对任何残留做百分号编码兜底。 */
+export function toPacPayload(source: string): string {
+  return /[^ -]/.test(source) ? encodeURIComponent(source) : source;
 }
 
 export { DIRECT };

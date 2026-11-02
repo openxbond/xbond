@@ -8,16 +8,17 @@ import {
   assertPacContainsNoCredentials,
   generateGlobalPacSource,
   generatePacSource,
+  toPacPayload,
 } from "../shared/pac.ts";
 import type { Selection } from "../shared/workspace.ts";
 import type { RoutingMode } from "./store.ts";
 
-/** 控制通道（订阅源）域名：PAC 模式不支持 bypassList，生成时显式放行，
- * 入口不可达时订阅刷新仍能走直连重试。 */
-function hostOf(url: string | null): string[] {
-  if (!url) return [];
+/** 控制通道（API origin）域名：PAC 模式不支持 bypassList，生成时显式放行，
+ * 入口不可达时登录刷新仍能走直连重试。 */
+function hostOf(origin: string | null): string[] {
+  if (!origin) return [];
   try {
-    return [new URL(url).host];
+    return [new URL(origin).host];
   } catch {
     return [];
   }
@@ -28,10 +29,10 @@ export function expectedProxyValue(
   config: ExtensionConfig,
   selection: Selection,
   mode: RoutingMode,
-  subscriptionUrl: string | null,
+  controlOrigin: string | null,
 ): chrome.proxy.ProxyConfig | null {
   if (mode === "direct") return null;
-  const bypassHosts = hostOf(subscriptionUrl);
+  const bypassHosts = hostOf(controlOrigin);
   const pacSource =
     mode === "global"
       ? generateGlobalPacSource(config, selection, bypassHosts)
@@ -39,7 +40,7 @@ export function expectedProxyValue(
   assertPacContainsNoCredentials(pacSource, config);
   return {
     mode: "pac_script",
-    pacScript: { data: pacSource, mandatory: true },
+    pacScript: { data: toPacPayload(pacSource), mandatory: true },
   };
 }
 
