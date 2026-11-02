@@ -5,11 +5,10 @@ import {
   useControllers,
   useSelectController,
 } from "@stores";
+import { cn } from "cn";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import "./ControllerSwitcher.scss";
 
 function hostOf(url: string): string {
   try {
@@ -55,25 +54,34 @@ export function ControllerSwitcher({
   }, [open]);
 
   return (
-    <div className="controller-switcher" ref={rootRef}>
-      <div className="controller-switch-head">
+    <div
+      className="relative mt-0.5 flex min-w-0 flex-col max-md:mt-0 max-md:flex-row max-md:items-center max-md:max-w-[210px]"
+      ref={rootRef}
+    >
+      {/* Legacy caption row, kept hidden with its count badge. */}
+      <div className="hidden">
         <span>{t("controller")}</span>
         {controllers.length > 1 && (
-          <span className="controller-switch-count">{controllers.length}</span>
+          <span className="inline-flex h-[15px] min-w-4 items-center justify-center rounded-[7px] bg-inset px-[5px] font-mono text-[9.5px] leading-none tabular-nums text-muted-foreground">
+            {controllers.length}
+          </span>
         )}
       </div>
 
       <button
         type="button"
-        className="controller-switch-btn"
+        className="relative flex w-full cursor-pointer items-center gap-[7px] rounded-full border border-border bg-inset px-3 py-1.5 text-left font-[inherit] text-foreground shadow-[0_1px_2px_oklch(0_0_0/4%)] transition-[border-color,background-color,box-shadow] duration-[120ms] hover:border-border-strong hover:bg-card hover:shadow-[0_2px_6px_oklch(0_0_0/6%)] aria-expanded:border-brand aria-expanded:bg-card motion-reduce:transition-none max-md:w-auto max-md:gap-1.5 max-md:py-1.5 max-md:pr-3 max-md:pl-2 max-md:shadow-none"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={t("controller")}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="controller-switch-icon" aria-hidden="true">
+        <span
+          className="relative grid size-[22px] shrink-0 place-content-center rounded-full bg-brand-soft text-brand-text"
+          aria-hidden="true"
+        >
           {isDaemon ? (
-            <XBondIcon className="controller-switch-logo" />
+            <XBondIcon className="size-4 text-foreground" />
           ) : (
             <svg
               viewBox="0 0 24 24"
@@ -90,12 +98,15 @@ export function ControllerSwitcher({
             </svg>
           )}
           <span
-            className={`controller-switch-status ${connected ? "is-online" : ""}`}
+            className={cn(
+              "absolute right-[-1px] bottom-[-1px] size-[7px] rounded-full border-[1.5px] border-card bg-muted-foreground",
+              connected && "bg-success",
+            )}
           />
         </span>
-        <span className="controller-switch-text">
-          <span className="controller-switch-name">
-            <span className="controller-switch-name-text">
+        <span className="flex min-w-0 flex-1 flex-row items-center gap-1">
+          <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-[12.5px] font-medium text-foreground">
+            <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
               {selected
                 ? isDaemon
                   ? "XBond"
@@ -103,7 +114,10 @@ export function ControllerSwitcher({
                 : "—"}
             </span>
             <svg
-              className="controller-switch-chevron"
+              className={cn(
+                "shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none",
+                open && "rotate-180",
+              )}
               viewBox="0 0 24 24"
               width="12"
               height="12"
@@ -118,16 +132,14 @@ export function ControllerSwitcher({
             </svg>
           </span>
           {selected?.name && !isDaemon && (
-            <span className="controller-switch-host">
-              {hostOf(selected.url)}
-            </span>
+            <span className="hidden">{hostOf(selected.url)}</span>
           )}
         </span>
       </button>
 
       {open && (
         <div
-          className="controller-menu"
+          className="absolute right-0 bottom-[calc(100%+6px)] left-0 z-40 flex max-h-[260px] flex-col gap-0.5 overflow-y-auto rounded-[10px] border border-border bg-popover p-1 shadow-[0_8px_24px_oklch(0_0_0/12%)] max-md:bottom-auto max-md:left-0 max-md:top-[calc(100%+6px)] max-md:min-w-60"
           role="listbox"
           aria-label={t("controller")}
         >
@@ -139,27 +151,30 @@ export function ControllerSwitcher({
                 type="button"
                 role="option"
                 aria-selected={active}
-                className={`controller-menu-item ${active ? "is-active" : ""}`}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-[7px] text-left font-[inherit] text-foreground transition-colors duration-[120ms] hover:bg-inset motion-reduce:transition-none",
+                  active && "bg-brand-soft",
+                )}
                 onClick={() => {
                   select(controller.id);
                   setOpen(false);
                 }}
               >
-                <span className="controller-menu-text">
-                  <span className="controller-menu-name">
+                <span className="flex min-w-0 flex-1 flex-col gap-px">
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] font-semibold text-foreground">
                     {controller.id === DAEMON_CONTROLLER_ID
                       ? "XBond"
                       : controller.name || hostOf(controller.url)}
                   </span>
                   {controller.id !== DAEMON_CONTROLLER_ID && (
-                    <span className="controller-menu-host">
+                    <span className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10.5px] text-muted-foreground">
                       {hostOf(controller.url)}
                     </span>
                   )}
                 </span>
                 {active && (
                   <svg
-                    className="controller-menu-check"
+                    className="shrink-0 text-brand-text"
                     viewBox="0 0 24 24"
                     width="14"
                     height="14"
@@ -177,11 +192,11 @@ export function ControllerSwitcher({
             );
           })}
 
-          <div className="controller-menu-divider" aria-hidden="true" />
+          <div className="mx-0.5 my-[3px] h-px bg-border" aria-hidden="true" />
 
           <button
             type="button"
-            className="controller-menu-item controller-menu-edit"
+            className="flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-[7px] text-left font-[inherit] text-xs text-muted-foreground transition-colors duration-[120ms] hover:bg-inset hover:text-foreground motion-reduce:transition-none"
             onClick={() => {
               setOpen(false);
               onEdit();

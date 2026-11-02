@@ -1,17 +1,21 @@
 import { type BaseComponentProps } from "@models/BaseProps";
-import classnames from "classnames";
-
-import "./style.scss";
+import { cn } from "cn";
 
 interface TagProps extends BaseComponentProps {
   color?: string;
 }
 
-export function Tag(props: TagProps) {
-  const { color, className: cn, style: s } = props;
-  const className = classnames("tag", cn);
-  const style: React.CSSProperties = { color, ...s };
-  const spanProps = { ...props, className, style };
-
-  return <span {...spanProps}>{props.children}</span>;
+export function Tag({ color, className, style, children, ...rest }: TagProps) {
+  return (
+    <span
+      {...rest}
+      className={cn(
+        "flex h-[22px] items-center justify-center rounded-full border border-border bg-inset px-2.5 text-center text-xs text-muted-foreground",
+        className,
+      )}
+      style={{ color, ...style }}
+    >
+      {children}
+    </span>
+  );
 }

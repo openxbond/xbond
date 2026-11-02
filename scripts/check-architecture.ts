@@ -180,8 +180,7 @@ export function checkArchitecture(root: string): string[] {
           specifier.startsWith("@xbond/") ||
           (!specifier.startsWith(".") &&
             !specifier.startsWith("node:") &&
-            !resolved &&
-            specifier !== "uno.css")
+            !resolved)
         ) {
           const name = specifier.startsWith("@")
             ? specifier.split("/").slice(0, 2).join("/")

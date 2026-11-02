@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import UnoCSS from "unocss/vite";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -20,7 +20,7 @@ export default defineConfig((env) => ({
     // jotai 3 dropped its babel plugin packages; dev-only debug labels are
     // not worth a separate jotai-babel setup.
     env.command === "serve" && react(),
-    UnoCSS({ configFile: path.resolve("uno.config.ts") }),
+    tailwindcss(),
     env.mode !== "tauri" &&
       VitePWA({
         injectRegister: "inline",
@@ -62,18 +62,6 @@ export default defineConfig((env) => ({
   // vite-tsconfig-paths plugin is no longer needed.
   resolve: {
     tsconfigPaths: true,
-  },
-  css: {
-    preprocessorOptions: {
-      scss: {
-        // @use must come first in every compiled file; variables.scss
-        // only carries SCSS helpers (no CSS output), `as *` keeps the
-        // mixin unnamespaced. The modern sass compiler resolves loads
-        // against loadPaths only — no CWD fallback.
-        additionalData: '@use "sass:math"; @use "styles/variables.scss" as *;',
-        loadPaths: [path.resolve("packages/client-ui/src")],
-      },
-    },
   },
   build: {
     outDir: path.resolve(env.mode === "tauri" ? "dist-desktop" : "dist"),

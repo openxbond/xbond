@@ -3,12 +3,33 @@ import { useProxyMapping } from "@stores";
 import { useLatency } from "@stores/latency";
 import type { Group as IGroup } from "@xbond/client/request";
 import { strategyPath } from "@xbond/client/workspace";
+import { cn } from "cn";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { StrategyChoice, StrategyPath } from "../../../../components/Strategy";
 
-import "./style.scss";
+type DelayTone =
+  | "builtin"
+  | "testing"
+  | "failed"
+  | "good"
+  | "medium"
+  | "slow"
+  | "untested";
+
+/* Delay pill palettes, keyed by the tone computed per node below. Hard-coded
+   oklch values are the original SCSS traffic-light washes. */
+const DELAY_PILL_TONES: Record<DelayTone, string> = {
+  builtin:
+    "border border-border bg-inset px-[7px] font-medium text-muted-foreground",
+  testing: "animate-pulse bg-brand-soft text-brand-text",
+  failed: "bg-[oklch(0.92_0.08_25)] text-destructive",
+  good: "bg-[oklch(0.92_0.08_145)] text-[oklch(0.38_0.14_145)]",
+  medium: "bg-[oklch(0.94_0.1_85)] text-[oklch(0.48_0.14_85)]",
+  slow: "bg-[oklch(0.92_0.09_45)] text-[oklch(0.48_0.15_45)]",
+  untested: "bg-transparent text-muted-foreground",
+};
 
 export function Group({
   config,
@@ -138,28 +159,37 @@ export function Group({
   }
 
   return (
-    <div className="group-workbench-panel">
+    <div className="flex h-full flex-col gap-4 p-5 max-md:p-3">
       {/* Group Header Banner */}
-      <div className="group-panel-header">
-        <div className="group-info-col">
-          <div className="group-heading-row">
-            <h3 className="group-title">{config.name}</h3>
-            <span className="group-type-pill">{config.type}</span>
-            <span className="group-count-pill">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4 max-md:flex-col max-md:items-stretch max-md:gap-3 max-md:px-4 max-md:py-3.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex items-center gap-2.5 max-md:flex-wrap max-md:gap-2">
+            <h3 className="m-0 text-base font-semibold text-foreground">
+              {config.name}
+            </h3>
+            <span className="rounded-[4px] bg-inset px-1.5 py-px text-[11px] font-semibold text-muted-foreground">
+              {config.type}
+            </span>
+            <span className="text-[11.5px] text-muted-foreground">
               {t("groupMembers", { count: config.all.length })}
             </span>
           </div>
-          <div className="group-chain-row">
+          <div className="max-w-[500px] truncate text-xs text-muted-foreground max-md:text-[11.5px] max-md:leading-[1.4]">
             <StrategyPath path={path} />
           </div>
         </div>
 
-        <div className="group-actions-col">
-          <div className={`group-filter-box ${filterOpen ? "is-open" : ""}`}>
+        <div className="flex items-center gap-2.5 max-md:justify-between">
+          <div
+            className={cn(
+              "w-0 overflow-hidden opacity-0 transition-[width,opacity] duration-[220ms] ease-[var(--ease-out-expo)]",
+              filterOpen && "w-[180px] opacity-100 max-md:w-[140px]",
+            )}
+          >
             <input
               ref={filterRef}
               type="text"
-              className="group-filter-input"
+              className="h-[30px] w-[180px] rounded-sm border border-border bg-inset px-2.5 text-[12.5px] text-foreground outline-none placeholder:text-muted-foreground focus:border-brand max-md:min-h-10 max-md:w-[140px]"
               placeholder={t("filterNodes")}
               aria-label={t("filterNodes")}
               value={filter}
@@ -174,10 +204,10 @@ export function Group({
             />
           </div>
 
-          <div className="group-icon-actions">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
-              className="group-icon-btn"
+              className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text"
               title={t("locate")}
               aria-label={t("locate")}
               disabled={!config.now}
@@ -207,7 +237,7 @@ export function Group({
 
             <button
               type="button"
-              className="group-icon-btn"
+              className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text"
               title={t("groupTest")}
               aria-label={t("groupTest")}
               disabled={progress.running || !names.length}
@@ -230,7 +260,11 @@ export function Group({
 
             <button
               type="button"
-              className={`group-icon-btn ${sortMode !== "default" ? "is-active" : ""}`}
+              className={cn(
+                "inline-flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text",
+                sortMode !== "default" &&
+                  "border-brand bg-brand-soft text-brand-text",
+              )}
               title={t("sortState", { mode: sortLabel })}
               aria-label={t("sortState", { mode: sortLabel })}
               onClick={cycleSort}
@@ -265,7 +299,10 @@ export function Group({
                   <path d="M9.5 2.5h5" />
                 </svg>
               ) : (
-                <span className="sort-az" aria-hidden="true">
+                <span
+                  className="text-[11px] font-bold tracking-[0.02em]"
+                  aria-hidden="true"
+                >
                   AZ
                 </span>
               )}
@@ -273,7 +310,11 @@ export function Group({
 
             <button
               type="button"
-              className={`group-icon-btn ${filterOpen || filter ? "is-active" : ""}`}
+              className={cn(
+                "inline-flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text",
+                (filterOpen || filter) &&
+                  "border-brand bg-brand-soft text-brand-text",
+              )}
               title={t("filterNodes")}
               aria-label={t("filterNodes")}
               onClick={toggleFilter}
@@ -298,14 +339,12 @@ export function Group({
 
       {(pending || selectionStatus !== "idle") && (
         <p
-          className={
-            "group-feedback " +
-            (selectionStatus === "failed"
-              ? "is-error"
-              : selectionStatus === "partial"
-                ? "is-warning"
-                : "")
-          }
+          className={cn(
+            "m-0 rounded-[6px] bg-inset px-3 py-2 text-[12.5px] text-success-text",
+            selectionStatus === "failed" &&
+              "bg-[oklch(0.92_0.08_25)] text-[var(--destructive-text)]",
+            selectionStatus === "partial" && "text-warning-text",
+          )}
           role={selectionStatus === "failed" ? "alert" : "status"}
         >
           {t(
@@ -321,7 +360,10 @@ export function Group({
       )}
 
       {/* Multi-column Compact Grid of Node Tiles */}
-      <ul className="group-nodes-grid" ref={gridRef}>
+      <ul
+        className="m-0 grid list-none content-start gap-3 overflow-y-auto p-0 pr-1 grid-cols-[repeat(auto-fill,minmax(360px,1fr))] max-md:grid-cols-1 max-md:gap-2"
+        ref={gridRef}
+      >
         {names.map((name) => {
           const isSelected = config.now === name;
           const delay = delays.get(name);
@@ -346,7 +388,7 @@ export function Group({
               (Boolean(status) && status !== "ok" && status !== "testing") ||
               (delay === 0 && hasHistory));
 
-          let delayTone = "untested";
+          let delayTone: DelayTone = "untested";
           let delayDisplay: string = t("untested");
           if (isBuiltin) {
             delayTone = "builtin";
@@ -372,14 +414,22 @@ export function Group({
               disabled={!canClick || pending}
               onSelect={() => void select(name)}
             >
-              <span className={`node-delay-pill ${delayTone}`}>
+              <span
+                className={cn(
+                  "inline-block rounded-[4px] px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap tabular-nums",
+                  DELAY_PILL_TONES[delayTone],
+                )}
+              >
                 {delayDisplay}
               </span>
 
               {canTest && (
                 <button
                   type="button"
-                  className={`node-speed-btn ${isTesting ? "is-testing" : ""}`}
+                  className={cn(
+                    "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-[5px] border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
+                    isTesting && "animate-pulse text-brand-text opacity-70",
+                  )}
                   title={t("testNode")}
                   aria-label={t("testNodeAria", { name })}
                   disabled={isTesting}

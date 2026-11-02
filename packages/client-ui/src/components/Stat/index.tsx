@@ -1,8 +1,6 @@
 import { type BaseComponentProps } from "@models";
-import classnames from "classnames";
+import { cn } from "cn";
 import type { ReactNode } from "react";
-
-import "./style.scss";
 
 interface StatProps extends BaseComponentProps {
   label: ReactNode;
@@ -19,11 +17,20 @@ export function Stat({
 }: StatProps) {
   return (
     <div
-      className={classnames("stat", { small: size === "sm" }, className)}
+      className={cn("flex min-w-0 flex-col gap-0.5", className)}
       style={style}
     >
-      <span className="stat-label">{label}</span>
-      <strong className="stat-value">{children}</strong>
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <strong
+        className={cn(
+          "tabular-nums",
+          size === "sm"
+            ? "text-[12.5px] font-medium text-muted-foreground"
+            : "text-[15px] font-bold text-foreground",
+        )}
+      >
+        {children}
+      </strong>
     </div>
   );
 }

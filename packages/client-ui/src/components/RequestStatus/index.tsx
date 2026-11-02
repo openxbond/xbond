@@ -1,4 +1,4 @@
-import { Button } from "@components/Button";
+import { Button } from "@components/ui/button";
 import { errorKind } from "@lib/actions";
 import { useTranslation } from "react-i18next";
 

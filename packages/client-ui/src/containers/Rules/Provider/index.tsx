@@ -1,12 +1,10 @@
 import { Tag, Icon } from "@components";
+import { Spinner } from "@components/ui/spinner";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
 import { useClient, useLanguage, useRuleProviders } from "@stores";
 import { type RuleProvider } from "@xbond/client/request";
-import classnames from "classnames";
 import { useTranslation } from "react-i18next";
-
-import "./style.scss";
 
 interface ProvidersProps {
   provider: RuleProvider;
@@ -29,29 +27,31 @@ export function Provider(props: ProvidersProps) {
     });
   }
 
-  const updateClassnames = classnames("rule-provider-icon", {
-    "rule-provider-loading": visible,
-  });
-
   return (
-    <div className="rule-provider">
-      <div className="rule-provider-header">
-        <div className="rule-provider-header-part">
-          <span className="rule-provider-name">{provider.name}</span>
+    <div className="rule-provider relative flex flex-col px-5 py-4 text-[15px] text-foreground">
+      <div className="rule-provider-header flex items-center justify-between max-md:flex-col max-md:items-start">
+        <div className="rule-provider-header-part flex items-center max-md:my-1.5">
+          <span className="rule-provider-name mr-1.5 w-[120px] overflow-hidden text-ellipsis whitespace-nowrap">
+            {provider.name}
+          </span>
           <Tag>{provider.vehicleType}</Tag>
-          <Tag className="rule-provider-behavior">{provider.behavior}</Tag>
-          <span className="rule-provider-update">{`${t("ruleCount")}: ${provider.ruleCount}`}</span>
+          <Tag>{provider.behavior}</Tag>
+          <span className="rule-provider-update text-[13px] leading-[14px] text-muted-foreground tabular-nums">{`${t("ruleCount")}: ${provider.ruleCount}`}</span>
         </div>
-        <div className="rule-provider-header-part">
+        <div className="rule-provider-header-part flex items-center max-md:my-1.5">
           {provider.updatedAt && (
-            <span className="rule-provider-update">{`${t("providerUpdateTime")}: ${fromNow(new Date(provider.updatedAt), lang)}`}</span>
+            <span className="rule-provider-update text-[13px] leading-[14px] text-muted-foreground tabular-nums">{`${t("providerUpdateTime")}: ${fromNow(new Date(provider.updatedAt), lang)}`}</span>
           )}
-          <Icon
-            className={updateClassnames}
-            type="update"
-            size={18}
-            onClick={handleUpdate}
-          />
+          {visible ? (
+            <Spinner className="ml-5 size-[18px] motion-reduce:animate-none" />
+          ) : (
+            <Icon
+              type="update"
+              size={18}
+              className="ml-5 block cursor-pointer text-muted-foreground hover:text-foreground"
+              onClick={handleUpdate}
+            />
+          )}
         </div>
       </div>
     </div>

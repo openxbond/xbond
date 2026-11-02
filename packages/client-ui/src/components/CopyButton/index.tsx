@@ -1,8 +1,7 @@
-import { Button } from "@components/Button";
+import { Button } from "@components/ui/button";
+import { CopyIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import "./style.scss";
 
 export function CopyButton({ value, label }: { value: string; label: string }) {
   const { t } = useTranslation("common");
@@ -28,23 +27,13 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
     }
   }
   return (
-    <div className="copy-control">
+    <div className="inline-flex min-w-0 flex-wrap gap-2">
       <Button
+        variant="outline"
         disabled={!value || status === "pending"}
         onClick={() => void copy()}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="15"
-          height="15"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          aria-hidden="true"
-        >
-          <rect x="8" y="8" width="12" height="13" rx="2" />
-          <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
-        </svg>
+        <CopyIcon size={15} strokeWidth={1.75} aria-hidden="true" />
         <span aria-live="polite">
           {status === "copied"
             ? t("copied")
@@ -54,13 +43,14 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
         </span>
       </Button>
       {status === "failed" && (
-        <div className="copy-fallback">
+        <div className="basis-full text-xs leading-[1.6] text-destructive-text">
           <p role="alert">{t("copyFailed")}</p>
           <input
             readOnly
             value={value}
             aria-label={label}
             onFocus={(event) => event.currentTarget.select()}
+            className="mt-1.5 min-h-9 w-full rounded-md border border-input bg-inset p-2 font-mono text-foreground max-md:min-h-11"
           />
         </div>
       )}

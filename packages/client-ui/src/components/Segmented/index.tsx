@@ -1,6 +1,4 @@
-import classnames from "classnames";
-
-import "./style.scss";
+import { cn } from "cn";
 
 export interface SegmentedOption<T extends string> {
   value: T;
@@ -33,7 +31,10 @@ export function Segmented<T extends string>({
 }: SegmentedProps<T>) {
   return (
     <div
-      className={classnames("segmented-control", className)}
+      className={cn(
+        "inline-flex gap-0.5 rounded-control border border-border/70 bg-inset p-[3px]",
+        className,
+      )}
       role="group"
       aria-label={ariaLabel}
     >
@@ -44,7 +45,12 @@ export function Segmented<T extends string>({
             type="button"
             key={option.value}
             aria-pressed={value === option.value}
-            className="segmented-option"
+            className={cn(
+              "min-w-0 cursor-pointer rounded-[10px] px-[18px] py-2 text-[13px] whitespace-nowrap transition-colors duration-150 motion-reduce:transition-none",
+              value === option.value
+                ? "bg-brand font-semibold text-brand-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,var(--card)_35%,transparent),0_2px_6px_oklch(0.66_0.18_52/32%)]"
+                : "bg-transparent text-foreground/72 hover:text-foreground",
+            )}
             disabled={isDisabled}
             title={option.disabledReason}
             onClick={() => onChange(option.value)}

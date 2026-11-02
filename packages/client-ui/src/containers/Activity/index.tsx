@@ -5,11 +5,10 @@ import { useCapabilities, useStreamReader, useStreamState } from "@stores";
 import { formatRate } from "@xbond/client/activity";
 import { formatTraffic } from "@xbond/client/helper";
 import type { Snapshot } from "@xbond/client/request";
+import { cn } from "cn";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
-
-import "./style.scss";
 
 export default function Activity() {
   const { t: sb } = useTranslation("sidebar");
@@ -58,43 +57,53 @@ export default function Activity() {
     );
   }
   return (
-    <div className="page activity-page">
+    <div className="page gap-[22px]">
       <Header title={sb("activity")}>
-        <output className="home-context">{r(state)}</output>
+        <output>{r(state)}</output>
       </Header>
-      <dl className="activity-summary">
-        <div>
-          <dt>{ov("upload")}</dt>
-          <dd>{state === "open" ? formatRate(speed.up) : "—"}</dd>
+      <dl className="flex flex-wrap gap-x-10 gap-y-7 rounded-card border border-border bg-card p-6 max-md:gap-x-7 max-md:gap-y-[22px]">
+        <div className="flex flex-col gap-2.5">
+          <dt className="text-xs text-muted-foreground">{ov("upload")}</dt>
+          <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
+            {state === "open" ? formatRate(speed.up) : "—"}
+          </dd>
         </div>
-        <div>
-          <dt>{ov("download")}</dt>
-          <dd>{state === "open" ? formatRate(speed.down) : "—"}</dd>
+        <div className="flex flex-col gap-2.5">
+          <dt className="text-xs text-muted-foreground">{ov("download")}</dt>
+          <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
+            {state === "open" ? formatRate(speed.down) : "—"}
+          </dd>
         </div>
-        <div>
-          <dt>{sb("connections")}</dt>
-          <dd>
+        <div className="flex flex-col gap-2.5">
+          <dt className="text-xs text-muted-foreground">{sb("connections")}</dt>
+          <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
             {connectionState === "open"
               ? (snapshot?.connections.length ?? "—")
               : "—"}
           </dd>
         </div>
-        <div>
-          <dt>{ov("total")}</dt>
-          <dd>
+        <div className="flex flex-col gap-2.5">
+          <dt className="text-xs text-muted-foreground">{ov("total")}</dt>
+          <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
             {connectionState === "open" && snapshot
               ? formatTraffic(snapshot.uploadTotal + snapshot.downloadTotal)
               : "—"}
           </dd>
         </div>
         {caps.memory && (
-          <div>
-            <dt>{ov("memory")}</dt>
-            <dd>{memoryBytes === null ? "—" : formatTraffic(memoryBytes)}</dd>
+          <div className="flex flex-col gap-2.5">
+            <dt className="text-xs text-muted-foreground">{ov("memory")}</dt>
+            <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
+              {memoryBytes === null ? "—" : formatTraffic(memoryBytes)}
+            </dd>
           </div>
         )}
       </dl>
-      <div className="activity-tabs" role="tablist" aria-label={sb("activity")}>
+      <div
+        className="flex max-md:w-full w-fit gap-1 rounded-xl border border-border bg-inset p-1"
+        role="tablist"
+        aria-label={sb("activity")}
+      >
         {(["logs", "connections"] as const).map((view) => (
           <button
             type="button"
@@ -104,6 +113,12 @@ export default function Activity() {
             aria-controls={"panel-" + view}
             aria-selected={activeTab === view}
             tabIndex={activeTab === view ? 0 : -1}
+            className={cn(
+              "rounded-lg px-[22px] py-2 text-[13.5px] font-medium transition-colors duration-150 max-md:min-h-11 max-md:flex-1 motion-reduce:transition-none",
+              activeTab === view
+                ? "bg-brand font-semibold text-brand-foreground shadow-[0_2px_8px_oklch(0.66_0.18_52/32%)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
             onClick={() => select(view)}
             onKeyDown={(event) => {
               if (
@@ -127,7 +142,7 @@ export default function Activity() {
           </button>
         ))}
       </div>
-      <div className="activity-content">
+      <div className="min-w-0 w-full min-h-0 flex-1 [&_[role=tabpanel]]:h-full [&_.page]:p-0 [&_.page]:gap-3 [&_.page]:h-full [&_.page]:min-h-0 [&_.header]:m-0 [&_.header]:flex-wrap [&_.header]:gap-3 [&_.header_h1]:text-base [&_.connections-filter]:max-md:ml-0 [&_.connections-card]:max-md:min-h-[360px] [&_.log-table]:overflow-hidden [&_.log-table]:rounded-xl">
         <div
           id="panel-logs"
           role="tabpanel"

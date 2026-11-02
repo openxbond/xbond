@@ -12,7 +12,7 @@ COPY apps/dashboard/package.json apps/dashboard/package.json
 COPY packages/client/package.json packages/client/package.json
 COPY packages/client-ui/package.json packages/client-ui/package.json
 RUN pnpm install --frozen-lockfile
-COPY tsconfig.json vite.config.ts uno.config.ts ./
+COPY tsconfig.json vite.config.ts ./
 COPY apps/dashboard apps/dashboard
 COPY packages/client packages/client
 COPY packages/client-ui packages/client-ui

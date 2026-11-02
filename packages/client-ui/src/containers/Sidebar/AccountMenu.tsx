@@ -1,10 +1,14 @@
-import { Modal } from "@components";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@components/ui/dialog";
 import AccountPanel from "@containers/AccountPanel";
 import { useAccount } from "@stores";
+import { cn } from "cn";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import "./AccountMenu.scss";
 
 function Chevron() {
   return (
@@ -17,7 +21,7 @@ function Chevron() {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="account-row-chevron"
+      className="shrink-0 opacity-70"
       aria-hidden="true"
     >
       <path d="m9 6 6 6-6 6" />
@@ -50,14 +54,17 @@ export function AccountMenu({
       <>
         <button
           type="button"
-          className="account-avatar-btn"
+          className="relative inline-flex size-[34px] shrink-0 cursor-pointer items-center justify-center rounded-full border border-sidebar-border bg-transparent text-sidebar-foreground-muted hover:border-sidebar-foreground-muted hover:text-foreground"
           aria-label={t("title")}
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={() => setOpen(true)}
         >
           {signedIn ? (
-            <span className="account-avatar-initial" aria-hidden="true">
+            <span
+              className="text-sm font-semibold leading-none"
+              aria-hidden="true"
+            >
               {initial}
             </span>
           ) : (
@@ -77,20 +84,27 @@ export function AccountMenu({
             </svg>
           )}
           <span
-            className={`account-avatar-state ${signedIn ? "is-signed-in" : ""}`}
+            className={cn(
+              "absolute right-[-1px] bottom-[-1px] size-[9px] rounded-full border-2 border-sidebar bg-muted",
+              signedIn && "bg-success",
+            )}
             aria-hidden="true"
           />
         </button>
 
-        <Modal
-          className="account-dialog"
-          show={open}
-          title={t("title")}
-          onClose={() => setOpen(false)}
-          footer={false}
+        <Dialog
+          open={open}
+          onOpenChange={(next) => {
+            if (!next) setOpen(false);
+          }}
         >
-          <AccountPanel />
-        </Modal>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>{t("title")}</DialogTitle>
+            </DialogHeader>
+            <AccountPanel />
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
@@ -99,15 +113,20 @@ export function AccountMenu({
     <>
       <button
         type="button"
-        className="account-row-btn"
+        className="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-control bg-transparent px-2.5 py-2 text-left font-[inherit] text-sidebar-foreground-muted transition-colors duration-[120ms] ease-[var(--ease-out-expo)] hover:bg-sidebar-accent hover:text-sidebar-foreground motion-reduce:transition-none"
         aria-label={t("title")}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
-        <span className="account-row-icon" aria-hidden="true">
+        <span
+          className="grid size-[30px] shrink-0 place-items-center rounded-full bg-sidebar-accent text-sidebar-foreground-muted"
+          aria-hidden="true"
+        >
           {signedIn ? (
-            <span className="account-row-initial">{initial}</span>
+            <span className="text-[13px] font-semibold leading-none">
+              {initial}
+            </span>
           ) : (
             <svg
               viewBox="0 0 24 24"
@@ -123,26 +142,30 @@ export function AccountMenu({
             </svg>
           )}
         </span>
-        <span className="account-row-text">
-          <span className="account-row-name">
+        <span className="flex min-w-0 flex-1 flex-col gap-px">
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-sidebar-foreground">
             {signedIn && name ? name : t("cloudAccount")}
           </span>
-          <span className="account-row-caption">
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] text-sidebar-foreground-muted">
             {signedIn ? t("signedIn") : t("signedOut")}
           </span>
         </span>
         <Chevron />
       </button>
 
-      <Modal
-        className="account-dialog"
-        show={open}
-        title={t("title")}
-        onClose={() => setOpen(false)}
-        footer={false}
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) setOpen(false);
+        }}
       >
-        <AccountPanel />
-      </Modal>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{t("title")}</DialogTitle>
+          </DialogHeader>
+          <AccountPanel />
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { Toaster } from "@components/ui/sonner";
 import Activity from "@containers/Activity";
 import Connect from "@containers/Connect";
 import Connections from "@containers/Connections";
@@ -23,12 +24,9 @@ import {
   useLocalAPI,
   useTheme,
 } from "@stores";
-import classnames from "classnames";
+import { cn } from "cn";
 import { useSetAtom } from "jotai";
 import { Route, Navigate, Routes, useLocation, Outlet } from "react-router-dom";
-
-import "../styles/common.scss";
-import "../styles/iconfont.scss";
 
 export default function App() {
   const client = useClient();
@@ -66,6 +64,7 @@ export default function App() {
           onConnectRemote={() => setIdentity(false)}
         />
         <ExternalControllerModal createOnly />
+        <Toaster />
       </>
     );
   }
@@ -79,12 +78,20 @@ export default function App() {
   ];
 
   const layout = (
-    <div className={classnames("app", { "not-clashx": !isClashX() })}>
+    <div
+      className={cn(
+        "h-[100dvh] min-h-0 overflow-hidden p-3 pl-[212px]",
+        "max-md:pt-[calc(var(--topbar-height)+env(safe-area-inset-top))] max-md:pr-0 max-md:pb-[calc(84px+env(safe-area-inset-bottom))] max-md:pl-0",
+        !isClashX() &&
+          "bg-[image:radial-gradient(ellipse_at_top_left,var(--surface-inset),transparent_65%)] bg-background",
+      )}
+    >
       <SideBar routes={mobileRoutes} />
-      <div className="page-container">
+      <div className="h-full w-full min-w-0 overflow-y-auto max-md:px-3 max-md:[&::-webkit-scrollbar]:hidden">
         <ControllerPage key={client.id} />
       </div>
       <ExternalControllerModal />
+      <Toaster />
     </div>
   );
 

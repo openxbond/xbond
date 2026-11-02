@@ -1,7 +1,5 @@
 import { type BaseComponentProps } from "@models/BaseProps";
-import classnames from "classnames";
-
-import "./style.scss";
+import { cn } from "cn";
 
 interface HeaderProps extends BaseComponentProps {
   // header title
@@ -12,8 +10,16 @@ export function Header(props: HeaderProps) {
   const { title, children, className, style } = props;
 
   return (
-    <header className={classnames("header", className)} style={style}>
-      <h1 className="md:text-xl">{title}</h1>
+    <header
+      className={cn(
+        "header my-2.5 flex w-full flex-row items-center justify-between select-none",
+        className,
+      )}
+      style={style}
+    >
+      <h1 className="shrink-0 text-2xl leading-8 font-semibold tracking-normal text-foreground md:text-xl">
+        {title}
+      </h1>
       <div className="flex flex-auto items-center justify-end">{children}</div>
     </header>
   );

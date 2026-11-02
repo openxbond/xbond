@@ -15,8 +15,6 @@ import { LatencyProvider, useLatency } from "@stores/latency";
 import { useSetAtom } from "jotai";
 import { useMemo, useState, createContext, useContext } from "react";
 import { useTranslation } from "react-i18next";
-
-import "./style.scss";
 import { useSearchParams } from "react-router-dom";
 
 import { StrategyDirectory } from "../../components/Strategy";
@@ -71,13 +69,14 @@ function ProxyGroups() {
     );
   if (!list.length) return null;
   return (
-    <section className="proxy-groups-section">
-      <div className="section-heading">
+    <section>
+      <div className="section-heading mb-3.5">
         <h2>{t("groups")}</h2>
       </div>
-      <label className="mobile-group-picker">
+      <label className="hidden max-md:mb-4 max-md:flex max-md:flex-col max-md:gap-2 max-md:text-[13px]">
         {t("groups")}
         <select
+          className="w-full min-h-11 rounded-[10px] border border-border bg-card px-3.5 py-2.5 text-foreground shadow-elevation-card"
           value={selected.name}
           onChange={(event) => select(event.target.value)}
         >
@@ -88,7 +87,7 @@ function ProxyGroups() {
           ))}
         </select>
       </label>
-      <div className="proxy-workbench">
+      <div className="grid grid-cols-[330px_minmax(0,1fr)] h-[680px] overflow-hidden rounded-card border border-border bg-card shadow-elevation-card max-lg:grid-cols-1 max-lg:h-auto max-md:block">
         <StrategyDirectory
           label={t("groups")}
           value={selected.name}
@@ -100,7 +99,7 @@ function ProxyGroups() {
             kind: group.type,
           }))}
         />
-        <div className="proxy-members">
+        <div className="min-w-0 h-full min-h-0 overflow-y-auto bg-card">
           <Group
             key={selected.name}
             config={selected}
@@ -199,7 +198,7 @@ function Proxies() {
             />
             <button
               type="button"
-              className="proxies-speed-test ml-3 inline-flex items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+              className="ml-3 inline-flex items-center gap-1.5 text-[13px] text-brand-text disabled:cursor-not-allowed disabled:opacity-50"
               disabled={progress.running || !testNames.length}
               onClick={() => {
                 void run(testNames);
@@ -211,7 +210,7 @@ function Proxies() {
               {t("speedTest")}
             </button>
           </Header>
-          <ul className="proxies-list">
+          <ul className="mt-5 mb-10 grid list-none grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4 p-0 max-md:grid-cols-1">
             {sortedProxies
               .filter((p) => !search || p.name.toLowerCase().includes(search))
               .map((p) => (
@@ -264,14 +263,14 @@ function ProxyPage() {
     .map((proxy) => proxy.name);
   return (
     <SearchContext value={search}>
-      <div className="page proxies-page">
+      <div className="page gap-5 max-md:pb-[84px]">
         <Header title={t("title")} />
-        <div className="proxy-command-card">
-          <div className="command-card-main">
-            <div className="command-card-left">
-              <div className="proxy-search-wrapper">
+        <div className="rounded-card border border-border bg-card px-5 py-4 shadow-elevation-card">
+          <div className="flex flex-wrap items-center justify-between gap-4 max-md:flex-col max-md:items-stretch max-md:gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3.5 max-md:w-full max-md:flex-col max-md:items-stretch max-md:gap-2.5">
+              <div className="relative flex w-[260px] min-w-[180px] max-w-[320px] items-center max-md:w-full max-md:max-w-full">
                 <svg
-                  className="search-icon"
+                  className="pointer-events-none absolute left-3 text-muted-foreground"
                   viewBox="0 0 24 24"
                   width="14"
                   height="14"
@@ -286,7 +285,7 @@ function ProxyPage() {
                   <path d="m21 21-4.35-4.35" />
                 </svg>
                 <input
-                  className="search-input"
+                  className="h-9 w-full rounded-sm border border-border bg-inset pr-8 pl-[34px] text-[13px] text-foreground transition-all duration-150 focus:border-brand focus:bg-card focus:ring-2 focus:ring-brand-soft focus:outline-none"
                   value={search}
                   placeholder={t("searchPlaceholder")}
                   onChange={(e) => setSearch(e.target.value)}
@@ -295,7 +294,7 @@ function ProxyPage() {
                 {search && (
                   <button
                     type="button"
-                    className="clear-search-btn"
+                    className="absolute right-2 cursor-pointer border-0 bg-transparent px-1 py-0 text-base leading-none text-muted-foreground hover:text-foreground"
                     onClick={() => setSearch("")}
                     aria-label={tc("clear")}
                   >
@@ -303,7 +302,7 @@ function ProxyPage() {
                   </button>
                 )}
               </div>
-              <div className="command-card-actions">
+              <div className="flex shrink-0 items-center gap-2.5 max-md:relative max-md:w-full max-md:justify-between">
                 <Button
                   disabled={!names.length || progress.running}
                   onClick={() => void run(names)}
@@ -329,12 +328,12 @@ function ProxyPage() {
                   <Button onClick={cancel}>{t("cancelTest")}</Button>
                 )}
                 {progress.total > 0 && (
-                  <output className="speed-progress-badge">
+                  <output className="rounded-[6px] bg-inset px-2.5 py-1 text-[12.5px] tabular-nums text-muted-foreground">
                     {t("progress")} {progress.completed}/{progress.total}
                   </output>
                 )}
-                <details className="speed-options-dropdown">
-                  <summary className="speed-options-summary">
+                <details className="relative">
+                  <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[13px] text-muted-foreground transition-all duration-150 select-none hover:bg-inset hover:text-foreground">
                     <svg
                       viewBox="0 0 24 24"
                       width="14"
@@ -351,19 +350,19 @@ function ProxyPage() {
                     </svg>
                     {t("parameters")}
                   </summary>
-                  <div className="speed-options-drawer">
-                    <label className="speed-option-field">
+                  <div className="absolute top-[calc(100%+8px)] left-0 z-20 flex min-w-[280px] flex-col gap-2.5 rounded-md border border-border bg-card px-4 py-3.5 shadow-[0_4px_12px_oklch(0_0_0/8%)] max-md:right-0 max-md:left-auto max-md:w-[calc(100vw-64px)] max-md:min-w-[240px] max-md:max-w-[320px]">
+                    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                       <span>{t("testUrl")}</span>
                       <input
-                        className="speed-input"
+                        className="h-8 rounded-[6px] border border-border bg-inset px-2.5 text-[12.5px] text-foreground"
                         value={data.testURL}
                         onChange={(e) => set("testURL", e.target.value)}
                       />
                     </label>
-                    <label className="speed-option-field">
+                    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                       <span>{t("timeout")}</span>
                       <input
-                        className="speed-input speed-timeout-input"
+                        className="h-8 rounded-[6px] border border-border bg-inset px-2.5 text-[12.5px] text-foreground"
                         value={data.testTimeout}
                         type="number"
                         min={100}
@@ -378,9 +377,9 @@ function ProxyPage() {
               </div>
             </div>
 
-            <div className="command-card-right">
+            <div className="ml-auto flex shrink-0 items-center max-md:ml-0 max-md:w-full">
               <div
-                className="segmented-control"
+                className="segmented-control max-md:flex max-md:w-full max-md:[&>button]:flex-1 max-md:[&>button]:px-1 max-md:[&>button]:py-2 max-md:[&>button]:text-center max-md:[&>button]:text-[13px] max-md:[&>button]:whitespace-nowrap"
                 aria-label={tc("routingMode.title")}
               >
                 {(["rule", "global", "direct"] as const).map((mode) => (
@@ -399,7 +398,7 @@ function ProxyPage() {
         </div>
         <RequestStatus error={error} retry={update} />
         {!mapping.size && (
-          <div className="proxy-empty">
+          <div className="flex items-center gap-[18px] py-8 text-sm text-muted-foreground">
             <p>{tc("empty")}</p>
             <Button onClick={() => setIdentity(false)}>{tc("edit")}</Button>
           </div>

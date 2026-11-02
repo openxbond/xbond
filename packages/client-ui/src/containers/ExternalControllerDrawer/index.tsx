@@ -1,5 +1,12 @@
-import { Modal, Input, Button, success } from "@components";
+import { Input, Button } from "@components";
 import { CopyButton } from "@components/CopyButton";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@components/ui/dialog";
 import { useAction } from "@lib/actions";
 import { useObject } from "@lib/hook";
 import {
@@ -13,12 +20,12 @@ import {
   createControllerId,
 } from "@xbond/client/controller";
 import { Client } from "@xbond/client/request";
+import { cn } from "cn";
 import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { useSWRConfig } from "swr";
-
-import "./style.scss";
 
 export default function ExternalController({
   createOnly = false,
@@ -26,6 +33,7 @@ export default function ExternalController({
   createOnly?: boolean;
 }) {
   const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const controller = useAPIInfo();
   const [identity, setIdentity] = useAtom(identityAtom);
   const [value, set] = useObject({ name: "", url: "", secret: "" });
@@ -109,7 +117,7 @@ export default function ExternalController({
     setTestFailed(false);
     const ok = await run(async () => {
       await new Client(item.url, item.secret).getVersion();
-      success(t("external.testOK"));
+      toast.success(t("external.testOK"));
     }, false);
     if (!ok) setTestFailed(true);
   }
@@ -120,124 +128,165 @@ export default function ExternalController({
   const scheme = navigator.userAgent.includes("Edg/") ? "edge" : "chrome";
   const insecureURL = `${scheme}://settings/content/insecureContent`;
   return (
-    <Modal
-      className="external-controller-dialog !w-125 !max-w-[calc(100vw-32px)]"
-      show={!identity}
-      title={t("external.title")}
-      bodyClassName="external-controller"
-      onClose={() => close()}
-      onOk={() => save(createOnly)}
-      pending={pending}
-      footerExtra={
-        !createOnly && (
-          <div className="flex gap-2">
-            <Button disabled={pending} onClick={() => save(true)}>
-              {t("external.add")}
-            </Button>
-            <Button
-              type="danger"
-              disabled={pending || hosts.length < 2}
-              onClick={remove}
-            >
-              {t("external.delete")}
-            </Button>
-          </div>
-        )
-      }
+    <Dialog
+      open={!identity}
+      onOpenChange={(open) => {
+        if (!open && !pending) close();
+      }}
     >
-      <p className="ec-note">{t("external.note")}</p>
-      <div className="ec-form">
-        <label className="ec-row">
-          <span className="ec-label">{t("external.name")}</span>
-          <Input
-            aria-label={t("external.name")}
-            align="left"
-            value={value.name}
-            onChange={(name) => set("name", name)}
-          />
-        </label>
-        <label className="ec-row">
-          <span className="ec-label">{t("external.url")}</span>
-          <div className="ec-field-main">
-            <Input
-              aria-label={t("external.url")}
-              aria-invalid={Boolean(urlError)}
-              aria-describedby={urlError ? "ec-url-error" : undefined}
-              align="left"
-              value={value.url}
-              placeholder="http://127.0.0.1:9090"
-              onChange={(url) => {
-                setUrlError("");
-                set("url", url);
-              }}
-              onEnter={() => save(createOnly)}
-            />
-            {urlError && (
-              <p className="ec-error" id="ec-url-error" role="alert">
-                {t(`external.${urlError}`)}
-              </p>
-            )}
-          </div>
-        </label>
-        <label className="ec-row">
-          <span className="ec-label">{t("external.secret")}</span>
-          <div className="ec-secret">
-            <Input
-              aria-label={t("external.secret")}
-              type="password"
-              align="left"
-              value={value.secret}
-              onChange={(secret) => set("secret", secret)}
-              onEnter={() => save(createOnly)}
-            />
-            <Button className="ec-test" disabled={pending} onClick={test}>
-              {pending ? t("external.connecting") : t("external.test")}
-            </Button>
-          </div>
-        </label>
-      </div>
-      {testFailed && (
-        <div className="ec-help">
-          <button
-            type="button"
-            className="ec-help-trigger"
-            aria-expanded={helpOpen}
-            onClick={() => setHelpOpen((open) => !open)}
-          >
-            {t("external.helpTrigger")}
-            <svg
-              className="ec-help-chevron"
-              viewBox="0 0 24 24"
-              width="12"
-              height="12"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-          {helpOpen && (
-            <div className="ec-help-body">
-              <p>{t("external.browserNote")}</p>
-              <div className="ec-flag-row">
-                <span className="ec-flag-label">
-                  {t("external.allowInsecure")}
-                </span>
-                <code className="ec-flag">{insecureURL}</code>
-                <CopyButton
-                  value={insecureURL}
-                  label={t("external.copyFlag")}
+      <DialogContent className="max-w-[calc(100vw-32px)] sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>{t("external.title")}</DialogTitle>
+        </DialogHeader>
+        <div>
+          <p className="mb-5 text-[13px] leading-[1.6] text-muted-foreground">
+            {t("external.note")}
+          </p>
+          <div className="flex flex-col gap-4">
+            <label className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3">
+              <span className="text-[13px] font-medium leading-[34px] text-muted-foreground">
+                {t("external.name")}
+              </span>
+              <Input
+                aria-label={t("external.name")}
+                className="h-[34px]"
+                value={value.name}
+                onChange={(e) => set("name", e.target.value)}
+              />
+            </label>
+            <label className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3">
+              <span className="text-[13px] font-medium leading-[34px] text-muted-foreground">
+                {t("external.url")}
+              </span>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Input
+                  aria-label={t("external.url")}
+                  aria-invalid={Boolean(urlError)}
+                  aria-describedby={urlError ? "ec-url-error" : undefined}
+                  className="h-[34px]"
+                  value={value.url}
+                  placeholder="http://127.0.0.1:9090"
+                  onChange={(e) => {
+                    setUrlError("");
+                    set("url", e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") save(createOnly);
+                  }}
                 />
+                {urlError && (
+                  <p
+                    className="m-0 text-xs leading-normal text-destructive"
+                    id="ec-url-error"
+                    role="alert"
+                  >
+                    {t(`external.${urlError}`)}
+                  </p>
+                )}
               </div>
-              <p className="ec-help-sub">{t("external.localNetworkNote")}</p>
+            </label>
+            <label className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3">
+              <span className="text-[13px] font-medium leading-[34px] text-muted-foreground">
+                {t("external.secret")}
+              </span>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <Input
+                  aria-label={t("external.secret")}
+                  type="password"
+                  className="h-[34px]"
+                  value={value.secret}
+                  onChange={(e) => set("secret", e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") save(createOnly);
+                  }}
+                />
+                <Button
+                  className="h-[34px] shrink-0 px-3.5 text-[13px]"
+                  disabled={pending}
+                  onClick={test}
+                >
+                  {pending ? t("external.connecting") : t("external.test")}
+                </Button>
+              </div>
+            </label>
+          </div>
+          {testFailed && (
+            <div className="mt-5 border-t border-border pt-4 text-xs leading-[1.7] text-muted-foreground">
+              <button
+                type="button"
+                className="inline-flex cursor-pointer items-center gap-1 border-0 bg-none p-0 text-xs font-semibold text-brand-text hover:underline hover:underline-offset-4"
+                aria-expanded={helpOpen}
+                onClick={() => setHelpOpen((open) => !open)}
+              >
+                {t("external.helpTrigger")}
+                <svg
+                  className={cn(
+                    "transition-transform duration-150 motion-reduce:transition-none",
+                    helpOpen && "rotate-180",
+                  )}
+                  viewBox="0 0 24 24"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {helpOpen && (
+                <div className="mt-2.5">
+                  <p className="m-0 [overflow-wrap:anywhere]">
+                    {t("external.browserNote")}
+                  </p>
+                  <div className="mt-2.5 flex items-center gap-2.5">
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {t("external.allowInsecure")}
+                    </span>
+                    <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap rounded-[6px] border border-border bg-inset px-2.5 py-1.5 font-mono text-[11px] text-foreground select-all">
+                      {insecureURL}
+                    </code>
+                    <CopyButton
+                      value={insecureURL}
+                      label={t("external.copyFlag")}
+                    />
+                  </div>
+                  <p className="m-0 mt-2.5 [overflow-wrap:anywhere]">
+                    {t("external.localNetworkNote")}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
-    </Modal>
+        <DialogFooter className={createOnly ? undefined : "sm:justify-between"}>
+          {!createOnly && (
+            <div className="flex gap-2">
+              <Button disabled={pending} onClick={() => save(true)}>
+                {t("external.add")}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={pending || hosts.length < 2}
+                onClick={remove}
+              >
+                {t("external.delete")}
+              </Button>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <Button variant="outline" disabled={pending} onClick={close}>
+              {tc("cancel")}
+            </Button>
+            <Button disabled={pending} onClick={() => save(createOnly)}>
+              {tc("ok")}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

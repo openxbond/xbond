@@ -1,5 +1,6 @@
-import { Button, CountryFlag, Drawer, Segmented } from "@components";
+import { Button, CountryFlag, Segmented } from "@components";
 import { nodeFlagCode, stripFlagEmoji } from "@components/CountryFlag";
+import { Sheet, SheetContent, SheetTitle } from "@components/ui/sheet";
 import { useAction } from "@lib/actions";
 import { useNodeSelection } from "@lib/node-selection";
 import {
@@ -22,6 +23,7 @@ import {
   strategyPath,
   controllerIdentity,
 } from "@xbond/client/workspace";
+import { cn } from "cn";
 import { useAtom, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { useEffect, useState } from "react";
@@ -31,12 +33,22 @@ import { Link } from "react-router-dom";
 import { TrafficChart, type TrafficSample } from "./chart";
 import { NodePicker, latencyClass } from "./NodePicker";
 
-import "./style.scss";
-
 const focusAtom = atomWithStorage<Record<string, string>>(
   "xbond_focus_groups.v3",
   {},
 );
+
+/* 任務卡（乳白實面、髮邊、卡片陰影），四張卡共用。 */
+const cardSurface =
+  "rounded-card border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-[color:color-mix(in_srgb,var(--card)_96%,transparent)] shadow-elevation-card";
+
+/* 連線主操作：品牌橙圓形電源鍵，深色電源符號，克制光環。 */
+const orbBase =
+  "relative grid size-[124px] max-md:size-24 shrink-0 cursor-pointer place-items-center mt-2.5 mb-1.5 rounded-full focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-8 [transition:transform_var(--duration-fast)_var(--ease-out-expo),box-shadow_var(--duration-base)_var(--ease-out-expo)] motion-reduce:[transition:none] enabled:hover:shadow-[inset_0_0_0_1px_var(--brand),0_10px_28px_-12px_var(--brand-text)] enabled:active:[transform:scale(0.97)]";
+const orbOn =
+  "bg-[image:radial-gradient(circle_at_36%_30%,oklch(0.88_0.14_65)_0%,var(--brand)_60%,var(--brand-strong)_100%)] text-white shadow-[inset_0_2px_3px_rgba(255,255,255,0.65),inset_0_-4px_8px_rgba(0,0,0,0.22),var(--orb-glow)]";
+const orbOff =
+  "border border-border bg-[image:linear-gradient(145deg,#ffffff_0%,var(--surface-inset)_100%)] text-muted-foreground shadow-[inset_0_2px_2px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.04),0_4px_14px_rgba(0,0,0,0.05)]";
 
 function FactIcon({ kind }: { kind: "core" | "takeover" | "egress" }) {
   const common = {
@@ -48,6 +60,7 @@ function FactIcon({ kind }: { kind: "core" | "takeover" | "egress" }) {
     strokeWidth: 1.8,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
+    className: "opacity-[0.85]",
     "aria-hidden": true,
   };
   if (kind === "core") {
@@ -261,9 +274,12 @@ export default function Connect() {
   }
 
   return (
-    <div className="page connect-page">
+    <div className="page w-full">
       {localConfig && !status && (
-        <div className="status-notice" role={localError ? "alert" : "status"}>
+        <div
+          className="flex items-center justify-between gap-3 rounded-control border border-border bg-card px-4 py-3 text-sm"
+          role={localError ? "alert" : "status"}
+        >
           <span>{localError ? t("statusReadFailed") : tc("loading")}</span>
           {localError && (
             <Button
@@ -276,24 +292,46 @@ export default function Connect() {
         </div>
       )}
 
-      <div className="console">
+      <div className="grid w-full grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-4 [grid-template-areas:'control_aside'_'live_live'] max-md:grid-cols-1 max-md:[grid-template-areas:'control'_'aside'_'live']">
         <section
-          className="console-control card-surface"
+          className={cn(
+            cardSurface,
+            "[grid-area:control] flex flex-col items-center justify-center gap-2.5 pt-8 px-7 pb-6 text-center max-md:pt-7 max-md:px-5 max-md:pb-5",
+          )}
           aria-label={t("connect")}
         >
           {hasLocalAPI ? (
             <button
               type="button"
-              className={`orb ${active ? "is-on" : "is-off"}`}
+              className={cn(orbBase, active ? orbOn : orbOff)}
               disabled={pending || (!running && !sub)}
               aria-pressed={active}
               aria-label={`${stateWord} — ${running ? t("disconnect") : t("connect")}`}
               onClick={() => void run(() => (running ? down() : up()), false)}
             >
-              <span className="orb-ring" aria-hidden="true" />
-              <span className="orb-halo" aria-hidden="true" />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none absolute -inset-2 rounded-full border-[1.5px]",
+                  active
+                    ? "animate-[native-breathe_2.4s_ease-in-out_infinite] border-[color:color-mix(in_srgb,var(--brand)_45%,transparent)] motion-reduce:animate-none"
+                    : "border-[color:color-mix(in_srgb,var(--border)_80%,transparent)]",
+                )}
+              />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none absolute -inset-[38px] rounded-full",
+                  active
+                    ? "bg-[image:radial-gradient(circle,rgba(255,107,0,0.22)_0%,rgba(255,107,0,0.08)_45%,transparent_72%)]"
+                    : "hidden",
+                )}
+              />
               {pending ? (
-                <span className="orb-spinner" aria-hidden="true" />
+                <span
+                  aria-hidden="true"
+                  className="size-[30px] animate-[native-spin_0.8s_linear_infinite] rounded-full border-[3px] border-current border-t-transparent"
+                />
               ) : (
                 <svg
                   viewBox="0 0 24 24"
@@ -304,6 +342,10 @@ export default function Connect() {
                   strokeWidth="2.2"
                   strokeLinecap="round"
                   aria-hidden="true"
+                  className={cn(
+                    "size-10 max-md:size-8",
+                    active && "drop-shadow-[0_1px_2px_rgba(0,0,0,0.22)]",
+                  )}
                 >
                   <path d="M12 2v10" />
                   <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
@@ -315,11 +357,14 @@ export default function Connect() {
             // or stop: the honest main action is managing the target itself.
             <button
               type="button"
-              className="orb is-remote"
+              className={cn(orbBase, orbOff)}
               aria-label={t("manageController")}
               onClick={() => setIdentity(false)}
             >
-              <span className="orb-ring" aria-hidden="true" />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -inset-2 rounded-full border-[1.5px] border-[color:color-mix(in_srgb,var(--border)_80%,transparent)]"
+              />
               <svg
                 viewBox="0 0 24 24"
                 width="34"
@@ -330,6 +375,7 @@ export default function Connect() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden="true"
+                className="size-10 max-md:size-8"
               >
                 <circle cx="12" cy="12" r="10" />
                 <line x1="2" y1="12" x2="22" y2="12" />
@@ -338,11 +384,15 @@ export default function Connect() {
             </button>
           )}
 
-          <h2 className="dial-state">{stateWord}</h2>
-          <p className="dial-note">{stateNote}</p>
+          <h2 className="m-0 text-[26px] font-bold leading-[1.25] tracking-[-0.02em] text-foreground max-md:text-[24px]">
+            {stateWord}
+          </h2>
+          <p className="m-0 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+            {stateNote}
+          </p>
           {uptimeClock && (
             <p
-              className="dial-uptime"
+              className="m-0 mt-1 text-[15px] font-medium font-mono tracking-[0.05em] tabular-nums text-muted-foreground max-md:hidden"
               aria-label={t("uptime", { duration: uptimeClock })}
             >
               {uptimeClock}
@@ -351,30 +401,61 @@ export default function Connect() {
           {!hasLocalAPI && (
             <button
               type="button"
-              className="text-btn"
+              className="cursor-pointer rounded-sm px-1.5 py-1 text-[13px] font-semibold text-brand-text"
               onClick={() => setIdentity(false)}
             >
               {t("manageController")}
             </button>
           )}
 
-          <ul className="dial-facts">
+          <ul className="mt-3.5 grid self-stretch list-none grid-cols-3 border-t border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] pt-[18px]">
             {facts.map((fact) => (
-              <li key={fact.kind} className={`fact fact-${fact.tone}`}>
-                <span className="fact-head">
+              <li
+                key={fact.kind}
+                className={cn(
+                  "flex min-w-0 flex-col items-center gap-[7px] border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] px-2 text-xs text-muted-foreground not-first:border-l",
+                  fact.tone === "brand" && "text-brand-text",
+                  fact.tone === "ok" && "text-success-text",
+                )}
+              >
+                <span className="inline-flex items-center gap-1.5">
                   <FactIcon kind={fact.kind} />
                   {fact.label}
                 </span>
-                <span className="fact-value">
-                  <span className="fact-dot" aria-hidden="true" />
-                  <b>{fact.value}</b>
+                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "size-[7px] shrink-0 rounded-full",
+                      fact.tone === "brand"
+                        ? "bg-brand"
+                        : fact.tone === "ok"
+                          ? "bg-success"
+                          : "bg-muted-foreground opacity-55",
+                    )}
+                  />
+                  <b
+                    className={cn(
+                      "text-sm font-semibold tabular-nums [overflow-wrap:anywhere]",
+                      fact.tone === "brand"
+                        ? "text-brand-text"
+                        : fact.tone === "ok"
+                          ? "text-success-text"
+                          : "text-foreground",
+                    )}
+                  >
+                    {fact.value}
+                  </b>
                 </span>
               </li>
             ))}
           </ul>
 
-          <div className="config-row desktop-config-row">
-            <span className="config-row-icon" aria-hidden="true">
+          <div className="flex items-center gap-2.5 self-stretch mt-4 border-t border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] px-1 pt-4 text-[13px] text-muted-foreground max-md:hidden">
+            <span
+              className="grid size-8 shrink-0 place-items-center rounded-[11px] bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/55%)]"
+              aria-hidden="true"
+            >
               <svg
                 viewBox="0 0 24 24"
                 width="16"
@@ -391,14 +472,18 @@ export default function Connect() {
               </svg>
             </span>
             {sub ? (
-              <span className="config-row-text">
-                {t("currentConfig")} <b>{sub.name}</b>
+              <span className="min-w-0 truncate">
+                {t("currentConfig")}{" "}
+                <b className="font-semibold text-foreground">{sub.name}</b>
               </span>
             ) : (
-              <span className="config-row-text">{t("noConfig")}</span>
+              <span className="min-w-0 truncate">{t("noConfig")}</span>
             )}
             {hasLocalAPI && (
-              <Link to="/subscriptions" className="config-row-link">
+              <Link
+                to="/subscriptions"
+                className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[13px] font-semibold text-brand-text no-underline hover:underline hover:underline-offset-4"
+              >
                 {t("manage")}
                 <svg
                   viewBox="0 0 24 24"
@@ -418,21 +503,30 @@ export default function Connect() {
           </div>
         </section>
 
-        <div className="console-aside">
+        <div className="[grid-area:aside] flex min-w-0 flex-col gap-4">
           <section
-            className="console-node card-surface"
+            className={cn(
+              cardSurface,
+              "flex flex-col gap-3.5 py-5 px-[22px] max-md:p-[18px]",
+            )}
             aria-label={t("currentNode")}
           >
-            <h2>{t("currentNode")}</h2>
+            <h2 className="text-[15px] font-semibold">{t("currentNode")}</h2>
             <button
               type="button"
-              className="node-row"
+              className="group flex w-full cursor-pointer items-center gap-3.5 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card px-3.5 py-3 text-left text-foreground shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)] [transition:box-shadow_var(--duration-fast)_var(--ease-out-expo),border-color_var(--duration-fast)_var(--ease-out-expo)] motion-reduce:[transition:none] enabled:hover:border-[color:color-mix(in_srgb,var(--border-strong)_80%,transparent)] enabled:hover:shadow-[0_2px_8px_oklch(0.55_0.08_60/0.07)]"
               onClick={() => setPickerOpen(true)}
               aria-haspopup="dialog"
             >
-              <span className="node-row-flag" aria-hidden="true">
+              <span
+                className="grid size-[46px] shrink-0 place-items-center overflow-hidden rounded-[13px] bg-inset text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_60%,transparent),0_1px_3px_oklch(0.55_0.08_60/0.06)]"
+                aria-hidden="true"
+              >
                 {nodeFlag ? (
-                  <CountryFlag code={nodeFlag} className="node-flag" />
+                  <CountryFlag
+                    code={nodeFlag}
+                    className="size-full bg-cover bg-center"
+                  />
                 ) : (
                   <svg
                     viewBox="0 0 24 24"
@@ -451,20 +545,25 @@ export default function Connect() {
                   </svg>
                 )}
               </span>
-              <span className="node-row-text">
-                <span className="node-row-caption">{t("nodeSelection")}</span>
-                <span className="node-row-name">
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="text-[11.5px] text-muted-foreground">
+                  {t("nodeSelection")}
+                </span>
+                <span className="truncate text-[17px] font-[650]">
                   {group?.now
                     ? nodeFlag
                       ? stripFlagEmoji(group.now)
                       : group.now
                     : t("strategy.noNodeSelected")}
                 </span>
-                <span className="node-row-meta">
+                <span className="truncate text-[12.5px] tabular-nums text-muted-foreground">
                   {currentDelay ? (
                     <>
                       <b
-                        className={`node-latency ${latencyClass(currentDelay)}`}
+                        className={cn(
+                          "shrink-0 font-mono text-xs tabular-nums",
+                          latencyClass(currentDelay),
+                        )}
                       >
                         {currentDelay} ms
                       </b>
@@ -477,7 +576,10 @@ export default function Connect() {
                   )}
                 </span>
               </span>
-              <span className="node-row-chevron" aria-hidden="true">
+              <span
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/50%)] [transition:color_var(--duration-fast)_ease] group-hover:text-brand-text"
+                aria-hidden="true"
+              >
                 <svg
                   viewBox="0 0 24 24"
                   width="16"
@@ -495,17 +597,22 @@ export default function Connect() {
           </section>
 
           <section
-            className="console-preferences card-surface"
+            className={cn(
+              cardSurface,
+              "flex flex-1 flex-col gap-3.5 py-5 px-[22px] max-md:p-[18px]",
+            )}
             aria-label={t("prefs")}
           >
-            <h2>{t("prefs")}</h2>
+            <h2 className="text-[15px] font-semibold">{t("prefs")}</h2>
             {hasLocalAPI && (
-              <div className="pref-card">
-                <div className="pref-head">
-                  <span className="pref-label">{t("takeoverMode")}</span>
+              <div className="flex flex-col gap-2.5 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card px-4 py-3.5 shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)]">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12.5px] font-semibold text-muted-foreground">
+                    {t("takeoverMode")}
+                  </span>
                   <button
                     type="button"
-                    className="pref-mobile-trigger"
+                    className="ml-auto hidden max-md:inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-[13px] font-semibold text-brand-text"
                     aria-haspopup="dialog"
                     onClick={() => setTakeoverSheetOpen(true)}
                   >
@@ -539,12 +646,13 @@ export default function Connect() {
                     </svg>
                   </button>
                 </div>
-                <div className="pref-desktop-only">
+                <div className="max-md:hidden">
                   <Segmented
                     ariaLabel={t("takeoverMode")}
                     options={takeoverOptions}
                     value={takeover ?? null}
                     disabled={pending}
+                    className="w-full justify-stretch"
                     onChange={(mode) =>
                       void run(() => setMode({ mode }), false)
                     }
@@ -552,8 +660,10 @@ export default function Connect() {
                 </div>
               </div>
             )}
-            <div className="pref-card">
-              <span className="pref-label">{tc("routingMode.title")}</span>
+            <div className="flex flex-col gap-2.5 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card px-4 py-3.5 shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)]">
+              <span className="text-[12.5px] font-semibold text-muted-foreground">
+                {tc("routingMode.title")}
+              </span>
               <Segmented
                 ariaLabel={tc("routingMode.title")}
                 options={routingOptions}
@@ -564,21 +674,29 @@ export default function Connect() {
               {currentMode === "rule" ||
               currentMode === "global" ||
               currentMode === "direct" ? (
-                <p className="pref-hint">{t(`routingHint.${currentMode}`)}</p>
+                <p className="m-0 text-[12.5px] text-muted-foreground">
+                  {t(`routingHint.${currentMode}`)}
+                </p>
               ) : null}
             </div>
           </section>
         </div>
 
         <section
-          className="console-live card-surface"
+          className={cn(
+            cardSurface,
+            "[grid-area:live] flex flex-col gap-3.5 py-5 px-[22px] max-md:p-[18px]",
+          )}
           aria-label={t("trafficStats")}
         >
-          <h2>{t("trafficStats")}</h2>
-          <div className="live-grid">
-            <div className="live-speeds">
-              <div className="live-speed down">
-                <div className="speed-icon-circle down" aria-hidden="true">
+          <h2 className="text-[15px] font-semibold">{t("trafficStats")}</h2>
+          <div className="grid min-h-[150px] grid-cols-[auto_minmax(0,1fr)_auto] items-stretch gap-6 max-md:grid-cols-1 max-md:gap-4">
+            <div className="flex flex-col justify-center gap-[18px] pr-1 max-md:flex-row max-md:flex-wrap max-md:justify-start max-md:gap-x-7 max-md:gap-y-3.5">
+              <div className="flex flex-col gap-0.5 max-md:flex-row max-md:items-center max-md:gap-3 max-md:flex-1 max-md:min-w-[130px]">
+                <div
+                  className="hidden max-md:grid max-md:size-11 max-md:shrink-0 max-md:place-items-center max-md:rounded-full max-md:bg-[oklch(0.54_0.16_153/12%)] max-md:text-success"
+                  aria-hidden="true"
+                >
                   <svg
                     viewBox="0 0 24 24"
                     width="15"
@@ -592,10 +710,10 @@ export default function Connect() {
                     <path d="M12 4v14M6 12l6 6 6-6" />
                   </svg>
                 </div>
-                <div className="speed-info">
-                  <span className="speed-head down">
+                <div className="max-md:flex max-md:flex-col max-md:gap-px">
+                  <span className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground max-md:hidden">
                     <svg
-                      className="speed-inline-arrow"
+                      className="inline-block align-middle text-brand max-md:hidden"
                       viewBox="0 0 24 24"
                       width="13"
                       height="13"
@@ -609,16 +727,21 @@ export default function Connect() {
                     </svg>
                     {t("download")}
                   </span>
-                  <b className="speed-value">
+                  <b className="whitespace-nowrap text-[21px] font-[650] tabular-nums">
                     {trafficState === "open" && speed
                       ? formatRate(speed.down)
                       : "—"}
                   </b>
-                  <span className="speed-sublabel">{t("download")}</span>
+                  <span className="hidden max-md:mt-px max-md:block max-md:text-[11.5px] max-md:text-muted-foreground">
+                    {t("download")}
+                  </span>
                 </div>
               </div>
-              <div className="live-speed up">
-                <div className="speed-icon-circle up" aria-hidden="true">
+              <div className="flex flex-col gap-0.5 max-md:flex-row max-md:items-center max-md:gap-3 max-md:flex-1 max-md:min-w-[130px]">
+                <div
+                  className="hidden max-md:grid max-md:size-11 max-md:shrink-0 max-md:place-items-center max-md:rounded-full max-md:bg-[oklch(0.7163_0.1706_53.45/12%)] max-md:text-brand"
+                  aria-hidden="true"
+                >
                   <svg
                     viewBox="0 0 24 24"
                     width="15"
@@ -632,10 +755,10 @@ export default function Connect() {
                     <path d="M12 20V6M6 12l6-6 6 6" />
                   </svg>
                 </div>
-                <div className="speed-info">
-                  <span className="speed-head up">
+                <div className="max-md:flex max-md:flex-col max-md:gap-px">
+                  <span className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground max-md:hidden">
                     <svg
-                      className="speed-inline-arrow"
+                      className="inline-block align-middle text-brand max-md:hidden"
                       viewBox="0 0 24 24"
                       width="13"
                       height="13"
@@ -649,12 +772,14 @@ export default function Connect() {
                     </svg>
                     {t("upload")}
                   </span>
-                  <b className="speed-value">
+                  <b className="whitespace-nowrap text-[21px] font-[650] tabular-nums">
                     {trafficState === "open" && speed
                       ? formatRate(speed.up)
                       : "—"}
                   </b>
-                  <span className="speed-sublabel">{t("upload")}</span>
+                  <span className="hidden max-md:mt-px max-md:block max-md:text-[11.5px] max-md:text-muted-foreground">
+                    {t("upload")}
+                  </span>
                 </div>
               </div>
             </div>
@@ -668,26 +793,34 @@ export default function Connect() {
               uploadLabel={t("upload")}
             />
 
-            <div className="live-totals">
-              <div className="totals-block">
-                <span className="totals-label">{t("sessionTotal")}</span>
-                <b className="totals-value">
+            <div className="flex min-w-[170px] flex-col justify-center gap-4 border-l border-border pl-5 max-md:hidden">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">
+                  {t("sessionTotal")}
+                </span>
+                <b className="text-[19px] font-[650] tabular-nums">
                   {sessionTotal !== null ? formatTraffic(sessionTotal) : "—"}
                 </b>
                 {connectionState !== "open" && (
-                  <span className="totals-stale">{r(connectionState)}</span>
+                  <span className="text-[12.5px] text-muted-foreground">
+                    {r(connectionState)}
+                  </span>
                 )}
               </div>
-              <div className="totals-block quota-block">
-                <span className="totals-label">{t("quota.remaining")}</span>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">
+                  {t("quota.remaining")}
+                </span>
                 {sub && quota ? (
                   <>
-                    <b className="totals-value">
+                    <b className="text-[19px] font-[650] tabular-nums">
                       {formatTraffic(quota.remaining)}{" "}
-                      <i>/ {formatTraffic(sub.total)}</i>
+                      <i className="text-[13px] font-medium not-italic text-muted-foreground">
+                        / {formatTraffic(sub.total)}
+                      </i>
                     </b>
                     <span
-                      className="quota-strip"
+                      className="mt-1.5 block h-2 overflow-hidden rounded-full bg-inset"
                       role="meter"
                       aria-valuemin={0}
                       aria-valuemax={100}
@@ -695,7 +828,7 @@ export default function Connect() {
                       aria-label={t("quota.remaining")}
                     >
                       <span
-                        className="quota-strip-fill"
+                        className="block h-full w-full origin-left rounded-full bg-brand [transition:transform_var(--duration-base)_var(--ease-out-expo)] motion-reduce:[transition:none]"
                         style={{
                           transform: `scaleX(${(quotaPercent ?? 0) / 100})`,
                         }}
@@ -703,7 +836,7 @@ export default function Connect() {
                     </span>
                   </>
                 ) : (
-                  <span className="totals-stale">
+                  <span className="text-[12.5px] text-muted-foreground">
                     {sub ? t("quota.unknown") : t("noConfig")}
                   </span>
                 )}
@@ -712,8 +845,11 @@ export default function Connect() {
           </div>
 
           {/* Mobile-only config row under speeds */}
-          <div className="mobile-config-row">
-            <span className="mobile-config-icon" aria-hidden="true">
+          <div className="hidden max-md:mt-3.5 max-md:flex max-md:items-center max-md:gap-2.5 max-md:border-t max-md:border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] max-md:pt-3.5 max-md:text-[13px] max-md:text-muted-foreground">
+            <span
+              className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-inset text-muted-foreground"
+              aria-hidden="true"
+            >
               <svg
                 viewBox="0 0 24 24"
                 width="16"
@@ -729,10 +865,12 @@ export default function Connect() {
                 <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
               </svg>
             </span>
-            <span className="mobile-config-text">
-              <b>{sub ? sub.name : t("noConfig")}</b>
+            <span className="min-w-0 flex-1 truncate">
+              <b className="font-semibold text-foreground">
+                {sub ? sub.name : t("noConfig")}
+              </b>
               {sub && quota && (
-                <span className="mobile-config-quota">
+                <span>
                   {` · ${t("quota.remaining")} ${formatTraffic(quota.remaining)}`}
                 </span>
               )}
@@ -740,7 +878,7 @@ export default function Connect() {
             {hasLocalAPI && (
               <Link
                 to="/subscriptions"
-                className="mobile-config-link"
+                className="ml-auto grid size-6 place-items-center text-muted-foreground"
                 aria-label={t("manage")}
               >
                 <svg
@@ -762,7 +900,7 @@ export default function Connect() {
         </section>
       </div>
 
-      {/* 首次打開才掛載，避免常駐離屏層（Drawer 常駐會殘留 aria 節點）。 */}
+      {/* 首次打開才掛載，避免常駐離屏層（Sheet 常駐會殘留 aria 節點）。 */}
       {pickerOpen && (
         <NodePicker
           open={pickerOpen}
@@ -782,61 +920,83 @@ export default function Connect() {
 
       {/* 流動端接管方式面板：桌面用分段滑塊，手機開底部面板（能力與原因相同）。 */}
       {takeoverSheetOpen && (
-        <Drawer visible onClose={() => setTakeoverSheetOpen(false)} width={340}>
-          <div
-            className="takeover-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("takeoverMode")}
+        <Sheet
+          open
+          onOpenChange={(sheetOpen) => {
+            if (!sheetOpen) setTakeoverSheetOpen(false);
+          }}
+        >
+          <SheetContent
+            side="right"
+            showCloseButton={false}
+            aria-describedby={undefined}
+            className="w-[340px] max-w-full overflow-y-auto sm:max-w-[340px]"
           >
-            <header className="picker-head">
-              <h3>{t("takeoverMode")}</h3>
-              <button
-                type="button"
-                className="text-btn"
-                onClick={() => setTakeoverSheetOpen(false)}
-                aria-label={tc("close")}
-              >
-                ✕
-              </button>
-            </header>
-            <div className="takeover-options">
-              {takeoverOptions.map((option) => (
+            <div
+              className="flex flex-col gap-3.5 py-5 px-[18px]"
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("takeoverMode")}
+            >
+              <header className="flex items-center justify-between">
+                <SheetTitle asChild>
+                  <h3 className="text-base font-semibold">
+                    {t("takeoverMode")}
+                  </h3>
+                </SheetTitle>
                 <button
                   type="button"
-                  key={option.value}
-                  className={`takeover-option ${takeover === option.value ? "selected" : ""}`}
-                  disabled={pending || option.disabledReason !== undefined}
-                  title={option.disabledReason}
-                  onClick={() =>
-                    void run(() => setMode({ mode: option.value }), false)
-                  }
+                  className="cursor-pointer rounded-sm px-1.5 py-1 text-[13px] font-semibold text-brand-text"
+                  onClick={() => setTakeoverSheetOpen(false)}
+                  aria-label={tc("close")}
                 >
-                  <span className="takeover-option-text">
-                    <b>{option.label}</b>
-                    <span>{st(`takeover.${option.value}Desc` as const)}</span>
-                  </span>
-                  {takeover === option.value && (
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="16"
-                      height="16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="picker-check"
-                      aria-hidden="true"
-                    >
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                  )}
+                  ✕
                 </button>
-              ))}
+              </header>
+              <div className="flex flex-col gap-2">
+                {takeoverOptions.map((option) => (
+                  <button
+                    type="button"
+                    key={option.value}
+                    className={cn(
+                      "flex w-full cursor-pointer items-center gap-3 rounded-[14px] border border-border bg-card px-3.5 py-3 text-left text-foreground enabled:hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-55",
+                      takeover === option.value &&
+                        "border-transparent bg-brand-soft",
+                    )}
+                    disabled={pending || option.disabledReason !== undefined}
+                    title={option.disabledReason}
+                    onClick={() =>
+                      void run(() => setMode({ mode: option.value }), false)
+                    }
+                  >
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <b className="text-sm font-semibold">{option.label}</b>
+                      <span className="text-[12.5px] text-muted-foreground">
+                        {st(`takeover.${option.value}Desc` as const)}
+                      </span>
+                    </span>
+                    {takeover === option.value && (
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="16"
+                        height="16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="shrink-0 text-brand-text"
+                        aria-hidden="true"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        </Drawer>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );

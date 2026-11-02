@@ -1,4 +1,11 @@
-import { Button, Header, Input, Modal, Stat } from "@components";
+import { Button, Header, Input, Stat } from "@components";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@components/ui/dialog";
 import { useAction } from "@lib/actions";
 import {
   useCapabilities,
@@ -8,10 +15,9 @@ import {
   useProxy,
 } from "@stores";
 import type { DNSResult } from "@xbond/client/request";
+import { cn } from "cn";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import "./style.scss";
 
 const DEFAULT_SITES = [
   { id: "google", url: "https://www.gstatic.com/generate_204" },
@@ -40,6 +46,18 @@ interface BenchmarkSite {
   url: string;
 }
 
+const badgeBase =
+  "rounded-[6px] px-2 py-[3px] text-xs font-semibold tabular-nums";
+
+/* Latency buckets keep the source palette: light wash + dark text per tier. */
+const badgeClass: Record<string, string> = {
+  good: "bg-[oklch(0.92_0.08_145)] text-[oklch(0.38_0.14_145)]",
+  medium: "bg-[oklch(0.94_0.1_85)] text-[oklch(0.48_0.14_85)]",
+  slow: "bg-[oklch(0.92_0.09_45)] text-[oklch(0.48_0.15_45)]",
+  error: "bg-[oklch(0.92_0.08_25)] text-destructive",
+  untested: "bg-transparent text-muted-foreground",
+};
+
 function pingBadge(
   isTesting: boolean | undefined,
   delay: number | undefined,
@@ -52,6 +70,14 @@ function pingBadge(
   if (delay < 700) return { cls: "medium", text: `${delay} ms` };
   return { cls: "slow", text: `${delay} ms` };
 }
+
+const pillBase = "rounded-[5px] px-[7px] py-0.5 text-[11.5px] font-semibold";
+
+const pillClass: Record<string, string> = {
+  pass: "bg-[oklch(0.92_0.08_145)] text-[oklch(0.38_0.14_145)]",
+  warn: "bg-[oklch(0.94_0.1_85)] text-[oklch(0.48_0.14_85)]",
+  fail: "bg-[oklch(0.92_0.08_25)] text-destructive",
+};
 
 const responseCodes: Record<number, string> = {
   0: "NOERROR",
@@ -205,13 +231,13 @@ export default function Diagnostics() {
   }
 
   return (
-    <div className="page diagnostics-page">
+    <div className="page gap-6">
       <Header title={t("title")} />
 
       {/* Card 1: Website connectivity */}
-      <section className="diag-card">
-        <div className="diag-header">
-          <h2>
+      <section className="rounded-card border border-border bg-card p-6 shadow-elevation-card">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
             <svg
               viewBox="0 0 24 24"
               width="20"
@@ -226,7 +252,7 @@ export default function Diagnostics() {
             </svg>
             {t("connectivity.title")}
           </h2>
-          <div className="diag-header-actions">
+          <div className="flex items-center gap-2.5">
             <span className="text-xs text-muted-foreground">
               {t("testNode", { name: targetProxy })}
             </span>
@@ -239,7 +265,7 @@ export default function Diagnostics() {
           </div>
         </div>
 
-        <div className="site-pings-grid">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
           {DEFAULT_SITES.map((site) => {
             const badge = pingBadge(siteTesting[site.id], siteDelays[site.id], {
               pending: "—",
@@ -248,22 +274,25 @@ export default function Diagnostics() {
             });
 
             return (
-              <div key={site.id} className="site-ping-card">
-                <div className="site-ping-header">
+              <div
+                key={site.id}
+                className="flex flex-col justify-between gap-3 rounded-[10px] border border-border bg-inset p-4 transition-colors duration-150 hover:border-brand/40 motion-reduce:transition-none"
+              >
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="site-ping-name">
+                    <div className="text-sm font-semibold text-foreground">
                       {t(`connectivity.sites.${site.id}.name` as const)}
                     </div>
-                    <div className="site-ping-desc">
+                    <div className="mt-0.5 text-xs text-muted-foreground">
                       {t(`connectivity.sites.${site.id}.desc` as const)}
                     </div>
                   </div>
-                  <span className={`ping-badge ${badge.cls}`}>
+                  <span className={cn(badgeBase, badgeClass[badge.cls])}>
                     {badge.text}
                   </span>
                 </div>
-                <div className="site-ping-footer">
-                  <span className="text-xs font-mono text-muted-foreground truncate max-w-[140px]">
+                <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+                  <span className="max-w-[140px] truncate font-mono text-xs text-muted-foreground">
                     {site.url.replace(/^https?:\/\//, "")}
                   </span>
                   <Button
@@ -280,9 +309,9 @@ export default function Diagnostics() {
       </section>
 
       {/* Card 2: Streaming services */}
-      <section className="diag-card">
-        <div className="diag-header">
-          <h2>
+      <section className="rounded-card border border-border bg-card p-6 shadow-elevation-card">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
             <svg
               viewBox="0 0 24 24"
               width="20"
@@ -297,7 +326,7 @@ export default function Diagnostics() {
             </svg>
             {t("stream.title")}
           </h2>
-          <div className="diag-header-actions">
+          <div className="flex items-center gap-2.5">
             <span className="text-xs text-muted-foreground">
               {t("testNode", { name: targetProxy })}
             </span>
@@ -310,7 +339,7 @@ export default function Diagnostics() {
           </div>
         </div>
 
-        <div className="site-pings-grid">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
           {STREAM_SERVICES.map((site) => {
             const badge = pingBadge(siteTesting[site.id], siteDelays[site.id], {
               pending: t("stream.pending"),
@@ -319,22 +348,25 @@ export default function Diagnostics() {
             });
 
             return (
-              <div key={site.id} className="site-ping-card">
-                <div className="site-ping-header">
+              <div
+                key={site.id}
+                className="flex flex-col justify-between gap-3 rounded-[10px] border border-border bg-inset p-4 transition-colors duration-150 hover:border-brand/40 motion-reduce:transition-none"
+              >
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="site-ping-name">
+                    <div className="text-sm font-semibold text-foreground">
                       {t(`stream.services.${site.id}.name` as const)}
                     </div>
-                    <div className="site-ping-desc">
+                    <div className="mt-0.5 text-xs text-muted-foreground">
                       {t(`stream.services.${site.id}.desc` as const)}
                     </div>
                   </div>
-                  <span className={`ping-badge ${badge.cls}`}>
+                  <span className={cn(badgeBase, badgeClass[badge.cls])}>
                     {badge.text}
                   </span>
                 </div>
-                <div className="site-ping-footer">
-                  <span className="text-xs font-mono text-muted-foreground truncate max-w-[140px]">
+                <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+                  <span className="max-w-[140px] truncate font-mono text-xs text-muted-foreground">
                     {site.url.replace(/^https?:\/\//, "")}
                   </span>
                   <Button
@@ -349,13 +381,13 @@ export default function Diagnostics() {
           })}
         </div>
 
-        <p className="stream-note">{t("stream.note")}</p>
+        <p className="mt-3 text-xs text-muted-foreground">{t("stream.note")}</p>
       </section>
 
       {/* Card 3: DNS lookup and cache */}
-      <section className="diag-card">
-        <div className="diag-header">
-          <h2>
+      <section className="rounded-card border border-border bg-card p-6 shadow-elevation-card">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
             <svg
               viewBox="0 0 24 24"
               width="20"
@@ -373,31 +405,30 @@ export default function Diagnostics() {
         </div>
 
         <form
-          className="dns-form"
+          className="flex flex-wrap items-end gap-3"
           onSubmit={(event) => {
             event.preventDefault();
             queryDNS();
           }}
         >
-          <label className="dns-field dns-field-domain">
+          <label className="flex min-w-[200px] flex-[1_1_260px] flex-col gap-1.5 text-xs font-medium text-muted-foreground">
             {t("domain")}
             <Input
               aria-label={t("domain")}
               aria-invalid={Boolean(validation)}
-              align="left"
               value={domain}
               placeholder="example.com"
-              onChange={(value) => {
+              onChange={(e) => {
                 setValidation("");
-                setDomain(value);
+                setDomain(e.target.value);
               }}
               disabled={pending}
             />
           </label>
-          <label className="dns-field">
+          <label className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
             {t("type")}
             <select
-              className="dns-select"
+              className="h-[34px] rounded-sm border border-border bg-card px-3 text-[13px] text-foreground"
               value={type}
               disabled={pending}
               onChange={(event) => setType(event.target.value)}
@@ -419,13 +450,14 @@ export default function Diagnostics() {
               ))}
             </select>
           </label>
-          <button
-            className={`button button-normal dns-submit ${pending || !caps.dns ? "button-disabled" : ""}`}
+          <Button
+            variant="outline"
+            className="h-[34px]"
             disabled={pending || !caps.dns}
             type="submit"
           >
             {t("query")}
-          </button>
+          </Button>
         </form>
 
         {validation && (
@@ -438,10 +470,13 @@ export default function Diagnostics() {
           <div
             aria-live="polite"
             aria-busy={pending}
-            className={`dns-result ${pending ? "is-busy" : ""}`}
+            className={cn(
+              "mt-5 transition-opacity duration-150 motion-reduce:transition-none",
+              pending && "opacity-55",
+            )}
           >
-            <div className="dns-result-meta">
-              <span className="dns-query-spec">
+            <div className="flex flex-wrap items-end gap-6">
+              <span className="font-mono text-xs text-muted-foreground">
                 {dnsResult.name} · {dnsResult.type}
               </span>
               <Stat label={t("elapsed")}>{dnsResult.elapsed} ms</Stat>
@@ -450,8 +485,8 @@ export default function Diagnostics() {
               </Stat>
             </div>
             {dnsResult.dns.Answer?.length ? (
-              <div className="dns-results-table">
-                <table className="dns-table">
+              <div className="mt-4 overflow-x-auto rounded-sm border border-border">
+                <table className="w-full border-collapse text-left text-[13px] [&_td]:border-b [&_td]:border-border [&_td]:px-3.5 [&_td]:py-2.5 [&_th]:border-b [&_th]:border-border [&_th]:bg-inset [&_th]:px-3.5 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground [&_tr:last-child_td]:border-b-0">
                   <thead>
                     <tr>
                       <th>{t("domain")}</th>
@@ -473,20 +508,24 @@ export default function Diagnostics() {
                 </table>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">{t("noRecords")}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t("noRecords")}
+              </p>
             )}
           </div>
         )}
 
         {caps.flushCache && (
-          <div className="cache-flush-group">
-            <div className="cache-flush-desc">{t("cacheNote")}</div>
-            <div className="cache-flush-actions">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+            <div className="text-[12.5px] text-muted-foreground">
+              {t("cacheNote")}
+            </div>
+            <div className="flex gap-2.5">
               <Button disabled={pending} onClick={() => setClear("dns")}>
                 {t("flushDNS")}
               </Button>
               <Button
-                type="danger"
+                variant="destructive"
                 disabled={pending}
                 onClick={() => setClear("fakeip")}
               >
@@ -498,9 +537,9 @@ export default function Diagnostics() {
       </section>
 
       {/* Card 4: Self-check report */}
-      <section className="diag-card">
-        <div className="diag-header">
-          <h2>
+      <section className="rounded-card border border-border bg-card p-6 shadow-elevation-card">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
             <svg
               viewBox="0 0 24 24"
               width="20"
@@ -514,7 +553,7 @@ export default function Diagnostics() {
             </svg>
             {t("doctor.title")}
           </h2>
-          <div className="diag-header-actions">
+          <div className="flex items-center gap-2.5">
             <Button
               disabled={!localClient || doctorRunning}
               onClick={() => void runDoctor()}
@@ -536,28 +575,29 @@ export default function Diagnostics() {
           </p>
         ) : doctorReport ? (
           <div>
-            <div className="doctor-grid">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
               {/* Box 1: Three-tier status */}
-              <div className="doctor-box">
-                <div className="doctor-box-title">
+              <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
+                <div className="flex items-center justify-between text-[13.5px] font-semibold">
                   <span>{t("doctor.threeTier")}</span>
                   <span
-                    className={`status-pill ${
+                    className={cn(
+                      pillBase,
                       doctorReport.threeTier.coreReachable &&
-                      doctorReport.threeTier.trafficIntercepted
-                        ? "pass"
-                        : "warn"
-                    }`}
+                        doctorReport.threeTier.trafficIntercepted
+                        ? pillClass.pass
+                        : pillClass.warn,
+                    )}
                   >
                     {doctorReport.threeTier.coreReachable
                       ? t("doctor.coreOK")
                       : t("doctor.coreError")}
                   </span>
                 </div>
-                <ul className="doctor-box-list">
-                  <li>
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.takeover")}</span>
-                    <strong>
+                    <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
                       {doctorReport.threeTier.trafficIntercepted
                         ? t("doctor.takeoverActive", {
                             mode: doctorReport.threeTier.takeoverMode,
@@ -565,13 +605,15 @@ export default function Diagnostics() {
                         : t("doctor.takeoverInactive")}
                     </strong>
                   </li>
-                  <li>
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{tc("routingMode.title")}</span>
-                    <strong>{doctorReport.threeTier.routingMode}</strong>
+                    <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
+                      {doctorReport.threeTier.routingMode}
+                    </strong>
                   </li>
-                  <li>
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.egress")}</span>
-                    <strong>
+                    <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
                       {doctorReport.threeTier.egressVerified
                         ? t("doctor.egressReachable", {
                             ms: doctorReport.threeTier.egressLatencyMs,
@@ -579,9 +621,9 @@ export default function Diagnostics() {
                         : t("doctor.egressUnverified")}
                     </strong>
                   </li>
-                  <li>
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.chain")}</span>
-                    <strong className="text-right">
+                    <strong className="text-right font-medium text-foreground [overflow-wrap:anywhere]">
                       {doctorReport.threeTier.strategyChain?.join(" → ") || "—"}
                     </strong>
                   </li>
@@ -589,48 +631,51 @@ export default function Diagnostics() {
               </div>
 
               {/* Box 2: DNS resolution */}
-              <div className="doctor-box">
-                <div className="doctor-box-title">
+              <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
+                <div className="flex items-center justify-between text-[13.5px] font-semibold">
                   <span>{t("doctor.dnsCheck")}</span>
                   <span
-                    className={`status-pill ${
-                      doctorReport.dns.proxyDnsSuccess ? "pass" : "fail"
-                    }`}
+                    className={cn(
+                      pillBase,
+                      doctorReport.dns.proxyDnsSuccess
+                        ? pillClass.pass
+                        : pillClass.fail,
+                    )}
                   >
                     {doctorReport.dns.proxyDnsSuccess
                       ? t("doctor.dnsOK")
                       : t("doctor.dnsError")}
                   </span>
                 </div>
-                <ul className="doctor-box-list">
-                  <li>
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.localDNS")}</span>
-                    <strong>
+                    <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
                       {doctorReport.dns.localDnsSuccess
                         ? t("doctor.ok")
                         : t("doctor.failed")}
                     </strong>
                   </li>
-                  <li>
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.proxyDNS")}</span>
-                    <strong>
+                    <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
                       {doctorReport.dns.proxyDnsSuccess
                         ? t("doctor.ok")
                         : t("doctor.failed")}
                     </strong>
                   </li>
                   {doctorReport.dns.localIPs && (
-                    <li>
+                    <li className="flex justify-between gap-2 text-muted-foreground">
                       <span>{t("doctor.localIP")}</span>
-                      <strong className="font-mono text-xs">
+                      <strong className="font-mono text-xs font-medium text-foreground [overflow-wrap:anywhere]">
                         {doctorReport.dns.localIPs}
                       </strong>
                     </li>
                   )}
                   {doctorReport.dns.proxyIPs && (
-                    <li>
+                    <li className="flex justify-between gap-2 text-muted-foreground">
                       <span>{t("doctor.proxyIP")}</span>
-                      <strong className="font-mono text-xs">
+                      <strong className="font-mono text-xs font-medium text-foreground [overflow-wrap:anywhere]">
                         {doctorReport.dns.proxyIPs}
                       </strong>
                     </li>
@@ -639,40 +684,43 @@ export default function Diagnostics() {
               </div>
 
               {/* Box 3: Egress comparison */}
-              <div className="doctor-box">
-                <div className="doctor-box-title">
+              <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
+                <div className="flex items-center justify-between text-[13.5px] font-semibold">
                   <span>{t("doctor.egressCompare")}</span>
                   <span
-                    className={`status-pill ${
-                      doctorReport.egress.proxySuccess ? "pass" : "fail"
-                    }`}
+                    className={cn(
+                      pillBase,
+                      doctorReport.egress.proxySuccess
+                        ? pillClass.pass
+                        : pillClass.fail,
+                    )}
                   >
                     {doctorReport.egress.proxySuccess
                       ? t("doctor.egressOK")
                       : t("doctor.egressBlocked")}
                   </span>
                 </div>
-                <ul className="doctor-box-list">
-                  <li>
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.directEgress")}</span>
-                    <strong>
+                    <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
                       {doctorReport.egress.directSuccess
                         ? `${doctorReport.egress.directLatencyMs} ms`
                         : t("doctor.failed")}
                     </strong>
                   </li>
-                  <li>
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.egress")}</span>
-                    <strong>
+                    <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
                       {doctorReport.egress.proxySuccess
                         ? `${doctorReport.egress.proxyLatencyMs} ms`
                         : t("doctor.failed")}
                     </strong>
                   </li>
                   {doctorReport.egress.error && (
-                    <li>
+                    <li className="flex justify-between gap-2 text-muted-foreground">
                       <span>{t("doctor.errorDetail")}</span>
-                      <strong className="text-destructive">
+                      <strong className="font-medium text-destructive [overflow-wrap:anywhere]">
                         {doctorReport.egress.error}
                       </strong>
                     </li>
@@ -681,29 +729,32 @@ export default function Diagnostics() {
               </div>
 
               {/* Box 4: Gateway health */}
-              <div className="doctor-box">
-                <div className="doctor-box-title">
+              <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
+                <div className="flex items-center justify-between text-[13.5px] font-semibold">
                   <span>{t("doctor.gatewayHealth")}</span>
                   <span
-                    className={`status-pill ${
-                      doctorReport.gateway.primaryHealthy ? "pass" : "warn"
-                    }`}
+                    className={cn(
+                      pillBase,
+                      doctorReport.gateway.primaryHealthy
+                        ? pillClass.pass
+                        : pillClass.warn,
+                    )}
                   >
                     {doctorReport.gateway.primaryHealthy
                       ? t("doctor.gatewayHealthy")
                       : t("doctor.gatewayDegraded")}
                   </span>
                 </div>
-                <ul className="doctor-box-list">
-                  <li>
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.primaryServer")}</span>
-                    <strong className="font-mono text-xs truncate max-w-[160px]">
+                    <strong className="max-w-[160px] truncate font-mono text-xs font-medium text-foreground [overflow-wrap:anywhere]">
                       {doctorReport.gateway.primaryOrigin || "—"}
                     </strong>
                   </li>
-                  <li>
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.fallbackServer")}</span>
-                    <strong>
+                    <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
                       {doctorReport.gateway.fallbackOrigins?.length
                         ? t("doctor.fallbackCount", {
                             count: doctorReport.gateway.fallbackOrigins.length,
@@ -711,9 +762,9 @@ export default function Diagnostics() {
                         : t("doctor.noFallback")}
                     </strong>
                   </li>
-                  <li>
+                  <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.checkedAt")}</span>
-                    <strong className="text-xs">
+                    <strong className="text-xs font-medium text-foreground [overflow-wrap:anywhere]">
                       {new Date(doctorReport.timestamp).toLocaleTimeString()}
                     </strong>
                   </li>
@@ -721,9 +772,11 @@ export default function Diagnostics() {
               </div>
             </div>
 
-            <details className="doctor-details-raw">
-              <summary>{t("doctor.viewRaw")}</summary>
-              <pre className="doctor-raw-pre">
+            <details className="mt-4 text-xs text-muted-foreground">
+              <summary className="mb-2 cursor-pointer text-brand-text">
+                {t("doctor.viewRaw")}
+              </summary>
+              <pre className="max-h-60 overflow-auto rounded-sm border border-border bg-inset p-3 font-mono text-[11.5px]">
                 {JSON.stringify(doctorReport, null, 2)}
               </pre>
             </details>
@@ -735,21 +788,40 @@ export default function Diagnostics() {
         )}
       </section>
 
-      <Modal
-        show={!!clear}
-        title={t("cache")}
-        pending={pending}
-        onClose={() => setClear(null)}
-        onOk={() => {
-          if (clear)
-            void run(async () => {
-              await client.flushCache(clear);
-              setClear(null);
-            });
+      <Dialog
+        open={!!clear}
+        onOpenChange={(open) => {
+          if (!open && !pending) setClear(null);
         }}
       >
-        {clear === "dns" ? t("confirmDNS") : t("confirmFakeIP")}
-      </Modal>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{t("cache")}</DialogTitle>
+          </DialogHeader>
+          <div>{clear === "dns" ? t("confirmDNS") : t("confirmFakeIP")}</div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => setClear(null)}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              disabled={pending}
+              onClick={() => {
+                if (clear)
+                  void run(async () => {
+                    await client.flushCache(clear);
+                    setClear(null);
+                  });
+              }}
+            >
+              {tc("ok")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

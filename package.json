@@ -57,19 +57,17 @@
     "hooks:install": "lefthook install"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.12.3",
     "@types/node": "^24.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@unocss/preset-wind3": "^66.10.5",
     "@vitejs/plugin-react": "^6.1.2",
     "lefthook": "^2.2.2",
     "oxc-parser": "^0.150.0",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.82.0",
-    "sass": "^1.105.1",
     "typescript": "^7.0.2",
-    "unocss": "^66.10.5",
     "vite": "^8.3.4",
     "vite-plugin-pwa": "^2.0.0"
   },

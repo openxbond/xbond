@@ -1,6 +1,6 @@
 import { type BaseComponentProps } from "@models";
 import { basePath, formatTraffic } from "@xbond/client/helper";
-import classnames from "classnames";
+import { cn } from "cn";
 import { useTranslation } from "react-i18next";
 
 import { type Connection } from "../store";
@@ -14,10 +14,7 @@ export function ConnectionInfo(props: ConnectionsInfoProps) {
 
   return (
     <div
-      className={classnames(
-        props.className,
-        "flex flex-col overflow-y-auto text-sm",
-      )}
+      className={cn(props.className, "flex flex-col overflow-y-auto text-sm")}
     >
       <div className="my-3 flex">
         <span className="w-20 font-bold">{t("info.id")}</span>

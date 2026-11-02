@@ -1,4 +1,5 @@
-import { Card, Tag, Icon, Loading } from "@components";
+import { Card, Tag, Icon } from "@components";
+import { Spinner } from "@components/ui/spinner";
 import { compareDesc } from "@containers/Proxies";
 import { Proxy } from "@containers/Proxies/components/Proxy";
 import { useAction } from "@lib/actions";
@@ -11,8 +12,6 @@ import {
 } from "@xbond/client/request";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-
-import "./style.scss";
 
 interface ProvidersProps {
   provider: IProvider;
@@ -52,8 +51,12 @@ export function Provider(props: ProvidersProps) {
   }, [provider.proxies]);
 
   return (
-    <Card className="proxy-provider">
-      <Loading visible={visible} />
+    <Card className="relative flex flex-col text-base text-foreground">
+      {visible && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/72">
+          <Spinner className="size-5" />
+        </div>
+      )}
       <div className="flex flex-col justify-between md:flex-row md:items-center">
         <div className="flex items-center">
           <span className="mr-6">{provider.name}</span>
@@ -77,7 +80,7 @@ export function Provider(props: ProvidersProps) {
           />
         </div>
       </div>
-      <ul className="proxies-list">
+      <ul className="mt-5 mb-10 grid list-none grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4 p-0 max-md:grid-cols-1">
         {proxies
           .filter(
             (p) =>

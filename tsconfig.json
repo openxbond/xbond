@@ -33,11 +33,5 @@
       "@styles/*": ["./packages/client-ui/src/styles/*"]
     }
   },
-  "include": [
-    "packages/*/src",
-    "apps/*/src",
-    "scripts",
-    "vite.config.ts",
-    "uno.config.ts"
-  ]
+  "include": ["packages/*/src", "apps/*/src", "scripts", "vite.config.ts"]
 }

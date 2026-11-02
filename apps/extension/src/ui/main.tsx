@@ -1,5 +1,5 @@
 import "@fontsource-variable/inter";
-import "@xbond/client-ui/tokens.css";
+import "@xbond/client-ui/styles.css";
 import {
   Button,
   ButtonSelect,
@@ -14,6 +14,7 @@ import {
 } from "@xbond/client-ui/components";
 import { setAppLanguage } from "@xbond/client-ui/locale";
 import { formatTraffic } from "@xbond/client/helper";
+import { cn } from "cn";
 import { useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -30,8 +31,6 @@ import {
   type Controller,
 } from "./controller.ts";
 import { language, translator, type TextKey } from "./locale.ts";
-
-import "./style.scss";
 
 const pages = [
   "home",
@@ -53,6 +52,26 @@ interface Context {
 }
 declare const __XBOND_API_ORIGIN__: string;
 const popup = document.body.dataset.surface === "popup";
+
+// Former ext-* SCSS recipes, inlined where they apply. Inputs land on 10px
+// radii (rounded-md) per the migrated dashboard Input, not the legacy 7px.
+const fieldClass =
+  "min-w-0 rounded-md border border-input bg-inset px-[11px] py-[9px] text-foreground caret-brand";
+const mutedText = "text-[12px] text-muted-foreground";
+const linkButton =
+  "inline-flex min-h-8 cursor-pointer items-center border-0 bg-transparent p-0 text-start text-[12px] text-brand-text hover:underline hover:underline-offset-[3px]";
+const actionsClass = "mt-4 flex flex-wrap items-center gap-[9px]";
+const badgeClass =
+  "inline-flex rounded bg-inset px-1.5 py-0.5 text-[11px] whitespace-nowrap max-[700px]:max-w-[110px] max-[700px]:whitespace-normal";
+const settingRow =
+  "flex items-center justify-between gap-6 border-b border-b-border py-5 text-[13px] last:border-0 max-[700px]:gap-3";
+const brandClass =
+  "flex items-center gap-[9px] whitespace-nowrap text-[21px] font-[650]";
+const warningBox =
+  "rounded-lg bg-[color-mix(in_oklab,var(--warning)_12%,var(--card))] px-4 py-3.5 text-[13px] text-warning-text";
+const tableBox =
+  "overflow-auto rounded-[10px] border border-border [&_td]:border-b [&_td]:border-b-border [&_td]:px-[13px] [&_td]:py-3 [&_td]:text-start [&_td]:align-top [&_td]:[overflow-wrap:anywhere] [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-b-border [&_th]:bg-inset [&_th]:px-[13px] [&_th]:py-3 [&_th]:text-start [&_th]:text-[12px] [&_th]:font-medium [&_th]:text-muted-foreground [&_tbody_tr:last-child_td]:border-b-0";
+
 function route(): Page {
   const value = location.hash.slice(1).split("?")[0];
   return pages.find((page) => page === value) ?? "home";
@@ -86,9 +105,11 @@ function Panel({
   action?: ReactNode;
 }) {
   return (
-    <section className="ext-panel">
-      <div className="ext-section-heading">
-        <h2>{title}</h2>
+    <section className="mb-5 min-w-0 rounded-[13px] border border-border p-[22px] max-[700px]:p-4">
+      <div className="mb-3.5 flex items-center justify-between gap-3 max-[700px]:items-start">
+        <h2 className="text-[17px] font-semibold max-[700px]:text-base">
+          {title}
+        </h2>
         {action}
       </div>
       {children}
@@ -125,11 +146,15 @@ function Modes({
   if (variant === "rail")
     return (
       <>
-        <label className="ext-rail-label" htmlFor="ext-routing-mode">
+        <label
+          className="text-[11px] text-muted-foreground"
+          htmlFor="ext-routing-mode"
+        >
           {t("mode")}
         </label>
         <select
           id="ext-routing-mode"
+          className={cn(fieldClass, "text-[12px]")}
           value={model.mode}
           disabled={disabled}
           onChange={(event) => {
@@ -147,28 +172,54 @@ function Modes({
       </>
     );
   return (
-    <div className="ext-modes">
-      <ButtonSelect<RoutingMode>
-        value={model.mode}
-        disabled={disabled}
-        options={options}
-        onSelect={(mode) => void controller.act({ type: "set-mode", mode })}
-      />
-    </div>
+    <ButtonSelect<RoutingMode>
+      value={model.mode}
+      disabled={disabled}
+      options={options}
+      onSelect={(mode) => void controller.act({ type: "set-mode", mode })}
+    />
   );
 }
-function Power({ context }: { context: Context }) {
+function Power({
+  context,
+  compact = false,
+}: {
+  context: Context;
+  compact?: boolean;
+}) {
   const { model, controller, t } = context;
+  const on =
+    model.state.kind === "ok" && model.enabled && model.mode !== "direct";
   return (
     <div
-      className={`ext-power ${model.state.kind === "ok" && model.enabled && model.mode !== "direct" ? "is-on" : ""}`}
+      className={cn(
+        "flex items-center justify-between",
+        compact ? "h-[70px] flex-none gap-3.5 px-5" : "flex-1 gap-5",
+      )}
     >
       <div>
-        <h1>
-          <span className="ext-status-dot" />
+        <h1
+          className={cn(
+            "font-semibold leading-[1.35]",
+            compact ? "text-[17px]" : "text-[22px]",
+          )}
+        >
+          <span
+            className={cn(
+              "me-2 inline-block h-[7px] w-[7px] rounded-full align-middle",
+              on ? "bg-success-text" : "bg-muted-foreground",
+            )}
+          />
           {status(model, t)}
         </h1>
-        <p>
+        <p
+          className={cn(
+            "mt-[5px] text-muted-foreground",
+            compact
+              ? "max-w-[410px] text-[11px] leading-[1.4]"
+              : "max-w-[600px] text-[12px]",
+          )}
+        >
           {model.mode === "direct"
             ? t("inherited")
             : model.state.kind === "ok"
@@ -190,17 +241,24 @@ function Power({ context }: { context: Context }) {
           !model.config.available ||
           model.state.kind === "control-lost"
         }
-        label={t("enable")}
-        onChange={(enabled) =>
+        aria-label={t("enable")}
+        onCheckedChange={(enabled) =>
           void controller.act({ type: "set-enabled", enabled })
         }
       />
     </div>
   );
 }
-function ConfigurationNotice({ context }: { context: Context }) {
+function ConfigurationNotice({
+  context,
+  compact = false,
+}: {
+  context: Context;
+  compact?: boolean;
+}) {
   const { model, controller, t } = context;
-  if (model.pendingLogin || !model.signedIn) return <Login context={context} />;
+  if (model.pendingLogin || !model.signedIn)
+    return <Login context={context} compact={compact} />;
   if (!model.config.available)
     return (
       <EmptyState
@@ -217,9 +275,14 @@ function ConfigurationNotice({ context }: { context: Context }) {
     );
   if (model.state.kind === "control-lost")
     return (
-      <div className="ext-recovery">
-        <h2>{t("controlLost")}</h2>
-        <p>
+      <div
+        className={cn(
+          "rounded-[10px] bg-inset px-6 py-[30px]",
+          compact && "bg-transparent px-0 py-[18px]",
+        )}
+      >
+        <h2 className="text-[17px] font-semibold">{t("controlLost")}</h2>
+        <p className="mb-[18px] mt-3 text-[13px] text-muted-foreground">
           {t(model.state.holder === "policy" ? "policy" : "otherExtension")}
         </p>
         <Button
@@ -232,7 +295,13 @@ function ConfigurationNotice({ context }: { context: Context }) {
     );
   return null;
 }
-function Login({ context }: { context: Context }) {
+function Login({
+  context,
+  compact = false,
+}: {
+  context: Context;
+  compact?: boolean;
+}) {
   const { model, controller, t } = context;
   const [now, setNow] = useState(() => Date.now());
   const [copied, setCopied] = useState(false);
@@ -243,8 +312,10 @@ function Login({ context }: { context: Context }) {
   }, [model.pendingLogin]);
   const pending = model.pendingLogin;
   return (
-    <div className="ext-login">
-      <h2>
+    <div className={cn("max-w-[650px]", compact ? "py-[23px]" : "py-7")}>
+      <h2
+        className={cn("font-semibold", compact ? "text-[20px]" : "text-[17px]")}
+      >
         {pending
           ? t("waiting")
           : model.loginEnded === "expired"
@@ -253,23 +324,26 @@ function Login({ context }: { context: Context }) {
               ? t("loginFailed")
               : t("signIn")}
       </h2>
-      <p>{t("loginHint")}</p>
+      <p className="my-3 text-[13px] text-muted-foreground">{t("loginHint")}</p>
       {pending && (
         <>
-          <p className="ext-device-code" aria-label={t("deviceCode")}>
+          <p
+            className="my-3 select-all rounded-[9px] bg-inset p-4 text-center font-mono text-[27px] tracking-[0.12em] text-foreground"
+            aria-label={t("deviceCode")}
+          >
             {pending.userCode}
           </p>
-          <p>
+          <p className="my-3 text-[13px] text-muted-foreground">
             {t("expiresIn")}:{" "}
             {Math.max(0, Math.ceil((pending.expiresAt - now) / 1000))} s
           </p>
         </>
       )}
-      <div className="ext-actions">
+      <div className={actionsClass}>
         {pending ? (
           <>
             <Button
-              type="brand"
+              variant="brand"
               disabled={controller.pending}
               onClick={() =>
                 chrome.tabs.create({ url: pending.verificationUri })
@@ -296,7 +370,7 @@ function Login({ context }: { context: Context }) {
           </>
         ) : (
           <Button
-            type="brand"
+            variant="brand"
             disabled={controller.pending}
             onClick={() => {
               if (popup) openManagement("account");
@@ -319,25 +393,38 @@ function Quota({
 }) {
   const { model, t } = context;
   const quota = model.quota;
-  if (!quota) return <p className="ext-muted">{t("quotaUnknown")}</p>;
+  if (!quota) return <p className={mutedText}>{t("quotaUnknown")}</p>;
   const used = quota.uploadBytes + quota.downloadBytes;
   const remaining = Math.max(0, quota.totalBytes - used);
   return (
-    <div className={`ext-quota ${compact ? "is-compact" : ""}`}>
+    <div className={compact ? "block" : "flex items-center gap-5 py-[18px]"}>
       {!compact && quota.totalBytes > 0 && (
         <QuotaRing percent={(remaining / quota.totalBytes) * 100} />
       )}
       <div>
-        <p>
-          {t("remaining")} <strong>{formatTraffic(remaining)}</strong>{" "}
-          <span className="ext-muted">/ {formatTraffic(quota.totalBytes)}</span>
+        <p className={compact ? "text-[12px] leading-[1.4]" : undefined}>
+          {t("remaining")}{" "}
+          <strong
+            className={cn(
+              "font-semibold tabular-nums",
+              compact ? "text-[13px]" : "text-[20px]",
+            )}
+          >
+            {formatTraffic(remaining)}
+          </strong>{" "}
+          <span className={mutedText}>/ {formatTraffic(quota.totalBytes)}</span>
         </p>
         {!compact && (
-          <p className="ext-muted">
+          <p className={cn(mutedText, "mt-[7px]")}>
             {t("used")}: {formatTraffic(used)}
           </p>
         )}
-        <p className="ext-muted">
+        <p
+          className={cn(
+            mutedText,
+            compact ? "mt-[5px] leading-[1.4]" : "mt-[7px]",
+          )}
+        >
           {t("expiry")}:{" "}
           {quota.expiresAt > 0
             ? date(quota.expiresAt * 1000, language(model.preferences.language))
@@ -404,30 +491,63 @@ function Nodes({
         : model.groups.some((item) => item.name === name)
           ? t("group")
           : t("untested");
+  // has-rail：左栏承载模式控件（弹窗），组目录叠在其下；全局模式无目录。
+  // 弹窗压平为固定 300px 高的行内工作区，管理页保持 220px 目录 + 成员两栏。
+  const workspace = cn(
+    "grid min-h-[340px] overflow-hidden",
+    popup
+      ? "h-[300px] min-h-0 flex-1 rounded-none border-y border-border"
+      : "h-[min(68dvh,660px)] rounded-[12px] border border-border",
+    rail
+      ? global
+        ? "grid-cols-[154px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] [grid-template-areas:'modes_members']"
+        : "grid-cols-[154px_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] [grid-template-areas:'modes_members''groups_members']"
+      : global
+        ? "grid-cols-1"
+        : "grid-cols-[220px_minmax(0,1fr)]",
+  );
+  const railModes = cn(
+    "grid content-start gap-1.5 border-e border-border bg-background [grid-area:modes]",
+    popup ? "px-[7px] py-2" : "border-b p-2.5",
+  );
+  const members = cn(
+    "flex min-h-0 flex-col overflow-hidden",
+    popup ? "px-[15px] pb-0 pt-3" : "p-5",
+  );
   if (model.mode === "direct")
     return rail ? (
-      <div className="ext-node-workspace is-compact has-rail">
-        <div className="ext-rail-modes">{rail}</div>
-        <section className="ext-members">
-          <h2>{t("follow")}</h2>
+      <div className={workspace}>
+        <div className={railModes}>{rail}</div>
+        <section className={cn(members, "[grid-area:members]")}>
+          <h2
+            className={cn(
+              "font-semibold",
+              popup ? "text-[13px]" : "text-[17px]",
+            )}
+          >
+            {t("follow")}
+          </h2>
           <p>{t("inherited")}</p>
-          <p className="ext-muted">{t("differentExits")}</p>
+          <p className={mutedText}>{t("differentExits")}</p>
         </section>
       </div>
     ) : (
-      <div className="ext-inherited">
-        <h2>{t("follow")}</h2>
-        <p>{t("inherited")}</p>
-        <p className="ext-muted">{t("differentExits")}</p>
+      <div className="rounded-[10px] bg-inset px-6 py-[30px]">
+        <h2 className="text-[17px] font-semibold">{t("follow")}</h2>
+        <p className="mb-[18px] mt-3 text-[13px] text-muted-foreground">
+          {t("inherited")}
+        </p>
+        <p className="mb-[18px] mt-3 text-[13px] text-muted-foreground">
+          {t("differentExits")}
+        </p>
       </div>
     );
   return (
-    <div
-      className={`ext-node-workspace ${compact ? "is-compact" : ""} ${global ? "is-global" : ""} ${rail ? "has-rail" : ""}`}
-    >
-      {rail && <div className="ext-rail-modes">{rail}</div>}
+    <div className={workspace}>
+      {rail && <div className={railModes}>{rail}</div>}
       {!global && (
         <StrategyDirectory
+          className={cn("max-md:flex", rail && "[grid-area:groups]")}
           label={t("groups")}
           items={model.groups.map((item) => ({
             name: item.name,
@@ -439,36 +559,62 @@ function Nodes({
           onSelect={focusGroup}
         />
       )}
-      <section className="ext-members">
-        <div className="ext-section-heading">
-          <h2>{global ? t("globalExit") : (group?.name ?? t("nodes"))}</h2>
-          <span className="ext-muted">{unique.length}</span>
+      <section className={cn(members, rail && "[grid-area:members]")}>
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <h2
+            className={cn(
+              "font-semibold",
+              popup ? "text-[13px]" : "text-[17px]",
+            )}
+          >
+            {global ? t("globalExit") : (group?.name ?? t("nodes"))}
+          </h2>
+          <span className={mutedText}>{unique.length}</span>
         </div>
-        <div className="ext-strategy-path">
+        <div
+          className={cn(
+            "text-[12px] text-muted-foreground",
+            popup
+              ? "mb-1 overflow-hidden text-ellipsis whitespace-nowrap leading-[1.5]"
+              : "border-b border-b-border pb-3.5",
+          )}
+        >
           <StrategyPath
             path={global ? model.globalPath : (group?.path ?? [])}
           />
         </div>
-        <div className="ext-node-search">
+        <div className={cn("flex gap-2.5", popup ? "mb-1 mt-[7px]" : "my-3.5")}>
           <input
             aria-label={t("search")}
             type="search"
             placeholder={t("search")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            className={
+              popup
+                ? "min-w-0 w-full flex-1 rounded-md border border-input bg-inset px-[10px] py-[7px] text-[12px] text-foreground caret-brand"
+                : cn(fieldClass, "w-full flex-1")
+            }
           />
           {!compact && (
             <select
               aria-label={t("sort")}
               value={sort}
               onChange={(event) => setSort(event.target.value)}
+              className={cn(fieldClass, "max-w-[110px] text-[12px]")}
             >
               <option value="default">{t("source")}</option>
               <option value="name">A → Z</option>
             </select>
           )}
         </div>
-        <ul className="ext-member-list">
+        <ul
+          className={
+            popup
+              ? "flex min-h-0 flex-[1_1_0] flex-col overflow-auto"
+              : "grid min-h-0 flex-1 content-start gap-2.5 overflow-auto [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] max-[1000px]:[grid-template-columns:repeat(auto-fill,minmax(190px,1fr))] max-[700px]:grid-cols-1"
+          }
+        >
           {unique.map((name) => (
             <StrategyChoice
               key={name}
@@ -480,13 +626,13 @@ function Nodes({
               onSelect={() => select(name)}
               detail={compact || global ? detail(name) : undefined}
             >
-              {!compact && <span className="ext-badge">{detail(name)}</span>}
+              {!compact && <span className={badgeClass}>{detail(name)}</span>}
             </StrategyChoice>
           ))}
         </ul>
         {unique.length === 0 && <EmptyState message={t("noNodes")} />}{" "}
         {!compact && (
-          <p className="ext-muted ext-node-note">
+          <p className={cn(mutedText, "pt-3.5")}>
             {group?.type === "urltest" ? t("testPending") : t("differentExits")}
           </p>
         )}
@@ -498,29 +644,33 @@ function Home({ context }: { context: Context }) {
   const { model, controller, t, navigate } = context;
   return (
     <>
-      <div className="ext-home-power">
+      <div className="flex items-center justify-between gap-[25px] border-b border-b-border pb-7 pt-[15px] max-[1000px]:flex-wrap">
         <Power context={context} />
         <Modes context={context} />
       </div>
       <ConfigurationNotice context={context} />
       {model.signedIn && model.config.available && (
-        <div className="ext-two-columns">
+        <div className="mt-6 grid grid-cols-2 gap-5 [&>*]:mb-0 max-[1000px]:grid-cols-1">
           <Panel
             title={t("groups")}
             action={
-              <button className="ext-link" onClick={() => navigate("nodes")}>
+              <button className={linkButton} onClick={() => navigate("nodes")}>
                 {t("allGroups")}
               </button>
             }
           >
             {model.groups.slice(0, 4).map((group) => (
               <button
-                className="ext-group-summary"
+                className="block w-full cursor-pointer border-0 border-b border-b-border bg-transparent p-0 py-3.5 text-start text-foreground"
                 key={group.name}
                 onClick={() => navigate("nodes", group.name)}
               >
-                <strong>{renderNodeTitle(group.name)}</strong>
-                <StrategyPath path={group.path.slice(1)} />
+                <strong className="mb-[5px] block text-[13px] font-[550]">
+                  {renderNodeTitle(group.name)}
+                </strong>
+                <span className="text-[12px] text-muted-foreground">
+                  <StrategyPath path={group.path.slice(1)} />
+                </span>
               </button>
             ))}
           </Panel>
@@ -529,7 +679,7 @@ function Home({ context }: { context: Context }) {
           </Panel>
           <Panel title={t("config")}>
             <p>XBond Cloud</p>
-            <p className="ext-muted">
+            <p className={cn(mutedText, "mt-2")}>
               {t("updated")}:{" "}
               {date(
                 model.config.updatedAt,
@@ -537,9 +687,12 @@ function Home({ context }: { context: Context }) {
               )}
             </p>
             {model.config.error && (
-              <p className="ext-warning">{t("updateFailed")}</p>
+              <p className={cn(warningBox, "mb-[18px] mt-2")}>
+                {t("updateFailed")}
+              </p>
             )}
             <Button
+              className="mt-3.5"
               onClick={() => void controller.act({ type: "refresh-config" })}
               disabled={controller.pending}
             >
@@ -550,7 +703,7 @@ function Home({ context }: { context: Context }) {
             <p>
               {t("untested")}: {t("connectivity")}
             </p>
-            <div className="ext-actions">
+            <div className={actionsClass}>
               <Button onClick={() => navigate("rules")}>{t("predict")}</Button>
               <Button onClick={() => navigate("diagnostics")}>
                 {t("test")}
@@ -567,10 +720,10 @@ function Account({ context }: { context: Context }) {
   if (!model.signedIn || model.pendingLogin) return <Login context={context} />;
   return (
     <>
-      <div className="ext-two-columns">
+      <div className="mt-6 grid grid-cols-2 gap-5 [&>*]:mb-0 max-[1000px]:grid-cols-1">
         <Panel title="XBond Cloud">
           <Quota context={context} />
-          <div className="ext-actions">
+          <div className={actionsClass}>
             <Button
               onClick={() =>
                 chrome.tabs.create({
@@ -581,7 +734,7 @@ function Account({ context }: { context: Context }) {
               {t("cloud")}
             </Button>
             <Button
-              type="danger"
+              variant="destructive"
               onClick={() => void controller.act({ type: "logout" })}
               disabled={controller.pending}
             >
@@ -590,21 +743,24 @@ function Account({ context }: { context: Context }) {
           </div>
         </Panel>
         <Panel title={t("config")}>
-          <dl>
-            <dt>{t("source")}</dt>
-            <dd>XBond Cloud</dd>
-            <dt>{t("updated")}</dt>
-            <dd>
+          <dl className="text-[13px]">
+            <dt className="text-muted-foreground">{t("source")}</dt>
+            <dd className="mb-[17px] mt-1.5">XBond Cloud</dd>
+            <dt className="text-muted-foreground">{t("updated")}</dt>
+            <dd className="mb-[17px] mt-1.5">
               {date(
                 model.config.updatedAt,
                 language(model.preferences.language),
               )}
             </dd>
-            <dt>{t("result")}</dt>
-            <dd>{model.config.available ? t("applied") : t("noConfig")}</dd>
+            <dt className="text-muted-foreground">{t("result")}</dt>
+            <dd className="mb-[17px] mt-1.5">
+              {model.config.available ? t("applied") : t("noConfig")}
+            </dd>
           </dl>
           <Button
-            type="brand"
+            variant="brand"
+            className="mt-3.5"
             disabled={controller.pending}
             onClick={() => void controller.act({ type: "refresh-config" })}
           >
@@ -613,7 +769,7 @@ function Account({ context }: { context: Context }) {
         </Panel>
       </div>
       {model.config.error && (
-        <div className="ext-warning" role="alert">
+        <div className={cn(warningBox, "mb-[18px]")} role="alert">
           <p>{t("updateFailed")}</p>
           <details>
             <summary>{t("details")}</summary>
@@ -634,7 +790,7 @@ function RuleTable({ rules, t }: { rules: ExtensionSnapshot["rules"]; t: T }) {
   );
   return (
     <>
-      <div className="ext-toolbar">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <input
           type="search"
           aria-label={t("search")}
@@ -644,11 +800,12 @@ function RuleTable({ rules, t }: { rules: ExtensionSnapshot["rules"]; t: T }) {
             setSearch(event.target.value);
             setPage(0);
           }}
+          className={cn(fieldClass, "max-w-[400px] flex-1")}
         />
-        <span className="ext-muted">{filtered.length}</span>
+        <span className={mutedText}>{filtered.length}</span>
       </div>
-      <div className="ext-table-scroll">
-        <table>
+      <div className={tableBox}>
+        <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr>
               <th>{t("condition")}</th>
@@ -668,7 +825,7 @@ function RuleTable({ rules, t }: { rules: ExtensionSnapshot["rules"]; t: T }) {
         </table>
       </div>
       {!filtered.length && <EmptyState message={t("noRules")} />}
-      <div className="ext-pagination">
+      <div className="mt-3.5 flex items-center justify-end gap-3 text-[12px]">
         <Button disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
           ←
         </Button>
@@ -725,10 +882,12 @@ function Rules({ context }: { context: Context }) {
   };
   return (
     <>
-      <p className="ext-notice">{t("exceptionHint")}</p>
+      <p className="mb-[18px] rounded-lg bg-inset px-4 py-3.5 text-[13px]">
+        {t("exceptionHint")}
+      </p>
       <Panel title={t("exceptions")}>
-        <div className="ext-table-scroll">
-          <table>
+        <div className={tableBox}>
+          <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr>
                 <th>{t("domain")}</th>
@@ -746,11 +905,14 @@ function Rules({ context }: { context: Context }) {
                   <td>{renderNodeTitle(rule.target)}</td>
                   <td>
                     {model.overrideErrors.includes(rule.id) ? (
-                      <span className="ext-danger">{t("invalidTarget")}</span>
+                      <span className="text-destructive-text">
+                        {t("invalidTarget")}
+                      </span>
                     ) : (
-                      <label className="ext-checkbox">
+                      <label className="flex items-center gap-2 whitespace-nowrap">
                         <input
                           type="checkbox"
+                          className="accent-brand"
                           aria-label={`${t("enabled")}: ${rule.domain}`}
                           checked={rule.enabled}
                           disabled={controller.pending}
@@ -766,15 +928,17 @@ function Rules({ context }: { context: Context }) {
                     )}
                   </td>
                   <td aria-label={`${t("edit")}: ${rule.domain}`}>
-                    <div className="ext-actions">
+                    <div className="flex flex-nowrap items-center gap-[9px]">
                       <Button
+                        className="px-[9px] text-[12px]"
                         disabled={controller.pending}
                         onClick={() => edit(rule)}
                       >
                         {t("edit")}
                       </Button>
                       <Button
-                        type="danger"
+                        variant="destructive"
+                        className="px-[9px] text-[12px]"
                         disabled={controller.pending}
                         onClick={() =>
                           void controller.act({
@@ -792,29 +956,28 @@ function Rules({ context }: { context: Context }) {
             </tbody>
           </table>
         </div>
-        <details
-          key={editing?.id ?? "new"}
-          open={!!editing}
-          className="ext-rule-form"
-        >
-          <summary>{t(editing ? "edit" : "add")}</summary>
+        <details key={editing?.id ?? "new"} open={!!editing} className="mt-5">
+          <summary className="cursor-pointer text-[13px] font-semibold text-brand-text">
+            {t(editing ? "edit" : "add")}
+          </summary>
           <form
             onSubmit={(event) => {
               event.preventDefault();
               void save();
             }}
           >
-            <div className="ext-form-grid">
-              <label>
+            <div className="grid grid-cols-3 gap-3.5 max-[1000px]:grid-cols-2 max-[700px]:grid-cols-1">
+              <label className="grid gap-[7px] text-[12px]">
                 {t("domain")}
                 <input
                   required
                   value={domain}
                   placeholder="docs.example.org"
                   onChange={(event) => setDomain(event.target.value)}
+                  className={fieldClass}
                 />
               </label>
-              <label>
+              <label className="grid gap-[7px] text-[12px]">
                 {t("match")}
                 <select
                   value={match}
@@ -823,16 +986,18 @@ function Rules({ context }: { context: Context }) {
                       event.target.value === "suffix" ? "suffix" : "exact",
                     )
                   }
+                  className={fieldClass}
                 >
                   <option value="exact">{t("exact")}</option>
                   <option value="suffix">{t("suffix")}</option>
                 </select>
               </label>
-              <label>
+              <label className="grid gap-[7px] text-[12px]">
                 {t("target")}
                 <select
                   value={target || targets[0]}
                   onChange={(event) => setTarget(event.target.value)}
+                  className={fieldClass}
                 >
                   {targets.map((name) => (
                     <option value={name} key={name}>
@@ -842,10 +1007,10 @@ function Rules({ context }: { context: Context }) {
                 </select>
               </label>
             </div>
-            <div className="ext-actions">
+            <div className={actionsClass}>
               <Button
-                htmlType="submit"
-                type="brand"
+                type="submit"
+                variant="brand"
                 disabled={controller.pending}
               >
                 {t("save")}
@@ -866,7 +1031,7 @@ function Rules({ context }: { context: Context }) {
       </Panel>
       <Panel title={t("predict")}>
         <form
-          className="ext-toolbar"
+          className="mb-5 flex flex-wrap items-center gap-3"
           onSubmit={(event) => {
             event.preventDefault();
             void controller.act({ type: "predict-route", host });
@@ -878,19 +1043,22 @@ function Rules({ context }: { context: Context }) {
             aria-label={t("domain")}
             placeholder="docs.example.org"
             onChange={(event) => setHost(event.target.value)}
+            className={cn(fieldClass, "max-w-[400px] flex-1")}
           />
-          <Button htmlType="submit" type="brand" disabled={controller.pending}>
+          <Button type="submit" variant="brand" disabled={controller.pending}>
             {t("predict")}
           </Button>
         </form>
         {model.prediction && (
-          <div className="ext-prediction">
+          <div className="mb-3.5 rounded-lg bg-inset p-3.5">
             <strong>{model.prediction.host}</strong>
             <p>{model.prediction.condition}</p>
-            <StrategyPath path={model.prediction.path} />
+            <div className="mt-2 text-[13px]">
+              <StrategyPath path={model.prediction.path} />
+            </div>
           </div>
         )}
-        <p className="ext-muted">{t("predictionHint")}</p>
+        <p className={mutedText}>{t("predictionHint")}</p>
       </Panel>
       <Panel title={t("cloudRules")}>
         <RuleTable rules={model.rules} t={t} />
@@ -913,7 +1081,7 @@ function Requests({ context }: { context: Context }) {
         title={t(model.recording ? "recordingOn" : "recordingOff")}
         action={
           <Button
-            type={model.recording ? "normal" : "brand"}
+            variant={model.recording ? "outline" : "brand"}
             disabled={controller.pending}
             onClick={() =>
               void controller.act({
@@ -928,18 +1096,20 @@ function Requests({ context }: { context: Context }) {
       >
         <p>{t("privacy")}</p>
       </Panel>
-      <div className="ext-toolbar">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <input
           type="search"
           placeholder={t("domain")}
           aria-label={t("domain")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          className={cn(fieldClass, "max-w-[400px] flex-1")}
         />
         <select
           aria-label={t("result")}
           value={result}
           onChange={(event) => setResult(event.target.value)}
+          className={fieldClass}
         >
           {["all", "completed", "failed", "pending"].map((key) => (
             <option value={key} key={key}>
@@ -954,8 +1124,8 @@ function Requests({ context }: { context: Context }) {
           {t("clear")}
         </Button>
       </div>
-      <div className="ext-table-scroll">
-        <table>
+      <div className={tableBox}>
+        <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr>
               <th>{t("time")}</th>
@@ -974,11 +1144,19 @@ function Requests({ context }: { context: Context }) {
                 <td>{record.type}</td>
                 <td>
                   <span
-                    className={record.status === "failed" ? "ext-danger" : ""}
+                    className={
+                      record.status === "failed"
+                        ? "text-destructive-text"
+                        : undefined
+                    }
                   >
                     {t(record.status)}
                   </span>
-                  {record.error && <small>{record.error}</small>}
+                  {record.error && (
+                    <small className="block max-w-[300px] text-[11px] text-muted-foreground">
+                      {record.error}
+                    </small>
+                  )}
                 </td>
                 <td>
                   {record.duration === undefined
@@ -987,7 +1165,7 @@ function Requests({ context }: { context: Context }) {
                 </td>
                 <td>
                   <button
-                    className="ext-link"
+                    className={linkButton}
                     onClick={() => {
                       location.assign(
                         `#rules?host=${encodeURIComponent(record.host)}`,
@@ -1005,7 +1183,7 @@ function Requests({ context }: { context: Context }) {
       {records.length === 0 && (
         <EmptyState message={t("noRequests")} description={t("start")} />
       )}
-      <p className="ext-muted ext-note">{t("requestHint")}</p>
+      <p className={cn(mutedText, "mt-5")}>{t("requestHint")}</p>
     </>
   );
 }
@@ -1020,18 +1198,20 @@ function Logs({ context }: { context: Context }) {
   );
   return (
     <>
-      <div className="ext-toolbar">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <input
           type="search"
           aria-label={t("search")}
           placeholder={t("search")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          className={cn(fieldClass, "max-w-[400px] flex-1")}
         />
         <select
           aria-label={t("level")}
           value={level}
           onChange={(event) => setLevel(event.target.value)}
+          className={fieldClass}
         >
           {["all", "info", "warn", "error"].map((key) => (
             <option value={key} key={key}>
@@ -1047,8 +1227,8 @@ function Logs({ context }: { context: Context }) {
           {t("clear")}
         </Button>
       </div>
-      <div className="ext-table-scroll">
-        <table>
+      <div className={tableBox}>
+        <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr>
               <th>{t("time")}</th>
@@ -1062,7 +1242,14 @@ function Logs({ context }: { context: Context }) {
                 <td>{new Date(event.at).toLocaleTimeString()}</td>
                 <td>
                   <span
-                    className={`ext-badge ${event.level === "error" ? "ext-danger" : event.level === "warn" ? "ext-warning" : ""}`}
+                    className={cn(
+                      badgeClass,
+                      event.level === "error"
+                        ? "text-destructive-text"
+                        : event.level === "warn"
+                          ? "text-warning-text"
+                          : "text-muted-foreground",
+                    )}
                   >
                     {t(event.level)}
                   </span>
@@ -1111,7 +1298,7 @@ function Diagnostics({ context }: { context: Context }) {
   ];
   return (
     <>
-      <div className="ext-toolbar">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <Button
           onClick={() => void controller.act({ type: "reconcile" })}
           disabled={controller.pending}
@@ -1119,7 +1306,7 @@ function Diagnostics({ context }: { context: Context }) {
           {t("retry")}
         </Button>
         <Button
-          type="brand"
+          variant="brand"
           onClick={() => void controller.act({ type: "check-connectivity" })}
           disabled={controller.pending || model.state.kind !== "ok"}
         >
@@ -1127,16 +1314,19 @@ function Diagnostics({ context }: { context: Context }) {
         </Button>
       </div>
       <Panel title={t("diagnostics")}>
-        <dl>
+        <dl className="text-[13px]">
           {checks.map(([key, value]) => (
-            <div className="ext-diagnostic" key={key}>
-              <dt>{t(key)}</dt>
+            <div
+              className="grid grid-cols-[150px_1fr] gap-5 border-b border-b-border py-[15px] max-[700px]:grid-cols-[110px_1fr] max-[700px]:gap-3"
+              key={key}
+            >
+              <dt className="text-muted-foreground">{t(key)}</dt>
               <dd>{value}</dd>
             </div>
           ))}
         </dl>
         {connectivity.target && (
-          <p className="ext-muted">
+          <p className={mutedText}>
             {connectivity.target} ·{" "}
             {date(connectivity.at, language(model.preferences.language))}{" "}
             {connectivity.duration !== undefined
@@ -1145,12 +1335,14 @@ function Diagnostics({ context }: { context: Context }) {
           </p>
         )}
         {connectivity.error && (
-          <p className="ext-danger">{connectivity.error}</p>
+          <p className="text-destructive-text">{connectivity.error}</p>
         )}
-        <p className="ext-muted">{t("reachHint")}</p>
+        <p className={cn(mutedText, connectivity.target && "mt-2")}>
+          {t("reachHint")}
+        </p>
       </Panel>
       <ConfigurationNotice context={context} />
-      <div className="ext-actions">
+      <div className={actionsClass}>
         <Button onClick={() => context.navigate("account")}>
           {t("account")}
         </Button>
@@ -1169,7 +1361,7 @@ function Settings({ context }: { context: Context }) {
     });
   return (
     <Panel title={t("settings")}>
-      <div className="ext-setting">
+      <div className={settingRow}>
         <label htmlFor="theme">{t("theme")}</label>
         <select
           id="theme"
@@ -1180,6 +1372,7 @@ function Settings({ context }: { context: Context }) {
             if (theme === "system" || theme === "light" || theme === "dark")
               update({ theme });
           }}
+          className={cn(fieldClass, "min-w-[150px] max-[700px]:min-w-[120px]")}
         >
           {["system", "light", "dark"].map((value) => (
             <option key={value} value={value}>
@@ -1188,7 +1381,7 @@ function Settings({ context }: { context: Context }) {
           ))}
         </select>
       </div>
-      <div className="ext-setting">
+      <div className={settingRow}>
         <label htmlFor="language">{t("language")}</label>
         <select
           id="language"
@@ -1206,6 +1399,7 @@ function Settings({ context }: { context: Context }) {
             )
               update({ language: value });
           }}
+          className={cn(fieldClass, "min-w-[150px] max-[700px]:min-w-[120px]")}
         >
           <option value="system">{t("system")}</option>
           <option value="en_US">English</option>
@@ -1216,18 +1410,18 @@ function Settings({ context }: { context: Context }) {
         </select>
       </div>
       {(["autoUpdate", "restore"] as const).map((key) => (
-        <div className="ext-setting" key={key}>
-          <span>{t(key)}</span>
+        <div className={settingRow} key={key}>
+          <span className="max-w-[75%]">{t(key)}</span>
           <Switch
             checked={model.preferences[key]}
-            label={t(key)}
+            aria-label={t(key)}
             disabled={controller.pending}
-            onChange={(checked) => update({ [key]: checked })}
+            onCheckedChange={(checked) => update({ [key]: checked })}
           />
         </div>
       ))}
-      <div className="ext-setting">
-        <span>{t("privacy")}</span>
+      <div className={settingRow}>
+        <span className="max-w-[75%]">{t("privacy")}</span>
         <Button onClick={() => context.navigate("requests")}>
           {t("requests")}
         </Button>
@@ -1243,20 +1437,20 @@ function Popup({ context }: { context: Context }) {
     !model.config.available ||
     model.state.kind === "control-lost";
   return (
-    <div className="ext-popup">
-      <header className="ext-popup-header">
-        <div className="ext-brand">
-          <XBondIcon />
+    <div className="flex h-[568px] flex-col bg-card [&_[data-slot=button]]:min-h-9 [&_[data-slot=button]]:text-[12px]">
+      <header className="flex h-[52px] flex-none items-center justify-between border-b border-b-border px-5">
+        <div className={cn(brandClass, "gap-[7px] text-[18px]")}>
+          <XBondIcon className="h-[25px] w-[23px]" />
           XBond
         </div>
-        <button className="ext-link" onClick={() => openManagement()}>
+        <button className={linkButton} onClick={() => openManagement()}>
           {t("manage")} →
         </button>
       </header>
-      <Power context={context} />
+      <Power context={context} compact />
       {unavailable ? (
-        <div className="ext-popup-unavailable">
-          <ConfigurationNotice context={context} />
+        <div className="min-h-0 flex-1 overflow-auto px-6 py-1">
+          <ConfigurationNotice context={context} compact />
         </div>
       ) : (
         <Nodes
@@ -1265,12 +1459,12 @@ function Popup({ context }: { context: Context }) {
           rail={<Modes context={context} variant="rail" />}
         />
       )}
-      <footer className="ext-popup-footer">
+      <footer className="h-[92px] flex-none border-t border-t-border px-5 py-3">
         <Quota context={context} compact />
-        <div className="ext-popup-footer-links">
+        <div className="mt-1 flex items-center justify-between gap-2.5 text-[10px] text-muted-foreground">
           <span>{t("scope")}</span>
           <button
-            className="ext-link"
+            className={cn(linkButton, "min-h-[22px] text-[11px]")}
             onClick={() => openManagement("diagnostics")}
           >
             {t("diagnostics")}
@@ -1306,6 +1500,14 @@ function App() {
     query.addEventListener("change", apply);
     return () => query.removeEventListener("change", apply);
   }, [lang, model?.preferences.theme]);
+  // styles.css 的 base 层给 html 设了 overflow:hidden（控制台自带内部滚动），
+  // 扩展沿用文档滚动；弹窗则把 body 固定成 520×568 视口。
+  useEffect(() => {
+    document.documentElement.classList.add("overflow-auto");
+    document.body.className = popup
+      ? "h-[568px] w-[520px] overflow-hidden bg-card text-[14px] leading-[1.55]"
+      : "text-[14px] leading-[1.55]";
+  }, []);
   const navigate = (destination: Page, group?: string) => {
     if (popup) {
       openManagement(destination, group);
@@ -1317,9 +1519,11 @@ function App() {
   };
   if (!model)
     return (
-      <div className="ext-starting">
-        <XBondIcon />
-        <h1>XBond</h1>
+      <div className="grid min-h-[400px] content-center justify-center gap-4 p-[30px] text-center">
+        <XBondIcon className="mx-auto w-10" />
+        <h1 className="text-[25px] font-semibold leading-[1.35] max-[700px]:text-[22px]">
+          XBond
+        </h1>
         <p>
           {controller.error?.includes("extension_unavailable")
             ? t("unavailable")
@@ -1339,7 +1543,9 @@ function App() {
     home: <Home context={context} />,
     nodes: (
       <>
-        <Modes context={context} />
+        <div className="mb-[18px] flex justify-end">
+          <Modes context={context} />
+        </div>
         <Nodes context={context} />
       </>
     ),
@@ -1352,7 +1558,13 @@ function App() {
   };
   const feedback = (
     <div
-      className={`ext-feedback ${controller.error ? "is-error" : ""}`}
+      className={cn(
+        "fixed z-10 max-w-[min(400px,90vw)] rounded-[9px] bg-card px-[15px] py-2.5 text-[13px] shadow-[0_7px_30px_oklch(0_0_0/15%)] empty:hidden",
+        controller.error ? "text-destructive-text" : "text-success-text",
+        popup
+          ? "bottom-[100px] inset-x-5 max-w-none text-[12px]"
+          : "bottom-5 end-[25px]",
+      )}
       role={controller.error ? "alert" : "status"}
       aria-live="polite"
     >
@@ -1361,9 +1573,11 @@ function App() {
       ) : controller.error ? (
         <>
           <span>{t("failed")}</span>
-          <details>
+          <details className="mt-[7px] text-[12px]">
             <summary>{t("details")}</summary>
-            <pre>{controller.error}</pre>
+            <pre className="max-h-[100px] overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere]">
+              {controller.error}
+            </pre>
           </details>
         </>
       ) : controller.feedback ? (
@@ -1378,21 +1592,42 @@ function App() {
       {popup ? (
         <Popup context={context} />
       ) : (
-        <div className="ext-app">
-          <aside className="ext-sidebar">
-            <a href="#home" className="ext-brand">
-              <XBondIcon />
+        <div className="grid min-h-dvh grid-cols-[192px_minmax(0,1fr)] gap-3 p-3 max-[1000px]:grid-cols-[164px_minmax(0,1fr)] max-[700px]:block max-[700px]:p-2">
+          <aside className="sticky top-3 flex h-[calc(100dvh-24px)] flex-col rounded-2xl bg-sidebar px-3 py-[18px] shadow-[0_4px_20px_oklch(0_0_0/3%)] max-[700px]:static max-[700px]:mb-2.5 max-[700px]:h-auto max-[700px]:p-3">
+            <a
+              href="#home"
+              className={cn(
+                brandClass,
+                "px-2.5 pb-[25px] max-[700px]:px-0 max-[700px]:pb-3 max-[700px]:text-[18px]",
+              )}
+            >
+              <XBondIcon className="h-[29px] w-[27px] shrink-0" />
               XBond
             </a>
-            <nav aria-label="XBond">
+            <nav
+              aria-label="XBond"
+              className="grid gap-1 max-[700px]:flex max-[700px]:overflow-auto"
+            >
               {pages.map((name, index) => (
                 <a
                   href={`#${name}`}
                   key={name}
-                  className={page === name ? "active" : ""}
+                  className={cn(
+                    "flex items-center gap-[11px] rounded-lg px-3 py-[11px] text-[13px] text-muted-foreground max-[700px]:whitespace-nowrap max-[700px]:px-[11px] max-[700px]:py-2",
+                    page === name &&
+                      "bg-card font-semibold text-foreground shadow-[0_2px_7px_oklch(0_0_0/6%)]",
+                  )}
                   aria-current={page === name ? "page" : undefined}
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    className="h-[18px] w-[18px] shrink-0 max-[700px]:hidden"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.6}
+                    strokeLinejoin="round"
+                  >
                     <path
                       d={
                         [
@@ -1409,22 +1644,41 @@ function App() {
                     />
                   </svg>
                   {t(name)}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "h-[5px] w-[5px] shrink-0 rounded-full bg-brand",
+                      page === name ? "ms-auto" : "hidden",
+                      "max-[700px]:hidden",
+                    )}
+                  />
                 </a>
               ))}
             </nav>
-            <footer>
-              <p className="ext-sidebar-status">{status(model, t)}</p>
+            <footer className="mt-auto border-t border-t-border px-2.5 pt-4 text-[11px] text-muted-foreground max-[700px]:hidden">
+              <p className="mb-1.5 text-[12px] text-foreground">
+                {status(model, t)}
+              </p>
               <p>{t("scope")}</p>
-              <button className="ext-link" onClick={() => navigate("account")}>
+              <button
+                className={linkButton}
+                onClick={() => navigate("account")}
+              >
                 XBond Cloud
               </button>
             </footer>
           </aside>
-          <main className="ext-main">
-            <header className="ext-page-heading">
+          <main className="min-w-0 rounded-2xl bg-card p-7 shadow-[0_4px_20px_oklch(0_0_0/2%)] max-[1000px]:p-[22px] max-[700px]:p-[18px]">
+            <header className="mb-[26px] flex items-start justify-between gap-5 max-[700px]:flex-wrap max-[700px]:gap-3.5">
               <div>
-                <h1>{t(page)}</h1>
-                {page === "home" && <p>{t("summary")}</p>}
+                <h1 className="text-[25px] font-semibold leading-[1.35] max-[700px]:text-[22px]">
+                  {t(page)}
+                </h1>
+                {page === "home" && (
+                  <p className="mt-[7px] text-[13px] text-muted-foreground">
+                    {t("summary")}
+                  </p>
+                )}
               </div>
               {page !== "account" && model.config.available && (
                 <Button

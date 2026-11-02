@@ -1,7 +1,7 @@
-import { error as showError, success } from "@components/Message";
 import { isAxiosError } from "axios";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 export function errorKind(
   error: unknown,
@@ -29,10 +29,10 @@ export function useAction() {
       setPending(true);
       try {
         await work();
-        if (notify) success(tc("saved"));
+        if (notify) toast.success(tc("saved"));
         return true;
       } catch (error) {
-        showError(t(errorKind(error)), 6000);
+        toast.error(t(errorKind(error)), { duration: 6000 });
         return false;
       } finally {
         locked.current = false;

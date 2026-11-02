@@ -8,8 +8,6 @@ import { List, type RowComponentProps } from "react-window";
 
 import { Provider } from "./Provider";
 
-import "./style.scss";
-
 function RuleProviders() {
   const { providers, error, update } = useRuleProviders();
   const { t } = useTranslation("rules");
@@ -38,13 +36,24 @@ function RuleRow({
 }: RowComponentProps<{ rules: API.Rule[] }>) {
   const rule = rules[index];
   return (
-    <div className="rule-item" style={style}>
-      <div className="rule-row">
-        <div className="rule-type w-44">{rule.type}</div>
-        <div className="payload flex-1" title={rule.payload}>
+    <div
+      className="rule-item h-[50px] list-none select-none overflow-hidden border-b border-border transition-colors duration-[120ms] last:border-b-0 hover:bg-inset"
+      style={style}
+    >
+      <div className="rule-row flex h-full items-center gap-3 px-4">
+        <div className="rule-type w-44 overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap text-muted-foreground">
+          {rule.type}
+        </div>
+        <div
+          className="payload min-w-0 flex-1 overflow-hidden font-mono text-[13px] text-ellipsis whitespace-nowrap text-foreground"
+          title={rule.payload}
+        >
           {rule.payload}
         </div>
-        <div className="rule-proxy w-56" title={rule.proxy}>
+        <div
+          className="rule-proxy w-56 overflow-hidden text-right text-[12.5px] text-ellipsis whitespace-nowrap text-muted-foreground"
+          title={rule.proxy}
+        >
           {rule.proxy}
         </div>
       </div>
@@ -76,14 +85,14 @@ export default function Rules() {
       </div>
       <RuleProviders />
       <Card className="flex flex-1 flex-col overflow-hidden p-0 focus:outline-none">
-        <div className="table-header rule-header">
+        <div className="table-header rule-header flex shrink-0 items-center gap-3 px-4">
           <div className="w-44">{t("columns.type")}</div>
           <div className="flex-1">{t("columns.payload")}</div>
           <div className="w-56 text-right">{t("columns.proxy")}</div>
         </div>
         {/* CSS-only bounds: flex basis 0 sizes the box from the card's
             remaining space after the header, never from row content. */}
-        <div className="rule-list-box">
+        <div className="rule-list-box min-h-[480px] flex-1 overflow-hidden">
           <List
             style={{ height: "100%", width: "100%" }}
             rowCount={rules.length}
@@ -117,10 +126,9 @@ function RuleSearch({
     <Input
       aria-label={tc("search")}
       placeholder={tc("search")}
-      align="left"
-      className="flex-1"
+      className="flex-1 text-left"
       value={value}
-      onChange={onChange}
+      onChange={(e) => onChange(e.target.value)}
     />
   );
 }

@@ -1,4 +1,3 @@
-import { error } from "@components/Message";
 import { isClashX, jsBridge } from "@lib/jsBridge";
 import {
   validLatencyOptions,
@@ -15,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import { useConfig, useProxy, useProxyProviders } from "./jotai";
 import { useClient } from "./request";
@@ -56,7 +56,7 @@ function useLatencyRunner() {
     const url = data.testURL || "https://www.gstatic.com/generate_204";
     const timeout = data.testTimeout ?? 5000;
     if (!validLatencyOptions(url, timeout)) {
-      error(t("invalid"));
+      toast.error(t("invalid"));
       return;
     }
     const controller = new AbortController();

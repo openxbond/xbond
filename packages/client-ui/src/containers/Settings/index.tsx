@@ -1,4 +1,4 @@
-import { Button, ButtonSelect, Header, success, Switch } from "@components";
+import { Button, ButtonSelect, Header, Switch } from "@components";
 import { ControllerPicker } from "@components/ControllerPicker";
 import AccountPanel from "@containers/AccountPanel";
 import type { Lang } from "@i18n";
@@ -27,8 +27,7 @@ import { useAtom, useSetAtom } from "jotai";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-
-import "./style.scss";
+import { toast } from "sonner";
 
 type TerminalFormat = ProxyTerminalFormat;
 
@@ -99,26 +98,28 @@ export default function Settings() {
 
   function copyTerminalCommand() {
     navigator.clipboard.writeText(terminalCommands[terminalFormat]).then(() => {
-      success(tc("copied"));
+      toast.success(tc("copied"));
     });
   }
 
   return (
-    <div className="page settings-page">
+    <div className="page gap-6">
       <Header title={t("title")} />
 
-      <div className="settings-grid">
+      <div className="mx-auto grid w-full max-w-[1080px] grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
         {/* Account: identity, service status and the trusted console entry.
             The sidebar avatar opens the same panel as a dialog; this card
             keeps the account reachable on mobile, which has no avatar.
             The account session is daemon-owned, so a pure remote target
             has no account data to show here. */}
         {hasLocalAPI && (
-          <section className="settings-card">
-            <div className="settings-card-header">
-              <h2>{ta("title")}</h2>
+          <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
+            <div className="mb-5 flex items-center justify-between border-b border-border pb-3.5">
+              <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
+                {ta("title")}
+              </h2>
             </div>
-            <div className="settings-card-content">
+            <div className="flex flex-col gap-[18px]">
               <AccountPanel />
             </div>
           </section>
@@ -126,11 +127,18 @@ export default function Settings() {
 
         {/* Mobile-only entry: DESIGN.md promises subscriptions reachable
             from settings, since the phone crop hides the desktop rail. */}
-        <section className="settings-card mobile-only">
-          <Link to="/subscriptions" className="settings-entry-row">
-            <div className="settings-entry-text">
-              <strong>{t("subscriptionsEntry")}</strong>
-              <span>{t("subscriptionsEntryDesc")}</span>
+        <section className="hidden max-md:flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
+          <Link
+            to="/subscriptions"
+            className="flex min-h-11 items-center justify-between gap-3 text-foreground no-underline"
+          >
+            <div className="flex flex-col gap-0.5">
+              <strong className="text-[13.5px] font-semibold">
+                {t("subscriptionsEntry")}
+              </strong>
+              <span className="text-xs text-muted-foreground">
+                {t("subscriptionsEntryDesc")}
+              </span>
             </div>
             <svg
               viewBox="0 0 24 24"
@@ -141,6 +149,7 @@ export default function Settings() {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
+              className="shrink-0 text-muted-foreground"
               aria-hidden="true"
             >
               <path d="m9 18 6-6-6-6" />
@@ -150,9 +159,9 @@ export default function Settings() {
 
         {/* Card 1: 網絡與連接埠。接管模式在桌面端由首頁環境帶獨家承載,
             這裡僅移動端保留(手機首頁裁掉了環境帶)。 */}
-        <section className="settings-card">
-          <div className="settings-card-header">
-            <h2>
+        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
+          <div className="mb-5 flex items-center justify-between border-b border-border pb-3.5">
+            <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
               <svg
                 viewBox="0 0 24 24"
                 width="20"
@@ -171,11 +180,13 @@ export default function Settings() {
             </h2>
           </div>
 
-          <div className="settings-card-content">
+          <div className="flex flex-col gap-[18px]">
             {hasLocalAPI && (
-              <div className="setting-label-col mobile-only">
-                <strong>{t("takeover.title")}</strong>
-                <div className="takeover-options mt-2">
+              <div className="setting-label-col hidden max-md:flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("takeover.title")}
+                </strong>
+                <div className="mt-2 grid grid-cols-3 gap-2">
                   {(["sysproxy", "tun", "port"] as const).map((mode) => {
                     // TUN availability is a daemon-side fact (elevation,
                     // wintun driver), never a UI guess.
@@ -187,7 +198,7 @@ export default function Settings() {
                       <button
                         key={mode}
                         type="button"
-                        className="takeover-card-btn"
+                        className="flex flex-col items-start gap-1 rounded-sm border border-border bg-inset p-3 text-left text-foreground transition-all duration-150 hover:border-brand/40 hover:bg-row-hover aria-pressed:border-brand/40 aria-pressed:bg-brand-soft motion-reduce:transition-none"
                         aria-pressed={status?.preferences.takeoverMode === mode}
                         disabled={pending || tunUnavailable}
                         title={
@@ -197,15 +208,19 @@ export default function Settings() {
                         }
                         onClick={() => void run(() => setMode({ mode }))}
                       >
-                        <strong>{c(mode)}</strong>
-                        <span>{t(`takeover.${mode}Desc` as const)}</span>
+                        <strong className="text-[13px] font-semibold">
+                          {c(mode)}
+                        </strong>
+                        <span className="text-[11px] leading-[1.3] text-muted-foreground">
+                          {t(`takeover.${mode}Desc` as const)}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
                 {!status?.capabilities?.tun &&
                   status?.capabilities?.tunReasonCode && (
-                    <p className="setting-note mt-2 text-warning">
+                    <p className="mt-2 text-sm text-warning">
                       {t(
                         `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
                       )}
@@ -213,21 +228,25 @@ export default function Settings() {
                   )}
                 {status?.preferences.takeoverMode === "tun" &&
                   status?.capabilities?.tun && (
-                    <p className="setting-note mt-2 text-warning">
+                    <p className="mt-2 text-sm text-warning">
                       {t("takeover.tunPrivilegeNotice")}
                     </p>
                   )}
               </div>
             )}
 
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("takeover.mixedPort")}</strong>
-                <span>{t("takeover.mixedPortDesc")}</span>
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("takeover.mixedPort")}
+                </strong>
+                <span className="text-xs text-muted-foreground">
+                  {t("takeover.mixedPortDesc")}
+                </span>
               </div>
-              <div className="setting-inline">
+              <div className="setting-inline flex items-center gap-2.5">
                 <input
-                  className="setting-port-input"
+                  className="h-9 w-[90px] rounded-[6px] border border-border-strong bg-inset px-2.5 text-[13px] text-foreground"
                   aria-label={t("takeover.mixedPort")}
                   type="number"
                   min="0"
@@ -259,7 +278,7 @@ export default function Settings() {
               </p>
             )}
             {hasLocalAPI && (
-              <p className="setting-note text-muted-foreground">
+              <p className="text-muted-foreground">
                 {status?.preferences.portOverride
                   ? t("takeover.portNoteOverride", {
                       port: status.preferences.portOverride,
@@ -285,20 +304,24 @@ export default function Settings() {
               </div>
             )}
 
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("takeover.allowLan")}</strong>
-                <span>{t("takeover.allowLanDesc")}</span>
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("takeover.allowLan")}
+                </strong>
+                <span className="text-xs text-muted-foreground">
+                  {t("takeover.allowLanDesc")}
+                </span>
               </div>
               <Switch
-                label={t("takeover.allowLan")}
+                aria-label={t("takeover.allowLan")}
                 checked={status?.preferences.allowLan ?? general.allowLan}
                 disabled={
                   pending ||
                   (isLocalTarget && !hasLocalAPI) ||
                   (!hasLocalAPI && !caps.editLan)
                 }
-                onChange={(allowLan) =>
+                onCheckedChange={(allowLan) =>
                   void run(async () => {
                     if (hasLocalAPI) await setMode({ allowLan });
                     else {
@@ -310,12 +333,16 @@ export default function Settings() {
               />
             </div>
 
-            <div className="setting-row terminal-row">
-              <div className="setting-label-col">
-                <strong>{t("terminalCommand")}</strong>
-                <span>{t("terminalCommandDesc")}</span>
+            <div className="flex flex-col items-stretch gap-2.5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("terminalCommand")}
+                </strong>
+                <span className="text-xs text-muted-foreground">
+                  {t("terminalCommandDesc")}
+                </span>
               </div>
-              <div className="setting-inline">
+              <div className="setting-inline flex flex-wrap items-center gap-2.5">
                 <ButtonSelect<TerminalFormat>
                   value={terminalFormat}
                   options={[
@@ -326,23 +353,23 @@ export default function Settings() {
                   onSelect={setTerminalFormat}
                 />
                 <Button
-                  className="terminal-copy-btn"
+                  className="whitespace-nowrap"
                   onClick={copyTerminalCommand}
                 >
                   {tc("copy")}
                 </Button>
               </div>
             </div>
-            <p className="setting-note font-mono text-muted-foreground terminal-preview">
+            <p className="-mt-2 font-mono text-muted-foreground [overflow-wrap:anywhere]">
               {terminalCommands[terminalFormat]}
             </p>
           </div>
         </section>
 
         {/* Card 2: 外觀與偏好 */}
-        <section className="settings-card">
-          <div className="settings-card-header">
-            <h2>
+        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
+          <div className="mb-5 flex items-center justify-between border-b border-border pb-3.5">
+            <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
               <svg
                 viewBox="0 0 24 24"
                 width="20"
@@ -366,11 +393,15 @@ export default function Settings() {
             </h2>
           </div>
 
-          <div className="settings-card-content">
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("theme")}</strong>
-                <span>{t("themeDesc")}</span>
+          <div className="flex flex-col gap-[18px]">
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("theme")}
+                </strong>
+                <span className="text-xs text-muted-foreground">
+                  {t("themeDesc")}
+                </span>
               </div>
               <ButtonSelect<ThemePreference>
                 value={theme ?? "system"}
@@ -383,13 +414,17 @@ export default function Settings() {
               />
             </div>
 
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("language")}</strong>
-                <span>{t("languageDesc")}</span>
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("language")}
+                </strong>
+                <span className="text-xs text-muted-foreground">
+                  {t("languageDesc")}
+                </span>
               </div>
               <select
-                className="setting-select"
+                className="h-9 min-w-[132px] rounded-[6px] border border-border-strong bg-inset px-2.5 text-[13px] text-foreground focus:border-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                 aria-label={t("language")}
                 value={lang}
                 onChange={(event) => setLang(event.target.value as Lang)}
@@ -402,24 +437,30 @@ export default function Settings() {
               </select>
             </div>
 
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("breakConnections")}</strong>
-                <span>{t("breakConnectionsDesc")}</span>
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("breakConnections")}
+                </strong>
+                <span className="text-xs text-muted-foreground">
+                  {t("breakConnectionsDesc")}
+                </span>
               </div>
               <Switch
-                label={t("breakConnections")}
+                aria-label={t("breakConnections")}
                 checked={profile.breakConnections}
-                onChange={(value) => setProfile("breakConnections", value)}
+                onCheckedChange={(value) =>
+                  setProfile("breakConnections", value)
+                }
               />
             </div>
           </div>
         </section>
 
         {/* Card 3: 控制器與端點 */}
-        <section className="settings-card">
-          <div className="settings-card-header">
-            <h2>
+        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
+          <div className="mb-5 flex items-center justify-between border-b border-border pb-3.5">
+            <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
               <svg
                 viewBox="0 0 24 24"
                 width="20"
@@ -438,28 +479,38 @@ export default function Settings() {
             <Button onClick={() => setIdentity(false)}>{tc("edit")}</Button>
           </div>
 
-          <div className="settings-card-content">
-            <div className="setting-label-col">
-              <strong>{t("controller.switchController")}</strong>
+          <div className="flex flex-col gap-[18px]">
+            <div className="setting-label-col flex flex-col gap-1">
+              <strong className="text-[13.5px] font-semibold text-foreground">
+                {t("controller.switchController")}
+              </strong>
               <div className="mt-2">
                 <ControllerPicker />
               </div>
             </div>
 
-            <div className="controller-info-box">
-              <div className="controller-info-row">
-                <span>{t("controller.name")}</span>
-                <strong>
+            <div className="flex flex-col gap-2 rounded-sm border border-border bg-inset p-3.5 text-[13px]">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t("controller.name")}
+                </span>
+                <strong className="font-mono text-[12.5px]">
                   {controller.name || (hasLocalAPI ? tc("local") : "—")}
                 </strong>
               </div>
-              <div className="controller-info-row">
-                <span>{t("controller.address")}</span>
-                <strong>{controller.url}</strong>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t("controller.address")}
+                </span>
+                <strong className="font-mono text-[12.5px]">
+                  {controller.url}
+                </strong>
               </div>
-              <div className="controller-info-row">
-                <span>{t("controller.takeoverType")}</span>
-                <strong>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {t("controller.takeoverType")}
+                </span>
+                <strong className="font-mono text-[12.5px]">
                   {hasLocalAPI
                     ? t("controller.localDaemon")
                     : t("controller.externalCore")}
@@ -470,9 +521,9 @@ export default function Settings() {
         </section>
 
         {/* Card 4: 系統與核心 */}
-        <section className="settings-card">
-          <div className="settings-card-header">
-            <h2>
+        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
+          <div className="mb-5 flex items-center justify-between border-b border-border pb-3.5">
+            <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
               <svg
                 viewBox="0 0 24 24"
                 width="20"
@@ -490,19 +541,23 @@ export default function Settings() {
             </h2>
           </div>
 
-          <div className="settings-card-content">
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("about.coreVersion")}</strong>
+          <div className="flex flex-col gap-[18px]">
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("about.coreVersion")}
+                </strong>
               </div>
               <strong className="font-mono text-sm">
                 {clientInfo.type} {clientInfo.version || "—"}
               </strong>
             </div>
 
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("core.localApi")}</strong>
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("core.localApi")}
+                </strong>
               </div>
               <strong className="text-sm">
                 {hasLocalAPI
@@ -513,9 +568,11 @@ export default function Settings() {
               </strong>
             </div>
 
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("about.logLevel")}</strong>
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("about.logLevel")}
+                </strong>
               </div>
               <ButtonSelect<string>
                 value={general.logLevel || "info"}
@@ -538,9 +595,9 @@ export default function Settings() {
         </section>
 
         {/* Card 5: 關於 */}
-        <section className="settings-card">
-          <div className="settings-card-header">
-            <h2>
+        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
+          <div className="mb-5 flex items-center justify-between border-b border-border pb-3.5">
+            <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
               <svg
                 viewBox="0 0 24 24"
                 width="20"
@@ -558,16 +615,20 @@ export default function Settings() {
             </h2>
           </div>
 
-          <div className="settings-card-content">
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("about.appVersion")}</strong>
+          <div className="flex flex-col gap-[18px]">
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("about.appVersion")}
+                </strong>
               </div>
               <strong className="font-mono text-sm">{DASHBOARD_VERSION}</strong>
             </div>
-            <div className="setting-row">
-              <div className="setting-label-col">
-                <strong>{t("about.openSource")}</strong>
+            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+              <div className="setting-label-col flex flex-col gap-1">
+                <strong className="text-[13.5px] font-semibold text-foreground">
+                  {t("about.openSource")}
+                </strong>
               </div>
               <a
                 href="https://github.com/openxbond/xbond"

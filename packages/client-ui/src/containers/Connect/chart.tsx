@@ -1,7 +1,5 @@
 import { formatRate } from "@xbond/client/activity";
 
-import "./chart.scss";
-
 export interface TrafficSample {
   up: number;
   down: number;
@@ -10,6 +8,34 @@ export interface TrafficSample {
 
 const CHART_WIDTH = 600;
 const CHART_HEIGHT = 150;
+
+/** 圖例列：圓點 + 標籤，資料態再加即時峰值。 */
+function Legend({
+  downloadLabel,
+  uploadLabel,
+  peak,
+}: {
+  downloadLabel: string;
+  uploadLabel: string;
+  peak?: string;
+}) {
+  return (
+    <div className="flex items-center gap-3.5 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-[5px]">
+        <span className="size-[7px] rounded-full bg-brand" /> {downloadLabel}
+      </span>
+      <span className="inline-flex items-center gap-[5px]">
+        <span className="size-[7px] rounded-full bg-muted-foreground" />{" "}
+        {uploadLabel}
+      </span>
+      {peak && (
+        <span className="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground">
+          {peak}
+        </span>
+      )}
+    </div>
+  );
+}
 
 /** 即時走勢：真面積圖，僅畫真實樣本；資料不足如實顯示取樣提示。 */
 export function TrafficChart({
@@ -29,17 +55,15 @@ export function TrafficChart({
 }) {
   if (samples.length < 2) {
     return (
-      <div className="live-chart">
-        <div className="live-chart-legend">
-          <span className="legend-item download">
-            <span className="dot" /> {downloadLabel}
-          </span>
-          <span className="legend-item upload">
-            <span className="dot" /> {uploadLabel}
-          </span>
-        </div>
-        <p className="chart-empty">{empty}</p>
-        <span className="chart-window" aria-hidden="true">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 max-md:hidden">
+        <Legend downloadLabel={downloadLabel} uploadLabel={uploadLabel} />
+        <p className="grid min-h-[120px] flex-1 place-items-center text-[12.5px] text-muted-foreground">
+          {empty}
+        </p>
+        <span
+          className="self-end text-[11px] text-muted-foreground"
+          aria-hidden="true"
+        >
           {windowLabel}
         </span>
       </div>
@@ -74,21 +98,18 @@ export function TrafficChart({
   const downLine = smoothPath(toPoints("down"));
 
   return (
-    <div className="live-chart">
-      <div className="live-chart-legend">
-        <span className="legend-item download">
-          <span className="dot" /> {downloadLabel}
-        </span>
-        <span className="legend-item upload">
-          <span className="dot" /> {uploadLabel}
-        </span>
-        <span className="peak-rate">{formatRate(maximum)}</span>
-      </div>
-      <div className="live-chart-plot">
+    <div className="flex min-w-0 flex-1 flex-col gap-2 max-md:hidden">
+      <Legend
+        downloadLabel={downloadLabel}
+        uploadLabel={uploadLabel}
+        peak={formatRate(maximum)}
+      />
+      <div className="relative min-h-[120px] flex-1">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           preserveAspectRatio="none"
           aria-label={title}
+          className="absolute inset-0 size-full"
         >
           <title>{title}</title>
           <defs>
@@ -99,29 +120,38 @@ export function TrafficChart({
           </defs>
           <path
             d={`M0 ${(CHART_HEIGHT / 2).toFixed(0)}h${CHART_WIDTH}`}
-            className="chart-grid"
+            className="fill-none stroke-border [stroke-dasharray:3_5] [stroke-width:1]"
           />
           <path
             d={`M0 ${(CHART_HEIGHT * 0.25).toFixed(0)}h${CHART_WIDTH}`}
-            className="chart-grid"
+            className="fill-none stroke-border [stroke-dasharray:3_5] [stroke-width:1]"
           />
           <path
             d={`M${(CHART_WIDTH / 3).toFixed(0)} 0v${CHART_HEIGHT}`}
-            className="chart-grid"
+            className="fill-none stroke-border [stroke-dasharray:3_5] [stroke-width:1]"
           />
           <path
             d={`M${((CHART_WIDTH * 2) / 3).toFixed(0)} 0v${CHART_HEIGHT}`}
-            className="chart-grid"
+            className="fill-none stroke-border [stroke-dasharray:3_5] [stroke-width:1]"
           />
           <path
             d={`${downLine} L${CHART_WIDTH},${CHART_HEIGHT} L0,${CHART_HEIGHT} Z`}
             fill="url(#live-download-fill)"
             stroke="none"
           />
-          <path d={downLine} className="download-line" />
-          <path d={smoothPath(toPoints("up"))} className="upload-line" />
+          <path
+            d={downLine}
+            className="fill-none stroke-brand [stroke-linejoin:round] [stroke-width:2] [vector-effect:non-scaling-stroke]"
+          />
+          <path
+            d={smoothPath(toPoints("up"))}
+            className="fill-none stroke-muted-foreground opacity-70 [stroke-linejoin:round] [stroke-width:1.4] [vector-effect:non-scaling-stroke]"
+          />
         </svg>
-        <span className="chart-window" aria-hidden="true">
+        <span
+          className="self-end text-[11px] text-muted-foreground"
+          aria-hidden="true"
+        >
           {windowLabel}
         </span>
       </div>

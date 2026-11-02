@@ -1,8 +1,6 @@
 import { type BaseComponentProps } from "@models";
-import classnames from "classnames";
+import { cn } from "cn";
 import { useTranslation } from "react-i18next";
-
-import "./style.scss";
 
 interface DevicesProps extends BaseComponentProps {
   devices: Array<{ label: string; number: number }>;
@@ -14,17 +12,23 @@ export function Devices(props: DevicesProps) {
   const { t } = useTranslation("connections");
 
   const { className, style } = props;
-  const classname = classnames("flex flex-wrap px-1", className);
   function handleSelected(label: string) {
     props.onChange?.(label);
   }
+  // Selected chips keep their brand colors on hover — the base hover styles
+  // only apply to unselected ones, matching the old cascade order.
+  const itemClass = (selected: boolean) =>
+    cn(
+      "connections-devices-item mb-2 mr-2 cursor-pointer rounded-full border bg-inset px-3 py-1 text-[12.5px] leading-[18px] tabular-nums transition-colors duration-[120ms]",
+      selected
+        ? "border-brand bg-brand-soft font-medium text-brand-text"
+        : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
+    );
 
   return (
-    <div className={classname} style={style}>
+    <div className={cn("flex flex-wrap px-1", className)} style={style}>
       <div
-        className={classnames("connections-devices-item mb-2 pt-2", {
-          selected: props.selected === "",
-        })}
+        className={itemClass(props.selected === "")}
         onClick={() => handleSelected("")}
       >
         {t("filterAll")}
@@ -32,9 +36,7 @@ export function Devices(props: DevicesProps) {
       {props.devices.map((device) => (
         <div
           key={device.label}
-          className={classnames("connections-devices-item mb-2 pt-2", {
-            selected: props.selected === device.label,
-          })}
+          className={itemClass(props.selected === device.label)}
           onClick={() => handleSelected(device.label)}
         >
           {device.label} ({device.number})

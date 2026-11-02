@@ -1,5 +1,7 @@
 import { type BaseComponentProps } from "@models/BaseProps";
-import classnames from "classnames";
+import { cn } from "cn";
+
+import "../../styles/iconfont.css";
 
 interface IconProps extends BaseComponentProps {
   // icon type
@@ -12,10 +14,12 @@ interface IconProps extends BaseComponentProps {
 }
 
 export function Icon(props: IconProps) {
-  const { type, size = 14, className: cn, style: s } = props;
-  const className = classnames("clash-iconfont", `icon-${type}`, cn);
-  const style: React.CSSProperties = { fontSize: size, ...s };
-  const iconProps = { ...props, className, style };
-
-  return <i {...iconProps} />;
+  const { type, size = 14, className, style } = props;
+  return (
+    <i
+      {...props}
+      className={cn("clash-iconfont", `icon-${type}`, className)}
+      style={{ fontSize: size, ...style }}
+    />
+  );
 }

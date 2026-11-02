@@ -1,6 +1,4 @@
-import classnames from "classnames";
-
-import "./style.scss";
+import { cn } from "cn";
 
 interface QuotaRingProps {
   /**
@@ -14,10 +12,14 @@ interface QuotaRingProps {
 export function QuotaRing({ percent, className }: QuotaRingProps) {
   const clamped = Math.min(100, Math.max(0, percent));
   return (
-    <div className={classnames("quota-ring", className)}>
-      <svg viewBox="0 0 100 100" aria-hidden="true">
+    <div className={cn("relative size-16 shrink-0", className)}>
+      <svg
+        viewBox="0 0 100 100"
+        aria-hidden="true"
+        className="block size-full -rotate-90"
+      >
         <circle
-          className="quota-ring-track"
+          className="stroke-inset"
           cx="50"
           cy="50"
           r="40"
@@ -25,7 +27,7 @@ export function QuotaRing({ percent, className }: QuotaRingProps) {
           strokeWidth="8"
         />
         <circle
-          className="quota-ring-value"
+          className="stroke-brand"
           cx="50"
           cy="50"
           r="40"

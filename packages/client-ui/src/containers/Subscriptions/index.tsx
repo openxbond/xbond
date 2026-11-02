@@ -3,23 +3,28 @@ import {
   Button,
   ButtonSelect,
   Input,
-  Modal,
-  success,
   QuotaRing,
   Stat,
 } from "@components";
 import { CopyButton } from "@components/CopyButton";
 import { RequestStatus } from "@components/RequestStatus";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@components/ui/dialog";
 import { useAction } from "@lib/actions";
 import { useLanguage, useLocalAPI, useSubscriptions } from "@stores";
 import { formatTraffic } from "@xbond/client/helper";
 import { subscriptionLang, subscriptionQuota } from "@xbond/client/localapi";
 import { workspaceLink } from "@xbond/client/workspace";
+import { cn } from "cn";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-
-import "./style.scss";
+import { toast } from "sonner";
 
 export default function Subscriptions() {
   const { lang } = useLanguage();
@@ -103,7 +108,7 @@ export default function Subscriptions() {
       });
       await refresh();
       setOverrideId(null);
-      success(t("overrideSaved"));
+      toast.success(t("overrideSaved"));
     } catch (error) {
       // Conflicts (missing policies, core-gate failures) stay in the dialog
       // so the text survives for editing.
@@ -144,7 +149,7 @@ export default function Subscriptions() {
       if (!localClient) throw new Error("LocalAPI not available");
       await localClient.rollbackSub(id);
       await refresh();
-      success(t("rollbackDone"));
+      toast.success(t("rollbackDone"));
     });
   }
 
@@ -172,7 +177,7 @@ export default function Subscriptions() {
       }
       await refresh();
       setEditorId(null);
-      success(t("sourceSaved"));
+      toast.success(t("sourceSaved"));
     }, false);
   }
 
@@ -181,7 +186,7 @@ export default function Subscriptions() {
       if (!localClient) throw new Error("LocalAPI not available");
       await localClient.unpinSub(id);
       await refresh();
-      success(t("resumeUpdatesDone"));
+      toast.success(t("resumeUpdatesDone"));
     });
   }
 
@@ -207,16 +212,16 @@ export default function Subscriptions() {
       setUrl("");
       setName("");
       setImportFeedback("success");
-      success(t("imported"));
+      toast.success(t("imported"));
     } else {
       setImportFeedback("failed");
     }
   }
 
   return (
-    <div className="page subscriptions-page">
+    <div className="page max-w-[1200px]">
       <Header title={t("title")}>
-        <div className="subscriptions-header-actions">
+        <div className="flex items-center gap-2">
           {hasLocalAPI && subscriptions.length > 1 && (
             <Button
               disabled={pending}
@@ -237,20 +242,30 @@ export default function Subscriptions() {
       {hasLocalAPI ? (
         <>
           <section
-            className="subscription-import-card card"
+            className="rounded-card border border-border bg-card p-5"
             aria-label={t("import")}
           >
-            <div className="subscription-import-tabs">
+            <div className="mb-4 flex gap-2 border-b border-border pb-3">
               <Link
                 to={link({ track: "xbond" })}
-                className={track === "xbond" ? "active" : undefined}
+                className={cn(
+                  "rounded-[6px] px-3.5 py-1.5 text-[13px] font-medium no-underline transition-all duration-150 motion-reduce:transition-none",
+                  track === "xbond"
+                    ? "bg-brand-soft font-semibold text-brand-text"
+                    : "text-muted-foreground hover:bg-inset hover:text-foreground",
+                )}
                 aria-current={track === "xbond" ? "page" : undefined}
               >
                 {t("xbondTrack")}
               </Link>
               <Link
                 to={link({ track: "universal" })}
-                className={track === "universal" ? "active" : undefined}
+                className={cn(
+                  "rounded-[6px] px-3.5 py-1.5 text-[13px] font-medium no-underline transition-all duration-150 motion-reduce:transition-none",
+                  track === "universal"
+                    ? "bg-brand-soft font-semibold text-brand-text"
+                    : "text-muted-foreground hover:bg-inset hover:text-foreground",
+                )}
                 aria-current={track === "universal" ? "page" : undefined}
               >
                 {t("universalTrack")}
@@ -258,61 +273,69 @@ export default function Subscriptions() {
             </div>
 
             {track === "xbond" && (
-              <p className="subscription-track-note">{t("bindNote")}</p>
+              <p className="mb-3.5 text-xs text-muted-foreground">
+                {t("bindNote")}
+              </p>
             )}
 
             <form
-              className="subscription-import-form"
+              className="grid grid-cols-[2fr_1fr_auto] items-end gap-3 max-md:grid-cols-1"
               onSubmit={(event) => {
                 event.preventDefault();
                 void add();
               }}
             >
-              <div className="import-inputs">
-                <label className="import-field">
-                  <span className="import-label">
-                    {track === "xbond" ? t("xbondTrack") : t("universalTrack")}
-                  </span>
-                  <Input
-                    type={track === "xbond" ? "password" : "text"}
-                    value={track === "xbond" ? token : url}
-                    onChange={track === "xbond" ? setToken : setUrl}
-                    placeholder={
-                      track === "xbond"
-                        ? t("tokenPlaceholder")
-                        : t("urlPlaceholder")
-                    }
-                    align="left"
-                  />
-                </label>
-                <label className="import-field name-field">
-                  <span className="import-label">{t("namePlaceholder")}</span>
-                  <Input
-                    value={name}
-                    onChange={setName}
-                    placeholder={t("namePlaceholder")}
-                    align="left"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="button button-brand import-submit-btn"
-                  disabled={
-                    pending || !(track === "xbond" ? token : url).trim()
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-foreground">
+                  {track === "xbond" ? t("xbondTrack") : t("universalTrack")}
+                </span>
+                <Input
+                  type={track === "xbond" ? "password" : "text"}
+                  value={track === "xbond" ? token : url}
+                  onChange={
+                    track === "xbond"
+                      ? (e) => setToken(e.target.value)
+                      : (e) => setUrl(e.target.value)
                   }
-                >
-                  {pending
-                    ? tc("loading")
-                    : track === "universal"
-                      ? t("import")
-                      : t("addBtn")}
-                </button>
-              </div>
+                  placeholder={
+                    track === "xbond"
+                      ? t("tokenPlaceholder")
+                      : t("urlPlaceholder")
+                  }
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-foreground">
+                  {t("namePlaceholder")}
+                </span>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t("namePlaceholder")}
+                />
+              </label>
+              <Button
+                type="submit"
+                variant="brand"
+                className="h-[38px] whitespace-nowrap px-5"
+                disabled={pending || !(track === "xbond" ? token : url).trim()}
+              >
+                {pending
+                  ? tc("loading")
+                  : track === "universal"
+                    ? t("import")
+                    : t("addBtn")}
+              </Button>
             </form>
 
             {importFeedback !== "idle" && (
               <div
-                className={"import-feedback-banner " + importFeedback}
+                className={cn(
+                  "mt-3.5 flex items-center rounded-sm border px-3.5 py-2.5 text-[13px]",
+                  importFeedback === "success"
+                    ? "border-[oklch(0.54_0.16_153/25%)] bg-[oklch(0.54_0.16_153/10%)] text-success-text"
+                    : "border-[oklch(0.57_0.22_26/25%)] bg-[oklch(0.57_0.22_26/10%)] text-destructive-text",
+                )}
                 role={importFeedback === "failed" ? "alert" : "status"}
               >
                 <span>
@@ -335,43 +358,47 @@ export default function Subscriptions() {
 
           <RequestStatus error={subError} retry={refreshSubs} />
 
-          <section
-            className="subscriptions-grid-section"
-            aria-label={t("title")}
-          >
-            <div className="section-heading">
+          <section className="flex flex-col gap-3" aria-label={t("title")}>
+            <div className="section-heading items-baseline">
               <h2>{t("title")}</h2>
-              <span className="subscriptions-count">
+              <span className="text-xs text-muted-foreground">
                 {t("count", { count: subscriptions.length })}
               </span>
             </div>
 
             {subscriptions.length > 0 ? (
-              <div className="subscriptions-grid">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4 max-sm:grid-cols-1">
                 {subscriptions.map((sub) => {
                   const quota = subscriptionQuota(sub);
                   const isActive = sub.id === activeId;
                   return (
                     <article
-                      className={`subscription-card card ${isActive ? "is-active" : ""}`}
+                      className={cn(
+                        "flex flex-col justify-between rounded-card border p-[18px] transition-[border-color,box-shadow] duration-150 motion-reduce:transition-none",
+                        isActive
+                          ? "border-brand bg-[linear-gradient(180deg,var(--card)_0%,var(--surface-inset)_100%)]"
+                          : "border-border hover:border-border-strong hover:shadow-[0_4px_12px_oklch(0_0_0/4%)]",
+                      )}
                       key={sub.id}
                     >
-                      <div className="sub-card-header">
-                        <div className="sub-title-group">
-                          <h3 className="sub-name">{sub.name}</h3>
-                          <div className="sub-badges">
-                            <span className="sub-type-badge">
+                      <div className="mb-3.5 flex items-start justify-between gap-2.5">
+                        <div className="flex flex-col gap-1">
+                          <h3 className="m-0 text-[15px] font-[650] text-foreground">
+                            {sub.name}
+                          </h3>
+                          <div className="flex items-center gap-1.5">
+                            <span className="rounded-[4px] bg-inset px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                               {sub.type === "xbond"
                                 ? t("typeXbond")
                                 : t("typeUniversal")}
                             </span>
                             {isActive && (
-                              <span className="sub-active-badge">
+                              <span className="rounded-[4px] bg-brand px-2 py-0.5 text-[11px] font-semibold text-brand-foreground">
                                 {t("active")}
                               </span>
                             )}
                             {sub.sourcePinned && (
-                              <span className="sub-active-badge sub-pinned-badge">
+                              <span className="rounded-[4px] bg-brand px-2 py-0.5 text-[11px] font-semibold text-warning">
                                 {t("sourcePinned")}
                               </span>
                             )}
@@ -392,11 +419,11 @@ export default function Subscriptions() {
                         )}
                       </div>
 
-                      <div className="sub-card-body">
+                      <div className="mb-3.5 flex flex-col gap-3.5 border-y border-dashed border-border py-3">
                         {quota ? (
-                          <div className="sub-quota-row">
+                          <div className="flex items-center gap-4">
                             <QuotaRing percent={quota.remainingPercent} />
-                            <div className="sub-quota-numbers">
+                            <div className="flex min-w-0 flex-col gap-1.5">
                               <Stat label={c("quota.remaining")}>
                                 {formatTraffic(quota.remaining)}
                               </Stat>
@@ -410,25 +437,29 @@ export default function Subscriptions() {
                             </div>
                           </div>
                         ) : (
-                          <p className="sub-quota-empty">
+                          <p className="my-1.5 text-xs text-muted-foreground">
                             {c("quota.unknown")}
                           </p>
                         )}
 
-                        <dl className="sub-meta-list">
+                        <dl className="m-0 flex flex-col gap-1 text-[11px]">
                           {sub.expire > 0 && (
-                            <div>
-                              <dt>{c("expiry")}</dt>
-                              <dd>
+                            <div className="flex justify-between gap-2">
+                              <dt className="text-muted-foreground">
+                                {c("expiry")}
+                              </dt>
+                              <dd className="m-0 font-mono tabular-nums text-foreground">
                                 {new Date(sub.expire * 1000).toLocaleDateString(
                                   lang.replace("_", "-"),
                                 )}
                               </dd>
                             </div>
                           )}
-                          <div>
-                            <dt>{t("updated")}</dt>
-                            <dd>
+                          <div className="flex justify-between gap-2">
+                            <dt className="text-muted-foreground">
+                              {t("updated")}
+                            </dt>
+                            <dd className="m-0 font-mono tabular-nums text-foreground">
                               {sub.lastUpdated
                                 ? new Date(
                                     sub.lastUpdated * 1000,
@@ -439,7 +470,7 @@ export default function Subscriptions() {
                         </dl>
                       </div>
 
-                      <div className="sub-card-actions">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Button
                           disabled={pending}
                           onClick={() =>
@@ -474,7 +505,7 @@ export default function Subscriptions() {
                         </Button>
                         {sub.sourcePinned && (
                           <Button
-                            type="warning"
+                            variant="warning"
                             disabled={pending}
                             onClick={() => resumeUpdates(sub.id)}
                           >
@@ -510,7 +541,7 @@ export default function Subscriptions() {
                           {t("sourceEdit")}
                         </Button>
                         <Button
-                          type="danger"
+                          variant="destructive"
                           disabled={pending}
                           onClick={() => setRemoveId(sub.id)}
                         >
@@ -522,172 +553,274 @@ export default function Subscriptions() {
                 })}
               </div>
             ) : (
-              <div className="subscriptions-empty card">
+              <div className="p-8 text-center text-muted-foreground">
                 <p>{t("noSubs")}</p>
               </div>
             )}
           </section>
         </>
       ) : (
-        <section className="card subscriptions-readonly">
+        <section className="p-8 text-center text-muted-foreground">
           <p>{t("readonly")}</p>
         </section>
       )}
 
-      <Modal
-        show={renameId !== null}
-        title={t("rename")}
-        okDisabled={!renameValue.trim() || Array.from(renameValue).length > 256}
-        onClose={() => setRenameId(null)}
-        pending={pending}
-        onOk={() => {
-          if (
-            !renameId ||
-            !renameValue.trim() ||
-            Array.from(renameValue).length > 256
-          )
-            return;
-          void run(async () => {
-            await renameSub(renameId, renameValue.trim());
-            await refresh();
-            setRenameId(null);
-          });
+      <Dialog
+        open={renameId !== null}
+        onOpenChange={(open) => {
+          if (!open && !pending) setRenameId(null);
         }}
       >
-        <label className="settings-rename-label">
-          {t("namePlaceholder")}
-          <Input value={renameValue} onChange={setRenameValue} align="left" />
-        </label>
-      </Modal>
-
-      <Modal
-        show={removeId !== null}
-        title={t("remove")}
-        onClose={() => setRemoveId(null)}
-        pending={pending}
-        onOk={() =>
-          void run(async () => {
-            if (removeId === activeId && status?.engine.running && localClient)
-              await localClient.down();
-            if (removeId) await removeSub(removeId);
-            await refresh();
-            setRemoveId(null);
-          }, false)
-        }
-      >
-        <p>{t("removeConfirm")}</p>
-        {removeId === activeId && status?.engine.running && (
-          <p className="setting-note mt-2 text-destructive">
-            {t("removeActive")}
-          </p>
-        )}
-      </Modal>
-
-      <Modal
-        show={editorId !== null}
-        title={t("sourceEdit")}
-        onClose={() => setEditorId(null)}
-        bodyClassName="subscriptions-source-editor"
-        pending={pending}
-        onOk={() => saveSourceEditor()}
-      >
-        <div className="setting-label-col">
-          <p className="text-sm text-muted-foreground">{t("sourceEditHint")}</p>
-          <textarea
-            className="subscriptions-override-textarea"
-            rows={16}
-            value={editorContent}
-            onChange={(event) => setEditorContent(event.target.value)}
-            spellCheck={false}
-          />
-          {editorError && (
-            <p role="alert" className="text-sm text-destructive">
-              {editorError}
-            </p>
-          )}
-        </div>
-      </Modal>
-
-      <Modal
-        show={proxyChannelId !== null}
-        title={t("channelProxy")}
-        onClose={() => setProxyChannelId(null)}
-        okDisabled={!proxyChannelUrl.trim()}
-        pending={pending}
-        onOk={() => saveProxyChannel()}
-      >
-        <label className="settings-rename-label">
-          {t("channelProxyUrl")}
-          <Input
-            value={proxyChannelUrl}
-            onChange={setProxyChannelUrl}
-            align="left"
-            placeholder="http://127.0.0.1:7890"
-          />
-        </label>
-        <p className="setting-note mt-2 text-muted-foreground">
-          {t("channelProxyNote")}
-        </p>
-      </Modal>
-
-      <Modal
-        show={overrideId !== null}
-        title={t("override")}
-        onClose={() => setOverrideId(null)}
-        pending={pending}
-        onOk={() => void saveOverride()}
-      >
-        <div className="setting-label-col">
-          <p className="text-sm text-muted-foreground">
-            {t(
-              subscriptions.find((sub) => sub.id === overrideId)?.format ===
-                "sing-box"
-                ? "overrideHintSingBox"
-                : "overrideHintClash",
-            )}
-          </p>
-          <label className="settings-rename-label">
-            {t("overridePrepend")}
-            <textarea
-              className="subscriptions-override-textarea"
-              rows={4}
-              value={overridePrepend}
-              onChange={(event) => setOverridePrepend(event.target.value)}
-              placeholder={"DOMAIN-SUFFIX,corp.example,DIRECT"}
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{t("rename")}</DialogTitle>
+          </DialogHeader>
+          <label>
+            {t("namePlaceholder")}
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
             />
           </label>
-          <label className="settings-rename-label">
-            {t("overrideAppend")}
-            <textarea
-              className="subscriptions-override-textarea"
-              rows={4}
-              value={overrideAppend}
-              onChange={(event) => setOverrideAppend(event.target.value)}
-              placeholder={"DOMAIN-SUFFIX,ads.example,REJECT"}
-            />
-          </label>
-          <label className="settings-rename-label">
-            {t("overrideDns")}
-            <textarea
-              className="subscriptions-override-textarea"
-              rows={4}
-              value={overrideDns}
-              onChange={(event) => setOverrideDns(event.target.value)}
-              placeholder={
-                subscriptions.find((sub) => sub.id === overrideId)?.format ===
-                "sing-box"
-                  ? '{\n  "servers": [{ "tag": "dns-local", "address": "8.8.8.8" }]\n}'
-                  : "nameserver:\n  - 8.8.8.8"
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => setRenameId(null)}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              disabled={
+                pending ||
+                !renameValue.trim() ||
+                Array.from(renameValue).length > 256
               }
-            />
-          </label>
-          {overrideError && (
-            <p role="alert" className="text-sm text-destructive">
-              {overrideError}
+              onClick={() => {
+                if (
+                  !renameId ||
+                  !renameValue.trim() ||
+                  Array.from(renameValue).length > 256
+                )
+                  return;
+                void run(async () => {
+                  await renameSub(renameId, renameValue.trim());
+                  await refresh();
+                  setRenameId(null);
+                });
+              }}
+            >
+              {tc("ok")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={removeId !== null}
+        onOpenChange={(open) => {
+          if (!open && !pending) setRemoveId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{t("remove")}</DialogTitle>
+          </DialogHeader>
+          <div>
+            <p>{t("removeConfirm")}</p>
+            {removeId === activeId && status?.engine.running && (
+              <p className="mt-2 text-destructive">{t("removeActive")}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => setRemoveId(null)}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              disabled={pending}
+              onClick={() =>
+                void run(async () => {
+                  if (
+                    removeId === activeId &&
+                    status?.engine.running &&
+                    localClient
+                  )
+                    await localClient.down();
+                  if (removeId) await removeSub(removeId);
+                  await refresh();
+                  setRemoveId(null);
+                }, false)
+              }
+            >
+              {tc("ok")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editorId !== null}
+        onOpenChange={(open) => {
+          if (!open && !pending) setEditorId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{t("sourceEdit")}</DialogTitle>
+          </DialogHeader>
+          <div className="[&_textarea]:min-h-80">
+            <div className="setting-label-col flex flex-col gap-1">
+              <p className="text-sm text-muted-foreground">
+                {t("sourceEditHint")}
+              </p>
+              <textarea
+                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
+                rows={16}
+                value={editorContent}
+                onChange={(event) => setEditorContent(event.target.value)}
+                spellCheck={false}
+              />
+              {editorError && (
+                <p role="alert" className="text-sm text-destructive">
+                  {editorError}
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => setEditorId(null)}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button disabled={pending} onClick={() => saveSourceEditor()}>
+              {tc("ok")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={proxyChannelId !== null}
+        onOpenChange={(open) => {
+          if (!open && !pending) setProxyChannelId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{t("channelProxy")}</DialogTitle>
+          </DialogHeader>
+          <div>
+            <label>
+              {t("channelProxyUrl")}
+              <Input
+                value={proxyChannelUrl}
+                onChange={(e) => setProxyChannelUrl(e.target.value)}
+                placeholder="http://127.0.0.1:7890"
+              />
+            </label>
+            <p className="mt-2 text-muted-foreground">
+              {t("channelProxyNote")}
             </p>
-          )}
-        </div>
-      </Modal>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => setProxyChannelId(null)}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              disabled={pending || !proxyChannelUrl.trim()}
+              onClick={() => saveProxyChannel()}
+            >
+              {tc("ok")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={overrideId !== null}
+        onOpenChange={(open) => {
+          if (!open && !pending) setOverrideId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{t("override")}</DialogTitle>
+          </DialogHeader>
+          <div className="setting-label-col flex flex-col gap-1">
+            <p className="text-sm text-muted-foreground">
+              {t(
+                subscriptions.find((sub) => sub.id === overrideId)?.format ===
+                  "sing-box"
+                  ? "overrideHintSingBox"
+                  : "overrideHintClash",
+              )}
+            </p>
+            <label>
+              {t("overridePrepend")}
+              <textarea
+                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
+                rows={4}
+                value={overridePrepend}
+                onChange={(event) => setOverridePrepend(event.target.value)}
+                placeholder={"DOMAIN-SUFFIX,corp.example,DIRECT"}
+              />
+            </label>
+            <label>
+              {t("overrideAppend")}
+              <textarea
+                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
+                rows={4}
+                value={overrideAppend}
+                onChange={(event) => setOverrideAppend(event.target.value)}
+                placeholder={"DOMAIN-SUFFIX,ads.example,REJECT"}
+              />
+            </label>
+            <label>
+              {t("overrideDns")}
+              <textarea
+                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
+                rows={4}
+                value={overrideDns}
+                onChange={(event) => setOverrideDns(event.target.value)}
+                placeholder={
+                  subscriptions.find((sub) => sub.id === overrideId)?.format ===
+                  "sing-box"
+                    ? '{\n  "servers": [{ "tag": "dns-local", "address": "8.8.8.8" }]\n}'
+                    : "nameserver:\n  - 8.8.8.8"
+                }
+              />
+            </label>
+            {overrideError && (
+              <p role="alert" className="text-sm text-destructive">
+                {overrideError}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => setOverrideId(null)}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button disabled={pending} onClick={() => void saveOverride()}>
+              {tc("ok")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

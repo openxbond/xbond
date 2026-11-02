@@ -9,8 +9,6 @@ import { subscriptionLang } from "@xbond/client/localapi";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import "./style.scss";
-
 type ImportMode = "url" | "file" | "paste";
 
 const IMPORT_MODES: Array<{
@@ -130,14 +128,16 @@ export default function Onboarding({
 
   if (status === "pending") {
     return (
-      <div className="onboarding-page">
-        <div className="onboarding-card onboarding-pending">
-          <XBondIcon className="onboarding-logo" />
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-6">
+        <div className="flex w-[min(520px,100%)] flex-col items-center gap-3 rounded-card border border-border bg-card p-5 text-center">
+          <XBondIcon className="size-12 text-foreground" />
           <strong>{t("waitingAuth")}</strong>
           {account?.userCode && (
-            <div className="onboarding-device">
+            <div className="flex flex-col gap-1.5">
               <span>{t("devicePrompt")}</span>
-              <code>{account.userCode}</code>
+              <code className="rounded-sm bg-inset px-4 py-2 text-2xl font-bold tracking-[2px]">
+                {account.userCode}
+              </code>
             </div>
           )}
           {account?.authUrl && (
@@ -150,8 +150,10 @@ export default function Onboarding({
               {t("reopenAuth")}
             </a>
           )}
-          <p className="onboarding-note">{t("pendingHint")}</p>
-          <Button onClick={onConnectRemote}>{t("remoteOption")}</Button>
+          <p className="text-xs text-muted-foreground">{t("pendingHint")}</p>
+          <Button className="min-h-11" onClick={onConnectRemote}>
+            {t("remoteOption")}
+          </Button>
         </div>
       </div>
     );
@@ -166,32 +168,42 @@ export default function Onboarding({
         : paste.trim() !== "");
 
   return (
-    <div className="onboarding-page">
-      <div className="onboarding-brand">
-        <XBondIcon className="onboarding-logo" />
-        <h1>{t("title")}</h1>
-        <p>{t("subtitle")}</p>
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-6">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <XBondIcon className="size-12 text-foreground" />
+        <h1 className="m-0 text-[22px]">{t("title")}</h1>
+        <p className="m-0 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       {signedInNoSub && (
-        <div className="onboarding-card">
-          <p>
+        <div className="flex w-[min(520px,100%)] flex-col items-center gap-3 rounded-card border border-border bg-card p-5 text-center">
+          <p className="m-0 text-sm">
             {localStatus?.activeSub?.health === "credential_invalid"
               ? t("subscriptionInvalid")
               : t("signedInNoSub")}
           </p>
-          <Button type="brand" disabled={busy} onClick={() => void onResync()}>
+          <Button
+            variant="brand"
+            className="min-h-11"
+            disabled={busy}
+            onClick={() => void onResync()}
+          >
             {t("resync")}
           </Button>
         </div>
       )}
 
       {!showImport && (
-        <div className="onboarding-actions">
-          <Button type="brand" onClick={() => void startLogin()}>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button
+            variant="brand"
+            className="min-h-11"
+            onClick={() => void startLogin()}
+          >
             {t("login")}
           </Button>
           <Button
+            className="min-h-11"
             onClick={() => {
               setNotice(null);
               setShowImport(true);
@@ -203,9 +215,9 @@ export default function Onboarding({
       )}
 
       {showImport && (
-        <div className="onboarding-card onboarding-import">
-          <div className="onboarding-import-head">
-            <strong>{t("importTitle")}</strong>
+        <div className="flex w-[min(520px,100%)] flex-col items-center gap-3 rounded-card border border-border bg-card p-5 text-left">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <strong className="text-[15px]">{t("importTitle")}</strong>
             <ButtonSelect<ImportMode>
               value={mode}
               options={IMPORT_MODES.map((entry) => ({
@@ -221,7 +233,7 @@ export default function Onboarding({
 
           {mode === "url" && (
             <input
-              className="onboarding-input"
+              className="w-full rounded-sm border border-border bg-inset px-3 py-2.5 text-[13px] text-foreground"
               placeholder={t("urlPlaceholder")}
               value={url}
               onChange={(event) => setUrl(event.target.value)}
@@ -230,14 +242,17 @@ export default function Onboarding({
           )}
 
           {mode === "file" && (
-            <div className="onboarding-file-row">
+            <div className="flex items-center gap-3">
               <Button
+                className="min-h-11"
                 disabled={busy}
                 onClick={() => fileInputRef.current?.click()}
               >
                 {t("chooseFile")}
               </Button>
-              <span className="onboarding-file-name">{file?.name ?? ""}</span>
+              <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] text-muted-foreground">
+                {file?.name ?? ""}
+              </span>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -250,7 +265,7 @@ export default function Onboarding({
 
           {mode === "paste" && (
             <textarea
-              className="onboarding-textarea"
+              className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
               placeholder={t("pastePlaceholder")}
               value={paste}
               rows={8}
@@ -259,22 +274,29 @@ export default function Onboarding({
             />
           )}
 
-          {notice && <p className="onboarding-error">{notice}</p>}
+          {notice && (
+            <p className="break-all text-[13px] text-[#e5484d]">{notice}</p>
+          )}
           {busy && downloaded && (
-            <p className="onboarding-note">
+            <p className="text-xs text-muted-foreground">
               {t("downloaded", { received: downloaded })}
             </p>
           )}
 
-          <div className="onboarding-import-actions">
+          <div className="flex justify-end gap-3">
             <Button
-              type="brand"
+              variant="brand"
+              className="min-h-11"
               disabled={!canSubmit}
               onClick={() => void submitImport()}
             >
               {busy ? t("importing") : t("import")}
             </Button>
-            <Button disabled={busy} onClick={() => setShowImport(false)}>
+            <Button
+              className="min-h-11"
+              disabled={busy}
+              onClick={() => setShowImport(false)}
+            >
               {tc("cancel")}
             </Button>
           </div>
@@ -282,14 +304,16 @@ export default function Onboarding({
       )}
 
       {status === "error" && !showImport && (
-        <div className="onboarding-card onboarding-error-card">
-          <p>
+        <div className="flex w-[min(520px,100%)] flex-col items-center gap-3 rounded-card border border-border bg-card p-5 text-center">
+          <p className="m-0 break-all text-sm">
             {t("loginFailed")}: {account?.error ?? ta("failed")}
           </p>
-          <Button onClick={() => void startLogin()}>{tc("retry")}</Button>
+          <Button className="min-h-11" onClick={() => void startLogin()}>
+            {tc("retry")}
+          </Button>
         </div>
       )}
-      <Button disabled={busy} onClick={onConnectRemote}>
+      <Button className="min-h-11" disabled={busy} onClick={onConnectRemote}>
         {t("remoteOption")}
       </Button>
     </div>

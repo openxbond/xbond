@@ -1,14 +1,13 @@
+import { Header, Icon, Card, Button, Input, EmptyState } from "@components";
+import { Checkbox } from "@components/ui/checkbox";
 import {
-  Header,
-  Checkbox,
-  Modal,
-  Icon,
-  Drawer,
-  Card,
-  Button,
-  Input,
-  EmptyState,
-} from "@components";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@components/ui/dialog";
+import { Sheet, SheetContent, SheetTitle } from "@components/ui/sheet";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
 import { useObject, useVisible } from "@lib/hook";
@@ -30,7 +29,7 @@ import {
 } from "@tanstack/react-table";
 import { basePath, formatTraffic } from "@xbond/client/helper";
 import type * as API from "@xbond/client/request";
-import classnames from "classnames";
+import { cn } from "cn";
 import { useSetAtom } from "jotai";
 import { useMemo, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -43,8 +42,6 @@ import {
   type FormatConnection,
   useConnections,
 } from "./store";
-
-import "./style.scss";
 
 const Columns = {
   Host: "host",
@@ -62,14 +59,20 @@ const Columns = {
 
 // Numbers read right-aligned; short enums stay centered; everything else
 // (hosts, chains, rules, paths, timestamps) reads left-aligned.
-const columnAlignments: Partial<Record<string, "left" | "center" | "right">> = {
-  [Columns.Network]: "center",
-  [Columns.Type]: "center",
-  [Columns.Speed]: "center",
-  [Columns.Upload]: "right",
-  [Columns.Download]: "right",
+const columnAlignments: Partial<
+  Record<string, "text-left" | "text-center" | "text-right">
+> = {
+  [Columns.Network]: "text-center",
+  [Columns.Type]: "text-center",
+  [Columns.Speed]: "text-center",
+  [Columns.Upload]: "text-right",
+  [Columns.Download]: "text-right",
 };
-const alignClass = (id: string) => `text-${columnAlignments[id] ?? "left"}`;
+const alignClass = (id: string) => columnAlignments[id] ?? "text-left";
+
+// Inset hairline marking the sticky host column once the table scrolls under it.
+const stickyShadow =
+  "shadow-[inset_-9px_0_8px_-14px_color-mix(in_srgb,var(--foreground)_45%,transparent)]";
 
 function formatSpeed(upload: number, download: number) {
   switch (true) {
@@ -339,16 +342,18 @@ export default function Connections() {
   const headers = headerGroup.headers.map((header, idx) => {
     const column = header.column;
     const id = column.id;
+    const isHost = column.id === Columns.Host;
     return (
       <div
         role="columnheader"
-        className={classnames("connections-th table-header", alignClass(id), {
-          resizing: column.getIsResizing(),
-          fixed: column.id === Columns.Host,
-          shadow: scrolled && column.id === Columns.Host,
-        })}
+        className={cn(
+          "connections-th table-header relative inline-block h-8 min-w-0 shrink-0 cursor-pointer overflow-hidden px-3.5 text-ellipsis whitespace-nowrap leading-8",
+          alignClass(id),
+          isHost && "sticky left-[-0.1px] z-[99]",
+          scrolled && isHost && stickyShadow,
+        )}
         style={{ flex: `${header.getSize()} 0 ${header.getSize()}px` }}
-        ref={column.id === Columns.Host ? pinRef : undefined}
+        ref={isHost ? pinRef : undefined}
         key={id}
       >
         <div onClick={column.getToggleSortingHandler()}>
@@ -363,7 +368,12 @@ export default function Connections() {
           <div
             onMouseDown={header.getResizeHandler()}
             onTouchStart={header.getResizeHandler()}
-            className="connections-resizer"
+            className={cn(
+              "connections-resizer absolute inset-y-2 -right-2.5 z-10 w-5 cursor-col-resize text-sm font-light opacity-0 touch-none transition-opacity duration-200",
+              "before:absolute before:left-2.5 before:h-full before:w-0.5 before:-translate-x-px before:bg-[color-mix(in_srgb,var(--foreground)_30%,transparent)] before:content-['']",
+              "group-hover:opacity-100",
+              column.getIsResizing() && "cursor-col-resize opacity-100",
+            )}
           />
         )}
       </div>
@@ -378,7 +388,7 @@ export default function Connections() {
     return (
       <div
         role="row"
-        className="connections-data-row cursor-default select-none"
+        className="connections-data-row group flex h-[37px] cursor-default select-none"
         key={row.original?.id}
         onClick={() =>
           setDrawerState({
@@ -393,18 +403,17 @@ export default function Connections() {
             cell.column.id === Columns.Host ||
             cell.column.id === Columns.Rule ||
             cell.column.id === Columns.SourceIP;
+          const isHost = cell.column.id === Columns.Host;
           return (
             <div
               role="cell"
-              className={classnames(
-                "connections-block",
+              className={cn(
+                "connections-block inline-block h-[37px] shrink-0 overflow-hidden px-3.5 text-[13px] leading-9 text-ellipsis whitespace-nowrap border-b border-border text-foreground group-hover:bg-inset",
                 alignClass(cell.column.id),
-                {
-                  completed: row.original?.completed,
-                  fixed: cell.column.id === Columns.Host,
-                  shadow: scrolled && cell.column.id === Columns.Host,
-                  "is-mono": monospace,
-                },
+                isHost && "sticky left-0 z-[998] bg-card",
+                scrolled && isHost && stickyShadow,
+                row.original?.completed && "bg-inset text-muted-foreground",
+                monospace && "font-mono text-[12.5px]",
               )}
               style={{ flex: `${size} 0 ${size}px` }}
               key={cell.column.id}
@@ -420,28 +429,35 @@ export default function Connections() {
   return (
     <div className="page connections-page">
       <Header title={t("title")}>
-        <span className="connections-live ml-3">
+        <span className="connections-live ml-3 inline-flex items-center gap-1.5 text-xs leading-5 text-muted-foreground">
           <span
             className={`status-dot ${streamState === "open" ? "online" : ""}`}
           />
           {r(streamState)}
         </span>
-        <span className="connections-total flex-1 cursor-default">
-          {t("total.upload")} <b>{formatTraffic(traffic.uploadTotal)}</b>
-          <span aria-hidden="true" className="total-divider">
+        <span className="connections-total ml-[15px] flex-1 cursor-default text-xs leading-5 text-muted-foreground tabular-nums">
+          {t("total.upload")}{" "}
+          <b className="font-semibold text-foreground">
+            {formatTraffic(traffic.uploadTotal)}
+          </b>
+          <span aria-hidden="true" className="total-divider mx-2">
             ·
           </span>
-          {t("total.download")} <b>{formatTraffic(traffic.downloadTotal)}</b>
+          {t("total.download")}{" "}
+          <b className="font-semibold text-foreground">
+            {formatTraffic(traffic.downloadTotal)}
+          </b>
         </span>
-        <Checkbox
-          className="connections-filter"
-          checked={save}
-          onChange={toggleSave}
-        >
+        <label className="connections-filter ml-[15px] inline-flex min-h-6 max-md:min-h-11 cursor-pointer items-center gap-2 text-sm leading-5 text-muted-foreground hover:text-foreground">
+          <Checkbox
+            checked={save}
+            onCheckedChange={() => toggleSave()}
+            aria-label={t("keepClosed")}
+          />
           {t("keepClosed")}
-        </Checkbox>
+        </label>
         <Icon
-          className="connections-filter dangerous"
+          className="connections-filter dangerous ml-[15px] cursor-pointer text-destructive"
           onClick={() => {
             setCloseFiltered(false);
             show();
@@ -477,14 +493,14 @@ export default function Connections() {
                   } as const
                 )[key],
               )}
-              align="left"
+              className="text-left"
               value={filters[key]}
-              onChange={(value) => setFilters(key, value)}
+              onChange={(event) => setFilters(key, event.target.value)}
             />
           </label>
         ))}
         <Button
-          type="danger"
+          variant="destructive"
           disabled={
             pending ||
             !instance
@@ -510,9 +526,9 @@ export default function Connections() {
           onChange={handleDeviceSelected}
         />
       )}
-      <Card className="connections-card relative">
+      <Card className="connections-card relative mt-2.5 flex min-h-[280px] flex-1 overflow-hidden p-0">
         <div
-          className="connections-scroll"
+          className="connections-scroll h-full w-full overflow-auto"
           onScroll={(event) =>
             setScrollStart(
               Math.max(
@@ -524,10 +540,13 @@ export default function Connections() {
         >
           <div
             role="table"
-            className="connections-table"
+            className="connections-table flex flex-col tabular-nums"
             style={{ minWidth: instance.getTotalSize() }}
           >
-            <div role="row" className="connections-header">
+            <div
+              role="row"
+              className="connections-header group sticky top-0 z-[999] flex whitespace-nowrap"
+            >
               {headers}
             </div>
             {start > 0 && (
@@ -543,7 +562,7 @@ export default function Connections() {
           </div>
           {instance.getRowModel().rows.length === 0 && (
             <EmptyState
-              className="connections-empty"
+              className="connections-empty absolute inset-x-0 bottom-0 top-8"
               message={t("empty")}
               action={
                 <button
@@ -557,44 +576,69 @@ export default function Connections() {
           )}
         </div>
       </Card>
-      <Modal
-        title={t("closeAllTitle")}
-        show={visible}
-        onClose={hide}
-        onOk={handleCloseConnections}
-        pending={pending}
+      <Dialog
+        open={visible}
+        onOpenChange={(open) => {
+          if (!open && !pending) hide();
+        }}
       >
-        {closeFiltered ? t("filteredConfirm") : t("closeAllMessage")}
-      </Modal>
-      <Drawer
-        bodyClassName="flex flex-col"
-        visible={drawerState.visible}
-        width={450}
-        onClose={() => setDrawerState("visible", false)}
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{t("closeAllTitle")}</DialogTitle>
+          </DialogHeader>
+          <div>
+            {closeFiltered ? t("filteredConfirm") : t("closeAllMessage")}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={pending} onClick={hide}>
+              {tc("cancel")}
+            </Button>
+            <Button disabled={pending} onClick={handleCloseConnections}>
+              {tc("ok")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Sheet
+        open={drawerState.visible}
+        onOpenChange={(open) => {
+          if (!open) setDrawerState("visible", false);
+        }}
       >
-        <div className="h-8 flex items-center justify-between">
-          <span className="pl-3 font-bold">{t("info.title")}</span>
-          <Icon
-            type="close"
-            size={16}
-            className="cursor-pointer"
-            onClick={() => setDrawerState("visible", false)}
+        {/* The sheet renders its own header row with a close icon, so the
+            built-in corner button stays off; no extra description exists. */}
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          aria-describedby={undefined}
+          className="w-[450px] max-w-full gap-0 sm:max-w-[450px]"
+        >
+          <div className="flex h-8 items-center justify-between">
+            <SheetTitle className="pl-3 font-bold">
+              {t("info.title")}
+            </SheetTitle>
+            <Icon
+              type="close"
+              size={16}
+              className="cursor-pointer"
+              onClick={() => setDrawerState("visible", false)}
+            />
+          </div>
+          <ConnectionInfo
+            className="mt-3 px-5"
+            connection={drawerState.connection}
           />
-        </div>
-        <ConnectionInfo
-          className="mt-3 px-5"
-          connection={drawerState.connection}
-        />
-        <div className="mt-3 flex justify-end pr-3">
-          <Button
-            type="danger"
-            disabled={pending || drawerState.connection.completed}
-            onClick={() => handleConnectionClosed()}
-          >
-            {t("info.closeConnection")}
-          </Button>
-        </div>
-      </Drawer>
+          <div className="mt-3 flex justify-end pr-3">
+            <Button
+              variant="destructive"
+              disabled={pending || drawerState.connection.completed}
+              onClick={() => handleConnectionClosed()}
+            >
+              {t("info.closeConnection")}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

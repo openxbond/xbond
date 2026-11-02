@@ -1,8 +1,6 @@
 import "flag-icons/css/flag-icons.min.css";
-import classnames from "classnames";
+import { cn } from "cn";
 import { type ReactNode } from "react";
-
-import "./style.scss";
 
 export interface CountryFlagProps {
   code: string;
@@ -13,10 +11,10 @@ export function CountryFlag({ code, className }: CountryFlagProps) {
   const normalized = code.toLowerCase();
   return (
     <span
-      className={classnames(
-        "fi",
-        `fi-${normalized}`,
-        "country-flag-icon",
+      className={cn(
+        "fi fi-" + normalized,
+        // Compact flag chip: fixed ratio, hairline ring, baseline aligned.
+        "mr-1.5 inline-block h-[13.5px] w-[18px] shrink-0 rounded-[2.5px] bg-cover leading-[13.5px] shadow-[0_0_0_1px_oklch(0_0_0/12%)] align-[-1.5px] before:hidden",
         className,
       )}
       aria-label={code.toUpperCase()}
@@ -103,10 +101,12 @@ export function renderNodeTitle(name: string): ReactNode {
     const after = name.slice(matchEmoji.index + flagStr.length).trim();
 
     return (
-      <span className="node-title-with-flag">
-        {before && <span className="title-prefix">{before} </span>}
+      <span className="inline-flex max-w-full min-w-0 items-center align-middle">
+        {before && <span className="mr-1 shrink-0">{before} </span>}
         <CountryFlag code={countryCode} />
-        <span className="title-text">{after || name}</span>
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+          {after || name}
+        </span>
       </span>
     );
   }
@@ -116,9 +116,11 @@ export function renderNodeTitle(name: string): ReactNode {
   if (matchLeading) {
     const candidate = matchLeading[1].toLowerCase();
     return (
-      <span className="node-title-with-flag">
+      <span className="inline-flex max-w-full min-w-0 items-center align-middle">
         <CountryFlag code={candidate} />
-        <span className="title-text">{matchLeading[2]}</span>
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+          {matchLeading[2]}
+        </span>
       </span>
     );
   }

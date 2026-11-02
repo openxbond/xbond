@@ -23,7 +23,7 @@ export default function AccountPanel() {
 
   if (account?.status === "signed_in") {
     return (
-      <div className="setting-label-col">
+      <div className="setting-label-col flex flex-col gap-1">
         <p className="text-sm">
           {account.name || account.email
             ? [account.name, account.email].filter(Boolean).join(" · ")
@@ -56,7 +56,7 @@ export default function AccountPanel() {
           </p>
         )}
         {account.announcements && account.announcements.length > 0 && (
-          <div className="setting-label-col mt-2">
+          <div className="setting-label-col mt-2 flex flex-col gap-1">
             <strong className="text-sm">{ta("announcements")}</strong>
             {account.announcements.slice(0, 3).map((item) => (
               <div key={item.id} className="text-sm">
@@ -74,7 +74,7 @@ export default function AccountPanel() {
             ))}
           </div>
         )}
-        <div className="setting-inline mt-2">
+        <div className="setting-inline mt-2 flex items-center gap-2.5">
           {account.consoleUrl && (
             <a
               href={account.consoleUrl}
@@ -86,7 +86,7 @@ export default function AccountPanel() {
             </a>
           )}
           <Button
-            type="danger"
+            variant="destructive"
             disabled={pending}
             onClick={() => void run(logoutAccount)}
           >
@@ -105,10 +105,10 @@ export default function AccountPanel() {
     // the redirect cannot reach the machine holding the session.
     const deviceFlow = account.method === "device";
     return (
-      <div className="setting-label-col">
+      <div className="setting-label-col flex flex-col gap-1">
         <p className="text-sm text-muted-foreground">{ta("pending")}</p>
         {deviceFlow ? (
-          <div className="setting-label-col mt-2">
+          <div className="setting-label-col mt-2 flex flex-col gap-1">
             <p className="text-sm">
               <a
                 href={
@@ -139,9 +139,9 @@ export default function AccountPanel() {
             </p>
           )
         )}
-        <div className="setting-inline mt-2">
+        <div className="setting-inline mt-2 flex items-center gap-2.5">
           <Button
-            type="brand"
+            variant="brand"
             disabled={pending}
             onClick={() =>
               void run(async () => {
@@ -158,7 +158,7 @@ export default function AccountPanel() {
   }
 
   return (
-    <div className="setting-label-col">
+    <div className="setting-label-col flex flex-col gap-1">
       {status?.activeSub?.type === "universal" && (
         <p className="text-sm text-muted-foreground">{ta("note")}</p>
       )}
@@ -168,7 +168,7 @@ export default function AccountPanel() {
         </p>
       )}
       <div className="mt-2">
-        <Button type="brand" onClick={() => loginAccount().catch(() => {})}>
+        <Button variant="brand" onClick={() => loginAccount().catch(() => {})}>
           {ta("loginCta")}
         </Button>
       </div>

@@ -1,4 +1,11 @@
-import { Select, Card, Header, Button, Input, EmptyState } from "@components";
+import { Card, Header, Button, Input, EmptyState } from "@components";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@components/ui/select";
 import type { Log } from "@models/Log";
 import {
   useConfig,
@@ -6,6 +13,7 @@ import {
   useLogsStreamReader,
   useStreamState,
 } from "@stores";
+import { cn } from "cn";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,9 +23,10 @@ import {
   type ListImperativeAPI,
 } from "react-window";
 
-import "./style.scss";
-
 const levels = ["", "debug", "info", "warning", "error", "silent"];
+// Radix Select items reject empty strings, so the level "" (Default) is
+// carried by this sentinel and parsed back on change.
+const defaultLevel = "__default__";
 function LogRow({ index, style, logs }: RowComponentProps<{ logs: Log[] }>) {
   const log = logs[index];
   const tone =
@@ -30,12 +39,18 @@ function LogRow({ index, style, logs }: RowComponentProps<{ logs: Log[] }>) {
       } as Record<string, string>
     )[log.type] ?? "text-muted-foreground";
   return (
-    <div style={style} className="log-data-row" title={log.payload}>
-      <span className="mr-3 tabular-nums text-muted-foreground">
+    <div
+      style={style}
+      className="log-data-row flex w-max! min-w-full items-center gap-4 border-b border-border px-4 font-mono text-xs whitespace-nowrap"
+      title={log.payload}
+    >
+      <span className="mr-3 w-[180px] shrink-0 tabular-nums text-muted-foreground">
         {dayjs(log.time).format("YYYY-MM-DD HH:mm:ss")}
       </span>
-      <span className={tone}>[{log.type.toUpperCase()}]</span>
-      <span className="log-message">{log.payload}</span>
+      <span className={cn("w-[75px] shrink-0", tone)}>
+        [{log.type.toUpperCase()}]
+      </span>
+      <span className="log-message pr-6">{log.payload}</span>
     </div>
   );
 }
@@ -119,22 +134,33 @@ export default function Logs() {
         <label className="flex items-center gap-2 text-sm">
           {t("levelLabel")}
           <Select
-            value={logLevel ?? ""}
-            options={levels.map((level) => ({
-              value: level,
-              label: level === "silent" ? t("silent") : level || "Default",
-            }))}
-            onSelect={(level) => set("logLevel", level)}
+            value={logLevel || defaultLevel}
+            onValueChange={(next) =>
+              set("logLevel", next === defaultLevel ? "" : next)
+            }
             disabled={general.logLevel?.toLowerCase() === "silent"}
-          />
+          >
+            <SelectTrigger aria-label={t("levelLabel")} className="w-fit">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {levels.map((level) => (
+                <SelectItem
+                  key={level}
+                  value={level === "" ? defaultLevel : level}
+                >
+                  {level === "silent" ? t("silent") : level || "Default"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
         <Input
           aria-label={t("filterLogs")}
           placeholder={t("filterLogs")}
           value={search}
-          onChange={setSearch}
-          align="left"
-          className="min-w-40 flex-1"
+          onChange={(event) => setSearch(event.target.value)}
+          className="min-w-40 flex-1 text-left"
         />
         <Button onClick={togglePause}>
           {paused ? t("resume") : t("paused")}
@@ -160,15 +186,17 @@ export default function Logs() {
       <Card className="log-table min-h-80 flex flex-1 flex-col p-0">
         {filtered.length ? (
           <>
-            <div className="table-header log-header">
-              <span>{t("columns.time")}</span>
-              <span>{t("columns.level")}</span>
+            <div className="table-header log-header flex shrink-0 items-center gap-4 px-4">
+              <span className="mr-3 w-[180px] shrink-0">
+                {t("columns.time")}
+              </span>
+              <span className="w-[75px] shrink-0">{t("columns.level")}</span>
               <span>{t("columns.message")}</span>
             </div>
             {/* CSS-only bounds: the box's height comes from flex layout
                 (basis 0), never from content, so the list can never grow to
                 render the whole buffer. No JS measurement in the loop. */}
-            <div className="log-list-box">
+            <div className="log-list-box flex-1 overflow-hidden min-h-[320px]">
               <List
                 listRef={list}
                 rowCount={filtered.length}

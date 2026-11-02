@@ -1,0 +1,362 @@
+/* Tailwind v4 entry. tokens.css stays the single token source: it is
+   unlayered, so its :root/.dark values win over Tailwind's layered theme
+   defaults (fonts, --radius). Utilities map onto it via @theme inline,
+   which inlines the var() reference so light/dark switch on the .dark
+   class without regenerating utilities.
+
+   Convention (DESIGN.md): raw palette classes (bg-emerald-500, …) are
+   banned — status and surfaces go through these token colors so light and
+   dark stay isomorphic. */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./tokens.css";
+
+/* The vite root is apps/<host>, so automatic source detection starts inside
+   the host app and never sees the workspace package. Scan the whole repo
+   (path relative to this file): every host app src plus packages. */
+@source "../../../..";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-inset: var(--surface-inset);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-text: var(--destructive-text);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-text: var(--brand-text);
+  --color-brand-soft: var(--brand-soft);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-text: var(--success-text);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-text: var(--warning-text);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-text: var(--info-text);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-foreground-muted: var(--sidebar-foreground-muted);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-strategy-surface: var(--strategy-surface);
+  --color-strategy-surface-foreground: var(--strategy-surface-foreground);
+  --color-strategy-surface-muted: var(--strategy-surface-muted);
+  --color-strategy-surface-border: var(--strategy-surface-border);
+  --color-strategy-surface-inset: var(--strategy-surface-inset);
+  --color-row-hover: var(--row-hover);
+  --color-row-selected: var(--row-selected);
+  --color-overlay: var(--overlay);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-control: var(--radius-control);
+  --radius-card: var(--radius-card);
+  --radius-rail: var(--radius-rail);
+
+  --shadow-elevation-card: var(--elevation-card);
+  --shadow-elevation-raised: var(--elevation-raised);
+  --shadow-highlight: var(--highlight);
+
+  /* Structure switches per DESIGN.md: compact <768 (md), standard 768–1439,
+     wide ≥1440 (xl). 2xl keeps the legacy 1600px step. */
+  --breakpoint-xl: 90rem;
+  --breakpoint-2xl: 100rem;
+}
+
+@layer base {
+  html {
+    background: var(--background);
+    overflow: hidden;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--foreground);
+    background: var(--background);
+    font-feature-settings: "tnum" off;
+  }
+
+  /* Browser chrome belongs to the design: numerals in data align, the caret
+     and selection carry the brand, scrollbars follow the theme. */
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 25%, transparent);
+  }
+
+  ::-webkit-scrollbar {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 5px;
+    background: var(--border-strong);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+
+  ::-webkit-scrollbar:vertical {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar:horizontal {
+    height: 6px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  button,
+  input,
+  select {
+    caret-color: var(--brand-text);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared page-shell classes: page scaffolding and repeated control    */
+/* patterns used across containers as stable hooks (Activity targets   */
+/* `.page`/`.header` descendants, table pages use `.table-header`).    */
+/* Everything else lives as utilities in the JSX.                      */
+/* ------------------------------------------------------------------ */
+@layer components {
+  /* Locate feedback on proxy node tiles: the tile JS-toggles `.is-located`,
+     so the wash stays here instead of per-call-site utilities. */
+  .node-grid-tile.is-located::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--brand);
+    opacity: 0;
+    pointer-events: none;
+    animation: located-pulse 1.4s ease-out;
+  }
+
+  @keyframes located-pulse {
+    0% {
+      opacity: 0.16;
+    }
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .node-grid-tile.is-located::after {
+      animation: none;
+      opacity: 0.16;
+    }
+  }
+
+  .page {
+    padding: 24px;
+    width: 100%;
+    min-height: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .page {
+      padding: 16px 4px 20px;
+      height: auto;
+    }
+  }
+
+  .section-link {
+    color: var(--brand-text);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .section-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .section-heading {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .section-heading h2 {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .segmented-control {
+    display: inline-flex;
+    background: var(--surface-inset);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    border-radius: var(--radius-control);
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .segmented-control button {
+    border: 0;
+    background: transparent;
+    color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 16px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .segmented-control button:hover {
+    color: var(--foreground);
+  }
+
+  .segmented-control button[aria-checked="true"],
+  .segmented-control button[aria-pressed="true"],
+  .segmented-control button.active {
+    background: var(--brand);
+    color: var(--brand-foreground);
+    font-weight: 600;
+    box-shadow: 0 1px 4px oklch(0.66 0.18 52 / 35%);
+  }
+
+  /* Empty-state next action: a quiet outlined button, shared by the
+     connections and logs empty states. */
+  .empty-state-action {
+    margin-top: 10px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--foreground);
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: calc(var(--radius-control) - 2px);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) ease;
+  }
+
+  .empty-state-action:hover {
+    border-color: var(--ring);
+  }
+
+  /* Tiny circular live-state indicator. `.online` marks a ready state (success),
+     `.info` an active data stream (info); the glow keeps the dot legible on
+     both themes. Layout around the dot stays with the page. */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  .status-dot.online {
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+  }
+
+  .status-dot.info {
+    background: var(--info);
+    box-shadow: 0 0 6px var(--info);
+  }
+
+  /* Header strip above tabular lists (rules, logs, connections): quiet label
+     type on the inset surface with a hairline separator. Column layout,
+     sticky behavior and resizers stay with each table. */
+  .table-header {
+    min-height: 32px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    background: var(--surface-inset);
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Toolbar above a page's data surface: search, filters and actions in one
+     bordered card, matching the proxies command card. */
+  .page-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    padding: 16px 20px;
+    background: color-mix(in srgb, var(--card) 96%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--elevation-card);
+  }
+}
+
+/* Connect console orb animations, referenced by arbitrary animation
+   utilities (animate-[native-breathe_...]); keyframes are unaffected by
+   cascade layers, so they stay un-layered at the end of the entry. */
+@keyframes native-breathe {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.65;
+    transform: scale(1.035);
+  }
+}
+
+@keyframes native-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

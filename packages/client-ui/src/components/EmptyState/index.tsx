@@ -1,8 +1,6 @@
 import { type BaseComponentProps } from "@models";
-import classnames from "classnames";
+import { cn } from "cn";
 import type { ReactNode } from "react";
-
-import "./style.scss";
 
 interface EmptyStateProps extends BaseComponentProps {
   icon?: ReactNode;
@@ -20,10 +18,16 @@ export function EmptyState({
   style,
 }: EmptyStateProps) {
   return (
-    <div className={classnames("empty-state", className)} style={style}>
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center px-5 text-center text-[13px] text-muted-foreground select-none",
+        className,
+      )}
+      style={style}
+    >
       {icon}
       <p>{message}</p>
-      {description && <p className="empty-state-description">{description}</p>}
+      {description && <p className="text-xs">{description}</p>}
       {action}
     </div>
   );
