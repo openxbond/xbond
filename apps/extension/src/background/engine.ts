@@ -1,17 +1,10 @@
-// 引擎编排：状态机 + 恢复循环。MV3 SW 随时休眠，一切状态决策都从 storage
-// 重新出发（reconcile），浏览器事件（onInstalled/onStartup/onAlarm/存储变化）
-// 都是 reconcile 的触发器；每次 reconcile 都核对 chrome.proxy 的实际设置与
-// levelOfControl，能自愈就自愈，不能就上报显式状态。
+// 引擎编排：状态机 + 恢复循环。MV3 SW 随时休眠，一切决策从 storage 出发
+// （reconcile），安装/启动/alarm/存储变化都是触发器；每次核对 chrome.proxy
+// 的实际设置与 levelOfControl：能自愈就重放期望值，被策略或他人持有则显式
+// control-lost（不夺权）。入口不可达不静默 DIRECT 兜底。
 
-import { parseExtensionConfig, InvalidConfigError } from "../shared/config.ts";
-import type {
-  DiagnosticEvent,
-  ExtensionConfig,
-  ExtensionMessage,
-  ProxyState,
-  StateMessage,
-} from "../shared/types.ts";
-import { createAccount } from "./account.ts";
+import type { ExtensionConfig, Quota } from "../shared/extension-config.ts";
+import type { Selection } from "../shared/workspace.ts";
 import { createAuthGate, createAuthHandler, resetAuthGate } from "./auth.ts";
 import {
   clearProxy,
@@ -22,27 +15,54 @@ import {
 } from "./proxy.ts";
 import {
   loadConfig,
-  loadEntitlement,
+  loadEnabled,
   loadEvents,
-  loadPendingLogin,
-  loadPrefs,
-  loadTokens,
+  loadMode,
+  loadQuota,
+  loadSelection,
+  loadSubscription,
   logEvent,
-  saveConfig,
-  savePrefs,
+  saveEnabled,
+  saveMode,
+  saveSelection,
+  type DiagnosticEvent,
+  type RoutingMode,
 } from "./store.ts";
+import { refreshSubscription } from "./subscription.ts";
 
-/** 控制通道 API origin（构建期注入）：账户与配置拉取都走它，bypass 列表一致。 */
-declare const __XBOND_API_ORIGIN__: string;
-
-/** 入口连续失败的判定窗口：60 秒内 5 次代理层错误 → unreachable。 */
 const UNREACHABLE_WINDOW_MS = 60_000;
 const UNREACHABLE_THRESHOLD = 5;
+
+export type ProxyState =
+  | { kind: "off" }
+  | {
+      kind: "ok";
+      mode: RoutingMode;
+      nodeCount: number;
+      selection: Selection;
+      quota: Quota | null;
+    }
+  | { kind: "no-subscription" }
+  | { kind: "auth-failed"; detail: string }
+  | { kind: "unreachable"; detail: string }
+  | { kind: "control-lost"; holder: string }
+  | { kind: "invalid-config"; detail: string }
+  | { kind: "error"; detail: string };
+
+export type ExtensionMessage =
+  | { type: "get-state" }
+  | { type: "get-events" }
+  | { type: "set-enabled"; enabled: boolean }
+  | { type: "set-mode"; mode: RoutingMode }
+  | { type: "set-selection"; group: string; member: string }
+  | { type: "import-subscription"; url: string }
+  | { type: "refresh-subscription" };
+
+export type StateMessage = { type: "state"; state: ProxyState };
 
 let state: ProxyState = { kind: "off" };
 
 const authGate = createAuthGate();
-const account = createAccount(__XBOND_API_ORIGIN__);
 const proxyErrors: number[] = [];
 
 export function currentState(): ProxyState {
@@ -64,24 +84,6 @@ function broadcastState(next: ProxyState): void {
   }
 }
 
-/** 登录轮询：一次端点轮询；仍 pending 则续排下一次（浏览器对短 alarm 有下限节流）。 */
-function scheduleDevicePoll(afterSeconds: number): void {
-  chrome.alarms.create("xbond.device-poll", {
-    when: Date.now() + afterSeconds * 1000,
-  });
-}
-
-async function devicePollTick(): Promise<void> {
-  const pending = await loadPendingLogin();
-  if (!pending) return;
-  const result = await account.pollOnce();
-  if (result.kind === "pending") {
-    scheduleDevicePoll(Math.max(pending.intervalSeconds, 5));
-    return;
-  }
-  await reconcile("device login finished");
-}
-
 /** 入口层错误采样（onErrorOccurred）；超阈值置 unreachable。 */
 export function recordProxyError(error: string): void {
   const now = Date.now();
@@ -94,45 +96,41 @@ export function recordProxyError(error: string): void {
   }
 }
 
-/**
- * 中心收敛：读偏好与配置，核对实际代理设置，自愈或上报。reason 进诊断日志。
- */
+function okState(
+  config: ExtensionConfig,
+  mode: RoutingMode,
+  selection: Selection,
+  quota: Quota | null,
+): ProxyState {
+  return { kind: "ok", mode, nodeCount: config.nodes.length, selection, quota };
+}
+
+/** 中心收敛：读偏好与配置，核对实际代理设置，自愈或上报。 */
 export async function reconcile(reason: string): Promise<ProxyState> {
-  const prefs = await loadPrefs();
+  const enabled = await loadEnabled();
   const config = await loadConfig();
 
-  if (!prefs.enabled) {
+  if (!enabled) {
     await releaseIfControlled("disabled");
     resetAuthGate(authGate);
     setState({ kind: "off" });
     return state;
   }
-
   if (!config) {
-    await releaseIfControlled("no-config");
-    const pending = await loadPendingLogin();
-    if (pending) {
-      setState({
-        kind: "pending-login",
-        userCode: pending.userCode,
-        verificationUri: pending.verificationUri,
-        verificationUriComplete: pending.verificationUriComplete,
-        expiresAt: pending.expiresAt,
-      });
-      return state;
-    }
-    if (await loadTokens()) {
-      // 有凭据但还没有（可用的）配置：登录完成但拉取失败，等下一轮刷新。
-      setState({ kind: "no-config" });
-      logEvent("warn", `enabled with credentials but no config (${reason})`);
-      return state;
-    }
-    setState({ kind: "signed-out" });
-    logEvent("info", `enabled while signed out (${reason})`);
+    await releaseIfControlled("no-subscription");
+    setState({ kind: "no-subscription" });
     return state;
   }
 
-  const expected = expectedProxyValue(config, prefs.mode);
+  const mode = await loadMode();
+  const selection = await loadSelection();
+  const source = await loadSubscription();
+  const expected = expectedProxyValue(
+    config,
+    selection,
+    mode,
+    source?.url ?? null,
+  );
   let setting: Awaited<ReturnType<typeof readProxySetting>>;
   try {
     setting = await readProxySetting();
@@ -141,12 +139,8 @@ export async function reconcile(reason: string): Promise<ProxyState> {
       kind: "error",
       detail: `proxy settings unreadable: ${String(error)}`,
     });
-    logEvent("error", `proxy settings unreadable: ${String(error)}`);
     return state;
   }
-
-  // 控制权三类：策略不可夺（not_controllable）、他人持有、自己可控。前两类
-  // 都不尝试自愈——夺权会打架，如实上报。
   if (setting === null) {
     setState({ kind: "error", detail: "proxy settings unavailable" });
     return state;
@@ -162,32 +156,26 @@ export async function reconcile(reason: string): Promise<ProxyState> {
     return state;
   }
 
-  if (!settingMatches(setting, expected)) {
-    try {
+  try {
+    if (expected === null) {
+      if (setting.levelOfControl === "controlled_by_this_extension") {
+        await clearProxy();
+        logEvent("info", "direct mode: proxy released");
+      }
+    } else if (!settingMatches(setting, expected)) {
       await setProxy(expected);
       logEvent(
         "info",
-        `proxy applied (${prefs.mode}) on ${config.ingress.hosts[0]}:${config.ingress.port} — ${reason}`,
+        `proxy applied (${mode}) on ${config.nodes.length} nodes — ${reason}`,
       );
-    } catch (error) {
-      setState({
-        kind: "error",
-        detail: `proxy apply failed: ${String(error)}`,
-      });
-      logEvent("error", `proxy apply failed: ${String(error)}`);
-      return state;
     }
-  } else if (reason !== "verify") {
-    logEvent("info", `reconcile ${reason}: settings already correct`);
+  } catch (error) {
+    setState({ kind: "error", detail: `proxy apply failed: ${String(error)}` });
+    logEvent("error", `proxy apply failed: ${String(error)}`);
+    return state;
   }
 
-  setState({
-    kind: "ok",
-    mode: prefs.mode,
-    label: config.label || config.ingress.hosts[0],
-    issuanceVersion: config.issuanceVersion,
-    entitlement: (await loadEntitlement()) ?? undefined,
-  });
+  setState(okState(config, mode, selection, await loadQuota()));
   return state;
 }
 
@@ -208,7 +196,7 @@ async function releaseIfControlled(reason: string): Promise<void> {
   }
 }
 
-/** 消息入口：popup / 管理页的唯一控制面。 */
+/** 消息入口：popup / 管理页 / content script 的唯一控制面。 */
 export async function handleMessage(
   message: ExtensionMessage,
 ): Promise<ProxyState | { events: DiagnosticEvent[] }> {
@@ -218,66 +206,44 @@ export async function handleMessage(
     case "get-events":
       return { events: await loadEvents() };
     case "set-enabled": {
-      const prefs = await loadPrefs();
-      await savePrefs({ ...prefs, enabled: message.enabled });
+      await saveEnabled(message.enabled);
       return reconcile(message.enabled ? "enabled" : "disabled");
     }
     case "set-mode": {
-      const prefs = await loadPrefs();
-      await savePrefs({ ...prefs, mode: message.mode });
+      await saveMode(message.mode);
       resetAuthGate(authGate);
       return reconcile(`mode=${message.mode}`);
     }
-    case "login-start": {
-      const pending = await loadPendingLogin();
-      if (pending) {
-        // 已有进行中的登录：不重复发起，直接回当前码。
-        return {
-          kind: "pending-login",
-          userCode: pending.userCode,
-          verificationUri: pending.verificationUri,
-          verificationUriComplete: pending.verificationUriComplete,
-          expiresAt: pending.expiresAt,
-        };
-      }
-      const state2 = await account.startLogin((url) =>
-        chrome.tabs.create({ url }),
-      );
-      if (state2.kind === "pending-login") scheduleDevicePoll(5);
-      await reconcile("login started");
-      return state2;
+    case "set-selection": {
+      const selection = await loadSelection();
+      selection[message.group] = message.member;
+      await saveSelection(selection);
+      resetAuthGate(authGate);
+      return reconcile(`selection=${message.group}->${message.member}`);
     }
-    case "login-cancel": {
-      await account.cancelLogin();
-      return reconcile("login cancelled");
-    }
-    case "logout": {
-      await account.logout();
-      return reconcile("logout");
-    }
-    case "refresh-config": {
-      await account.refreshConfig();
-      return reconcile("manual config refresh");
-    }
-    case "set-manual-config": {
-      let config: ExtensionConfig;
-      try {
-        config = parseExtensionConfig(message.config);
-      } catch (error) {
-        const detail =
-          error instanceof InvalidConfigError ? error.message : String(error);
-        setState({ kind: "invalid-config", detail });
-        logEvent("warn", `invalid manual config: ${detail}`);
+    case "import-subscription": {
+      const { importSubscription } = await import("./subscription.ts");
+      const result = await importSubscription(message.url);
+      if (!result.ok) {
+        setState({ kind: "error", detail: `import failed: ${result.error}` });
         return state;
       }
-      await saveConfig(config);
       resetAuthGate(authGate);
-      return reconcile("manual config");
+      return reconcile("subscription imported");
+    }
+    case "refresh-subscription": {
+      await refreshSubscription();
+      return reconcile("subscription refreshed");
     }
   }
 }
 
-/** SW 入口装配（index.ts 调用一次；重复装配由 MV3 事件模型保证幂等）。 */
+function scheduleReconcile(): void {
+  chrome.alarms.create("xbond.reconcile", { periodInMinutes: 5 });
+  chrome.alarms.create("xbond.subscription-refresh", { periodInMinutes: 1440 });
+}
+
+/** SW 入口装配（index.ts 调用一次；MV3 事件模型保证重复安全）。 */
 export function installListeners(): void {
   chrome.webRequest.onAuthRequired.addListener(
     createAuthHandler(authGate, loadConfig, (level, message) =>
@@ -290,7 +256,6 @@ export function installListeners(): void {
   chrome.webRequest.onErrorOccurred.addListener(
     (details) => {
       if (!details.fromProxy) return;
-      // 代理层失败（连接失败 / 隧道失败 / 认证失败）都计入不可达窗口。
       if (/proxy|tunnel/i.test(details.error)) recordProxyError(details.error);
     },
     { urls: ["http://*/*", "https://*/*"] },
@@ -298,7 +263,12 @@ export function installListeners(): void {
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
-    if (changes["xbond.config"] || changes["xbond.prefs"]) {
+    if (
+      changes["xbond.config"] ||
+      changes["xbond.selection"] ||
+      changes["xbond.mode"] ||
+      changes["xbond.enabled"]
+    ) {
       proxyErrors.length = 0;
       void reconcile("storage change");
     }
@@ -306,19 +276,18 @@ export function installListeners(): void {
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "xbond.reconcile") void reconcile("verify");
-    if (alarm.name === "xbond.config-refresh") void account.refreshConfig();
-    if (alarm.name === "xbond.device-poll") void devicePollTick();
+    if (alarm.name === "xbond.subscription-refresh") {
+      void refreshSubscription().then(() => reconcile("subscription refresh"));
+    }
   });
 
   chrome.runtime.onInstalled.addListener((details) => {
-    chrome.alarms.create("xbond.reconcile", { periodInMinutes: 5 });
-    chrome.alarms.create("xbond.config-refresh", { periodInMinutes: 1440 });
+    scheduleReconcile();
     void reconcile(`installed ${details.reason}`);
   });
 
   chrome.runtime.onStartup.addListener(() => {
-    // 浏览器重启：凭据仍在 storage.local，重新核对并恢复代理设置。
-    chrome.alarms.create("xbond.config-refresh", { periodInMinutes: 1440 });
+    scheduleReconcile();
     proxyErrors.length = 0;
     void reconcile("browser start");
   });
@@ -331,15 +300,13 @@ export function installListeners(): void {
       typed.type !== "get-events" &&
       typed.type !== "set-enabled" &&
       typed.type !== "set-mode" &&
-      typed.type !== "set-manual-config" &&
-      typed.type !== "login-start" &&
-      typed.type !== "login-cancel" &&
-      typed.type !== "logout" &&
-      typed.type !== "refresh-config"
+      typed.type !== "set-selection" &&
+      typed.type !== "import-subscription" &&
+      typed.type !== "refresh-subscription"
     ) {
       return undefined;
     }
     void handleMessage(typed).then((result) => sendResponse(result));
-    return true; // 异步 sendResponse
+    return true;
   });
 }

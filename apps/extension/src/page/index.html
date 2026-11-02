@@ -9,7 +9,7 @@
           13px/1.6 system-ui,
           sans-serif;
         margin: 0 auto;
-        max-width: 720px;
+        max-width: 760px;
         padding: 24px;
       }
       h1 {
@@ -19,13 +19,19 @@
         font-size: 15px;
         margin-top: 24px;
       }
-      label {
-        display: block;
+      label.row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         margin: 6px 0;
       }
-      input {
+      label.row span {
+        min-width: 180px;
+      }
+      select,
+      input[type="text"] {
+        flex: 1;
         padding: 4px 6px;
-        width: 320px;
       }
       button {
         padding: 5px 10px;
@@ -40,6 +46,10 @@
       }
       .ok {
         background: #e6f6e9;
+      }
+      .node {
+        padding: 3px 0;
+        border-bottom: 1px solid #eee;
       }
       #events {
         font:
@@ -58,37 +68,33 @@
     <h1>XBond browser proxy</h1>
     <div id="state">loading…</div>
     <label><input type="checkbox" id="enabled" /> proxy on</label>
-    <label
-      >mode
+    <label class="row"
+      ><span>mode</span>
       <select id="mode">
+        <option value="rule">rule</option>
         <option value="global">global</option>
-        <option value="rules">rules</option>
-      </select></label
-    >
+        <option value="direct">direct</option>
+      </select>
+    </label>
 
-    <h2 id="account-title">Account</h2>
-    <div id="account">
-      <button id="sign-in" type="button">sign in</button>
-      <button id="cancel-login" type="button" hidden>cancel</button>
-      <button id="sign-out" type="button" hidden>sign out</button>
-      <button id="refresh-config" type="button" hidden>refresh config</button>
-      <div id="login-info" hidden>
-        <p id="user-code"></p>
-        <a id="verification-link" href="#" target="_blank" rel="noreferrer"
-          >open verification page</a
-        >
-      </div>
-      <p id="entitlement" hidden></p>
-    </div>
+    <h2 id="subscription-title">Subscription</h2>
+    <label class="row"
+      ><span>subscription link</span>
+      <input
+        id="subscription-url"
+        type="text"
+        placeholder="https://…/api/subscription/config?token=sub-…"
+      />
+    </label>
+    <button id="import" type="button">import</button>
+    <button id="refresh" type="button">refresh</button>
 
-    <h2>Manual ingress (probe / local agent)</h2>
-    <label>host <input id="host" placeholder="proxy.example.com" /></label>
-    <label>port <input id="port" type="number" placeholder="8444" /></label>
-    <label
-      >proxy credential
-      <input id="credential" type="password" placeholder="px-…"
-    /></label>
-    <button id="apply" type="button">apply config</button>
+    <h2>Strategy groups</h2>
+    <div id="groups"></div>
+
+    <h2>Nodes</h2>
+    <div id="nodes"></div>
+    <p id="quota"></p>
 
     <h2>Diagnostics</h2>
     <div id="events"></div>

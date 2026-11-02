@@ -9,7 +9,7 @@
           13px/1.5 system-ui,
           sans-serif;
         margin: 0;
-        min-width: 260px;
+        width: 400px;
         padding: 12px;
       }
       header {
@@ -34,9 +34,15 @@
       .bad {
         background: #fdecec;
       }
-      button {
-        width: 100%;
-        padding: 6px;
+      label.row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 6px 0;
+      }
+      select {
+        flex: 1;
+        padding: 4px;
       }
       a {
         display: block;
@@ -51,9 +57,19 @@
       <label><input type="checkbox" id="enabled" /> proxy</label>
     </header>
     <div id="state">loading…</div>
-    <button id="mode" type="button">mode</button>
-    <button id="action" type="button" hidden></button>
-    <a href="../page/index.html" target="_blank">manage</a>
+    <label class="row"
+      ><span>mode</span>
+      <select id="mode">
+        <option value="rule">rule</option>
+        <option value="global">global</option>
+        <option value="direct">direct</option>
+      </select>
+    </label>
+    <label class="row" id="primary-label" hidden
+      ><span>node</span
+      ><select id="node" hidden></select
+    ></label>
+    <a id="manage" href="#">manage</a>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

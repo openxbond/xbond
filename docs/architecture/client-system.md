@@ -59,7 +59,7 @@ client-ui 擁有呈現與互動；client 不向 client-ui 或 apps 導入，不�
 
 ## 後續宿主的落位
 
-Extension 已落位 apps/extension：MV3 background 擁有生命週期、儲存、代理設定與認證 adapter（帳號走 RFC 8628 設備流，配置消費 Cloud 的 extension-config v1，規格見 docs/specs/extension-host.md）。PAC 編譯與 Clash 配置衍生保留各自能力，不以全域 isExtension 分支把全部差異交回頁面。Agent 的 CONNECT 與配置簽發在 cloud，沿用既有准入、選路、計量及限速（HTTPS 代理入口為第二個入口 Adapter）。
+Extension 已落位 apps/extension：MV3 background 擁有生命週期、儲存、代理設定與認證 adapter（訂閱連結即憑據，配置消費 Cloud 的 target=extension 格式，規格見 docs/specs/extension-host.md）。PAC 編譯與 Clash 配置衍生保留各自能力，不以全域 isExtension 分支把全部差異交回頁面。Agent 的 CONNECT 與配置簽發在 cloud：同一 TLS 端口按 SNI 複用，CONNECT 復用既有准入、選路（節點密碼選出口）、計量及限速。
 
 daemon 進程的宿主是平台使用者級 supervisor，不是任何一條 CLI 命令：`xbond daemon` 供前景直接運行與服務註冊復用，`xbond daemon install` 把 `xbond daemon --background` 交給 systemd --user、LaunchAgent 或 HKCU Run，CLI 只透過 LocalAPI 連線，未安裝時報錯而不是靜默註冊。`xbond run --config` 是與 daemon 互斥的前台核心入口，使用顯式配置與隔離狀態。優雅退出統一走 LocalAPI shutdown 端點（引擎停止、系統代理還原、憑據檔清理），supervisor 的停止是硬殺，只作清理手段；同一資料目錄由實例鎖保證單一 daemon。完整契約見 [daemon 生命周期与运行形式](../specs/daemon-runtime.md)。
 

@@ -129,6 +129,7 @@ declare namespace chrome.alarms {
 }
 
 declare namespace chrome.runtime {
+  function getURL(path: string): string;
   type InstalledDetails = {
     reason: "install" | "update" | "chrome_update" | "shared_module_update";
     previousVersion?: string;

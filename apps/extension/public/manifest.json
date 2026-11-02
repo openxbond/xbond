@@ -25,5 +25,12 @@
   "options_ui": {
     "page": "src/page/index.html",
     "open_in_tab": true
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/api/subscription/config*"],
+      "js": ["content-import.js"],
+      "run_at": "document_start"
+    }
+  ]
 }
