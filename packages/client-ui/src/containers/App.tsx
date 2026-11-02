@@ -11,7 +11,11 @@ import Settings from "@containers/Settings";
 import SideBar from "@containers/Sidebar";
 import Subscriptions from "@containers/Subscriptions";
 import { isClashX } from "@lib/jsBridge";
-import { detectLocalAPIConfig, isDesktopApp } from "@lib/localapi-bootstrap";
+import {
+  detectLocalAPIConfig,
+  hasDaemonConfig,
+  isDesktopApp,
+} from "@lib/localapi-bootstrap";
 import {
   identityAtom,
   useAccount,
@@ -103,7 +107,19 @@ export default function App() {
         {/* 8 Distinct Dedicated Routes */}
         <Route path="/connect" element={<Connect />} />
         <Route path="/proxies" element={<Proxies />} />
-        <Route path="/subscriptions" element={<Subscriptions />} />
+        <Route
+          path="/subscriptions"
+          element={
+            !hasDaemonConfig() ? (
+              <Navigate
+                to={{ pathname: "/proxies", search: location.search }}
+                replace
+              />
+            ) : (
+              <Subscriptions />
+            )
+          }
+        />
         <Route path="/connections" element={<Connections />} />
         <Route path="/rules" element={<Rules />} />
         <Route path="/logs" element={<Logs />} />

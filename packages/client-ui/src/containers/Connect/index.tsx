@@ -8,6 +8,7 @@ import {
 } from "@components";
 import { CopyButton } from "@components/CopyButton";
 import { useAction } from "@lib/actions";
+import { hasDaemonConfig } from "@lib/localapi-bootstrap";
 import { useNodeSelection } from "@lib/node-selection";
 import {
   useAPIInfo,
@@ -593,11 +594,13 @@ export default function Connect() {
                   <path d="m8 9 4 4 4-4" />
                 </svg>
               }
-              message={t("noConfig")}
+              message={t(hasDaemonConfig() ? "noConfig" : "noConfigRemote")}
               action={
-                <Link to="/subscriptions" className="button button-brand">
-                  {t("importConfig")}
-                </Link>
+                hasDaemonConfig() ? (
+                  <Link to="/subscriptions" className="button button-brand">
+                    {t("importConfig")}
+                  </Link>
+                ) : undefined
               }
             />
           )}

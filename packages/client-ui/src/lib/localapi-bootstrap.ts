@@ -67,6 +67,18 @@ export function isDesktopApp(): boolean {
 }
 
 /**
+ * Whether this window has a daemon to manage: injected localapi meta
+ * (daemon-served page, mobile WebView), a saved controller identity, or the
+ * Tauri shell. Subscriptions are daemon-owned, so the pure web deployment —
+ * a browser page pointing at a bare remote controller — has nothing to
+ * manage them on; subscription navigation and import surfaces hide there
+ * (Sidebar, App, Connect).
+ */
+export function hasDaemonConfig(): boolean {
+  return Boolean(detectLocalAPIConfig() || isDesktopApp());
+}
+
+/**
  * Resolves LocalAPI configuration from Tauri desktop IPC if running in desktop mode.
  */
 export async function resolveDesktopLocalAPIConfig(): Promise<LocalAPIConfig | null> {

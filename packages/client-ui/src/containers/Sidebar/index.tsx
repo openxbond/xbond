@@ -1,4 +1,5 @@
 import { XBondIcon } from "@components";
+import { hasDaemonConfig } from "@lib/localapi-bootstrap";
 import { DASHBOARD_VERSION, parseClientInfo } from "@lib/version";
 import {
   useVersion,
@@ -235,6 +236,8 @@ export default function Sidebar(props: SidebarProps) {
     [version, data?.isClashX, premium, meta],
   );
 
+  // 无 daemon 的纯前端只通过远程控制器管理：不出现订阅入口（App 同步重定向）。
+  const daemonConfigured = hasDaemonConfig();
   const desktopItems = [
     { path: "/connect", name: "Connect", label: t("home") },
     { path: "/proxies", name: "Proxies", label: t("proxies") },
@@ -248,7 +251,7 @@ export default function Sidebar(props: SidebarProps) {
     { path: "/logs", name: "Logs", label: t("logs") },
     { path: "/diagnostics", name: "Diagnostics", label: t("diagnostics") },
     { path: "/settings", name: "Settings", label: t("settings") },
-  ];
+  ].filter((item) => !(!daemonConfigured && item.name === "Subscriptions"));
 
   const desktopLinks = desktopItems.map((item) => {
     const isActive = location.pathname === item.path;

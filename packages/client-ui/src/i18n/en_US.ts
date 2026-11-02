@@ -68,6 +68,8 @@ const EN = {
     tun: "TUN",
     uptime: "Uptime: {{duration}}",
     noConfig: "Add a subscription or import a configuration to get started.",
+    noConfigRemote:
+      "The subscription is managed on the core side. Sign in to XBond to sync it.",
     manageController: "Manage controller",
     remoteNote:
       "This controller is managed remotely. Local takeover status is unavailable.",

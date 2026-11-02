@@ -67,6 +67,7 @@ const HK = {
     tun: "虛擬網卡",
     uptime: "已運行 {{duration}}",
     noConfig: "加入訂閱或匯入配置，即可開始使用。",
+    noConfigRemote: "訂閱由核心側管理，登入 XBond 帳號即可同步。",
     manageController: "管理控制器",
     remoteNote: "此控制器由遠端管理，本機接管狀態未知。",
     statusReadFailed: "未能讀取本機狀態，請再試一次。",
