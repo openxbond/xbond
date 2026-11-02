@@ -29,8 +29,10 @@ XBond 账号登录（设备流） → background 以 Bearer 拉取 target=extens
 
 access token 存 `storage.session`（会话秘密，浏览器退出即清）；refresh token 存 `storage.local`（重启恢复的前提），proxyToken 与节点密码随配置存 `storage.local`（未加密，扩展生态通行做法）：恶意本机进程与磁盘取证可读。PAC 文本不含 proxyToken 与完整节点密码（生成器带守卫断言）；凭据只出现在 storage 与 onAuthRequired 应答里。登出即清 access/refresh 与用量摘要，配置保留以便重新登录后比对版本。
 
-## 平台事实与未决项（2026-11-02 探针结论）
+## 平台事实（2026-11-02 完整链路验证）
 
-- Chrome/Edge 的 `onAuthRequired` + `asyncBlocking` 是代理凭据应答的唯一非企业机制。
-- **Edge 156 待复测项**（受管机器限制，见 cloud 探针记录）：unpacked 扩展数分钟后被自动禁用（需管理员 `ExtensionInstallAllowlist` 或 Chrome for Testing 验证）；`onAuthRequired` 不唤醒休眠 SW（存活时机制可用）。
+- **完整链路已在隔离 Edge 实测通**：账号登录 → Bearer 拉取 target=extension → PAC 下发 → 407 → 回调式应答回填 Basic(proxyToken, 节点密码) → 准入 → relay 真实出站 → 页面渲染（证据见 cloud 探针记录）。
+- `onAuthRequired` + `asyncBlocking` 是代理凭据应答的唯一非企业机制，且**只接受回调式 `(details, callback)`**：返回 Promise 的监听器被静默忽略（实测）。
+- 认证重试闸门按「同一入口 30 秒窗口 16 次」——一次页面加载会并发多条 CONNECT、每条首次都 407，闸门过紧会把正常导航误判为循环。
+- **Edge 156 平台限制**：认证事件只分发给存活上下文，休眠的 MV3 SW 未被唤醒应答（验证时用页面侧保活让 SW 存活）；受管机器上 unpacked 扩展数分钟后被自动禁用。生产形态的保活策略或 Chrome 唤醒复核是发布前项。
 - Firefox 走 `proxy.onRequest` 适配器，独立切片。WebRTC/QUIC 泄漏为探针项，本版不做拦截承诺。
