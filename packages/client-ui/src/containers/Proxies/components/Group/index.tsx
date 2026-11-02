@@ -1,4 +1,3 @@
-import { renderNodeTitle } from "@components";
 import { useNodeSelection } from "@lib/node-selection";
 import { useProxyMapping } from "@stores";
 import { useLatency } from "@stores/latency";
@@ -6,6 +5,8 @@ import type { Group as IGroup } from "@xbond/client/request";
 import { strategyPath } from "@xbond/client/workspace";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { StrategyChoice, StrategyPath } from "../../../../components/Strategy";
 
 import "./style.scss";
 
@@ -21,7 +22,6 @@ export function Group({
   const {
     select: selectNode,
     pending,
-    selectedName: switchingName,
     result: selectionStatus,
   } = useNodeSelection();
   const { run, results, progress } = useLatency();
@@ -149,15 +149,8 @@ export function Group({
               {t("groupMembers", { count: config.all.length })}
             </span>
           </div>
-          <div className="group-chain-row" title={path.join(" → ")}>
-            <span>
-              {path.map((segment, idx) => (
-                <span key={idx}>
-                  {idx > 0 && " → "}
-                  {renderNodeTitle(segment)}
-                </span>
-              ))}
-            </span>
+          <div className="group-chain-row">
+            <StrategyPath path={path} />
           </div>
         </div>
 
@@ -372,94 +365,45 @@ export function Group({
           }
 
           return (
-            <li
+            <StrategyChoice
               key={name}
-              data-node={name}
-              className={`node-grid-tile ${isSelected ? "is-selected" : ""} ${
-                canClick ? "is-clickable" : "is-readonly"
-              } ${isFailed ? "is-failed" : ""}`}
-              onClick={() => {
-                if (canClick && !pending) {
-                  void select(name);
-                }
-              }}
+              name={name}
+              selected={isSelected}
+              disabled={!canClick || pending}
+              onSelect={() => void select(name)}
             >
-              <div className="tile-left">
-                <span
-                  className={`tile-radio ${isSelected ? "is-active" : ""}`}
-                  aria-hidden="true"
+              <span className={`node-delay-pill ${delayTone}`}>
+                {delayDisplay}
+              </span>
+
+              {canTest && (
+                <button
+                  type="button"
+                  className={`node-speed-btn ${isTesting ? "is-testing" : ""}`}
+                  title={t("testNode")}
+                  aria-label={t("testNodeAria", { name })}
+                  disabled={isTesting}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void run([name]);
+                  }}
                 >
-                  {isSelected ? (
-                    <svg
-                      viewBox="0 0 16 16"
-                      width="13"
-                      height="13"
-                      fill="currentColor"
-                    >
-                      <circle cx="8" cy="8" r="7" />
-                      <path
-                        d="m4.8 8 2.2 2.2 4.2-4.2"
-                        fill="none"
-                        stroke="#fff"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      viewBox="0 0 16 16"
-                      width="13"
-                      height="13"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                    >
-                      <circle cx="8" cy="8" r="6.5" />
-                    </svg>
-                  )}
-                </span>
-                <span className="tile-name" title={name}>
-                  {pending && switchingName === name
-                    ? t("switching")
-                    : renderNodeTitle(name)}
-                </span>
-              </div>
-
-              <div className="tile-right">
-                <span className={`node-delay-pill ${delayTone}`}>
-                  {delayDisplay}
-                </span>
-
-                {canTest && (
-                  <button
-                    type="button"
-                    className={`node-speed-btn ${isTesting ? "is-testing" : ""}`}
-                    title={t("testNode")}
-                    aria-label={t("testNodeAria", { name })}
-                    disabled={isTesting}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void run([name]);
-                    }}
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="13"
+                    height="13"
+                    fill={isTesting ? "currentColor" : "none"}
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="13"
-                      height="13"
-                      fill={isTesting ? "currentColor" : "none"}
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </li>
+                    <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+                  </svg>
+                </button>
+              )}
+            </StrategyChoice>
           );
         })}
       </ul>

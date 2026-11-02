@@ -9,6 +9,7 @@ interface ButtonProps extends BaseComponentProps {
   type?: "primary" | "normal" | "danger" | "success" | "warning" | "brand";
   onClick?: MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
+  htmlType?: "button" | "submit" | "reset";
 }
 
 export function Button(props: ButtonProps) {
@@ -19,6 +20,7 @@ export function Button(props: ButtonProps) {
     className,
     style,
     disabled,
+    htmlType = "button",
   } = props;
   const classname = classnames("button", `button-${type}`, className, {
     "button-disabled": disabled,
@@ -26,6 +28,7 @@ export function Button(props: ButtonProps) {
 
   return (
     <button
+      type={htmlType}
       className={classname}
       style={style}
       onClick={onClick}

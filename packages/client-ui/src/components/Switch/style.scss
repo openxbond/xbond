@@ -4,6 +4,8 @@ $switch-offset: 2px;
 $width: 32px;
 
 .switch {
+  border: 0;
+  padding: 0;
   display: inline-block;
   width: $width;
   height: $height;

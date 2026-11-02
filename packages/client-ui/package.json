@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./bootstrap": "./src/index.ts"
+    "./bootstrap": "./src/index.ts",
+    "./components": "./src/public-components.ts",
+    "./locale": "./src/public-locale.ts",
+    "./tokens.css": "./src/styles/tokens.css"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.0.0",

@@ -1,4 +1,4 @@
-import { Header, Icon, Checkbox, Button, renderNodeTitle } from "@components";
+import { Header, Icon, Checkbox, Button } from "@components";
 import { RequestStatus } from "@components/RequestStatus";
 import { useRound } from "@lib/hook";
 import {
@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import "./style.scss";
 import { useSearchParams } from "react-router-dom";
 
+import { StrategyDirectory } from "../../components/Strategy";
 import { Proxy, Group, Provider } from "./components";
 const SearchContext = createContext("");
 
@@ -95,29 +96,17 @@ function ProxyGroups() {
         </select>
       </label>
       <div className="proxy-workbench">
-        <nav className="proxy-directory" aria-label={t("groups")}>
-          {list.map((group) => (
-            <button
-              type="button"
-              key={group.name}
-              className={`proxy-dir-item ${selected.name === group.name ? "is-active" : ""}`}
-              aria-label={group.name}
-              aria-current={selected.name === group.name ? "true" : undefined}
-              onClick={() => select(group.name)}
-            >
-              <div className="dir-item-top">
-                <strong className="dir-item-name">{group.name}</strong>
-                <span className="dir-item-badge">{group.type}</span>
-              </div>
-              <div className="dir-item-bottom">
-                <span className="dir-item-now" title={group.now || "—"}>
-                  {group.now ? renderNodeTitle(group.now) : "—"}
-                </span>
-                <span className="dir-item-count">{group.all.length}</span>
-              </div>
-            </button>
-          ))}
-        </nav>
+        <StrategyDirectory
+          label={t("groups")}
+          value={selected.name}
+          onSelect={select}
+          items={list.map((group) => ({
+            name: group.name,
+            detail: group.now || "—",
+            count: group.all.length,
+            kind: group.type,
+          }))}
+        />
         <div className="proxy-members">
           <Group
             key={selected.name}

@@ -8,13 +8,11 @@ export function useNodeSelection() {
   const { hasLocalAPI, selectNode } = useLocalAPI();
   const { markProxySelected, update } = useProxy();
   const { run, pending } = useAction();
-  const [selectedName, setSelectedName] = useState("");
   const [result, setResult] = useState<
     "idle" | "success" | "failed" | "partial"
   >("idle");
   async function select(group: string, name: string) {
     let applied = false;
-    setSelectedName(name);
     setResult("idle");
     const ok = await run(async () => {
       if (hasLocalAPI) await selectNode(group, name);
@@ -33,5 +31,5 @@ export function useNodeSelection() {
     }, false);
     setResult(ok ? "success" : applied ? "partial" : "failed");
   }
-  return { select, pending, selectedName, result };
+  return { select, pending, result };
 }
