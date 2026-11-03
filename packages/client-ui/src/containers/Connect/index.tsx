@@ -560,15 +560,15 @@ export default function Connect() {
             <div className="flex flex-col items-center gap-3">
               <button
                 type="button"
-                className="group relative flex size-24 cursor-pointer items-center justify-center rounded-2xl border border-border bg-card p-0 shadow-elevation-card transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-elevation-raised"
+                className="group relative flex size-24 cursor-pointer items-center justify-center rounded-control border border-border bg-card p-0 shadow-elevation-card transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-elevation-raised"
                 aria-label={t("manageController")}
                 onClick={() => setIdentity(false)}
               >
                 <span
                   aria-hidden="true"
-                  className="pointer-events-none absolute -inset-1.5 rounded-[20px] border border-brand/20 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="pointer-events-none absolute -inset-1.5 rounded-control border border-brand/20 opacity-0 transition-opacity group-hover:opacity-100"
                 />
-                <span className="grid size-14 place-items-center rounded-xl bg-brand-soft text-brand-text">
+                <span className="grid size-14 place-items-center rounded-control bg-brand-soft text-brand-text">
                   <svg
                     viewBox="0 0 24 24"
                     width="32"
@@ -597,34 +597,11 @@ export default function Connect() {
           </p>
           {uptimeClock && (
             <p
-              className="m-0 mt-1 text-subtitle font-medium font-mono tracking-[0.05em] tabular-nums text-muted-foreground max-md:hidden"
+              className="m-0 mt-1 text-subtitle font-medium font-mono tabular-nums text-muted-foreground max-md:hidden"
               aria-label={t("uptime", { duration: uptimeClock })}
             >
               {uptimeClock}
             </p>
-          )}
-          {!hasLocalAPI && (
-            <button
-              type="button"
-              className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-control border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs transition-colors hover:border-brand hover:bg-brand-soft hover:text-brand-text"
-              onClick={() => setIdentity(false)}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-              {t("manageController")}
-            </button>
           )}
 
           <ul className="mt-3.5 grid self-stretch list-none grid-cols-3 border-t border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] pt-[18px]">
@@ -672,7 +649,7 @@ export default function Connect() {
 
           <div className="flex items-center gap-2.5 self-stretch mt-4 border-t border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] px-1 pt-4 text-body text-muted-foreground max-md:hidden">
             <span
-              className="grid size-8 shrink-0 place-items-center rounded-[11px] bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/55%)]"
+              className="grid size-8 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/55%)]"
               aria-hidden="true"
             >
               <svg
@@ -730,17 +707,17 @@ export default function Connect() {
               cardSurface,
               "flex flex-col gap-3 py-4.5 px-5 max-md:p-4",
             )}
-            aria-label={t("strategyGroups") || "策略组"}
+            aria-label={t("strategyGroups")}
           >
             {/* Header: 标题 + 策略组数量 + 全部策略跳转 */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-subtitle font-semibold text-foreground">
-                  {t("strategyGroups") || "策略组"}
+                  {t("strategyGroups")}
                 </h2>
                 {available.length > 0 && (
                   <span className="rounded-full bg-inset px-2 py-0.5 text-label tabular-nums text-muted-foreground font-medium">
-                    {available.length} {t("strategyMembers") || "组"}
+                    {available.length} {t("strategyMembers")}
                   </span>
                 )}
               </div>
@@ -748,7 +725,7 @@ export default function Connect() {
                 to="/proxies"
                 className="inline-flex items-center gap-1 text-xs font-semibold text-brand-text no-underline hover:underline hover:underline-offset-4"
               >
-                {t("allStrategies") || "全部策略"}
+                {t("allStrategies")}
                 <svg
                   viewBox="0 0 24 24"
                   width="13"
@@ -789,8 +766,8 @@ export default function Connect() {
               </ScrollablePills>
             )}
 
-            {/* 当前选中策略组的出站详情卡片 */}
-            <div className="flex flex-col gap-2 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card p-3.5 shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)] [transition:box-shadow_var(--duration-fast)_var(--ease-out-expo),border-color_var(--duration-fast)_var(--ease-out-expo)] hover:border-[color:color-mix(in_srgb,var(--border-strong)_80%,transparent)] hover:shadow-[0_2px_8px_oklch(0.55_0.08_60/0.07)]">
+            {/* 当前选中策略组的出站详情：卡内以发丝分隔线成组，不再套卡 */}
+            <div className="flex flex-col gap-2 border-t border-border/70 pt-3">
               {/* 组信息小标头：组名、类型 (Selector/URLTest/Fallback)、成员总数 */}
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
@@ -805,7 +782,7 @@ export default function Connect() {
                 </div>
                 {group?.all && (
                   <span className="tabular-nums text-label">
-                    {group.all.length} {t("strategyMembers") || "个成员"}
+                    {group.all.length} {t("strategyMembers")}
                   </span>
                 )}
               </div>
@@ -819,7 +796,7 @@ export default function Connect() {
               >
                 {/* 节点图标头像 (40px 圆角国旗 / 直连 / 拦截 / 服务器图标) */}
                 <span
-                  className="flex size-10 max-md:size-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-inset text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_60%,transparent),0_1px_3px_oklch(0.55_0.08_60/0.08)]"
+                  className="flex size-10 max-md:size-9 shrink-0 items-center justify-center overflow-hidden rounded-control bg-inset text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_60%,transparent),0_1px_3px_oklch(0.55_0.08_60/0.08)]"
                   aria-hidden="true"
                 >
                   {isDirect ? (
@@ -955,14 +932,14 @@ export default function Connect() {
           >
             <h2 className="text-subtitle font-semibold">{t("prefs")}</h2>
             {hasLocalAPI && (
-              <div className="flex flex-col gap-2.5 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card px-4 py-3.5 shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)]">
+              <div className="flex flex-col gap-2.5 border-t border-border/70 pt-3">
                 <div className="flex items-center gap-2">
                   <span className="text-label font-semibold text-muted-foreground">
                     {t("takeoverMode")}
                   </span>
                   <button
                     type="button"
-                    className="ml-auto hidden max-md:inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-body font-semibold text-brand-text"
+                    className="ml-auto hidden max-md:inline-flex cursor-pointer items-center gap-1.5 rounded-control px-1.5 py-1 text-body font-semibold text-brand-text"
                     aria-haspopup="dialog"
                     onClick={() => setTakeoverSheetOpen(true)}
                   >
@@ -1010,7 +987,7 @@ export default function Connect() {
                 </div>
               </div>
             )}
-            <div className="flex flex-col gap-2.5 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card px-4 py-3.5 shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)]">
+            <div className="flex flex-col gap-2.5 border-t border-border/70 pt-3">
               <span className="text-label font-semibold text-muted-foreground">
                 {tc("routingMode.title")}
               </span>
@@ -1233,7 +1210,7 @@ export default function Connect() {
           {/* Mobile-only config row under speeds */}
           <div className="hidden max-md:mt-3.5 max-md:flex max-md:items-center max-md:gap-2.5 max-md:border-t max-md:border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] max-md:pt-3.5 max-md:text-body max-md:text-muted-foreground">
             <span
-              className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-inset text-muted-foreground"
+              className="grid size-8 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground"
               aria-hidden="true"
             >
               <svg
@@ -1351,7 +1328,7 @@ export default function Connect() {
                     type="button"
                     key={option.value}
                     className={cn(
-                      "flex w-full cursor-pointer items-center gap-3 rounded-[14px] border border-border bg-card px-3.5 py-3 text-left text-foreground enabled:hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-55",
+                      "flex w-full cursor-pointer items-center gap-3 rounded-control border border-border bg-card px-3.5 py-3 text-left text-foreground enabled:hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-55",
                       takeover === option.value &&
                         "border-transparent bg-brand-soft",
                     )}

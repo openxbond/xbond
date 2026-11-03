@@ -127,7 +127,7 @@ export function Proxy(props: ProxyProps) {
         <div className="flex shrink-0 items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-[6px] bg-inset px-2 py-[3px] text-xs font-semibold leading-[1.2] tabular-nums transition-colors duration-200",
+              "inline-flex items-center gap-1.5 rounded-full bg-inset px-2 py-[3px] text-xs font-semibold leading-[1.2] tabular-nums transition-colors duration-200",
               BADGE_TONES[badgeTone],
             )}
           >
@@ -148,7 +148,7 @@ export function Proxy(props: ProxyProps) {
             <button
               type="button"
               className={cn(
-                "inline-flex size-7 max-md:size-10 cursor-pointer items-center justify-center rounded-[7px] border border-border bg-inset p-0 text-muted-foreground transition-all duration-150 hover:scale-[1.06] hover:border-brand hover:bg-brand-soft hover:text-brand-text",
+                "inline-flex size-7 max-md:size-10 cursor-pointer items-center justify-center rounded-control border border-border bg-inset p-0 text-muted-foreground transition-all duration-150 hover:scale-[1.06] hover:border-brand hover:bg-brand-soft hover:text-brand-text",
                 (isFailed || isUntested) && "opacity-75",
                 isTesting && "animate-pulse text-brand-text opacity-80",
               )}

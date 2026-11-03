@@ -187,8 +187,11 @@ export default function Settings() {
         <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
           <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-brand/10 ring-1 ring-brand/20">
-                <Sliders className="size-4.5 text-brand" aria-hidden="true" />
+              <div className="flex size-9 items-center justify-center rounded-control bg-inset ring-1 ring-border">
+                <Sliders
+                  className="size-4.5 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </div>
               <div className="flex flex-col">
                 <h2 className="m-0 text-base font-semibold text-foreground">
@@ -257,7 +260,7 @@ export default function Settings() {
                   description={t("desktop.autostartDesc")}
                   badge={
                     <span className="inline-flex items-center rounded-md border border-border bg-inset px-1.5 py-0.5 text-label font-medium text-muted-foreground uppercase tracking-wider">
-                      Desktop
+                      {t("desktop.hostDesktop")}
                     </span>
                   }
                 >
@@ -275,7 +278,7 @@ export default function Settings() {
                   description={t("desktop.closeToTrayDesc")}
                   badge={
                     <span className="inline-flex items-center rounded-md border border-border bg-inset px-1.5 py-0.5 text-label font-medium text-muted-foreground uppercase tracking-wider">
-                      Desktop
+                      {t("desktop.hostDesktop")}
                     </span>
                   }
                 >
@@ -296,8 +299,11 @@ export default function Settings() {
         <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
           <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-brand/10 ring-1 ring-brand/20">
-                <Network className="size-4.5 text-brand" aria-hidden="true" />
+              <div className="flex size-9 items-center justify-center rounded-control bg-inset ring-1 ring-border">
+                <Network
+                  className="size-4.5 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </div>
               <div className="flex flex-col">
                 <h2 className="m-0 text-base font-semibold text-foreground">
@@ -564,8 +570,11 @@ export default function Settings() {
         <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
           <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-brand/10 ring-1 ring-brand/20">
-                <Cpu className="size-4.5 text-brand" aria-hidden="true" />
+              <div className="flex size-9 items-center justify-center rounded-control bg-inset ring-1 ring-border">
+                <Cpu
+                  className="size-4.5 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </div>
               <div className="flex flex-col">
                 <h2 className="m-0 text-base font-semibold text-foreground">
@@ -645,11 +654,11 @@ export default function Settings() {
                   className="group flex items-center justify-between rounded-xl border border-border bg-inset/40 p-3.5 text-left transition-all duration-150 hover:border-brand/40 hover:bg-row-hover/70 hover:shadow-xs active:scale-[0.99]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-card text-foreground shadow-2xs transition-colors group-hover:border-brand/30 group-hover:text-brand">
+                    <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-card text-foreground shadow-2xs transition-colors group-hover:border-border-strong group-hover:text-foreground">
                       <ListFilter className="size-4" />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-body font-semibold text-foreground transition-colors group-hover:text-brand">
+                      <span className="text-body font-semibold text-foreground transition-colors group-hover:text-foreground">
                         {t("advancedActions.rules")}
                       </span>
                       <span className="text-xs text-muted-foreground line-clamp-1">
@@ -657,7 +666,7 @@ export default function Settings() {
                       </span>
                     </div>
                   </div>
-                  <ChevronRight className="size-4 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-brand" />
+                  <ChevronRight className="size-4 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
                 </button>
 
                 <button
@@ -666,11 +675,11 @@ export default function Settings() {
                   className="group flex items-center justify-between rounded-xl border border-border bg-inset/40 p-3.5 text-left transition-all duration-150 hover:border-brand/40 hover:bg-row-hover/70 hover:shadow-xs active:scale-[0.99]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-card text-foreground shadow-2xs transition-colors group-hover:border-brand/30 group-hover:text-brand">
+                    <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-card text-foreground shadow-2xs transition-colors group-hover:border-border-strong group-hover:text-foreground">
                       <Activity className="size-4" />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-body font-semibold text-foreground transition-colors group-hover:text-brand">
+                      <span className="text-body font-semibold text-foreground transition-colors group-hover:text-foreground">
                         {t("advancedActions.diagnostics")}
                       </span>
                       <span className="text-xs text-muted-foreground line-clamp-1">
@@ -678,7 +687,7 @@ export default function Settings() {
                       </span>
                     </div>
                   </div>
-                  <ChevronRight className="size-4 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-brand" />
+                  <ChevronRight className="size-4 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
                 </button>
               </div>
             </div>
@@ -695,7 +704,10 @@ export default function Settings() {
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <h2 className="m-0 text-base font-semibold text-foreground">
-                    XBond {isDesktop ? "Desktop" : "Client"}
+                    XBond{" "}
+                    {isDesktop
+                      ? t("desktop.hostDesktop")
+                      : t("desktop.hostClient")}
                   </h2>
                   <span className="rounded-md border border-border bg-inset px-1.5 py-0.5 font-mono text-label font-semibold text-foreground">
                     v{DASHBOARD_VERSION}

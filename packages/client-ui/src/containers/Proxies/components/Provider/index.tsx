@@ -1,12 +1,12 @@
 import { Card, Tag, Icon } from "@components";
 import { Button } from "@components/ui/button";
 import { Spinner } from "@components/ui/spinner";
-import { compareDesc } from "@containers/Proxies";
 import { Proxy } from "@containers/Proxies/components/Proxy";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
 import { useClient, useLanguage, useProxyProviders } from "@stores";
 import { useLatency } from "@stores/latency";
+import { compareDesc } from "@xbond/client/latency";
 import {
   type Provider as IProvider,
   type Proxy as IProxy,

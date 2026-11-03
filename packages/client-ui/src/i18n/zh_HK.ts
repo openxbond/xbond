@@ -92,6 +92,9 @@ const HK = {
     chooseGroup: "策略組",
     noGroup: "選擇一個策略組，查看它正在使用的節點。",
     noGroups: "尚未載入策略組；請先匯入配置以載入節點。",
+    autoSelected: "此策略組由核心自動優選節點，目前選用：",
+    typeDirect: "直連",
+    typeReject: "攔截",
     copyNode: "複製節點名稱",
     copyLink: "複製連結",
     importConfig: "匯入配置",
@@ -400,10 +403,10 @@ const HK = {
       title: "自檢",
       runBtn: "執行自檢",
       running: "檢測中…",
-      exportBugreport: "匯出脫敏報告",
+      exportBugreport: "匯出已遮蔽敏感資料的報告",
       emptyPrompt: "執行自檢後，將逐項檢查核心、流量接管、DNS 解析與代理出口。",
       remoteNote: "自檢在本機服務上運行；遠端控制器不可用。",
-      viewRaw: "查看完整脫敏資料（JSON）",
+      viewRaw: "查看完整已遮蔽資料（JSON）",
       threeTier: "三層連線狀態",
       coreOK: "核心正常",
       coreNotIntercepted: "核心正常・未接管流量",
@@ -517,6 +520,8 @@ const HK = {
     aboutDesc: "用戶端版本、內核狀態與開源資訊",
     desktop: {
       groupTitle: "桌面宿主行為",
+      hostDesktop: "桌面版",
+      hostClient: "用戶端",
       autostart: "開機自動啟動",
       autostartDesc: "登入系統時自動於後台啟動 XBond",
       closeToTray: "關閉視窗時最小化至托盤",
@@ -555,8 +560,8 @@ const HK = {
       mixedPortDesc: "本機 HTTP / SOCKS 混合代理監聽連接埠",
       portNoteOverride: "已固定本機連接埠 {{port}}，訂閱自帶的連接埠將被覆蓋",
       portNoteSubscription:
-        "連接埠跟隨訂閱自帶的 mixed-port，未指定時默認 7890",
-      portNoteDefault: "訂閱未指定連接埠，使用默認連接埠 7890",
+        "連接埠跟隨訂閱自帶的 mixed-port，未指定時預設 7890",
+      portNoteDefault: "訂閱未指定連接埠，使用預設連接埠 7890",
       portFollowSubscription: "恢復跟隨訂閱",
       portSaveFailed: "未能儲存連接埠；請檢查核心後重試。",
       allowLan: "允許區域網絡連線",
@@ -565,10 +570,10 @@ const HK = {
       tunDesc: "接管整機所有應用的流量",
       tunUnavailable: {
         not_elevated:
-          "TUN 需要系統管理員權限——請以系統管理員身份重啟守護進程。",
-        not_root: "TUN 需要 root 權限——請以 root 重啟守護進程。",
+          "TUN 需要系統管理員權限——請以系統管理員身份重啟守護行程。",
+        not_root: "TUN 需要 root 權限——請以 root 重啟守護行程。",
         wintun_missing:
-          "未在守護進程旁或 System32 找到 wintun.dll；放置後即可啟用 TUN。",
+          "未在守護行程旁或 System32 找到 wintun.dll；放置後即可啟用 TUN。",
       },
       tunPrivilegeNotice:
         "TUN 接管需要系統管理員權限：Windows 以系統管理員身份執行，macOS/Linux 需要 root/sudo。",

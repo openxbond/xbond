@@ -94,6 +94,10 @@ const EN = {
     noGroup: "Choose a policy group to see its current node.",
     noGroups:
       "No policy groups loaded yet. Import a configuration to load nodes.",
+    autoSelected:
+      "This group is optimized by the core automatically. Currently using: ",
+    typeDirect: "Direct",
+    typeReject: "Block",
     copyNode: "Copy node name",
     copyLink: "Copy link",
     importConfig: "Import configuration",
@@ -534,6 +538,8 @@ const EN = {
     aboutDesc: "Client version, core status, and open-source details",
     desktop: {
       groupTitle: "Desktop Host Behavior",
+      hostDesktop: "Desktop",
+      hostClient: "Client",
       autostart: "Launch on startup",
       autostartDesc: "Automatically start XBond in background when logging in",
       closeToTray: "Minimize to tray on close",

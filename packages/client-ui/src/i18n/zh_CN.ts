@@ -92,6 +92,9 @@ const CN = {
     chooseGroup: "策略组",
     noGroup: "选择一个策略组，查看它正在使用的节点。",
     noGroups: "尚未加载策略组；请先导入配置以加载节点。",
+    autoSelected: "该策略组由核心自动优选节点，当前选用：",
+    typeDirect: "直连",
+    typeReject: "拦截",
     copyNode: "复制节点名称",
     copyLink: "复制链接",
     importConfig: "导入配置",
@@ -517,6 +520,8 @@ const CN = {
     aboutDesc: "客户端版本、内核状态与开源信息",
     desktop: {
       groupTitle: "桌面宿主行为",
+      hostDesktop: "桌面版",
+      hostClient: "客户端",
       autostart: "开机自动启动",
       autostartDesc: "登录系统时自动在后台启动 XBond",
       closeToTray: "关闭窗口时最小化到系统托盘",

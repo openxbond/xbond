@@ -13,14 +13,8 @@
   --duration-slow: 320ms;
   --sidebar-foreground-muted: oklch(0.5 0 0);
   --row-hover: oklch(0.145 0 0 / 3%);
-  --row-selected: oklch(0.7163 0.1706 53.45 / 8%);
   --overlay: oklch(0 0 0 / 40%);
   --brand-soft: oklch(0.965 0.035 60);
-  --strategy-surface: var(--card);
-  --strategy-surface-foreground: var(--foreground);
-  --strategy-surface-muted: var(--muted-foreground);
-  --strategy-surface-border: var(--border);
-  --strategy-surface-inset: var(--surface-inset);
 
   /* 延遲色階：交通燈狀態自成一族；深淺色各自成對，避免固定淺彩在深色下失配。 */
   --latency-good-bg: oklch(0.92 0.08 145);
@@ -80,13 +74,10 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.22 0.005 55);
-  --sidebar-primary: oklch(0.7163 0.1706 53.45);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0 0 0 / 4%);
   --sidebar-accent-foreground: oklch(0.12 0 0);
   --sidebar-border: oklch(0 0 0 / 6%);
   --sidebar-ring: oklch(0.7163 0.1706 53.45);
-  --highlight: inset 0 1px 0 oklch(1 0 0 / 70%);
   /* 柔和景深：環境陰影帶少許品牌暖調，貼近參考圖的乳白層次。 */
   --elevation-card:
     0 1px 3px rgba(0, 0, 0, 0.02), 0 10px 28px -6px oklch(0.5 0.06 60 / 0.08);
@@ -131,7 +122,6 @@
   color-scheme: dark;
   --sidebar-foreground-muted: oklch(0.72 0 0);
   --row-hover: oklch(1 0 0 / 5%);
-  --row-selected: oklch(0.7163 0.1706 53.45 / 12%);
   --overlay: oklch(0 0 0 / 60%);
   --brand-soft: oklch(0.7163 0.1706 53.45 / 12%);
 
@@ -177,13 +167,10 @@
   --chart-5: oklch(0.38 0 0);
   --sidebar: oklch(0.16 0.004 55);
   --sidebar-foreground: oklch(0.93 0 0);
-  --sidebar-primary: oklch(0.7163 0.1706 53.45);
-  --sidebar-primary-foreground: oklch(0.187 0 0);
   --sidebar-accent: oklch(1 0 0 / 7%);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.7163 0.1706 53.45);
-  --highlight: inset 0 1px 0 oklch(1 0 0 / 7%);
   --elevation-card:
     inset 0 1px 0 oklch(1 0 0 / 6%), 0 2px 6px oklch(0 0 0 / 22%),
     0 12px 32px -10px oklch(0 0 0 / 35%);

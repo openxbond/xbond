@@ -83,8 +83,8 @@ function GlobalMixinForm({
     <div className="w-full max-w-4xl space-y-6" aria-busy={saving || isLoading}>
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
         <div className="flex min-w-0 items-center gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand/10 ring-1 ring-brand/20">
-            <SlidersHorizontal className="size-6 text-brand" />
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-control bg-inset ring-1 ring-border">
+            <SlidersHorizontal className="size-6 text-muted-foreground" />
           </div>
           <div className="min-w-0">
             <h2 className="text-title font-semibold text-foreground">
@@ -107,7 +107,7 @@ function GlobalMixinForm({
       )}
 
       {/* Bypass LAN Toggle */}
-      <section className="rounded-xl border border-border bg-card p-5 shadow-elevation-card">
+      <section className="rounded-card border border-border bg-card p-5 shadow-elevation-card">
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-1">
             <label
@@ -133,7 +133,7 @@ function GlobalMixinForm({
       </section>
 
       {/* Prepend Rules */}
-      <section className="rounded-xl border border-border bg-card p-5 shadow-elevation-card space-y-3">
+      <section className="rounded-card border border-border bg-card p-5 shadow-elevation-card space-y-3">
         <div>
           <label
             htmlFor="mixin-rules-prepend"
@@ -163,7 +163,7 @@ function GlobalMixinForm({
       </section>
 
       {/* Append Rules */}
-      <section className="rounded-xl border border-border bg-card p-5 shadow-elevation-card space-y-3">
+      <section className="rounded-card border border-border bg-card p-5 shadow-elevation-card space-y-3">
         <div>
           <label
             htmlFor="mixin-rules-append"
@@ -191,7 +191,7 @@ function GlobalMixinForm({
       </section>
 
       {/* Custom DNS */}
-      <section className="rounded-xl border border-border bg-card p-5 shadow-elevation-card space-y-3">
+      <section className="rounded-card border border-border bg-card p-5 shadow-elevation-card space-y-3">
         <div>
           <label
             htmlFor="mixin-custom-dns"

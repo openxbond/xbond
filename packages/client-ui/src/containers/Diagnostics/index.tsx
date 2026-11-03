@@ -48,7 +48,7 @@ interface BenchmarkSite {
 }
 
 const badgeBase =
-  "rounded-[6px] px-2 py-[3px] text-xs font-semibold tabular-nums";
+  "rounded-full px-2 py-[3px] text-xs font-semibold tabular-nums";
 
 /* Latency buckets keep the source palette: light wash + dark text per tier. */
 const badgeClass: Record<string, string> = {
@@ -88,7 +88,7 @@ function tallySites(
   return { ok, failed, pending };
 }
 
-const pillBase = "rounded-[5px] px-[7px] py-0.5 text-label font-semibold";
+const pillBase = "rounded-full px-[7px] py-0.5 text-label font-semibold";
 
 const pillClass: Record<string, string> = {
   pass: "bg-latency-good text-latency-good-text",
@@ -302,7 +302,7 @@ export default function Diagnostics() {
             return (
               <div
                 key={site.id}
-                className="flex flex-col justify-between gap-3 rounded-[10px] border border-border bg-inset p-4 transition-colors duration-150 hover:border-brand/40 motion-reduce:transition-none"
+                className="flex flex-col justify-between gap-3 rounded-control border border-border bg-inset p-4 transition-colors duration-150 hover:border-brand/40 motion-reduce:transition-none"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -382,7 +382,7 @@ export default function Diagnostics() {
             return (
               <div
                 key={site.id}
-                className="flex flex-col justify-between gap-3 rounded-[10px] border border-border bg-inset p-4 transition-colors duration-150 hover:border-brand/40 motion-reduce:transition-none"
+                className="flex flex-col justify-between gap-3 rounded-control border border-border bg-inset p-4 transition-colors duration-150 hover:border-brand/40 motion-reduce:transition-none"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -608,7 +608,7 @@ export default function Diagnostics() {
           <div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
               {/* Box 1: Three-tier status */}
-              <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
+              <div className="flex flex-col gap-3 rounded-control border border-border bg-inset p-4">
                 <div className="flex items-center justify-between text-body font-semibold">
                   <span>{t("doctor.threeTier")}</span>
                   <span
@@ -669,7 +669,7 @@ export default function Diagnostics() {
               </div>
 
               {/* Box 2: DNS resolution */}
-              <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
+              <div className="flex flex-col gap-3 rounded-control border border-border bg-inset p-4">
                 <div className="flex items-center justify-between text-body font-semibold">
                   <span>{t("doctor.dnsCheck")}</span>
                   <span
@@ -727,7 +727,7 @@ export default function Diagnostics() {
               </div>
 
               {/* Box 3: Egress comparison */}
-              <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
+              <div className="flex flex-col gap-3 rounded-control border border-border bg-inset p-4">
                 <div className="flex items-center justify-between text-body font-semibold">
                   <span>{t("doctor.egressCompare")}</span>
                   <span
@@ -772,7 +772,7 @@ export default function Diagnostics() {
               </div>
 
               {/* Box 4: Gateway health */}
-              <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
+              <div className="flex flex-col gap-3 rounded-control border border-border bg-inset p-4">
                 <div className="flex items-center justify-between text-body font-semibold">
                   <span>{t("doctor.gatewayHealth")}</span>
                   <span

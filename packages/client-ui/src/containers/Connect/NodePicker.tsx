@@ -128,20 +128,20 @@ export function NodePicker({
             <div className="flex flex-col gap-1">
               <SheetTitle asChild>
                 <h3 className="text-base font-semibold text-foreground">
-                  {t("nodeSelection") || "选择节点"}
+                  {t("nodeSelection")}
                 </h3>
               </SheetTitle>
               {pickerGroup && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span>
-                    策略组:{" "}
+                    {t("strategyGroups")}:{" "}
                     <b className="text-foreground">{pickerGroup.name}</b>
                   </span>
                   <span className="rounded bg-inset px-1.5 py-0.5 font-mono text-label text-muted-foreground">
                     {pickerGroup.type}
                   </span>
                   <span className="tabular-nums">
-                    ({pickerGroup.all.length} 个成员)
+                    ({px("groupMembers", { count: pickerGroup.all.length })})
                   </span>
                 </div>
               )}
@@ -162,7 +162,7 @@ export function NodePicker({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={px("searchPlaceholder") || "搜索节点名称或地区..."}
+              placeholder={px("searchPlaceholder")}
               className="w-full rounded-[10px] border border-border bg-inset px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
             />
             {query && (
@@ -182,7 +182,9 @@ export function NodePicker({
               className="rounded-lg bg-inset p-2 text-label text-muted-foreground truncate"
               title={chain.join(" → ")}
             >
-              <span className="font-semibold text-foreground mr-1">链路:</span>
+              <span className="font-semibold text-foreground mr-1">
+                {t("routingChain")}:
+              </span>
               {chain.join(" → ")}
             </div>
           )}
@@ -192,7 +194,7 @@ export function NodePicker({
             <>
               {pickerGroup.type !== "Selector" && (
                 <div className="rounded-lg bg-brand-soft/40 p-2.5 text-xs text-brand-text">
-                  该策略组由核心自动优选节点，当前选用：
+                  {t("autoSelected")}
                   <b className="font-semibold">{pickerGroup.now}</b>
                 </div>
               )}
@@ -283,7 +285,9 @@ export function NodePicker({
                             )}
                             {isBuiltin && (
                               <span className="shrink-0 rounded bg-inset px-1.5 py-0.5 text-label text-muted-foreground">
-                                {itemType === "Direct" ? "直连" : "拦截"}
+                                {itemType === "Direct"
+                                  ? t("typeDirect")
+                                  : t("typeReject")}
                               </span>
                             )}
                             {isGroup && (

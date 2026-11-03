@@ -1,6 +1,5 @@
-import { Header, Icon, Button } from "@components";
+import { Header, Button } from "@components";
 import { RequestStatus } from "@components/RequestStatus";
-import { useRound } from "@lib/hook";
 import {
   useConfig,
   useProxy,
@@ -18,24 +17,8 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { StrategyDirectory } from "../../components/Strategy";
-import { Proxy, Group, Provider } from "./components";
+import { Group, Provider } from "./components";
 const SearchContext = createContext("");
-
-enum sortType {
-  None,
-  Asc,
-  Desc,
-}
-
-const sortMap = {
-  [sortType.None]: "sort",
-  [sortType.Asc]: "sort-ascending",
-  [sortType.Desc]: "sort-descending",
-};
-
-import { compareDesc } from "@xbond/client/latency";
-
-export { compareDesc };
 
 function ProxyGroups() {
   const { groups, global } = useProxy();
@@ -76,7 +59,7 @@ function ProxyGroups() {
       <label className="hidden max-md:mb-4 max-md:flex max-md:flex-col max-md:gap-2 max-md:text-body">
         {t("groups")}
         <select
-          className="w-full min-h-11 rounded-[10px] border border-border bg-card px-3.5 py-2.5 text-foreground shadow-elevation-card"
+          className="w-full min-h-11 rounded-control border border-border bg-card px-3.5 py-2.5 text-foreground shadow-elevation-card"
           value={selected.name}
           onChange={(event) => select(event.target.value)}
         >
@@ -99,7 +82,7 @@ function ProxyGroups() {
             kind: group.type,
           }))}
         />
-        <div className="min-w-0 h-full min-h-0 overflow-y-auto bg-card">
+        <div className="min-w-0 h-full min-h-0 overflow-y-auto bg-card md:overflow-hidden">
           <Group
             key={selected.name}
             config={selected}
@@ -143,85 +126,6 @@ function ProxyProviders() {
                         : search
                     }
                   />
-                </li>
-              ))}
-          </ul>
-        </div>
-      )}
-    </>
-  );
-}
-
-function Proxies() {
-  const { proxies } = useProxy();
-  const mapping = useProxyMapping();
-  const { results, run, progress } = useLatency();
-  const { t } = useTranslation("proxies");
-
-  const search = useContext(SearchContext).toLowerCase();
-  const testNames = [...mapping.values()]
-    .filter(
-      (proxy) =>
-        !("all" in proxy) &&
-        !["Direct", "Reject", "DNS"].includes(proxy.type) &&
-        (!search || proxy.name.toLowerCase().includes(search)),
-    )
-    .map((proxy) => proxy.name);
-
-  const { current: sort, next } = useRound([
-    sortType.Asc,
-    sortType.Desc,
-    sortType.None,
-  ]);
-  const sortedProxies = useMemo(() => {
-    switch (sort) {
-      case sortType.Desc:
-        return proxies.slice().sort((a, b) => compareDesc(a, b, results));
-      case sortType.Asc:
-        return proxies.slice().sort((a, b) => -1 * compareDesc(a, b, results));
-      default:
-        return proxies.slice();
-    }
-  }, [sort, proxies, results]);
-  const handleSort = next;
-
-  return (
-    <>
-      {sortedProxies.length !== 0 && (
-        <div className="flex flex-col">
-          <Header title={t("title")}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("sortState", {
-                mode:
-                  sort === sortType.None ? t("sortDefault") : t("sortLatency"),
-              })}
-              className="ml-2 text-muted-foreground hover:text-foreground"
-              onClick={handleSort}
-            >
-              <Icon aria-hidden="true" type={sortMap[sort]} size={20} />
-            </Button>
-            <button
-              type="button"
-              className="ml-3 inline-flex items-center gap-1.5 text-body text-brand-text disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={progress.running || !testNames.length}
-              onClick={() => {
-                void run(testNames);
-              }}
-            >
-              <span aria-hidden="true">
-                <Icon type="speed" size={20} />
-              </span>
-              {t("speedTest")}
-            </button>
-          </Header>
-          <ul className="mt-5 mb-10 grid list-none grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4 p-0 max-md:grid-cols-1">
-            {sortedProxies
-              .filter((p) => !search || p.name.toLowerCase().includes(search))
-              .map((p) => (
-                <li key={p.name}>
-                  <Proxy config={p} />
                 </li>
               ))}
           </ul>
@@ -336,12 +240,12 @@ function ProxyPage() {
                   </Button>
                 )}
                 {progress.total > 0 && (
-                  <output className="rounded-[6px] bg-inset px-2.5 py-1 text-label tabular-nums text-muted-foreground">
+                  <output className="rounded-control bg-inset px-2.5 py-1 text-label tabular-nums text-muted-foreground">
                     {t("progress")} {progress.completed}/{progress.total}
                   </output>
                 )}
                 <details className="relative">
-                  <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-body text-muted-foreground transition-all duration-150 select-none hover:bg-inset hover:text-foreground">
+                  <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded-control px-2.5 py-1.5 text-body text-muted-foreground transition-all duration-150 select-none hover:bg-inset hover:text-foreground">
                     <svg
                       viewBox="0 0 24 24"
                       width="14"
@@ -362,7 +266,7 @@ function ProxyPage() {
                     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                       <span>{t("testUrl")}</span>
                       <input
-                        className="h-8 rounded-[6px] border border-border bg-inset px-2.5 text-label text-foreground"
+                        className="h-8 rounded-control border border-border bg-inset px-2.5 text-label text-foreground"
                         value={data.testURL}
                         onChange={(e) => set("testURL", e.target.value)}
                       />
@@ -370,7 +274,7 @@ function ProxyPage() {
                     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                       <span>{t("timeout")}</span>
                       <input
-                        className="h-8 rounded-[6px] border border-border bg-inset px-2.5 text-label text-foreground"
+                        className="h-8 rounded-control border border-border bg-inset px-2.5 text-label text-foreground"
                         value={data.testTimeout}
                         type="number"
                         min={100}
@@ -413,7 +317,6 @@ function ProxyPage() {
         )}
         <ProxyGroups />
         <ProxyProviders />
-        <Proxies />
         {search &&
           ![...mapping.keys()].some((name) =>
             name.toLowerCase().includes(search.toLowerCase()),

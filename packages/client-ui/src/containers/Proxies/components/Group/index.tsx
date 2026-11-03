@@ -167,7 +167,7 @@ export function Group({
             <h3 className="m-0 text-base font-semibold text-foreground">
               {config.name}
             </h3>
-            <span className="rounded-[4px] bg-inset px-1.5 py-px text-label font-semibold text-muted-foreground">
+            <span className="rounded-full bg-inset px-1.5 py-px text-label font-semibold text-muted-foreground">
               {config.type}
             </span>
             <span className="text-label text-muted-foreground">
@@ -340,7 +340,7 @@ export function Group({
       {(pending || selectionStatus !== "idle") && (
         <p
           className={cn(
-            "m-0 rounded-[6px] bg-inset px-3 py-2 text-label text-success-text",
+            "m-0 rounded-control bg-inset px-3 py-2 text-label text-success-text",
             selectionStatus === "failed" &&
               "bg-latency-failed text-destructive-text",
             selectionStatus === "partial" && "text-warning-text",
@@ -359,9 +359,10 @@ export function Group({
         </p>
       )}
 
-      {/* Multi-column High-Density Matrix of Node Tiles */}
+      {/* Multi-column High-Density Matrix of Node Tiles — desktop scrolls
+          inside this grid so the group tools stay pinned above it. */}
       <ul
-        className="m-0 grid list-none content-start gap-2 overflow-y-auto p-0 pr-1 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] max-md:grid-cols-1"
+        className="m-0 grid list-none content-start gap-2 overflow-y-auto p-0 pr-1 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] max-md:grid-cols-1 max-md:overflow-visible md:min-h-0 md:flex-1"
         ref={gridRef}
       >
         {names.map((name) => {
@@ -416,7 +417,7 @@ export function Group({
             >
               <span
                 className={cn(
-                  "inline-block rounded-[4px] px-1.5 py-0.5 text-label font-semibold whitespace-nowrap tabular-nums",
+                  "inline-block rounded-full px-1.5 py-0.5 text-label font-semibold whitespace-nowrap tabular-nums",
                   DELAY_PILL_TONES[delayTone],
                 )}
               >
@@ -427,7 +428,7 @@ export function Group({
                 <button
                   type="button"
                   className={cn(
-                    "inline-flex size-6 max-md:size-10 shrink-0 cursor-pointer items-center justify-center rounded-[5px] border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
+                    "inline-flex size-6 max-md:size-10 shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
                     isTesting && "animate-pulse text-brand-text opacity-70",
                   )}
                   title={t("testNode")}

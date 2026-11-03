@@ -93,6 +93,10 @@ const KO = {
     chooseGroup: "정책 그룹",
     noGroup: "정책 그룹을 선택하면 현재 노드를 볼 수 있습니다.",
     noGroups: "아직 정책 그룹이 없습니다. 설정을 가져와 노드를 불러오세요.",
+    autoSelected:
+      "이 그룹은 코어가 자동으로 최적 노드를 선택합니다. 현재 사용: ",
+    typeDirect: "직접 연결",
+    typeReject: "차단",
     copyNode: "노드 이름 복사",
     copyLink: "링크 복사",
     importConfig: "설정 가져오기",
@@ -526,6 +530,8 @@ const KO = {
     aboutDesc: "클라이언트 버전, 코어 상태 및 오픈 소스 세부 정보",
     desktop: {
       groupTitle: "데스크톱 호스트 동작",
+      hostDesktop: "데스크톱",
+      hostClient: "클라이언트",
       autostart: "시작 시 실행",
       autostartDesc: "로그인 시 백그라운드에서 XBond 자동 실행",
       closeToTray: "닫을 때 시스템 트레이로 최소화",
