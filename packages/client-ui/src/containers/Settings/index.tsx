@@ -339,7 +339,7 @@ export default function Settings() {
                 </div>
                 {!status?.capabilities?.tun &&
                   status?.capabilities?.tunReasonCode && (
-                    <p className="mt-1 text-sm text-warning">
+                    <p className="mt-1 text-sm text-warning-text">
                       {t(
                         `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
                       )}
@@ -347,7 +347,7 @@ export default function Settings() {
                   )}
                 {status?.preferences.takeoverMode === "tun" &&
                   status?.capabilities?.tun && (
-                    <p className="mt-1 text-sm text-warning">
+                    <p className="mt-1 text-sm text-warning-text">
                       {t("takeover.tunPrivilegeNotice")}
                     </p>
                   )}
@@ -687,7 +687,7 @@ export default function Settings() {
                 className={cn(
                   "size-2 rounded-full",
                   hasLocalAPI
-                    ? "bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                    ? "bg-success"
                     : isLocalTarget
                       ? "bg-warning"
                       : "bg-muted-foreground/40",

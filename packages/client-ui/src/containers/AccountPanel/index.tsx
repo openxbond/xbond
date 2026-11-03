@@ -174,8 +174,8 @@ export default function AccountPanel() {
                   : t("cloudDesc")}
               </span>
               {signedIn && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2 py-0.5 text-xs font-medium text-success-text">
+                  <span className="size-1.5 rounded-full bg-success animate-pulse" />
                   {t("serviceHealthy")}
                 </span>
               )}
@@ -218,7 +218,7 @@ export default function AccountPanel() {
               disabled
               className="pointer-events-none gap-1.5"
             >
-              <Check className="size-4 text-emerald-500" />
+              <Check className="size-4 text-success" />
               {c("activeLocal")}
             </Button>
           ) : signedIn ? (

@@ -172,11 +172,16 @@
     caret-color: var(--brand-text);
   }
 
+  /* 減少動態：取消循環、旋轉與位移，資訊由靜態文字保留
+     （DESIGN.md「動畫與回饋」），不只處理捲動行為。 */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
     }
   }
 }

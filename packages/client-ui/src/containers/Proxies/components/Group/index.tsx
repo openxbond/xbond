@@ -342,7 +342,7 @@ export function Group({
           className={cn(
             "m-0 rounded-[6px] bg-inset px-3 py-2 text-label text-success-text",
             selectionStatus === "failed" &&
-              "bg-[oklch(0.92_0.08_25)] text-[var(--destructive-text)]",
+              "bg-latency-failed text-destructive-text",
             selectionStatus === "partial" && "text-warning-text",
           )}
           role={selectionStatus === "failed" ? "alert" : "status"}

@@ -73,7 +73,7 @@ const orbBase =
 const orbOn =
   "bg-[image:var(--orb-gradient)] text-brand-foreground shadow-[inset_0_2px_3px_rgba(255,255,255,0.65),inset_0_-4px_8px_rgba(0,0,0,0.22),var(--orb-glow)]";
 const orbOff =
-  "border border-border bg-[image:linear-gradient(145deg,#ffffff_0%,var(--surface-inset)_100%)] text-muted-foreground shadow-[inset_0_2px_2px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.04),0_4px_14px_rgba(0,0,0,0.05)]";
+  "border border-border bg-[image:var(--orb-off-gradient)] text-muted-foreground shadow-[var(--orb-off-inset-shadow),0_4px_14px_rgba(0,0,0,0.05)]";
 
 function FactIcon({ kind }: { kind: "core" | "takeover" | "egress" }) {
   const common = {
@@ -516,9 +516,7 @@ export default function Connect() {
                 aria-hidden="true"
                 className={cn(
                   "pointer-events-none absolute -inset-[38px] rounded-full",
-                  active
-                    ? "bg-[image:radial-gradient(circle,rgba(255,107,0,0.22)_0%,rgba(255,107,0,0.08)_45%,transparent_72%)]"
-                    : "hidden",
+                  active ? "bg-[image:var(--orb-halo)]" : "hidden",
                 )}
               />
               {pending ? (
@@ -1098,7 +1096,7 @@ export default function Connect() {
             <div className="hidden max-md:flex max-md:items-center max-md:justify-between max-md:gap-4">
               <div className="flex flex-1 items-center gap-3">
                 <div
-                  className="grid size-11 shrink-0 place-items-center rounded-full bg-[oklch(0.54_0.16_153/12%)] text-success"
+                  className="grid size-11 shrink-0 place-items-center rounded-full bg-success/10 text-success"
                   aria-hidden="true"
                 >
                   <svg
@@ -1130,7 +1128,7 @@ export default function Connect() {
 
               <div className="flex flex-1 items-center gap-3">
                 <div
-                  className="grid size-11 shrink-0 place-items-center rounded-full bg-[oklch(0.7163_0.1706_53.45/12%)] text-brand"
+                  className="grid size-11 shrink-0 place-items-center rounded-full bg-brand/10 text-brand"
                   aria-hidden="true"
                 >
                   <svg
@@ -1192,7 +1190,7 @@ export default function Connect() {
                       </span>
                     </b>
                     <span
-                      className="mt-1.5 block h-[7px] w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-zinc-800"
+                      className="mt-1.5 block h-[7px] w-full overflow-hidden rounded-full bg-inset"
                       role="meter"
                       aria-valuemin={0}
                       aria-valuemax={100}

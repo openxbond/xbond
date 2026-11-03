@@ -218,7 +218,7 @@ export default function ControllerDetail({
                 disabled
                 className="pointer-events-none gap-1.5"
               >
-                <Check className="size-4 text-emerald-500" />
+                <Check className="size-4 text-success" />
                 {c("activeLocal")}
               </Button>
             ) : (
@@ -238,7 +238,7 @@ export default function ControllerDetail({
 
       {/* Connectivity Status Alerts */}
       {notice && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm text-emerald-600 dark:text-emerald-400">
+        <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/5 p-4 text-sm text-success-text">
           <Check className="size-4 shrink-0" />
           <span>
             {notice}

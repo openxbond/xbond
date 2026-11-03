@@ -32,9 +32,9 @@ function LogRow({ index, style, logs }: RowComponentProps<{ logs: Log[] }>) {
   const tone =
     (
       {
-        warning: "text-warning",
-        warn: "text-warning",
-        error: "text-destructive",
+        warning: "text-warning-text",
+        warn: "text-warning-text",
+        error: "text-destructive-text",
         info: "text-info",
       } as Record<string, string>
     )[log.type] ?? "text-muted-foreground";

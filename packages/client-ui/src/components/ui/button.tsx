@@ -19,7 +19,7 @@ const buttonVariants = cva(
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         brand:
-          "bg-brand text-brand-foreground shadow-[0_2px_8px_oklch(0.66_0.18_52/28%)] hover:bg-brand-strong hover:shadow-[0_4px_14px_oklch(0.66_0.18_52/38%)] dark:shadow-[0_2px_8px_oklch(0.66_0.18_52/32%)] dark:hover:shadow-[0_4px_14px_oklch(0.66_0.18_52/45%)]",
+          "bg-foreground text-brand shadow-[0_2px_8px_oklch(0.66_0.18_52/28%)] hover:bg-foreground/90 hover:shadow-[0_4px_14px_oklch(0.66_0.18_52/38%)] dark:bg-brand dark:text-brand-foreground dark:hover:bg-brand-strong dark:shadow-[0_2px_8px_oklch(0.66_0.18_52/32%)] dark:hover:shadow-[0_4px_14px_oklch(0.66_0.18_52/45%)]",
         success: "bg-success text-success-foreground hover:bg-success/90",
         warning: "bg-warning text-warning-foreground hover:bg-warning/90",
         ghost:

@@ -261,7 +261,7 @@ export default function SubscriptionDetail({
                 </span>
               )}
               {sub.sourcePinned && (
-                <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                <span className="rounded-md bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning-text">
                   {t("sourcePinned")}
                 </span>
               )}
@@ -353,12 +353,10 @@ export default function SubscriptionDetail({
 
       {/* Source pinned notice (user edited raw config locally) */}
       {sub.sourcePinned && (
-        <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5 text-sm">
-            <AlertCircle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <span className="text-amber-900 dark:text-amber-200">
-              {t("sourceEditHint")}
-            </span>
+            <AlertCircle className="size-4 shrink-0 text-warning-text" />
+            <span className="text-warning-text">{t("sourceEditHint")}</span>
           </div>
           <Button
             size="sm"

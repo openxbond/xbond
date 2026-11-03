@@ -4,7 +4,7 @@ description: 以日常連線為中心的跨端玻璃浮島設計，適用桌面�
 colors:
   brand: "oklch(0.7163 0.1706 53.45)"
   brand-strong: "oklch(0.66 0.18 52)"
-  brand-foreground: "oklch(0.985 0 0)"
+  brand-foreground: "oklch(0.205 0 0)"
   brand-text: "oklch(0.55 0.15 45)"
   brand-text-dark: "oklch(0.78 0.13 58)"
   background: "oklch(0.975 0 0)"
