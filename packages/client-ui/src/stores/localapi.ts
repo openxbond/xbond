@@ -1,9 +1,13 @@
 import type { TakeoverMode, RoutingMode } from "@xbond/client/localapi";
 import { useCallback } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 
 import { useDaemonConnection } from "./daemon";
-import { useAPIInfo } from "./request";
+import {
+  DAEMON_CONTROLLER_ID,
+  useAPIInfo,
+  useSelectController,
+} from "./request";
 
 /**
  * Daemon-backed actions plus the view-level distinction between the local
@@ -103,6 +107,8 @@ export function useSubscriptions() {
   // Subscriptions are daemon-owned: they stay manageable regardless of which
   // controller the window is currently viewing.
   const { client, config } = useDaemonConnection();
+  const selectController = useSelectController();
+  const { mutate: mutateCache } = useSWRConfig();
   const { data, error, mutate } = useSWR(
     client && config
       ? ["/localapi/v0/subs", config.endpoint, config.token]
@@ -118,6 +124,7 @@ export function useSubscriptions() {
       token?: string;
       urlOrFile?: string;
       content?: string;
+      updateIntervalHours?: number;
       name?: string;
       protocol?: string;
       lang?: string;
@@ -135,9 +142,11 @@ export function useSubscriptions() {
       if (!client) throw new Error("LocalAPI not available");
       const res = await client.useSub(id);
       await mutate();
+      await mutateCache(["/localapi/v0/status", config?.token]);
+      selectController(DAEMON_CONTROLLER_ID);
       return res;
     },
-    [client, mutate],
+    [client, config?.token, mutate, mutateCache, selectController],
   );
 
   const updateSub = useCallback(

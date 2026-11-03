@@ -76,7 +76,7 @@ func pkceLogin(
 		oauth2.SetAuthURLParam("redirect_uri", redirectURI),
 		clientapi.ResourceOption(),
 	)
-	reportProgress(progress, Progress{Method: "pkce", AuthURL: authURL})
+	reportProgress(progress, Progress{Phase: "authorizing", Method: "pkce", AuthURL: authURL})
 	openBrowser(opts, authURL)
 
 	codeCh := make(chan string, 1)
@@ -148,6 +148,7 @@ func pkceLogin(
 		return nil, ctx.Err()
 	}
 
+	reportProgress(progress, Progress{Phase: "exchanging_token", Method: "pkce", AuthURL: authURL})
 	token, err := conf.Exchange(
 		ctx,
 		code,
@@ -172,6 +173,7 @@ func deviceLogin(
 		return nil, mapOAuthError(err)
 	}
 	reportProgress(progress, Progress{
+		Phase:                   "authorizing",
 		Method:                  "device",
 		VerificationURI:         device.VerificationURI,
 		VerificationURIComplete: device.VerificationURIComplete,

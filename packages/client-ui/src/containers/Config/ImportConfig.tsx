@@ -4,7 +4,7 @@ import { subscriptionLang } from "@xbond/client/localapi";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ResourceIcon } from "./ResourceIcon";
+import UpdateFrequency from "./UpdateFrequency";
 
 export default function ImportConfig({
   onAdded,
@@ -22,6 +22,7 @@ export default function ImportConfig({
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
+  const [updateIntervalHours, setUpdateIntervalHours] = useState(24);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   async function submit(event: React.FormEvent) {
@@ -37,7 +38,7 @@ export default function ImportConfig({
       }
       const result = await addSub({
         ...(mode === "url"
-          ? { urlOrFile: url.trim() }
+          ? { urlOrFile: url.trim(), updateIntervalHours }
           : { content: mode === "file" ? await file!.text() : content }),
         name: name.trim() || file?.name || undefined,
         lang: subscriptionLang(lang),
@@ -58,14 +59,11 @@ export default function ImportConfig({
     mode === "url" ? !!url.trim() : mode === "file" ? !!file : !!content.trim();
   return (
     <div className="config-detail-stack">
-      <div className="flex items-center gap-4">
-        <ResourceIcon kind="local" className="size-14" />
-        <h2 className="text-title font-semibold">{c("addProfile")}</h2>
-      </div>
       <form
         className="flex max-w-2xl flex-col gap-5"
         onSubmit={submit}
         aria-busy={pending}
+        aria-label={c("addProfile")}
       >
         <ButtonSelect<"url" | "file" | "paste">
           value={mode}
@@ -113,6 +111,13 @@ export default function ImportConfig({
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
           </label>
+        )}
+        {mode === "url" && (
+          <UpdateFrequency
+            value={updateIntervalHours}
+            onChange={setUpdateIntervalHours}
+            disabled={pending}
+          />
         )}
         {mode === "paste" && (
           <label className="grid gap-2 text-sm">

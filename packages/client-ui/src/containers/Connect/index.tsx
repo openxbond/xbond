@@ -549,33 +549,36 @@ export default function Connect() {
           ) : (
             // A plain Clash-API remote has nothing this dashboard can start
             // or stop: the honest main action is managing the target itself.
-            <button
-              type="button"
-              className={cn(orbBase, orbOff)}
-              aria-label={t("manageController")}
-              onClick={() => setIdentity(false)}
-            >
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute -inset-2 rounded-full border-[1.5px] border-[color:color-mix(in_srgb,var(--border)_80%,transparent)]"
-              />
-              <svg
-                viewBox="0 0 24 24"
-                width="34"
-                height="34"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className="size-10 max-md:size-8"
+            <div className="flex flex-col items-center gap-3">
+              <button
+                type="button"
+                className="group relative flex size-24 cursor-pointer items-center justify-center rounded-2xl border border-border bg-card p-0 shadow-elevation-card transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-elevation-raised"
+                aria-label={t("manageController")}
+                onClick={() => setIdentity(false)}
               >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-            </button>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -inset-1.5 rounded-[20px] border border-brand/20 opacity-0 transition-opacity group-hover:opacity-100"
+                />
+                <span className="grid size-14 place-items-center rounded-xl bg-brand-soft text-brand-text">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="32"
+                    height="32"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
+                </span>
+              </button>
+            </div>
           )}
 
           <h2 className="m-0 text-display font-bold leading-[1.25] tracking-[-0.02em] text-foreground max-md:text-headline">
@@ -595,9 +598,23 @@ export default function Connect() {
           {!hasLocalAPI && (
             <button
               type="button"
-              className="cursor-pointer rounded-sm px-1.5 py-1 text-body font-semibold text-brand-text"
+              className="mt-1 inline-flex cursor-pointer items-center gap-1.5 rounded-control border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs transition-colors hover:border-brand hover:bg-brand-soft hover:text-brand-text"
               onClick={() => setIdentity(false)}
             >
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
               {t("manageController")}
             </button>
           )}
@@ -773,13 +790,13 @@ export default function Connect() {
                     {group ? group.name : t("strategy.title")}
                   </span>
                   {group?.type && (
-                    <span className="rounded-md bg-inset px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                    <span className="rounded-md bg-inset px-1.5 py-0.5 font-mono text-label text-muted-foreground">
                       {group.type}
                     </span>
                   )}
                 </div>
                 {group?.all && (
-                  <span className="tabular-nums text-[11px]">
+                  <span className="tabular-nums text-label">
                     {group.all.length} {t("strategyMembers") || "个成员"}
                   </span>
                 )}
@@ -788,20 +805,20 @@ export default function Connect() {
               {/* 真实出站节点选择按钮 */}
               <button
                 type="button"
-                className="group flex w-full cursor-pointer items-center gap-3.5 text-left text-foreground pt-1"
+                className="group flex w-full cursor-pointer items-center gap-3 text-left text-foreground pt-0.5"
                 onClick={() => setPickerOpen(true)}
                 aria-haspopup="dialog"
               >
-                {/* 节点大图标头像 (52px 满幅圆角国旗 / 直连 / 拦截 / 服务器图标) */}
+                {/* 节点图标头像 (40px 圆角国旗 / 直连 / 拦截 / 服务器图标) */}
                 <span
-                  className="flex size-[52px] max-md:size-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-inset text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_60%,transparent),0_2px_6px_oklch(0.55_0.08_60/0.08)]"
+                  className="flex size-10 max-md:size-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-inset text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_60%,transparent),0_1px_3px_oklch(0.55_0.08_60/0.08)]"
                   aria-hidden="true"
                 >
                   {isDirect ? (
                     <svg
                       viewBox="0 0 24 24"
-                      width="22"
-                      height="22"
+                      width="18"
+                      height="18"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
@@ -813,8 +830,8 @@ export default function Connect() {
                   ) : isReject ? (
                     <svg
                       viewBox="0 0 24 24"
-                      width="22"
-                      height="22"
+                      width="18"
+                      height="18"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
@@ -829,8 +846,8 @@ export default function Connect() {
                   ) : (
                     <svg
                       viewBox="0 0 24 24"
-                      width="22"
-                      height="22"
+                      width="18"
+                      height="18"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.7"
@@ -847,7 +864,16 @@ export default function Connect() {
 
                 {/* 节点名称、延迟与策略链路 */}
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate text-subtitle font-[650]">
+                  <span
+                    className="truncate text-subtitle font-semibold text-foreground tracking-tight"
+                    title={
+                      leafNodeName
+                        ? leafFlag
+                          ? stripFlagEmoji(leafNodeName)
+                          : leafNodeName
+                        : undefined
+                    }
+                  >
                     {leafNodeName
                       ? leafFlag
                         ? stripFlagEmoji(leafNodeName)
@@ -880,7 +906,7 @@ export default function Connect() {
                   {/* 策略链路由链路 (若存在嵌套多级) */}
                   {chain.length > 2 && (
                     <span
-                      className="mt-0.5 truncate text-[11px] text-muted-foreground/75"
+                      className="mt-0.5 truncate text-label text-muted-foreground/75"
                       title={chain.join(" → ")}
                     >
                       {chain.join(" → ")}
@@ -888,11 +914,8 @@ export default function Connect() {
                   )}
                 </span>
 
-                {/* 右侧提示与进入箭头 */}
-                <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground group-hover:text-brand-text transition-colors">
-                  <span className="text-xs font-medium max-md:hidden">
-                    {t("nodeSelection") || "节点选择"}
-                  </span>
+                {/* 右侧进入箭头 */}
+                <span className="flex shrink-0 items-center text-muted-foreground group-hover:text-brand-text transition-colors">
                   <span
                     className="grid size-7 place-items-center rounded-full bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/50%)] [transition:color_var(--duration-fast)_ease,background-color_var(--duration-fast)_ease] group-hover:bg-brand-soft group-hover:text-brand-text"
                     aria-hidden="true"
@@ -903,11 +926,11 @@ export default function Connect() {
                       height="15"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="2"
+                      strokeWidth="2.4"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
-                      <path d="m9 6 6 6-6 6" />
+                      <path d="m9 18 6-6-6-6" />
                     </svg>
                   </span>
                 </span>
@@ -1008,7 +1031,7 @@ export default function Connect() {
           )}
           aria-label={t("trafficStats")}
         >
-          <h2 className="text-[15px] font-semibold text-foreground tracking-tight">
+          <h2 className="text-subtitle font-semibold text-foreground tracking-tight">
             {t("trafficStats")}
           </h2>
 
@@ -1034,7 +1057,7 @@ export default function Connect() {
                   </svg>
                   {t("download")}
                 </span>
-                <b className="whitespace-nowrap text-[20px] font-bold text-foreground tabular-nums tracking-tight">
+                <b className="whitespace-nowrap text-title font-bold text-foreground tabular-nums tracking-tight">
                   {trafficState === "open" && speed
                     ? formatDisplayRate(speed.down)
                     : "—"}
@@ -1063,7 +1086,7 @@ export default function Connect() {
                   </svg>
                   {t("upload")}
                 </span>
-                <b className="whitespace-nowrap text-[20px] font-bold text-foreground tabular-nums tracking-tight">
+                <b className="whitespace-nowrap text-title font-bold text-foreground tabular-nums tracking-tight">
                   {trafficState === "open" && speed
                     ? formatDisplayRate(speed.up)
                     : "—"}
@@ -1092,7 +1115,7 @@ export default function Connect() {
                   </svg>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <b className="text-[17px] font-bold text-foreground tabular-nums">
+                  <b className="text-subtitle font-bold text-foreground tabular-nums">
                     {trafficState === "open" && speed
                       ? formatDisplayRate(speed.down)
                       : "—"}
@@ -1124,7 +1147,7 @@ export default function Connect() {
                   </svg>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <b className="text-[17px] font-bold text-foreground tabular-nums">
+                  <b className="text-subtitle font-bold text-foreground tabular-nums">
                     {trafficState === "open" && speed
                       ? formatDisplayRate(speed.up)
                       : "—"}
@@ -1150,7 +1173,7 @@ export default function Connect() {
                 <span className="text-xs font-medium text-muted-foreground">
                   {t("sessionTotal")}
                 </span>
-                <b className="whitespace-nowrap text-[20px] font-bold text-foreground tabular-nums tracking-tight">
+                <b className="whitespace-nowrap text-title font-bold text-foreground tabular-nums tracking-tight">
                   {sessionTotal !== null
                     ? formatDisplayTraffic(sessionTotal)
                     : "—"}
@@ -1162,7 +1185,7 @@ export default function Connect() {
                 </span>
                 {sub && quota ? (
                   <>
-                    <b className="whitespace-nowrap text-[15px] font-bold text-foreground tabular-nums">
+                    <b className="whitespace-nowrap text-body font-bold text-foreground tabular-nums">
                       {formatDisplayTraffic(quota.remaining)}{" "}
                       <span className="text-xs font-normal text-muted-foreground">
                         / {formatDisplayTraffic(sub.total)}

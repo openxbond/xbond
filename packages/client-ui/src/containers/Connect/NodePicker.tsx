@@ -135,7 +135,7 @@ export function NodePicker({
                     策略组:{" "}
                     <b className="text-foreground">{pickerGroup.name}</b>
                   </span>
-                  <span className="rounded bg-inset px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                  <span className="rounded bg-inset px-1.5 py-0.5 font-mono text-label text-muted-foreground">
                     {pickerGroup.type}
                   </span>
                   <span className="tabular-nums">
@@ -177,7 +177,7 @@ export function NodePicker({
           {/* 策略链链路提示 */}
           {chain.length > 2 && (
             <div
-              className="rounded-lg bg-inset p-2 text-[11px] text-muted-foreground truncate"
+              className="rounded-lg bg-inset p-2 text-label text-muted-foreground truncate"
               title={chain.join(" → ")}
             >
               <span className="font-semibold text-foreground mr-1">链路:</span>
@@ -275,17 +275,17 @@ export function NodePicker({
                           <span className="min-w-0 flex-1 flex items-center gap-2 truncate">
                             <span className="truncate">{cleanName}</span>
                             {itemType && !isBuiltin && !isGroup && (
-                              <span className="shrink-0 rounded bg-inset px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+                              <span className="shrink-0 rounded bg-inset px-1.5 py-0.5 font-mono text-label uppercase text-muted-foreground">
                                 {itemType}
                               </span>
                             )}
                             {isBuiltin && (
-                              <span className="shrink-0 rounded bg-inset px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              <span className="shrink-0 rounded bg-inset px-1.5 py-0.5 text-label text-muted-foreground">
                                 {itemType === "Direct" ? "直连" : "拦截"}
                               </span>
                             )}
                             {isGroup && (
-                              <span className="shrink-0 rounded bg-brand-soft/70 px-1.5 py-0.5 text-[10px] font-medium text-brand-text">
+                              <span className="shrink-0 rounded bg-brand-soft/70 px-1.5 py-0.5 text-label font-medium text-brand-text">
                                 {itemType}
                               </span>
                             )}

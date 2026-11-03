@@ -640,7 +640,7 @@ const KO = {
     subReady: "공식 구독이 성공적으로 동기화되었습니다 ({{name}}).",
     startUsing: "시작하기",
     importTitle: "설정 가져오기",
-    modeUrl: "URL",
+    modeUrl: "원격 구독",
     modeFile: "로컬 파일",
     modePaste: "붙여넣기",
     urlPlaceholder: "구독 또는 설정 URL",
@@ -663,6 +663,23 @@ const KO = {
     downloaded: "{{received}} 다운로드됨",
   },
   account: {
+    phaseExchange: "인증 확인 중…",
+    phaseFetch: "구독을 가져오는 중…",
+    phaseSync: "설정 다운로드 및 검증 중…",
+    phaseOverview: "계정 정보를 가져오는 중…",
+    loginProgress: "로그인 진행 상황",
+    stepAuthorize: "계정 인증",
+    stepSubscription: "구독 동기화",
+    stepReady: "준비 완료",
+    authorizationHint: "브라우저에서 인증을 완료하면 자동으로 계속됩니다.",
+    syncHint:
+      "계정 인증이 완료되어 설정을 준비하고 있습니다. 준비 후 사용할 수 있습니다.",
+    subscriptionUpdateFailed: "구독 업데이트 실패",
+    subscriptionNotReady:
+      "로그인되었습니다. 사용 가능한 설정이 아직 없습니다. 업데이트를 다시 시도하세요.",
+    errorDetails: "기술 세부 정보",
+    servicePlan: "요금제",
+    serviceExpiry: "만료일",
     title: "계정",
     signedIn: "XBond에 로그인됨",
     cloudAccount: "Cloud 계정",
@@ -685,8 +702,7 @@ const KO = {
     logout: "로그아웃",
     syncSubscription: "구독 업데이트",
     syncSuccess: "Cloud에서 최신 구독을 동기화했습니다",
-    cloudDesc:
-      "로그인하면 Cloud 구독이 추가됩니다. 사용 시점은 직접 선택하세요.",
+    cloudDesc: "로그인하여 XBond 구독을 사용하세요.",
     webModeAccountNote:
       "순수 웹 대시보드 모드입니다. XBond Cloud 계정과 시스템 프록시는 데스크톱 앱에서 관리됩니다.",
   },

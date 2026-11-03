@@ -29,6 +29,7 @@ const DefaultOrigin = "https://www.xbond.net"
 // Progress describes an in-flight login step so the UI can render the
 // browser URL or the device code while the flow is still pending.
 type Progress struct {
+	Phase                   string `json:"phase,omitempty"`
 	Method                  string `json:"method"`
 	AuthURL                 string `json:"authUrl,omitempty"`
 	VerificationURI         string `json:"verificationUri,omitempty"`
@@ -143,7 +144,11 @@ func (m *Manager) Login(
 	if err != nil {
 		return nil, err
 	}
-	token, err := m.flow(ctx, opts, progress)
+	var latestProgress Progress
+	token, err := m.flow(ctx, opts, func(value Progress) {
+		latestProgress = value
+		reportProgress(progress, value)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -160,6 +165,8 @@ func (m *Manager) Login(
 	}
 
 	credentials := &Credentials{Token: token, Origin: origin, Issuer: origin}
+	latestProgress.Phase = "fetching_subscription"
+	reportProgress(progress, latestProgress)
 	link, err := m.fetchLink(ctx, origin, token)
 	if err != nil {
 		credentials.LinkError = err

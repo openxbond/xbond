@@ -678,7 +678,7 @@ func (m *Manager) Update(
 			if quotaFromResp != nil {
 				m.store.Subscriptions[i].Quota = *quotaFromResp
 			}
-			if intervalFromResp > 0 {
+			if intervalFromResp > 0 && !m.store.Subscriptions[i].UpdateIntervalCustomized {
 				m.store.Subscriptions[i].UpdateIntervalHours = intervalFromResp
 			}
 			if webPageURL != "" {
@@ -742,7 +742,7 @@ func (m *Manager) recordCheck(
 			if quota != nil {
 				m.store.Subscriptions[i].Quota = *quota
 			}
-			if interval > 0 {
+			if interval > 0 && !m.store.Subscriptions[i].UpdateIntervalCustomized {
 				m.store.Subscriptions[i].UpdateIntervalHours = interval
 			}
 			if webPageURL != "" {

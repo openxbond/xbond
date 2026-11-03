@@ -190,6 +190,12 @@ export interface AccountAnnouncement {
 
 export interface AccountStatus {
   status: "signed_out" | "pending" | "signed_in" | "error";
+  phase?:
+    | "authorizing"
+    | "exchanging_token"
+    | "fetching_subscription"
+    | "syncing_subscription"
+    | "loading_account";
   method?: "pkce" | "device";
   authUrl?: string;
   verificationUri?: string;
@@ -465,6 +471,7 @@ export class LocalAPIClient {
     token?: string;
     urlOrFile?: string;
     content?: string;
+    updateIntervalHours?: number;
     name?: string;
     protocol?: string;
     lang?: string;
@@ -557,6 +564,16 @@ export class LocalAPIClient {
     return this.request("/localapi/v0/subs", {
       method: "PATCH",
       body: JSON.stringify({ id, name }),
+    });
+  }
+
+  async setSubUpdateSchedule(
+    id: string,
+    updateIntervalHours: number,
+  ): Promise<{ ok: boolean }> {
+    return this.request("/localapi/v0/subs", {
+      method: "PATCH",
+      body: JSON.stringify({ id, updateIntervalHours }),
     });
   }
 

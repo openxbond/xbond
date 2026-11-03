@@ -87,7 +87,7 @@ function ProxyGroups() {
           ))}
         </select>
       </label>
-      <div className="grid grid-cols-[330px_minmax(0,1fr)] h-[680px] overflow-hidden rounded-card border border-border bg-card shadow-elevation-card max-lg:grid-cols-1 max-lg:h-auto max-md:block">
+      <div className="grid grid-cols-[250px_minmax(0,1fr)] h-[calc(100vh-210px)] min-h-[460px] overflow-hidden rounded-card border border-border bg-card shadow-elevation-card max-md:flex max-md:flex-col max-md:h-auto">
         <StrategyDirectory
           label={t("groups")}
           value={selected.name}

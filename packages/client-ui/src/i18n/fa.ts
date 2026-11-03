@@ -644,7 +644,7 @@ const FA = {
     subReady: "اشتراک رسمی با موفقیت همگام شد ({{name}}).",
     startUsing: "شروع کنید",
     importTitle: "وارد کردن پیکربندی",
-    modeUrl: "URL",
+    modeUrl: "اشتراک راه دور",
     modeFile: "فایل محلی",
     modePaste: "چسباندن متن",
     urlPlaceholder: "URL اشتراک یا پیکربندی",
@@ -667,6 +667,24 @@ const FA = {
     downloaded: "{{received}} دانلود شد",
   },
   account: {
+    phaseExchange: "در حال تأیید مجوز…",
+    phaseFetch: "در حال دریافت اشتراک…",
+    phaseSync: "در حال دریافت و بررسی پیکربندی…",
+    phaseOverview: "در حال دریافت اطلاعات حساب…",
+    loginProgress: "پیشرفت ورود",
+    stepAuthorize: "تأیید حساب",
+    stepSubscription: "همگام‌سازی اشتراک",
+    stepReady: "آماده",
+    authorizationHint:
+      "مجوز را در مرورگر تأیید کنید. این صفحه خودکار ادامه می‌دهد.",
+    syncHint:
+      "حساب تأیید شده است و پیکربندی آماده می‌شود. پس از آماده شدن می‌توانید آن را انتخاب کنید.",
+    subscriptionUpdateFailed: "به‌روزرسانی اشتراک ناموفق بود",
+    subscriptionNotReady:
+      "وارد حساب شده‌اید، اما پیکربندی قابل استفاده هنوز آماده نیست. دوباره تلاش کنید.",
+    errorDetails: "جزئیات فنی",
+    servicePlan: "طرح",
+    serviceExpiry: "تاریخ انقضا",
     title: "حساب",
     signedIn: "وارد XBond شده‌اید",
     cloudAccount: "حساب Cloud",
@@ -689,8 +707,7 @@ const FA = {
     logout: "خروج",
     syncSubscription: "به‌روزرسانی اشتراک",
     syncSuccess: "اشتراک از Cloud همگام شد",
-    cloudDesc:
-      "با ورود، اشتراک Cloud اضافه می‌شود؛ زمان استفاده را خودتان انتخاب کنید.",
+    cloudDesc: "برای استفاده از اشتراک XBond وارد شوید.",
     webModeAccountNote:
       "در حالت داشبورد تحت وب. حساب کاربری XBond Cloud از طریق برنامه دسکتاپ مدیریت می‌شود.",
   },

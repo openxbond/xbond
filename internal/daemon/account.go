@@ -14,6 +14,7 @@ import (
 
 	"github.com/openxbond/xbond/internal/account"
 	"github.com/openxbond/xbond/internal/clientapi"
+	"github.com/openxbond/xbond/internal/i18n"
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
 	"github.com/openxbond/xbond/internal/platform/browser"
 	"github.com/openxbond/xbond/internal/platform/paths"
@@ -27,6 +28,7 @@ import (
 // the issuer the tokens actually came from).
 type AccountState struct {
 	Status                  string                   `json:"status"`
+	Phase                   string                   `json:"phase,omitempty"`
 	Method                  string                   `json:"method,omitempty"`
 	AuthURL                 string                   `json:"authUrl,omitempty"`
 	VerificationURI         string                   `json:"verificationUri,omitempty"`
@@ -117,6 +119,14 @@ func (c *accountController) snapshot() AccountState {
 	return c.state
 }
 
+func (c *accountController) setPhase(generation int, phase string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.syncGen == generation {
+		c.state.Phase = phase
+	}
+}
+
 func (c *accountController) start(
 	login account.LoginOptions,
 	bindOptions accountBindOptions,
@@ -134,6 +144,7 @@ func (c *accountController) start(
 	started := time.Now()
 	c.state = AccountState{
 		Status:    "pending",
+		Phase:     "authorizing",
 		Method:    "pkce",
 		StartedAt: &started,
 	}
@@ -159,6 +170,9 @@ func (c *accountController) run(
 			return
 		}
 		c.state.Method = progress.Method
+		if progress.Phase != "" {
+			c.state.Phase = progress.Phase
+		}
 		c.state.AuthURL = progress.AuthURL
 		c.state.VerificationURI = progress.VerificationURI
 		c.state.VerificationURIComplete = progress.VerificationURIComplete
@@ -187,6 +201,7 @@ func (c *accountController) run(
 	}
 	var meta *sub.SubscriptionMeta
 	if credentials.SubscriptionToken != "" {
+		c.setPhase(generation, "syncing_subscription")
 		bound, bindError, err := c.bind(ctx, credentials, bindOptions)
 		if err != nil {
 			updateError = err.Error()
@@ -201,6 +216,7 @@ func (c *accountController) run(
 	// The overview sync rides the login context before the state flips to
 	// signed_in: the UI stops polling once signed in, so identity must be
 	// present in that flip.
+	c.setPhase(generation, "loading_account")
 	c.syncOverviewCtx(ctx)
 
 	c.mu.Lock()
@@ -212,6 +228,7 @@ func (c *accountController) run(
 		return
 	}
 	c.state.Status = "signed_in"
+	c.state.Phase = ""
 	c.state.Subscription = meta
 	c.state.UpdateError = updateError
 	c.state.Error = ""
@@ -241,6 +258,7 @@ func (c *accountController) fail(err error, generation int) {
 		return
 	}
 	c.state.Status = "error"
+	c.state.Phase = ""
 	c.state.ErrorCode = code
 	c.state.Error = err.Error()
 	c.cancel = nil
@@ -270,12 +288,17 @@ func (c *accountController) logout(ctx context.Context) ([]sub.SubscriptionMeta,
 	return removed, errors.Join(err, logoutErr)
 }
 
-func (c *accountController) refresh(ctx context.Context) (AccountState, error) {
+func (c *accountController) refresh(ctx context.Context) (result AccountState, err error) {
 	c.operation.Lock()
 	defer c.operation.Unlock()
 	c.mu.Lock()
 	generation := c.syncGen
 	c.mu.Unlock()
+	c.setPhase(generation, "fetching_subscription")
+	defer func() {
+		c.setPhase(generation, "")
+		result.Phase = ""
+	}()
 	link, err := c.manager.RefreshLink(ctx)
 	if err != nil {
 		c.mu.Lock()
@@ -322,6 +345,7 @@ func (c *accountController) refresh(ctx context.Context) (AccountState, error) {
 		updateError = "No subscription link is available. Open the Cloud console."
 	}
 	if credentials.SubscriptionToken != "" {
+		c.setPhase(generation, "syncing_subscription")
 		options := accountBindOptions{}
 		if existing := c.listXBond(); existing != nil {
 			options.Name = existing.Name
@@ -337,6 +361,7 @@ func (c *accountController) refresh(ctx context.Context) (AccountState, error) {
 		}
 	}
 
+	c.setPhase(generation, "loading_account")
 	c.syncOverviewCtx(ctx)
 
 	c.mu.Lock()
@@ -345,6 +370,7 @@ func (c *accountController) refresh(ctx context.Context) (AccountState, error) {
 		c.mu.Unlock()
 		return state, context.Canceled
 	}
+	c.state.Phase = ""
 	c.state.Status = "signed_in"
 	c.state.Subscription = meta
 	c.state.UpdateError = updateError
@@ -484,10 +510,11 @@ func (s *Server) handleAccountLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	state := s.account.start(
 		account.LoginOptions{
-			Origin:      req.Origin,
-			Device:      req.Device,
-			NoBrowser:   req.NoBrowser,
-			OpenBrowser: browser.Open,
+			Origin:       req.Origin,
+			Device:       req.Device,
+			NoBrowser:    req.NoBrowser,
+			CallbackHTML: i18n.RenderCallbackHTML,
+			OpenBrowser:  browser.Open,
 		},
 		accountBindOptions{Name: req.Name, Lang: req.Lang, Protocol: req.Protocol},
 	)

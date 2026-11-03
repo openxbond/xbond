@@ -22,6 +22,7 @@ import (
 // process — LocalAPI consumers see login state only.
 type AccountState struct {
 	Status                  string                   `json:"status"`
+	Phase                   string                   `json:"phase,omitempty"`
 	Method                  string                   `json:"method,omitempty"`
 	AuthURL                 string                   `json:"authUrl,omitempty"`
 	VerificationURI         string                   `json:"verificationUri,omitempty"`
@@ -135,6 +136,7 @@ func (a *mobileAccount) login(origin string, device, noBrowser bool) AccountStat
 			func(progress account.Progress) {
 				a.mu.Lock()
 				a.state.Method = progress.Method
+				a.state.Phase = progress.Phase
 				a.state.AuthURL = progress.AuthURL
 				a.state.VerificationURI = progress.VerificationURI
 				a.state.VerificationURIComplete = progress.VerificationURIComplete
@@ -180,6 +182,7 @@ func (a *mobileAccount) login(origin string, device, noBrowser bool) AccountStat
 
 		a.mu.Lock()
 		a.state.Status = "signed_in"
+		a.state.Phase = ""
 		a.state.Subscription = meta
 		a.state.UpdateError = updateError
 		a.state.Error = ""
@@ -202,6 +205,7 @@ func (a *mobileAccount) fail(err error) {
 		return // superseded by a logout
 	}
 	a.state.Status = "error"
+	a.state.Phase = ""
 	a.state.ErrorCode = code
 	a.state.Error = err.Error()
 	a.cancel = nil

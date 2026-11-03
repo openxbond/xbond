@@ -56,20 +56,31 @@ export default function Config() {
     controllers.push({ ...target });
   const defaultItem = supported
     ? activeId
-      ? `sub:${activeId}`
+      ? subscriptions.find((item) => item.id === activeId)?.type === "xbond"
+        ? "cloud"
+        : `sub:${activeId}`
       : "cloud"
     : controllers[0]
       ? `controller:${controllers[0].id}`
       : "add-controller";
-  const selected = explicit || defaultItem;
+  const requested = explicit || defaultItem;
+  const selected =
+    requested.startsWith("sub:") &&
+    subscriptions.some(
+      (item) => item.id === requested.slice(4) && item.type === "xbond",
+    )
+      ? "cloud"
+      : requested;
   const selectedController = selected.startsWith("controller:")
     ? controllers.find((item) => item.id === selected.slice(11))
     : undefined;
   const selectedSub = selected.startsWith("sub:")
     ? subscriptions.find((item) => item.id === selected.slice(4))
     : undefined;
-  const filteredSubs = subscriptions.filter((item) =>
-    item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
+  const filteredSubs = subscriptions.filter(
+    (item) =>
+      item.type !== "xbond" &&
+      item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
   );
   const filteredControllers = controllers.filter((item) =>
     `${item.name} ${item.url}`
@@ -143,7 +154,10 @@ export default function Config() {
           />
           <span>
             {t("viewing")} ·{" "}
-            {isLocalTarget ? t("localService") : target.name || target.hostname}
+            {isLocalTarget
+              ? subscriptions.find((item) => item.id === activeId)?.name ||
+                t("localService")
+              : target.name || target.hostname}
           </span>
         </span>
       </Header>
@@ -262,15 +276,6 @@ export default function Config() {
             <ArrowLeft className="size-4" />
             {t("back")}
           </Button>
-          {supported &&
-            !isLocalTarget &&
-            (selected === "cloud" ||
-              selected.startsWith("sub:") ||
-              selected === "add-profile") && (
-              <p className="mb-6 border-b border-border pb-4 text-sm leading-relaxed text-muted-foreground">
-                {t("scopeNote")}
-              </p>
-            )}
           <fieldset
             className="min-w-0"
             disabled={

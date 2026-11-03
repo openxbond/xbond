@@ -23,7 +23,7 @@ export function useAccount() {
       // Fast-poll only while an authorization is pending; otherwise the
       // LocalAPI status refresh drives state changes.
       refreshInterval: (latest: AccountStatus | undefined) =>
-        latest?.status === "pending" ? 1000 : 4000,
+        latest?.status === "pending" || latest?.phase ? 1000 : 4000,
       shouldRetryOnError: false,
     },
   );

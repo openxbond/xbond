@@ -60,6 +60,8 @@ type SubscriptionMeta struct {
 	Lang                string            `json:"lang,omitempty"`
 	AutoUpdate          bool              `json:"autoUpdate"`
 	UpdateIntervalHours int               `json:"updateIntervalHours"`
+	// Explicit user schedules take precedence over subscription response headers.
+	UpdateIntervalCustomized bool `json:"updateIntervalCustomized,omitempty"`
 	// Update channel: "" or "direct" fetches directly, "self" rides the
 	// daemon's own mixed port when the core runs (never for bootstrapping),
 	// "proxy" rides UpdateProxy. A failing channel errors — it never

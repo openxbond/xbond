@@ -41,15 +41,15 @@ export function StrategyDirectory({
           type="button"
           key={item.name}
           className={cn(
-            "relative w-full min-w-0 cursor-pointer rounded-lg border-0 px-3 py-[11px] text-start text-foreground transition-colors duration-150 motion-reduce:transition-none",
+            "relative w-full min-w-0 cursor-pointer rounded-lg border-0 px-2.5 py-2 text-start text-foreground transition-colors duration-150 motion-reduce:transition-none",
             value === item.name
-              ? "bg-brand-soft before:absolute before:top-1/2 before:left-[5px] before:h-5 before:w-[2.5px] before:-translate-y-1/2 before:rounded-sm before:bg-brand before:content-['']"
+              ? "bg-brand-soft before:absolute before:top-1/2 before:left-[4px] before:h-4 before:w-[2.5px] before:-translate-y-1/2 before:rounded-sm before:bg-brand before:content-['']"
               : "hover:bg-inset",
           )}
           aria-current={value === item.name ? "true" : undefined}
           onClick={() => onSelect(item.name)}
         >
-          <span className="flex items-center justify-between gap-2">
+          <span className="flex items-center justify-between gap-1.5">
             <strong
               className={cn(
                 "overflow-hidden text-body font-semibold text-ellipsis whitespace-nowrap",
@@ -64,7 +64,7 @@ export function StrategyDirectory({
               </span>
             )}
           </span>
-          <span className="mt-[5px] flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span className="mt-1 flex items-center justify-between gap-1.5 text-xs text-muted-foreground">
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
               {renderNodeTitle(item.detail || "—")}
             </span>
@@ -117,17 +117,17 @@ export function StrategyChoice({
     <li
       data-node={name}
       className={cn(
-        "node-grid-tile relative flex min-h-[54px] w-full list-none items-center justify-between gap-3 rounded-[10px] border bg-card p-0 transition-all duration-150 select-none focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring max-md:min-h-[50px] motion-reduce:transition-none",
+        "node-grid-tile relative flex min-h-[42px] w-full list-none items-center justify-between gap-2 rounded-[9px] border bg-card p-0 transition-all duration-150 select-none focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring max-md:min-h-[46px] motion-reduce:transition-none",
         selected
-          ? "border-brand bg-brand-soft"
+          ? "border-brand bg-brand-soft shadow-xs"
           : disabled
-            ? "border-border"
-            : "cursor-pointer border-border hover:bg-inset hover:border-brand",
+            ? "border-border opacity-60"
+            : "cursor-pointer border-border hover:bg-inset hover:border-brand/70",
       )}
     >
       <button
         type="button"
-        className="flex min-h-[52px] min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-[inherit] border-0 bg-transparent p-3 text-start text-inherit font-[inherit] focus-visible:outline-none disabled:cursor-default"
+        className="flex min-h-[40px] min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[inherit] border-0 bg-transparent py-1.5 px-2.5 text-start text-inherit font-[inherit] focus-visible:outline-none disabled:cursor-default"
         aria-pressed={selected}
         disabled={disabled}
         onClick={onSelect}
@@ -135,27 +135,27 @@ export function StrategyChoice({
         <span
           aria-hidden="true"
           className={cn(
-            "block size-[13px] shrink-0 rounded-full border border-muted-foreground",
-            selected && "border-4 border-brand-text",
+            "block size-2 shrink-0 rounded-full border border-muted-foreground/60 transition-all",
+            selected && "border-0 bg-brand ring-2 ring-brand/35",
           )}
         />
         <span
           title={name}
           className={cn(
-            "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-[550] text-foreground",
+            "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-foreground",
             selected && "font-semibold text-brand-text",
           )}
         >
           {renderNodeTitle(name)}
           {detail && (
-            <small className="mt-1 block text-label font-normal text-muted-foreground">
+            <small className="mt-0.5 block text-label font-normal text-muted-foreground">
               {detail}
             </small>
           )}
         </span>
       </button>
       {children && (
-        <span className="flex shrink-0 items-center gap-1.5 pe-3">
+        <span className="flex shrink-0 items-center gap-1.5 pe-2.5">
           {children}
         </span>
       )}

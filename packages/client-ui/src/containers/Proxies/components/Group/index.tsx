@@ -182,8 +182,8 @@ export function Group({
         <div className="flex items-center gap-2.5 max-md:justify-between">
           <div
             className={cn(
-              "w-0 overflow-hidden opacity-0 transition-[width,opacity] duration-[220ms] ease-[var(--ease-out-expo)]",
-              filterOpen && "w-[180px] opacity-100 max-md:w-[140px]",
+              "overflow-hidden opacity-0 max-w-0 transition-all duration-200 ease-[var(--ease-out-expo)]",
+              filterOpen && "max-w-[180px] opacity-100 max-md:max-w-[140px]",
             )}
           >
             <input
@@ -359,9 +359,9 @@ export function Group({
         </p>
       )}
 
-      {/* Multi-column Compact Grid of Node Tiles */}
+      {/* Multi-column High-Density Matrix of Node Tiles */}
       <ul
-        className="m-0 grid list-none content-start gap-3 overflow-y-auto p-0 pr-1 grid-cols-[repeat(auto-fill,minmax(360px,1fr))] max-md:grid-cols-1 max-md:gap-2"
+        className="m-0 grid list-none content-start gap-2 overflow-y-auto p-0 pr-1 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] max-md:grid-cols-1"
         ref={gridRef}
       >
         {names.map((name) => {

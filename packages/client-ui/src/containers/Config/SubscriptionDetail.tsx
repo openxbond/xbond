@@ -22,6 +22,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import UpdateFrequency from "./UpdateFrequency";
+
 export default function SubscriptionDetail({
   selectedId,
 }: {
@@ -33,7 +35,7 @@ export default function SubscriptionDetail({
   const { t: cfg } = useTranslation("configuration");
   const { t: tc } = useTranslation("common");
   const { t: c } = useTranslation("connect");
-  const { status, refresh, client: localClient } = useLocalAPI();
+  const { status, refresh, client: localClient, isLocalTarget } = useLocalAPI();
   const {
     subscriptions,
     activeId,
@@ -187,7 +189,7 @@ export default function SubscriptionDetail({
             .filter((sub) => sub.id === selectedId)
             .map((sub) => {
               const quota = subscriptionQuota(sub);
-              const isActive = sub.id === activeId;
+              const isActive = isLocalTarget && sub.id === activeId;
               return (
                 <article className="config-detail-stack" key={sub.id}>
                   <div className="mb-3.5 flex items-start justify-between gap-2.5">
@@ -217,20 +219,19 @@ export default function SubscriptionDetail({
                         )}
                       </div>
                     </div>
-                    {!isActive && (
-                      <Button
-                        disabled={pending}
-                        onClick={() =>
-                          void run(async () => {
-                            await selectSub(sub.id);
-                            await refresh();
-                            await refreshSubs();
-                          })
-                        }
-                      >
-                        {cfg("use")}
-                      </Button>
-                    )}
+                    <Button
+                      disabled={pending || isActive || !sub.format}
+                      variant={isActive ? "secondary" : "default"}
+                      onClick={() =>
+                        void run(async () => {
+                          await selectSub(sub.id);
+                          await refresh();
+                          await refreshSubs();
+                        })
+                      }
+                    >
+                      {isActive ? cfg("activeLocal") : cfg("use")}
+                    </Button>
                   </div>
 
                   {sub.health && sub.health !== "ok" && (
@@ -300,6 +301,25 @@ export default function SubscriptionDetail({
                     </dl>
                   </div>
 
+                  {sub.type === "universal" &&
+                    /^https?:/.test(sub.urlOrFile || "") && (
+                      <UpdateFrequency
+                        value={sub.autoUpdate ? sub.updateIntervalHours : 0}
+                        disabled={pending || !localClient}
+                        onChange={(hours) =>
+                          void run(async () => {
+                            if (!localClient)
+                              throw new Error("LocalAPI not available");
+                            await localClient.setSubUpdateSchedule(
+                              sub.id,
+                              hours,
+                            );
+                            await refreshSubs();
+                            await refresh();
+                          })
+                        }
+                      />
+                    )}
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       disabled={pending}

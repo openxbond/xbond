@@ -53,6 +53,9 @@ func Validate(configBytes []byte) error {
 }
 
 func validateClash(configBytes []byte) error {
+	if err := initCoreHome(); err != nil {
+		return err
+	}
 	raw, err := config.UnmarshalRawConfig(configBytes)
 	if err != nil {
 		return fmt.Errorf("failed to parse mihomo configuration: %w", err)

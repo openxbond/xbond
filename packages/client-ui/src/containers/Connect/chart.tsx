@@ -158,7 +158,7 @@ export function TrafficChart({
       <div className="flex flex-1 items-stretch gap-2.5">
         {/* Y 轴刻度 (自适应如 100K/50K/0, 500K/250K/0, 30/15/0) */}
         <div
-          className="flex flex-col justify-between py-0.5 text-right font-mono text-[11px] tabular-nums text-muted-foreground/60 select-none w-8 shrink-0"
+          className="flex flex-col justify-between py-0.5 text-right font-mono text-label tabular-nums text-muted-foreground/60 select-none w-8 shrink-0"
           aria-hidden="true"
         >
           <span>{scale.top}</span>
@@ -277,7 +277,7 @@ export function TrafficChart({
 
       {/* 右下角时间窗标签 */}
       <span
-        className="mt-1 self-end text-[11px] text-muted-foreground/60 select-none"
+        className="mt-1 self-end text-label text-muted-foreground/60 select-none"
         aria-hidden="true"
       >
         {windowLabel}

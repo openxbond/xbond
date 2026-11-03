@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	C "github.com/metacubex/mihomo/constant"
 	"gopkg.in/yaml.v3"
 )
 
@@ -165,6 +166,24 @@ func TestValidate(t *testing.T) {
 	badDocument := []byte("{not valid")
 	if err := Validate(badDocument); err == nil {
 		t.Fatalf("expected malformed document to fail validation")
+	}
+}
+
+func TestValidateInitializesCoreHomeBeforeFirstStart(t *testing.T) {
+	isolateCoreHome(t)
+	dataDir := filepath.Join(os.Getenv("XBOND_DATA_DIR"), "fresh")
+	t.Setenv("XBOND_DATA_DIR", dataDir)
+	previousHome := C.Path.HomeDir()
+	C.SetHomeDir(filepath.Join(dataDir, "uninitialized"))
+	t.Cleanup(func() { C.SetHomeDir(previousHome) })
+	if err := Validate(sampleValidConfig()); err != nil {
+		t.Fatal(err)
+	}
+	if C.Path.HomeDir() != dataDir {
+		t.Fatalf("validation used %q instead of the client data directory", C.Path.HomeDir())
+	}
+	if filepath.Clean(C.Path.MMDB()) != filepath.Join(dataDir, "geoip.metadb") {
+		t.Fatalf("GeoIP path was not initialized: %q", C.Path.MMDB())
 	}
 }
 

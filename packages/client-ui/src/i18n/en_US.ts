@@ -649,7 +649,7 @@ const EN = {
     subReady: "Official subscription synced successfully ({{name}}).",
     startUsing: "Get Started",
     importTitle: "Import configuration",
-    modeUrl: "URL",
+    modeUrl: "Remote subscription",
     modeFile: "Local file",
     modePaste: "Paste text",
     urlPlaceholder: "Subscription or config URL",
@@ -673,6 +673,24 @@ const EN = {
     downloaded: "Downloaded {{received}}",
   },
   account: {
+    phaseExchange: "Confirming authorization…",
+    phaseFetch: "Fetching your subscription…",
+    phaseSync: "Downloading and checking configuration…",
+    phaseOverview: "Loading account details…",
+    loginProgress: "Sign-in progress",
+    stepAuthorize: "Authorize",
+    stepSubscription: "Sync subscription",
+    stepReady: "Ready",
+    authorizationHint:
+      "Complete authorization in your browser. This page will continue automatically.",
+    syncHint:
+      "Your account is authorized. Configuration is being prepared; you can select it when ready.",
+    subscriptionUpdateFailed: "Subscription update failed",
+    subscriptionNotReady:
+      "Your account is signed in. No usable configuration is available yet; retry the update.",
+    errorDetails: "Technical details",
+    servicePlan: "Plan",
+    serviceExpiry: "Expiry",
     title: "Account",
     signedIn: "Signed in to XBond",
     cloudAccount: "Cloud account",
@@ -695,7 +713,7 @@ const EN = {
     logout: "Sign out",
     syncSubscription: "Update subscription",
     syncSuccess: "Subscription synced from Cloud",
-    cloudDesc: "Sign in to add your Cloud subscription. Choose when to use it.",
+    cloudDesc: "Sign in to use your XBond subscription.",
     webModeAccountNote:
       "Running in pure Web dashboard mode. XBond Cloud account is managed via Desktop app.",
   },

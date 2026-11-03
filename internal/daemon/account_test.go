@@ -1,7 +1,9 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -116,6 +118,62 @@ func TestAccountControllerLoginSuccess(t *testing.T) {
 	}
 	if final.UserCode != "ABCD-EFGH" {
 		t.Errorf("progress not exposed: %+v", final)
+	}
+}
+
+func TestAccountControllerReportsSubscriptionSyncAfterAuthorization(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	manager := &fakeAccountManager{
+		login: func(context.Context, account.LoginOptions, func(account.Progress)) (*account.Credentials, error) {
+			return &account.Credentials{SubscriptionToken: "sub-fixture"}, nil
+		},
+	}
+	controller := newAccountController(manager,
+		func(ctx context.Context, _ *account.Credentials, _ accountBindOptions) (*sub.SubscriptionMeta, string, error) {
+			close(entered)
+			select {
+			case <-release:
+				return nil, "fixture validation failure", nil
+			case <-ctx.Done():
+				return nil, "", ctx.Err()
+			}
+		}, nil, func() *sub.SubscriptionMeta { return nil })
+	controller.start(account.LoginOptions{}, accountBindOptions{})
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("subscription sync did not start")
+	}
+	state, _ := json.Marshal(controller.snapshot())
+	close(release)
+	if !bytes.Contains(state, []byte(`"phase":"syncing_subscription"`)) {
+		t.Errorf("authorization still looks idle during subscription sync: %s", state)
+	}
+	final := waitForAccountStatus(t, controller, "signed_in")
+	if final.UpdateError != "fixture validation failure" {
+		t.Fatalf("signed-in session lost its update failure: %+v", final)
+	}
+	data, _ := json.Marshal(final)
+	if bytes.Contains(data, []byte(`"phase":`)) {
+		t.Fatalf("finished sync is still marked busy: %s", data)
+	}
+}
+
+func TestAccountRefreshFailureClearsBusyPhase(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	manager := &fakeAccountManager{
+		session:    &account.Session{Origin: account.DefaultOrigin},
+		refreshErr: errors.New("fixture offline"),
+	}
+	controller := newAccountController(manager, nil, nil, func() *sub.SubscriptionMeta { return nil })
+	state, err := controller.refresh(context.Background())
+	if err == nil || state.Phase != "" || controller.snapshot().Phase != "" {
+		t.Fatalf("failed refresh stayed busy: %+v (%v)", state, err)
+	}
+	if state.Status != "signed_in" || state.UpdateError != "fixture offline" {
+		t.Fatalf("failed refresh lost the valid account session: %+v", state)
 	}
 }
 

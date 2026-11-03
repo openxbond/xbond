@@ -13,6 +13,13 @@ import {
   useLocalAPI,
   useSubscriptions,
 } from "@stores";
+import {
+  AlertCircle,
+  Check,
+  ExternalLink,
+  LoaderCircle,
+  RefreshCw,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -21,8 +28,13 @@ export default function AccountPanel() {
   const { t: c } = useTranslation("configuration");
   const { t: common } = useTranslation("common");
   const { lang } = useLanguage();
-  const { hasDaemon, daemonState, refresh } = useLocalAPI();
-  const { refresh: refreshSubs } = useSubscriptions();
+  const { hasDaemon, daemonState, refresh, isLocalTarget } = useLocalAPI();
+  const {
+    subscriptions,
+    activeId,
+    selectSub,
+    refresh: refreshSubs,
+  } = useSubscriptions();
   const {
     account,
     accountReady,
@@ -38,6 +50,29 @@ export default function AccountPanel() {
   const [notice, setNotice] = useState("");
   const [confirmLogout, setConfirmLogout] = useState(false);
   const connecting = daemonState === "connecting";
+  const signedIn = account?.status === "signed_in";
+  const authorizing = account?.status === "pending";
+  const phase = account?.phase || (authorizing ? "authorizing" : undefined);
+  const busy = pending || Boolean(phase);
+  const device = account?.method === "device";
+  const cloudProfile = subscriptions.find((item) => item.type === "xbond");
+  const current =
+    isLocalTarget && cloudProfile?.id === activeId && Boolean(cloudProfile);
+  const phaseText = {
+    authorizing: t("pending"),
+    exchanging_token: t("phaseExchange"),
+    fetching_subscription: t("phaseFetch"),
+    syncing_subscription: t("phaseSync"),
+    loading_account: t("phaseOverview"),
+  };
+  const step =
+    phase === "authorizing" || phase === "exchanging_token"
+      ? 0
+      : phase === "loading_account"
+        ? 2
+        : 1;
+  const failure = error || account?.updateError;
+
   async function action(work: () => Promise<unknown>, success = "") {
     if (pending || daemonState !== "ready") return;
     setPending(true);
@@ -57,14 +92,12 @@ export default function AccountPanel() {
     const result = await resync();
     if (result.updateError) throw new Error(result.updateError);
   }
-  const signedIn = account?.status === "signed_in";
-  const authorizing = account?.status === "pending";
-  const device = account?.method === "device";
+
   return (
-    <div className="config-detail-stack" aria-busy={pending}>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="config-detail-stack" aria-busy={busy}>
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
-          <ResourceIcon kind="cloud" className="size-14" />
+          <ResourceIcon kind="cloud" className="size-12" />
           <div className="min-w-0">
             <h2 className="text-title font-semibold">XBond Cloud</h2>
             <p className="mt-1 break-words text-sm text-muted-foreground">
@@ -74,10 +107,23 @@ export default function AccountPanel() {
             </p>
           </div>
         </div>
-        {signedIn && <span className="config-status">{t("signedIn")}</span>}
-      </div>
+        {signedIn && (
+          <span className="config-status">
+            <Check aria-hidden="true" className="me-1.5 size-3.5" />
+            {t("signedIn")}
+          </span>
+        )}
+      </header>
+
       {connecting ? (
-        <p role="status" className="text-muted-foreground">
+        <p
+          role="status"
+          className="flex items-center gap-2 text-sm text-muted-foreground"
+        >
+          <LoaderCircle
+            aria-hidden="true"
+            className="size-4 motion-safe:animate-spin"
+          />
           {common("loading")}
         </p>
       ) : !hasDaemon ? (
@@ -92,116 +138,228 @@ export default function AccountPanel() {
           </Button>
         </div>
       ) : !accountReady ? (
-        <p role="status" className="text-muted-foreground">
+        <p role="status" className="text-sm text-muted-foreground">
           {common("loading")}
         </p>
-      ) : authorizing ? (
-        <div className="flex flex-col items-start gap-4">
-          <h3 className="text-subtitle font-semibold">{t("pending")}</h3>
-          {account.userCode && (
-            <div className="grid gap-2">
-              <span className="text-sm">{t("deviceCode")}</span>
-              <code className="rounded-control bg-inset px-4 py-3 text-xl font-semibold">
-                {account.userCode}
-              </code>
-            </div>
-          )}
-          {(account.authUrl ||
-            account.verificationUriComplete ||
-            account.verificationUri) && (
-            <a
-              className="section-link"
-              href={
-                account.authUrl ||
-                account.verificationUriComplete ||
-                account.verificationUri
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {t("openAuthPage")} ↗
-            </a>
-          )}
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant="outline"
-              disabled={pending}
-              onClick={() => void action(cancelLogin)}
-            >
-              {common("cancel")}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={pending}
-              onClick={() =>
-                void action(async () => {
-                  await cancelLogin();
-                  await login({ device: !device });
-                })
-              }
-            >
-              {device ? t("browserLogin") : t("deviceLogin")}
-            </Button>
+      ) : authorizing || phase ? (
+        <section className="grid gap-5" aria-label={t("loginProgress")}>
+          <ol className="grid grid-cols-3 gap-3 border-y border-border py-5">
+            {[t("stepAuthorize"), t("stepSubscription"), t("stepReady")].map(
+              (label, index) => (
+                <li
+                  key={label}
+                  className="flex min-w-0 flex-col items-start gap-2 text-xs"
+                  aria-current={index === step ? "step" : undefined}
+                >
+                  <span
+                    className={
+                      index <= step
+                        ? "flex size-7 items-center justify-center rounded-full bg-brand-soft text-brand-text"
+                        : "flex size-7 items-center justify-center rounded-full bg-inset text-muted-foreground"
+                    }
+                  >
+                    {index < step ? (
+                      <Check aria-hidden="true" className="size-4" />
+                    ) : index === step ? (
+                      <LoaderCircle
+                        aria-hidden="true"
+                        className="size-4 motion-safe:animate-spin"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="size-1.5 rounded-full bg-current"
+                      />
+                    )}
+                  </span>
+                  <span
+                    className={
+                      index === step
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    {label}
+                  </span>
+                </li>
+              ),
+            )}
+          </ol>
+          <div role="status" aria-live="polite" className="grid gap-2">
+            <h3 className="text-subtitle font-semibold">
+              {phase ? phaseText[phase] : common("loading")}
+            </h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {step === 0 ? t("authorizationHint") : t("syncHint")}
+            </p>
           </div>
-        </div>
+          {phase === "authorizing" && (
+            <>
+              {account?.userCode && (
+                <div className="grid gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {t("deviceCode")}
+                  </span>
+                  <code className="w-fit rounded-control bg-inset px-4 py-3 text-xl font-semibold tracking-wider">
+                    {account.userCode}
+                  </code>
+                </div>
+              )}
+              {(account?.authUrl ||
+                account?.verificationUriComplete ||
+                account?.verificationUri) && (
+                <a
+                  className="section-link inline-flex w-fit items-center gap-1.5"
+                  href={
+                    account.authUrl ||
+                    account.verificationUriComplete ||
+                    account.verificationUri
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t("openAuthPage")}
+                  <ExternalLink aria-hidden="true" className="size-3.5" />
+                </a>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => void action(cancelLogin)}
+                >
+                  {common("cancel")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() =>
+                    void action(async () => {
+                      await cancelLogin();
+                      await login({ device: !device });
+                    })
+                  }
+                >
+                  {device ? t("browserLogin") : t("deviceLogin")}
+                </Button>
+              </div>
+            </>
+          )}
+        </section>
       ) : signedIn ? (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="brand"
-              disabled={pending}
-              onClick={() => void action(update, c("updated"))}
-            >
-              {pending ? common("loading") : t("syncSubscription")}
-            </Button>
-            {account.consoleUrl && (
-              <a
-                className="section-link text-sm"
-                href={account.consoleUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+          <div className="grid gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                disabled={busy || current || !cloudProfile?.format}
+                variant={current ? "secondary" : "default"}
+                onClick={() => {
+                  if (cloudProfile)
+                    void action(() => selectSub(cloudProfile.id));
+                }}
               >
-                {t("openConsole")} ↗
-              </a>
-            )}
-            <Button
-              variant="ghost"
-              disabled={pending}
-              onClick={() => setConfirmLogout(true)}
-            >
-              {t("logout")}
-            </Button>
+                {current && <Check aria-hidden="true" className="size-4" />}
+                {current ? c("activeLocal") : c("use")}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void action(update, c("updated"))}
+              >
+                {pending ? (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="size-4 motion-safe:animate-spin"
+                  />
+                ) : (
+                  <RefreshCw aria-hidden="true" className="size-4" />
+                )}
+                {pending
+                  ? t("phaseSync")
+                  : failure
+                    ? common("retry")
+                    : t("syncSubscription")}
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {account.consoleUrl && (
+                <a
+                  className="section-link inline-flex min-h-11 items-center gap-1.5 text-sm"
+                  href={account.consoleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t("openConsole")}
+                  <ExternalLink aria-hidden="true" className="size-3.5" />
+                </a>
+              )}
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => setConfirmLogout(true)}
+              >
+                {t("logout")}
+              </Button>
+            </div>
           </div>
-          {(error || account.updateError) && (
-            <div className="config-notice" role="alert">
-              <p className="font-medium">{c("updateFailed")}</p>
-              <p className="mt-1 break-words text-sm text-muted-foreground">
-                {error || account.updateError}
-              </p>
+          {failure && !pending && (
+            <div className="rounded-control bg-inset p-4" role="alert">
+              <div className="flex items-start gap-3">
+                <AlertCircle
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 shrink-0 text-warning-text"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    {t("subscriptionUpdateFailed")}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    {cloudProfile?.format
+                      ? c("updateFailed")
+                      : t("subscriptionNotReady")}
+                  </p>
+                </div>
+              </div>
+              <details className="mt-3 text-xs text-muted-foreground">
+                <summary className="flex min-h-11 cursor-pointer items-center font-medium focus-visible:outline-2 focus-visible:outline-ring">
+                  {t("errorDetails")}
+                </summary>
+                <p className="break-words pt-1 leading-relaxed [overflow-wrap:anywhere]">
+                  {failure}
+                </p>
+              </details>
             </div>
           )}
           <section className="grid gap-3 border-t border-border pt-5">
             <h3 className="text-subtitle font-semibold">{t("title")}</h3>
             {account.service ? (
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {[
-                  account.service.enabled
-                    ? account.service.plan
-                    : t("noService"),
-                  account.service.servicePeriodEnd
-                    ? t("serviceExpires", {
-                        date: new Date(
-                          account.service.servicePeriodEnd,
-                        ).toLocaleDateString(lang.replace("_", "-")),
-                      })
-                    : null,
-                  account.service.quotaState === "blocked"
-                    ? t("serviceQuotaBlocked")
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
+              <dl className="grid gap-3 text-sm">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <dt className="text-muted-foreground">{t("servicePlan")}</dt>
+                  <dd className="font-medium">
+                    {account.service.enabled
+                      ? account.service.plan
+                      : t("noService")}
+                  </dd>
+                </div>
+                {account.service.servicePeriodEnd && (
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <dt className="text-muted-foreground">
+                      {t("serviceExpiry")}
+                    </dt>
+                    <dd>
+                      {new Date(
+                        account.service.servicePeriodEnd,
+                      ).toLocaleDateString(lang.replace("_", "-"))}
+                    </dd>
+                  </div>
+                )}
+                {account.service.quotaState === "blocked" && (
+                  <p className="text-warning-text">
+                    {t("serviceQuotaBlocked")}
+                  </p>
+                )}
+              </dl>
             ) : (
               <p className="text-sm text-muted-foreground">
                 {c("unknownService")}
@@ -213,32 +371,18 @@ export default function AccountPanel() {
               </p>
             )}
           </section>
-          {account.subscription && (
-            <section className="grid gap-3 border-t border-border pt-5">
-              <h3 className="text-subtitle font-semibold">
-                {c("sourceCloud")}
-              </h3>
-              <div className="flex items-center gap-3">
-                <ResourceIcon kind={account.subscription.format || "local"} />
-                <div>
-                  <p className="font-medium">{account.subscription.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {c("localScope")}
-                  </p>
-                </div>
-              </div>
-            </section>
-          )}
           {account.announcements && account.announcements.length > 0 && (
-            <section className="grid gap-3 border-t border-border pt-5">
+            <section className="grid gap-4 border-t border-border pt-5">
               <h3 className="text-subtitle font-semibold">
                 {t("announcements")}
               </h3>
               {account.announcements.slice(0, 3).map((item) => (
                 <article key={item.id}>
-                  <h4 className="text-sm font-medium">{item.title}</h4>
+                  <h4 className="text-sm font-medium leading-relaxed">
+                    {item.title}
+                  </h4>
                   {item.summary && (
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                       {item.summary}
                     </p>
                   )}
@@ -256,11 +400,7 @@ export default function AccountPanel() {
                 : t("failed")}
             </p>
           )}
-          <Button
-            variant="brand"
-            disabled={pending}
-            onClick={() => void action(() => login())}
-          >
+          <Button disabled={busy} onClick={() => void action(() => login())}>
             {t("loginCta")}
           </Button>
         </div>
@@ -270,7 +410,7 @@ export default function AccountPanel() {
           {error}
         </p>
       )}
-      {notice && (
+      {notice && !busy && (
         <p role="status" className="text-sm text-success-text">
           {notice}
         </p>

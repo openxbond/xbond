@@ -317,15 +317,16 @@ func (s *Server) handleMode(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Token           string   `json:"token"`
-		Origin          string   `json:"origin"`
-		FallbackOrigins []string `json:"fallbackOrigins"`
-		Protocol        string   `json:"protocol"`
-		Lang            string   `json:"lang"`
-		Name            string   `json:"name"`
-		URLOrFile       string   `json:"urlOrFile"`
-		Content         string   `json:"content"`
-		Use             *bool    `json:"use"`
+		Token               string   `json:"token"`
+		Origin              string   `json:"origin"`
+		FallbackOrigins     []string `json:"fallbackOrigins"`
+		Protocol            string   `json:"protocol"`
+		Lang                string   `json:"lang"`
+		Name                string   `json:"name"`
+		URLOrFile           string   `json:"urlOrFile"`
+		Content             string   `json:"content"`
+		UpdateIntervalHours *int     `json:"updateIntervalHours"`
+		Use                 *bool    `json:"use"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -343,6 +344,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		req.Name,
 		req.URLOrFile,
 		req.Content,
+		req.UpdateIntervalHours,
 		req.Use == nil || *req.Use,
 	)
 	if err != nil {
@@ -374,10 +376,16 @@ func (s *Server) bindSubscription(
 	token, origin string,
 	fallbackOrigins []string,
 	protocol, lang, name, urlOrFile, content string,
+	updateIntervalHours *int,
 	activate bool,
 ) (*sub.SubscriptionMeta, string, error) {
 	if token == "" && urlOrFile == "" && content == "" {
 		return nil, "", &bindError{err: errors.New("must provide token, content or urlOrFile"), input: true}
+	}
+	if updateIntervalHours != nil {
+		if err := sub.ValidateUpdateInterval(*updateIntervalHours); err != nil {
+			return nil, "", &bindError{err: err, input: true}
+		}
 	}
 	if token != "" && name == "" {
 		for _, item := range s.subMgr.List() {
@@ -403,6 +411,19 @@ func (s *Server) bindSubscription(
 	}
 
 	finalMeta := meta
+	if updateIntervalHours != nil || (token == "" && content == "" && (strings.HasPrefix(urlOrFile, "https://") || strings.HasPrefix(urlOrFile, "http://"))) {
+		hours := 24
+		if updateIntervalHours != nil {
+			hours = *updateIntervalHours
+		}
+		if err := s.subMgr.SetUpdateSchedule(meta.ID, hours); err != nil {
+			return nil, "", err
+		}
+		finalMeta, err = s.subMgr.Get(meta.ID)
+		if err != nil {
+			return nil, "", err
+		}
+	}
 	res, updateErr := s.runtime.Update(ctx, meta.ID, true, nil)
 	updateErrMsg := ""
 	if updateErr != nil {
@@ -483,10 +504,11 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPatch:
 		var req struct {
-			ID            string `json:"id"`
-			Name          string `json:"name"`
-			UpdateChannel string `json:"updateChannel"`
-			UpdateProxy   string `json:"updateProxy"`
+			ID                  string `json:"id"`
+			Name                string `json:"name"`
+			UpdateChannel       string `json:"updateChannel"`
+			UpdateProxy         string `json:"updateProxy"`
+			UpdateIntervalHours *int   `json:"updateIntervalHours"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid subscription patch request")
@@ -500,6 +522,12 @@ func (s *Server) handleSubs(w http.ResponseWriter, r *http.Request) {
 		}
 		if req.UpdateChannel != "" {
 			if err := s.subMgr.SetUpdateChannel(req.ID, req.UpdateChannel, req.UpdateProxy); err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+		}
+		if req.UpdateIntervalHours != nil {
+			if err := s.subMgr.SetUpdateSchedule(req.ID, *req.UpdateIntervalHours); err != nil {
 				writeError(w, http.StatusBadRequest, err.Error())
 				return
 			}

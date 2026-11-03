@@ -57,6 +57,7 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
     (
       await client.addSub({
         urlOrFile: "https://example.invalid",
+        updateIntervalHours: 12,
       })
     ).meta,
   ]) {
@@ -72,6 +73,39 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
   // Importing saves the source but must not replace the active config.
   assert.deepEqual(imported, {
     urlOrFile: "https://example.invalid",
+    updateIntervalHours: 12,
     use: false,
+  });
+});
+
+test("changing a saved schedule sends zero for disabled and propagates save failures", async (t) => {
+  let patch: unknown;
+  const server = createServer(async (req, res) => {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    patch = { method: req.method, path: req.url, body: JSON.parse(body) };
+    res.setHeader("Content-Type", "application/json");
+    res.statusCode = 400;
+    res.end(JSON.stringify({ error: "could not save schedule" }));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const client = new LocalAPIClient(
+    `http://127.0.0.1:${address.port}`,
+    "fixture",
+  );
+  await assert.rejects(
+    client.setSubUpdateSchedule("profile", 0),
+    /could not save schedule/,
+  );
+  assert.deepEqual(patch, {
+    method: "PATCH",
+    path: "/localapi/v0/subs",
+    body: { id: "profile", updateIntervalHours: 0 },
   });
 });
