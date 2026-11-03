@@ -36,6 +36,19 @@ export const themeAtom = atomWithStorage<ThemePreference | undefined>(
   undefined,
 );
 
+export interface DesktopPreferences {
+  autostart: boolean;
+  closeToTray: boolean;
+}
+
+export const desktopPreferencesAtom = atomWithStorage<DesktopPreferences>(
+  "desktop_preferences",
+  {
+    autostart: false,
+    closeToTray: true,
+  },
+);
+
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
 function resolveDark(pref: ThemePreference | undefined) {

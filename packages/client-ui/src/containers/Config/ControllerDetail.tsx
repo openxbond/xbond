@@ -99,7 +99,7 @@ export default function ControllerDetail({
       setVersion(result.data.version);
       setNotice(t("external.testOK"));
     } catch {
-      setError(t("external.helpTrigger") + " · " + t("external.note"));
+      setError(t("external.testFailed"));
     } finally {
       setPending(false);
     }

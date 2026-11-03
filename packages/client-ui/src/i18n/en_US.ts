@@ -79,12 +79,10 @@ const EN = {
     sysproxy: "System proxy",
     tun: "TUN",
     uptime: "Uptime: {{duration}}",
-    noConfig: "Add a subscription or import a configuration to get started.",
-    noConfigRemote:
-      "The subscription is managed on the core side. Sign in to XBond to sync it.",
+    noConfig: "Add a configuration to get started.",
+    noConfigRemote: "This controller manages its own subscription.",
     manageController: "Manage controller",
-    remoteNote:
-      "This controller is managed remotely. Local takeover status is unavailable.",
+    remoteNote: "Remote controller. Local traffic takeover is unavailable.",
     statusReadFailed: "Could not read local status. Retry to check again.",
     currentNode: "Current node",
     strategyGroups: "Strategy groups",
@@ -125,7 +123,7 @@ const EN = {
     runningTun: "TUN interface is on",
     runningPort:
       "Proxy port {{port}} is ready; system traffic is not taken over",
-    currentConfig: "Current profile",
+    currentConfig: "Current configuration",
     prefs: "Connection preferences",
     nodeSelection: "Node selection",
     lastMeasured: "last measured",
@@ -440,8 +438,7 @@ const EN = {
     addBtn: "Add subscription",
     active: "In use",
     updateBtn: "Update",
-    noSubs:
-      "No subscriptions yet. Bind an XBond credential or import a universal subscription.",
+    noSubs: "No configurations yet.",
     imported: "Subscription added. Return home to connect.",
     importFailed:
       "Could not add the subscription. Check the details and try again.",
@@ -458,20 +455,19 @@ const EN = {
       "Uses a subscription credential to enroll this device. You can also sign in with xbond login.",
     override: "Override rules",
     channelDirect: "Direct",
-    channelSelf: "Own proxy",
+    channelSelf: "XBond proxy",
     channelProxy: "Specific proxy",
     channelProxyUrl: "Proxy URL",
     channelProxyNote:
-      "Every update of this subscription rides this proxy. If it fails, the update errors and the channel stays unchanged.",
+      "All updates use this proxy. If it fails, the update fails.",
     rollback: "Rollback",
-    rollbackDone:
-      "Rolled back to the previous version (source layer; overrides and daemon settings unchanged).",
+    rollbackDone: "Rolled back. Rule overrides and service settings were kept.",
     sourceEdit: "Edit source",
     sourceEditHint:
-      "Raw source editing creates a local copy: it passes the same validation as an update, and automatic updates no longer overwrite it. A manual update (or the resume button) removes the pin.",
-    sourceSaved: "Source replaced and pinned against auto-updates",
-    sourcePinned: "edited · pinned",
-    resumeUpdates: "Resume updates",
+      "Saves a local copy and pauses auto-updates. A manual update or “Resume auto-updates” turns them back on.",
+    sourceSaved: "Source replaced. Auto-updates paused.",
+    sourcePinned: "Edited locally",
+    resumeUpdates: "Resume auto-updates",
     resumeUpdatesDone: "Automatic updates resumed.",
     overrideDns: "DNS override",
     overridePrepend: "Prepended rules",
@@ -482,19 +478,45 @@ const EN = {
       "One sing-box rule JSON object per line. Saved with validation: every referenced outbound is checked, and the override rides along on every update.",
     overrideSaved: "Override saved and applied",
     rename: "Rename",
-    removeConfirm:
-      "Remove this configuration? It cannot be recovered from this device.",
+    removeConfirm: "Remove this configuration permanently?",
     removeActive:
       "Removing the active configuration disconnects the proxy first.",
-    typeXbond: "XBond",
-    typeUniversal: "Universal",
+    typeXbond: "Cloud subscription",
+    typeUniversal: "Imported configuration",
     count_one: "{{count}} subscription",
     count_other: "{{count}} subscriptions",
   },
   settings: {
     title: "Settings",
     preferences: "Appearance & language",
+    generalDesc: "Interface appearance, language, and connection preferences",
     network: "Network & ports",
+    networkDesc:
+      "Mixed proxy port, local network sharing, and terminal environment commands",
+    advanced: "Advanced & Core",
+    advancedDesc:
+      "Core log verbosity, runtime environment, and troubleshooting shortcuts",
+    aboutDesc: "Client version, core status, and open-source details",
+    desktop: {
+      groupTitle: "Desktop Host Behavior",
+      autostart: "Launch on startup",
+      autostartDesc: "Automatically start XBond in background when logging in",
+      closeToTray: "Minimize to tray on close",
+      closeToTrayDesc: "Keep proxy running in background when closing window",
+    },
+    advancedActions: {
+      logLevelDesc:
+        "Verbosity of logs output by the core engine (Debug recommended for troubleshooting)",
+      coreRuntime: "Core Runtime",
+      coreRuntimeDesc:
+        "Current engine, controller endpoint, and daemon connectivity",
+      manageControllers: "Manage Controllers",
+      diagnostics: "Diagnostics",
+      diagnosticsDesc:
+        "Run connectivity, DNS resolution, and environment checks",
+      rules: "Rules",
+      rulesDesc: "Inspect routing rules and policy matching",
+    },
     targetAndCore: "Control Target & Engine",
     targetNotice:
       "Currently controlling an external core. Nodes and rules are read directly from the remote endpoint; local system proxy and TUN do not apply.",
@@ -553,6 +575,11 @@ const EN = {
       localApiRunning: "Running",
       localApiDown: "Unreachable",
       localApiNone: "No local service configured",
+      engine: "Engine",
+      controllerAddress: "Controller address",
+      daemonRunning: "Daemon running",
+      daemonOffline: "Daemon offline",
+      daemonConnecting: "Daemon connecting",
     },
     about: {
       title: "About",
@@ -560,6 +587,7 @@ const EN = {
       coreVersion: "Core version",
       logLevel: "Log level",
       openSource: "Open-source project",
+      docs: "Documentation",
     },
     external: {
       title: "External controller",
@@ -571,6 +599,7 @@ const EN = {
       url: "URL",
       test: "Test connection",
       testOK: "Connection successful",
+      testFailed: "Connection failed. Check the URL and secret.",
       invalidURL: "Enter a valid HTTP or HTTPS controller URL.",
       invalidPortRange: "Use a port between 1 and 65535.",
       invalidPort: "Use an integer from 0 to 65535 (0 disables the listener).",
@@ -659,15 +688,14 @@ const EN = {
     failed: "Sign-in failed",
     serviceExpires: "Expires {{date}}",
     serviceQuotaBlocked: "Quota used up",
-    noService: "No active service — subscribe in the console and resync",
+    noService: "No active service. Check your plan.",
     overviewFailed: "Account status unavailable: {{error}}",
     announcements: "Announcements",
     openConsole: "Open console",
     logout: "Sign out",
-    syncSubscription: "Sync Subscription",
+    syncSubscription: "Update subscription",
     syncSuccess: "Subscription synced from Cloud",
-    cloudDesc:
-      "Sign in with XBond Cloud to automatically sync official subscriptions and routes.",
+    cloudDesc: "Sign in to add your Cloud subscription. Choose when to use it.",
     webModeAccountNote:
       "Running in pure Web dashboard mode. XBond Cloud account is managed via Desktop app.",
   },
