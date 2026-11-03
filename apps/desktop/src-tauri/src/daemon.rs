@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::time::Duration;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LocalAPIConfig {
@@ -81,6 +83,58 @@ fn daemon_alive(addr: &str) -> bool {
     }
 }
 
+/// Serializes daemon (re)starts: the setup hook and the frontend self-heal
+/// both funnel into ensure_daemon, and overlapping calls must not spawn rival
+/// daemons that fight over the state lock — the loser exits with "another
+/// xbond daemon instance owns this state directory", which is how even a
+/// healthy launch can print a lock error.
+static ENSURE_LOCK: Mutex<()> = Mutex::new(());
+
+/// Unix-millis timestamp of the last ensure that ended without a usable
+/// daemon. The frontend self-heal re-invokes ensure_daemon every ~10s while
+/// the status poll fails, so without a cooldown a live daemon holding the
+/// state lock (hung, or mid-shutdown) turns every retry into a doomed spawn
+/// whose stderr spams the console with the lock error. Adoption through the
+/// creds probe is never cooldown-gated — only spawning is.
+static LAST_FAILED_SPAWN: AtomicU64 = AtomicU64::new(0);
+const SPAWN_COOLDOWN_MS: u64 = 30_000;
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn spawn_on_cooldown() -> bool {
+    let last = LAST_FAILED_SPAWN.load(Ordering::Relaxed);
+    last != 0 && now_millis().saturating_sub(last) < SPAWN_COOLDOWN_MS
+}
+
+fn record_failed_spawn() {
+    LAST_FAILED_SPAWN.store(now_millis(), Ordering::Relaxed);
+}
+
+/// The honest tail of ensure_daemon: the daemon writes its credential files
+/// only after the LocalAPI listener is bound (server.go binds before writing
+/// localapi.addr), so a connectable addr is the real "running" signal —
+/// stale files left by a dead daemon always fail the probe and must not be
+/// reported as running.
+fn resolve_config() -> LocalAPIConfig {
+    match read_credentials() {
+        Some((addr, token)) if daemon_alive(&addr) => LocalAPIConfig {
+            addr,
+            token,
+            is_running: true,
+        },
+        _ => LocalAPIConfig {
+            addr: "127.0.0.1:5001".to_string(),
+            token: String::new(),
+            is_running: false,
+        },
+    }
+}
+
 pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
     if let Some((addr, token)) = read_credentials() {
         if daemon_alive(&addr) {
@@ -91,6 +145,13 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
             });
         }
         // Stale files from a dead daemon: fall through and (re)start.
+    }
+
+    // Queue behind an in-flight ensure instead of spawning a rival daemon.
+    let _ensure_guard = ENSURE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+    if spawn_on_cooldown() {
+        return Ok(resolve_config());
     }
 
     // The desktop app and the CLI are peers over one shared xbond daemon; the
@@ -138,15 +199,17 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
         no_window(&mut service_cmd);
         if let Ok(out) = service_cmd.output() {
             if out.status.success() {
-                // Wait up to 3 seconds for credentials to appear
+                // Wait up to 3 seconds for the daemon to publish credentials
                 for _ in 0..15 {
                     std::thread::sleep(Duration::from_millis(200));
                     if let Some((addr, token)) = read_credentials() {
-                        return Ok(LocalAPIConfig {
-                            addr,
-                            token,
-                            is_running: true,
-                        });
+                        if daemon_alive(&addr) {
+                            return Ok(LocalAPIConfig {
+                                addr,
+                                token,
+                                is_running: true,
+                            });
+                        }
                     }
                 }
             }
@@ -159,16 +222,25 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
         no_window(&mut cmd);
 
         match cmd.spawn() {
-            Ok(_) => {
-                // Wait up to 3 seconds for credentials to appear
+            Ok(mut child) => {
+                // Wait up to 3 seconds for credentials, but stop early when
+                // the daemon dies before publishing them: with the state lock
+                // held by a live instance the new process exits within
+                // milliseconds, and polling a doomed spawn only delays the
+                // honest answer.
                 for _ in 0..15 {
                     std::thread::sleep(Duration::from_millis(200));
                     if let Some((addr, token)) = read_credentials() {
-                        return Ok(LocalAPIConfig {
-                            addr,
-                            token,
-                            is_running: true,
-                        });
+                        if daemon_alive(&addr) {
+                            return Ok(LocalAPIConfig {
+                                addr,
+                                token,
+                                is_running: true,
+                            });
+                        }
+                    }
+                    if matches!(child.try_wait(), Ok(Some(_))) {
+                        break;
                     }
                 }
             }
@@ -176,21 +248,14 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
                 eprintln!("[XBond Desktop] Failed to spawn xbond daemon: {e}");
             }
         }
+
+        // The spawn did not produce a usable daemon within this ensure's
+        // window: back off spawning — the frontend self-heal may re-invoke
+        // much sooner than a retry would be worth.
+        record_failed_spawn();
     }
 
-    if let Some((addr, token)) = read_credentials() {
-        Ok(LocalAPIConfig {
-            addr,
-            token,
-            is_running: true,
-        })
-    } else {
-        Ok(LocalAPIConfig {
-            addr: "127.0.0.1:5001".to_string(),
-            token: "".to_string(),
-            is_running: false,
-        })
-    }
+    Ok(resolve_config())
 }
 
 #[tauri::command]
@@ -203,19 +268,7 @@ pub fn get_localapi_config() -> LocalAPIConfig {
     if let Ok(cfg) = ensure_daemon() {
         return cfg;
     }
-    if let Some((addr, token)) = read_credentials() {
-        LocalAPIConfig {
-            addr,
-            token,
-            is_running: true,
-        }
-    } else {
-        LocalAPIConfig {
-            addr: "127.0.0.1:5001".to_string(),
-            token: "".to_string(),
-            is_running: false,
-        }
-    }
+    resolve_config()
 }
 
 #[cfg(test)]

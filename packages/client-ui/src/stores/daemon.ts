@@ -29,13 +29,36 @@ export function useDaemonConnection() {
   const lastReresolveAt = useRef(0);
 
   useEffect(() => {
-    if (!config) {
-      resolveDesktopLocalAPIConfig().then((desktopCfg) => {
-        if (desktopCfg) {
-          setConfig(desktopCfg);
-        }
-        setConfigReady(true);
-      });
+    if (!config && isDesktopApp()) {
+      // The daemon may still be starting, or a live instance may still have
+      // to release the state lock before a spawn can succeed: keep re-reading
+      // the desktop config instead of going offline on the first empty
+      // answer. Fast retries stay in "connecting"; after the fast window the
+      // UI turns "offline" while a slow lane keeps watching for a daemon that
+      // comes up much later (e.g. the shell's spawn backoff succeeding).
+      let cancelled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let attempts = 0;
+      const attempt = () => {
+        attempts += 1;
+        void resolveDesktopLocalAPIConfig().then((desktopCfg) => {
+          if (cancelled) return;
+          if (desktopCfg) {
+            setConfig(desktopCfg);
+            setConfigReady(true);
+          } else {
+            if (attempts >= 15) {
+              setConfigReady(true);
+            }
+            timer = setTimeout(attempt, attempts >= 15 ? 10_000 : 2000);
+          }
+        });
+      };
+      attempt();
+      return () => {
+        cancelled = true;
+        if (timer) clearTimeout(timer);
+      };
     }
   }, [config]);
 
