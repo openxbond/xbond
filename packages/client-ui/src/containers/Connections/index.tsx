@@ -11,7 +11,11 @@ import { Sheet, SheetContent, SheetTitle } from "@components/ui/sheet";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
 import { useObject, useVisible } from "@lib/hook";
-import { useIntersectionObserver, useSyncedRef } from "@react-hookz/web";
+import {
+  useIntersectionObserver,
+  useMediaQuery,
+  useSyncedRef,
+} from "@react-hookz/web";
 import {
   useClient,
   useConnectionStreamReader,
@@ -286,6 +290,9 @@ export default function Connections() {
     ],
     [filters, device],
   );
+  // Below the compact breakpoint the lowest-priority columns step aside so
+  // host, process, chain and both rates stay in view without side-scrolling.
+  const compact = useMediaQuery("(max-width: 767px)");
   const instance = useReactTable({
     data,
     columns,
@@ -295,7 +302,10 @@ export default function Connections() {
     initialState: {
       sorting: [{ id: Columns.Time, desc: false }],
     },
-    state: { columnFilters },
+    state: {
+      columnFilters,
+      columnVisibility: compact ? { sourceIP: false, time: false } : {},
+    },
     columnResizeMode: "onChange",
     enableColumnResizing: true,
   });
@@ -346,8 +356,17 @@ export default function Connections() {
     return (
       <div
         role="columnheader"
+        aria-sort={
+          column.getCanSort()
+            ? column.getIsSorted() === "asc"
+              ? "ascending"
+              : column.getIsSorted() === "desc"
+                ? "descending"
+                : "none"
+            : undefined
+        }
         className={cn(
-          "connections-th table-header relative inline-block h-8 min-w-0 shrink-0 cursor-pointer overflow-hidden px-3.5 text-ellipsis whitespace-nowrap leading-8",
+          "connections-th table-header relative inline-block h-8 min-w-0 shrink-0 overflow-hidden px-3.5 text-ellipsis whitespace-nowrap leading-8",
           alignClass(id),
           isHost && "sticky left-[-0.1px] z-[99]",
           scrolled && isHost && stickyShadow,
@@ -356,14 +375,18 @@ export default function Connections() {
         ref={isHost ? pinRef : undefined}
         key={id}
       >
-        <div onClick={column.getToggleSortingHandler()}>
+        <button
+          type="button"
+          className="cursor-pointer bg-transparent font-[inherit] text-[inherit]"
+          onClick={column.getToggleSortingHandler()}
+        >
           {flexRender(header.column.columnDef.header, header.getContext())}
           {column.getIsSorted() !== false
             ? column.getIsSorted() === "desc"
               ? " ↓"
               : " ↑"
             : null}
-        </div>
+        </button>
         {idx !== headerGroup.headers.length - 1 && (
           <div
             onMouseDown={header.getResizeHandler()}
@@ -408,12 +431,12 @@ export default function Connections() {
             <div
               role="cell"
               className={cn(
-                "connections-block inline-block h-[37px] shrink-0 overflow-hidden px-3.5 text-[13px] leading-9 text-ellipsis whitespace-nowrap border-b border-border text-foreground group-hover:bg-inset",
+                "connections-block inline-block h-[37px] shrink-0 overflow-hidden px-3.5 text-body leading-9 text-ellipsis whitespace-nowrap border-b border-border text-foreground group-hover:bg-inset",
                 alignClass(cell.column.id),
                 isHost && "sticky left-0 z-[998] bg-card",
                 scrolled && isHost && stickyShadow,
                 row.original?.completed && "bg-inset text-muted-foreground",
-                monospace && "font-mono text-[12.5px]",
+                monospace && "font-mono text-label",
               )}
               style={{ flex: `${size} 0 ${size}px` }}
               key={cell.column.id}
@@ -425,6 +448,13 @@ export default function Connections() {
       </div>
     );
   });
+
+  // The dialog states the real scope: active rows only, filtered or all.
+  const targetCount = (
+    closeFiltered
+      ? instance.getFilteredRowModel().rows
+      : instance.getRowModel().rows
+  ).filter((row) => !row.original.completed).length;
 
   return (
     <div className="page connections-page">
@@ -456,15 +486,18 @@ export default function Connections() {
           />
           {t("keepClosed")}
         </label>
-        <Icon
-          className="connections-filter dangerous ml-[15px] cursor-pointer text-destructive"
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t("closeAllTitle")}
+          className="connections-filter ml-[15px] text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={() => {
             setCloseFiltered(false);
             show();
           }}
-          type="close-all"
-          size={20}
-        />
+        >
+          <Icon type="close-all" size={20} />
+        </Button>
       </Header>
       <div className="page-toolbar">
         {(["host", "process", "rule", "chains"] as const).map((key) => (
@@ -587,14 +620,20 @@ export default function Connections() {
             <DialogTitle>{t("closeAllTitle")}</DialogTitle>
           </DialogHeader>
           <div>
-            {closeFiltered ? t("filteredConfirm") : t("closeAllMessage")}
+            {closeFiltered
+              ? t("filteredConfirm", { count: targetCount })
+              : t("closeAllMessage", { count: targetCount })}
           </div>
           <DialogFooter>
             <Button variant="outline" disabled={pending} onClick={hide}>
               {tc("cancel")}
             </Button>
-            <Button disabled={pending} onClick={handleCloseConnections}>
-              {tc("ok")}
+            <Button
+              variant="destructive"
+              disabled={pending}
+              onClick={handleCloseConnections}
+            >
+              {t("closeAllConfirm", { count: targetCount })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -617,12 +656,14 @@ export default function Connections() {
             <SheetTitle className="pl-3 font-bold">
               {t("info.title")}
             </SheetTitle>
-            <Icon
-              type="close"
-              size={16}
-              className="cursor-pointer"
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={tc("close")}
               onClick={() => setDrawerState("visible", false)}
-            />
+            >
+              <Icon type="close" size={16} />
+            </Button>
           </div>
           <ConnectionInfo
             className="mt-3 px-5"

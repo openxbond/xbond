@@ -1,4 +1,4 @@
-import { Header } from "@components";
+import { Button, Header } from "@components";
 import Connections from "@containers/Connections";
 import Logs from "@containers/Logs";
 import { useCapabilities, useStreamReader, useStreamState } from "@stores";
@@ -8,7 +8,7 @@ import type { Snapshot } from "@xbond/client/request";
 import { cn } from "cn";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 export default function Activity() {
   const { t: sb } = useTranslation("sidebar");
@@ -64,19 +64,19 @@ export default function Activity() {
       <dl className="flex flex-wrap gap-x-10 gap-y-7 rounded-card border border-border bg-card p-6 max-md:gap-x-7 max-md:gap-y-[22px]">
         <div className="flex flex-col gap-2.5">
           <dt className="text-xs text-muted-foreground">{ov("upload")}</dt>
-          <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
+          <dd className="text-xl font-medium tabular-nums max-md:text-subtitle">
             {state === "open" ? formatRate(speed.up) : "—"}
           </dd>
         </div>
         <div className="flex flex-col gap-2.5">
           <dt className="text-xs text-muted-foreground">{ov("download")}</dt>
-          <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
+          <dd className="text-xl font-medium tabular-nums max-md:text-subtitle">
             {state === "open" ? formatRate(speed.down) : "—"}
           </dd>
         </div>
         <div className="flex flex-col gap-2.5">
           <dt className="text-xs text-muted-foreground">{sb("connections")}</dt>
-          <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
+          <dd className="text-xl font-medium tabular-nums max-md:text-subtitle">
             {connectionState === "open"
               ? (snapshot?.connections.length ?? "—")
               : "—"}
@@ -84,7 +84,7 @@ export default function Activity() {
         </div>
         <div className="flex flex-col gap-2.5">
           <dt className="text-xs text-muted-foreground">{ov("total")}</dt>
-          <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
+          <dd className="text-xl font-medium tabular-nums max-md:text-subtitle">
             {connectionState === "open" && snapshot
               ? formatTraffic(snapshot.uploadTotal + snapshot.downloadTotal)
               : "—"}
@@ -93,7 +93,7 @@ export default function Activity() {
         {caps.memory && (
           <div className="flex flex-col gap-2.5">
             <dt className="text-xs text-muted-foreground">{ov("memory")}</dt>
-            <dd className="text-xl font-medium tabular-nums max-md:text-[17px]">
+            <dd className="text-xl font-medium tabular-nums max-md:text-subtitle">
               {memoryBytes === null ? "—" : formatTraffic(memoryBytes)}
             </dd>
           </div>
@@ -114,9 +114,9 @@ export default function Activity() {
             aria-selected={activeTab === view}
             tabIndex={activeTab === view ? 0 : -1}
             className={cn(
-              "rounded-lg px-[22px] py-2 text-[13.5px] font-medium transition-colors duration-150 max-md:min-h-11 max-md:flex-1 motion-reduce:transition-none",
+              "rounded-lg px-[22px] py-2 text-body font-medium transition-colors duration-150 max-md:min-h-11 max-md:flex-1 motion-reduce:transition-none",
               activeTab === view
-                ? "bg-brand font-semibold text-brand-foreground shadow-[0_2px_8px_oklch(0.66_0.18_52/32%)]"
+                ? "bg-brand font-semibold text-brand-foreground shadow-brand"
                 : "text-muted-foreground hover:text-foreground",
             )}
             onClick={() => select(view)}
@@ -141,6 +141,14 @@ export default function Activity() {
             {sb(view === "logs" ? "logs" : "connections")}
           </button>
         ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link to="/rules">{sb("rules")}</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/diagnostics">{sb("diagnostics")}</Link>
+        </Button>
       </div>
       <div className="min-w-0 w-full min-h-0 flex-1 [&_[role=tabpanel]]:h-full [&_.page]:p-0 [&_.page]:gap-3 [&_.page]:h-full [&_.page]:min-h-0 [&_.header]:m-0 [&_.header]:flex-wrap [&_.header]:gap-3 [&_.header_h1]:text-base [&_.connections-filter]:max-md:ml-0 [&_.connections-card]:max-md:min-h-[360px] [&_.log-table]:overflow-hidden [&_.log-table]:rounded-xl">
         <div

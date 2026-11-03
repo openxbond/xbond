@@ -133,7 +133,7 @@ export default function Settings() {
             className="flex min-h-11 items-center justify-between gap-3 text-foreground no-underline"
           >
             <div className="flex flex-col gap-0.5">
-              <strong className="text-[13.5px] font-semibold">
+              <strong className="text-body font-semibold">
                 {t("subscriptionsEntry")}
               </strong>
               <span className="text-xs text-muted-foreground">
@@ -183,7 +183,7 @@ export default function Settings() {
           <div className="flex flex-col gap-[18px]">
             {hasLocalAPI && (
               <div className="setting-label-col hidden max-md:flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("takeover.title")}
                 </strong>
                 <div className="mt-2 grid grid-cols-3 gap-2">
@@ -208,10 +208,10 @@ export default function Settings() {
                         }
                         onClick={() => void run(() => setMode({ mode }))}
                       >
-                        <strong className="text-[13px] font-semibold">
+                        <strong className="text-body font-semibold">
                           {c(mode)}
                         </strong>
-                        <span className="text-[11px] leading-[1.3] text-muted-foreground">
+                        <span className="text-label leading-[1.3] text-muted-foreground">
                           {t(`takeover.${mode}Desc` as const)}
                         </span>
                       </button>
@@ -235,9 +235,9 @@ export default function Settings() {
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("takeover.mixedPort")}
                 </strong>
                 <span className="text-xs text-muted-foreground">
@@ -246,7 +246,7 @@ export default function Settings() {
               </div>
               <div className="setting-inline flex items-center gap-2.5">
                 <input
-                  className="h-9 w-[90px] rounded-[6px] border border-border-strong bg-inset px-2.5 text-[13px] text-foreground"
+                  className="h-9 w-[90px] rounded-[6px] border border-border-strong bg-inset px-2.5 text-body text-foreground"
                   aria-label={t("takeover.mixedPort")}
                   type="number"
                   min="0"
@@ -304,9 +304,9 @@ export default function Settings() {
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("takeover.allowLan")}
                 </strong>
                 <span className="text-xs text-muted-foreground">
@@ -333,9 +333,9 @@ export default function Settings() {
               />
             </div>
 
-            <div className="flex flex-col items-stretch gap-2.5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex flex-col items-stretch gap-2.5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("terminalCommand")}
                 </strong>
                 <span className="text-xs text-muted-foreground">
@@ -394,9 +394,9 @@ export default function Settings() {
           </div>
 
           <div className="flex flex-col gap-[18px]">
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("theme")}
                 </strong>
                 <span className="text-xs text-muted-foreground">
@@ -414,9 +414,9 @@ export default function Settings() {
               />
             </div>
 
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("language")}
                 </strong>
                 <span className="text-xs text-muted-foreground">
@@ -424,7 +424,7 @@ export default function Settings() {
                 </span>
               </div>
               <select
-                className="h-9 min-w-[132px] rounded-[6px] border border-border-strong bg-inset px-2.5 text-[13px] text-foreground focus:border-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                className="h-9 min-w-[132px] rounded-[6px] border border-border-strong bg-inset px-2.5 text-body text-foreground focus:border-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                 aria-label={t("language")}
                 value={lang}
                 onChange={(event) => setLang(event.target.value as Lang)}
@@ -437,9 +437,9 @@ export default function Settings() {
               </select>
             </div>
 
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("breakConnections")}
                 </strong>
                 <span className="text-xs text-muted-foreground">
@@ -481,7 +481,7 @@ export default function Settings() {
 
           <div className="flex flex-col gap-[18px]">
             <div className="setting-label-col flex flex-col gap-1">
-              <strong className="text-[13.5px] font-semibold text-foreground">
+              <strong className="text-body font-semibold text-foreground">
                 {t("controller.switchController")}
               </strong>
               <div className="mt-2">
@@ -489,12 +489,12 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 rounded-sm border border-border bg-inset p-3.5 text-[13px]">
+            <div className="flex flex-col gap-2 rounded-sm border border-border bg-inset p-3.5 text-body">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   {t("controller.name")}
                 </span>
-                <strong className="font-mono text-[12.5px]">
+                <strong className="font-mono text-label">
                   {controller.name || (hasLocalAPI ? tc("local") : "—")}
                 </strong>
               </div>
@@ -502,7 +502,7 @@ export default function Settings() {
                 <span className="text-muted-foreground">
                   {t("controller.address")}
                 </span>
-                <strong className="font-mono text-[12.5px]">
+                <strong className="font-mono text-label">
                   {controller.url}
                 </strong>
               </div>
@@ -510,7 +510,7 @@ export default function Settings() {
                 <span className="text-muted-foreground">
                   {t("controller.takeoverType")}
                 </span>
-                <strong className="font-mono text-[12.5px]">
+                <strong className="font-mono text-label">
                   {hasLocalAPI
                     ? t("controller.localDaemon")
                     : t("controller.externalCore")}
@@ -542,9 +542,9 @@ export default function Settings() {
           </div>
 
           <div className="flex flex-col gap-[18px]">
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("about.coreVersion")}
                 </strong>
               </div>
@@ -553,9 +553,9 @@ export default function Settings() {
               </strong>
             </div>
 
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("core.localApi")}
                 </strong>
               </div>
@@ -568,9 +568,9 @@ export default function Settings() {
               </strong>
             </div>
 
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("about.logLevel")}
                 </strong>
               </div>
@@ -616,17 +616,17 @@ export default function Settings() {
           </div>
 
           <div className="flex flex-col gap-[18px]">
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("about.appVersion")}
                 </strong>
               </div>
               <strong className="font-mono text-sm">{DASHBOARD_VERSION}</strong>
             </div>
-            <div className="flex items-center justify-between gap-5 text-[13.5px] max-md:flex-wrap">
+            <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
-                <strong className="text-[13.5px] font-semibold text-foreground">
+                <strong className="text-body font-semibold text-foreground">
                   {t("about.openSource")}
                 </strong>
               </div>

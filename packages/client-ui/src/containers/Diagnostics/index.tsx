@@ -51,10 +51,10 @@ const badgeBase =
 
 /* Latency buckets keep the source palette: light wash + dark text per tier. */
 const badgeClass: Record<string, string> = {
-  good: "bg-[oklch(0.92_0.08_145)] text-[oklch(0.38_0.14_145)]",
-  medium: "bg-[oklch(0.94_0.1_85)] text-[oklch(0.48_0.14_85)]",
-  slow: "bg-[oklch(0.92_0.09_45)] text-[oklch(0.48_0.15_45)]",
-  error: "bg-[oklch(0.92_0.08_25)] text-destructive",
+  good: "bg-latency-good text-latency-good-text",
+  medium: "bg-latency-medium text-latency-medium-text",
+  slow: "bg-latency-slow text-latency-slow-text",
+  error: "bg-latency-failed text-latency-failed-text",
   untested: "bg-transparent text-muted-foreground",
 };
 
@@ -71,12 +71,12 @@ function pingBadge(
   return { cls: "slow", text: `${delay} ms` };
 }
 
-const pillBase = "rounded-[5px] px-[7px] py-0.5 text-[11.5px] font-semibold";
+const pillBase = "rounded-[5px] px-[7px] py-0.5 text-label font-semibold";
 
 const pillClass: Record<string, string> = {
-  pass: "bg-[oklch(0.92_0.08_145)] text-[oklch(0.38_0.14_145)]",
-  warn: "bg-[oklch(0.94_0.1_85)] text-[oklch(0.48_0.14_85)]",
-  fail: "bg-[oklch(0.92_0.08_25)] text-destructive",
+  pass: "bg-latency-good text-latency-good-text",
+  warn: "bg-latency-medium text-latency-medium-text",
+  fail: "bg-latency-failed text-latency-failed-text",
 };
 
 const responseCodes: Record<number, string> = {
@@ -428,7 +428,7 @@ export default function Diagnostics() {
           <label className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
             {t("type")}
             <select
-              className="h-[34px] rounded-sm border border-border bg-card px-3 text-[13px] text-foreground"
+              className="h-[34px] rounded-sm border border-border bg-card px-3 text-body text-foreground"
               value={type}
               disabled={pending}
               onChange={(event) => setType(event.target.value)}
@@ -486,7 +486,7 @@ export default function Diagnostics() {
             </div>
             {dnsResult.dns.Answer?.length ? (
               <div className="mt-4 overflow-x-auto rounded-sm border border-border">
-                <table className="w-full border-collapse text-left text-[13px] [&_td]:border-b [&_td]:border-border [&_td]:px-3.5 [&_td]:py-2.5 [&_th]:border-b [&_th]:border-border [&_th]:bg-inset [&_th]:px-3.5 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground [&_tr:last-child_td]:border-b-0">
+                <table className="w-full border-collapse text-left text-body [&_td]:border-b [&_td]:border-border [&_td]:px-3.5 [&_td]:py-2.5 [&_th]:border-b [&_th]:border-border [&_th]:bg-inset [&_th]:px-3.5 [&_th]:py-2.5 [&_th]:font-semibold [&_th]:text-muted-foreground [&_tr:last-child_td]:border-b-0">
                   <thead>
                     <tr>
                       <th>{t("domain")}</th>
@@ -517,7 +517,7 @@ export default function Diagnostics() {
 
         {caps.flushCache && (
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-            <div className="text-[12.5px] text-muted-foreground">
+            <div className="text-label text-muted-foreground">
               {t("cacheNote")}
             </div>
             <div className="flex gap-2.5">
@@ -578,7 +578,7 @@ export default function Diagnostics() {
             <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
               {/* Box 1: Three-tier status */}
               <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
-                <div className="flex items-center justify-between text-[13.5px] font-semibold">
+                <div className="flex items-center justify-between text-body font-semibold">
                   <span>{t("doctor.threeTier")}</span>
                   <span
                     className={cn(
@@ -594,7 +594,7 @@ export default function Diagnostics() {
                       : t("doctor.coreError")}
                   </span>
                 </div>
-                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-label">
                   <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.takeover")}</span>
                     <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
@@ -632,7 +632,7 @@ export default function Diagnostics() {
 
               {/* Box 2: DNS resolution */}
               <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
-                <div className="flex items-center justify-between text-[13.5px] font-semibold">
+                <div className="flex items-center justify-between text-body font-semibold">
                   <span>{t("doctor.dnsCheck")}</span>
                   <span
                     className={cn(
@@ -647,7 +647,7 @@ export default function Diagnostics() {
                       : t("doctor.dnsError")}
                   </span>
                 </div>
-                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-label">
                   <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.localDNS")}</span>
                     <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
@@ -685,7 +685,7 @@ export default function Diagnostics() {
 
               {/* Box 3: Egress comparison */}
               <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
-                <div className="flex items-center justify-between text-[13.5px] font-semibold">
+                <div className="flex items-center justify-between text-body font-semibold">
                   <span>{t("doctor.egressCompare")}</span>
                   <span
                     className={cn(
@@ -700,7 +700,7 @@ export default function Diagnostics() {
                       : t("doctor.egressBlocked")}
                   </span>
                 </div>
-                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-label">
                   <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.directEgress")}</span>
                     <strong className="font-medium text-foreground [overflow-wrap:anywhere]">
@@ -730,7 +730,7 @@ export default function Diagnostics() {
 
               {/* Box 4: Gateway health */}
               <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-inset p-4">
-                <div className="flex items-center justify-between text-[13.5px] font-semibold">
+                <div className="flex items-center justify-between text-body font-semibold">
                   <span>{t("doctor.gatewayHealth")}</span>
                   <span
                     className={cn(
@@ -745,7 +745,7 @@ export default function Diagnostics() {
                       : t("doctor.gatewayDegraded")}
                   </span>
                 </div>
-                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[12.5px]">
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-label">
                   <li className="flex justify-between gap-2 text-muted-foreground">
                     <span>{t("doctor.primaryServer")}</span>
                     <strong className="max-w-[160px] truncate font-mono text-xs font-medium text-foreground [overflow-wrap:anywhere]">
@@ -776,7 +776,7 @@ export default function Diagnostics() {
               <summary className="mb-2 cursor-pointer text-brand-text">
                 {t("doctor.viewRaw")}
               </summary>
-              <pre className="max-h-60 overflow-auto rounded-sm border border-border bg-inset p-3 font-mono text-[11.5px]">
+              <pre className="max-h-60 overflow-auto rounded-sm border border-border bg-inset p-3 font-mono text-label">
                 {JSON.stringify(doctorReport, null, 2)}
               </pre>
             </details>

@@ -20,13 +20,13 @@ export function Stat({
       className={cn("flex min-w-0 flex-col gap-0.5", className)}
       style={style}
     >
-      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className="text-label text-muted-foreground">{label}</span>
       <strong
         className={cn(
           "tabular-nums",
           size === "sm"
-            ? "text-[12.5px] font-medium text-muted-foreground"
-            : "text-[15px] font-bold text-foreground",
+            ? "text-label font-medium text-muted-foreground"
+            : "text-subtitle font-bold text-foreground",
         )}
       >
         {children}

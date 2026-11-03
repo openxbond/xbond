@@ -73,7 +73,7 @@ function ProxyGroups() {
       <div className="section-heading mb-3.5">
         <h2>{t("groups")}</h2>
       </div>
-      <label className="hidden max-md:mb-4 max-md:flex max-md:flex-col max-md:gap-2 max-md:text-[13px]">
+      <label className="hidden max-md:mb-4 max-md:flex max-md:flex-col max-md:gap-2 max-md:text-body">
         {t("groups")}
         <select
           className="w-full min-h-11 rounded-[10px] border border-border bg-card px-3.5 py-2.5 text-foreground shadow-elevation-card"
@@ -198,7 +198,7 @@ function Proxies() {
             />
             <button
               type="button"
-              className="ml-3 inline-flex items-center gap-1.5 text-[13px] text-brand-text disabled:cursor-not-allowed disabled:opacity-50"
+              className="ml-3 inline-flex items-center gap-1.5 text-body text-brand-text disabled:cursor-not-allowed disabled:opacity-50"
               disabled={progress.running || !testNames.length}
               onClick={() => {
                 void run(testNames);
@@ -285,7 +285,7 @@ function ProxyPage() {
                   <path d="m21 21-4.35-4.35" />
                 </svg>
                 <input
-                  className="h-9 w-full rounded-sm border border-border bg-inset pr-8 pl-[34px] text-[13px] text-foreground transition-all duration-150 focus:border-brand focus:bg-card focus:ring-2 focus:ring-brand-soft focus:outline-none"
+                  className="h-9 w-full rounded-sm border border-border bg-inset pr-8 pl-[34px] text-body text-foreground transition-all duration-150 focus:border-brand focus:bg-card focus:ring-2 focus:ring-brand-soft focus:outline-none"
                   value={search}
                   placeholder={t("searchPlaceholder")}
                   onChange={(e) => setSearch(e.target.value)}
@@ -328,12 +328,12 @@ function ProxyPage() {
                   <Button onClick={cancel}>{t("cancelTest")}</Button>
                 )}
                 {progress.total > 0 && (
-                  <output className="rounded-[6px] bg-inset px-2.5 py-1 text-[12.5px] tabular-nums text-muted-foreground">
+                  <output className="rounded-[6px] bg-inset px-2.5 py-1 text-label tabular-nums text-muted-foreground">
                     {t("progress")} {progress.completed}/{progress.total}
                   </output>
                 )}
                 <details className="relative">
-                  <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[13px] text-muted-foreground transition-all duration-150 select-none hover:bg-inset hover:text-foreground">
+                  <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-body text-muted-foreground transition-all duration-150 select-none hover:bg-inset hover:text-foreground">
                     <svg
                       viewBox="0 0 24 24"
                       width="14"
@@ -354,7 +354,7 @@ function ProxyPage() {
                     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                       <span>{t("testUrl")}</span>
                       <input
-                        className="h-8 rounded-[6px] border border-border bg-inset px-2.5 text-[12.5px] text-foreground"
+                        className="h-8 rounded-[6px] border border-border bg-inset px-2.5 text-label text-foreground"
                         value={data.testURL}
                         onChange={(e) => set("testURL", e.target.value)}
                       />
@@ -362,7 +362,7 @@ function ProxyPage() {
                     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                       <span>{t("timeout")}</span>
                       <input
-                        className="h-8 rounded-[6px] border border-border bg-inset px-2.5 text-[12.5px] text-foreground"
+                        className="h-8 rounded-[6px] border border-border bg-inset px-2.5 text-label text-foreground"
                         value={data.testTimeout}
                         type="number"
                         min={100}
@@ -379,7 +379,7 @@ function ProxyPage() {
 
             <div className="ml-auto flex shrink-0 items-center max-md:ml-0 max-md:w-full">
               <div
-                className="segmented-control max-md:flex max-md:w-full max-md:[&>button]:flex-1 max-md:[&>button]:px-1 max-md:[&>button]:py-2 max-md:[&>button]:text-center max-md:[&>button]:text-[13px] max-md:[&>button]:whitespace-nowrap"
+                className="segmented-control max-md:flex max-md:w-full max-md:[&>button]:flex-1 max-md:[&>button]:px-1 max-md:[&>button]:py-2 max-md:[&>button]:text-center max-md:[&>button]:text-body max-md:[&>button]:whitespace-nowrap"
                 aria-label={tc("routingMode.title")}
               >
                 {(["rule", "global", "direct"] as const).map((mode) => (

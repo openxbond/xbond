@@ -24,10 +24,10 @@ const DELAY_PILL_TONES: Record<DelayTone, string> = {
   builtin:
     "border border-border bg-inset px-[7px] font-medium text-muted-foreground",
   testing: "animate-pulse bg-brand-soft text-brand-text",
-  failed: "bg-[oklch(0.92_0.08_25)] text-destructive",
-  good: "bg-[oklch(0.92_0.08_145)] text-[oklch(0.38_0.14_145)]",
-  medium: "bg-[oklch(0.94_0.1_85)] text-[oklch(0.48_0.14_85)]",
-  slow: "bg-[oklch(0.92_0.09_45)] text-[oklch(0.48_0.15_45)]",
+  failed: "bg-latency-failed text-latency-failed-text",
+  good: "bg-latency-good text-latency-good-text",
+  medium: "bg-latency-medium text-latency-medium-text",
+  slow: "bg-latency-slow text-latency-slow-text",
   untested: "bg-transparent text-muted-foreground",
 };
 
@@ -167,14 +167,14 @@ export function Group({
             <h3 className="m-0 text-base font-semibold text-foreground">
               {config.name}
             </h3>
-            <span className="rounded-[4px] bg-inset px-1.5 py-px text-[11px] font-semibold text-muted-foreground">
+            <span className="rounded-[4px] bg-inset px-1.5 py-px text-label font-semibold text-muted-foreground">
               {config.type}
             </span>
-            <span className="text-[11.5px] text-muted-foreground">
+            <span className="text-label text-muted-foreground">
               {t("groupMembers", { count: config.all.length })}
             </span>
           </div>
-          <div className="max-w-[500px] truncate text-xs text-muted-foreground max-md:text-[11.5px] max-md:leading-[1.4]">
+          <div className="max-w-[500px] truncate text-xs text-muted-foreground max-md:text-label max-md:leading-[1.4]">
             <StrategyPath path={path} />
           </div>
         </div>
@@ -189,7 +189,7 @@ export function Group({
             <input
               ref={filterRef}
               type="text"
-              className="h-[30px] w-[180px] rounded-sm border border-border bg-inset px-2.5 text-[12.5px] text-foreground outline-none placeholder:text-muted-foreground focus:border-brand max-md:min-h-10 max-md:w-[140px]"
+              className="h-[30px] w-[180px] rounded-sm border border-border bg-inset px-2.5 text-label text-foreground outline-none placeholder:text-muted-foreground focus:border-brand max-md:min-h-10 max-md:w-[140px]"
               placeholder={t("filterNodes")}
               aria-label={t("filterNodes")}
               value={filter}
@@ -300,7 +300,7 @@ export function Group({
                 </svg>
               ) : (
                 <span
-                  className="text-[11px] font-bold tracking-[0.02em]"
+                  className="text-label font-bold tracking-[0.02em]"
                   aria-hidden="true"
                 >
                   AZ
@@ -340,7 +340,7 @@ export function Group({
       {(pending || selectionStatus !== "idle") && (
         <p
           className={cn(
-            "m-0 rounded-[6px] bg-inset px-3 py-2 text-[12.5px] text-success-text",
+            "m-0 rounded-[6px] bg-inset px-3 py-2 text-label text-success-text",
             selectionStatus === "failed" &&
               "bg-[oklch(0.92_0.08_25)] text-[var(--destructive-text)]",
             selectionStatus === "partial" && "text-warning-text",
@@ -416,7 +416,7 @@ export function Group({
             >
               <span
                 className={cn(
-                  "inline-block rounded-[4px] px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap tabular-nums",
+                  "inline-block rounded-[4px] px-1.5 py-0.5 text-label font-semibold whitespace-nowrap tabular-nums",
                   DELAY_PILL_TONES[delayTone],
                 )}
               >

@@ -139,12 +139,12 @@ export default function ExternalController({
           <DialogTitle>{t("external.title")}</DialogTitle>
         </DialogHeader>
         <div>
-          <p className="mb-5 text-[13px] leading-[1.6] text-muted-foreground">
+          <p className="mb-5 text-body leading-[1.6] text-muted-foreground">
             {t("external.note")}
           </p>
           <div className="flex flex-col gap-4">
             <label className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3">
-              <span className="text-[13px] font-medium leading-[34px] text-muted-foreground">
+              <span className="text-body font-medium leading-[34px] text-muted-foreground">
                 {t("external.name")}
               </span>
               <Input
@@ -155,7 +155,7 @@ export default function ExternalController({
               />
             </label>
             <label className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3">
-              <span className="text-[13px] font-medium leading-[34px] text-muted-foreground">
+              <span className="text-body font-medium leading-[34px] text-muted-foreground">
                 {t("external.url")}
               </span>
               <div className="flex min-w-0 flex-col gap-1.5">
@@ -186,7 +186,7 @@ export default function ExternalController({
               </div>
             </label>
             <label className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3">
-              <span className="text-[13px] font-medium leading-[34px] text-muted-foreground">
+              <span className="text-body font-medium leading-[34px] text-muted-foreground">
                 {t("external.secret")}
               </span>
               <div className="flex min-w-0 items-center gap-2.5">
@@ -201,7 +201,7 @@ export default function ExternalController({
                   }}
                 />
                 <Button
-                  className="h-[34px] shrink-0 px-3.5 text-[13px]"
+                  className="h-[34px] shrink-0 px-3.5 text-body"
                   disabled={pending}
                   onClick={test}
                 >
@@ -246,7 +246,7 @@ export default function ExternalController({
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {t("external.allowInsecure")}
                     </span>
-                    <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap rounded-[6px] border border-border bg-inset px-2.5 py-1.5 font-mono text-[11px] text-foreground select-all">
+                    <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap rounded-[6px] border border-border bg-inset px-2.5 py-1.5 font-mono text-label text-foreground select-all">
                       {insecureURL}
                     </code>
                     <CopyButton

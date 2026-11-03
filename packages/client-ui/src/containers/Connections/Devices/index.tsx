@@ -19,7 +19,7 @@ export function Devices(props: DevicesProps) {
   // only apply to unselected ones, matching the old cascade order.
   const itemClass = (selected: boolean) =>
     cn(
-      "connections-devices-item mb-2 mr-2 cursor-pointer rounded-full border bg-inset px-3 py-1 text-[12.5px] leading-[18px] tabular-nums transition-colors duration-[120ms]",
+      "connections-devices-item mb-2 mr-2 cursor-pointer rounded-full border bg-inset px-3 py-1 text-label leading-[18px] tabular-nums transition-colors duration-[120ms]",
       selected
         ? "border-brand bg-brand-soft font-medium text-brand-text"
         : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
@@ -27,20 +27,24 @@ export function Devices(props: DevicesProps) {
 
   return (
     <div className={cn("flex flex-wrap px-1", className)} style={style}>
-      <div
+      <button
+        type="button"
         className={itemClass(props.selected === "")}
+        aria-pressed={props.selected === ""}
         onClick={() => handleSelected("")}
       >
         {t("filterAll")}
-      </div>
+      </button>
       {props.devices.map((device) => (
-        <div
+        <button
+          type="button"
           key={device.label}
           className={itemClass(props.selected === device.label)}
+          aria-pressed={props.selected === device.label}
           onClick={() => handleSelected(device.label)}
         >
           {device.label} ({device.number})
-        </div>
+        </button>
       ))}
     </div>
   );

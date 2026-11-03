@@ -46,9 +46,9 @@ export function Segmented<T extends string>({
             key={option.value}
             aria-pressed={value === option.value}
             className={cn(
-              "min-w-0 cursor-pointer rounded-[10px] px-[18px] py-2 text-[13px] whitespace-nowrap transition-colors duration-150 motion-reduce:transition-none",
+              "min-w-0 cursor-pointer rounded-[9px] px-4 py-[7px] text-body whitespace-nowrap transition-colors duration-150 motion-reduce:transition-none",
               value === option.value
-                ? "bg-brand font-semibold text-brand-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,var(--card)_35%,transparent),0_2px_6px_oklch(0.66_0.18_52/32%)]"
+                ? "bg-brand font-semibold text-brand-foreground shadow-brand"
                 : "bg-transparent text-foreground/72 hover:text-foreground",
             )}
             disabled={isDisabled}

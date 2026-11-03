@@ -249,7 +249,7 @@ export default function Subscriptions() {
               <Link
                 to={link({ track: "xbond" })}
                 className={cn(
-                  "rounded-[6px] px-3.5 py-1.5 text-[13px] font-medium no-underline transition-all duration-150 motion-reduce:transition-none",
+                  "rounded-[6px] px-3.5 py-1.5 text-body font-medium no-underline transition-all duration-150 motion-reduce:transition-none",
                   track === "xbond"
                     ? "bg-brand-soft font-semibold text-brand-text"
                     : "text-muted-foreground hover:bg-inset hover:text-foreground",
@@ -261,7 +261,7 @@ export default function Subscriptions() {
               <Link
                 to={link({ track: "universal" })}
                 className={cn(
-                  "rounded-[6px] px-3.5 py-1.5 text-[13px] font-medium no-underline transition-all duration-150 motion-reduce:transition-none",
+                  "rounded-[6px] px-3.5 py-1.5 text-body font-medium no-underline transition-all duration-150 motion-reduce:transition-none",
                   track === "universal"
                     ? "bg-brand-soft font-semibold text-brand-text"
                     : "text-muted-foreground hover:bg-inset hover:text-foreground",
@@ -331,10 +331,10 @@ export default function Subscriptions() {
             {importFeedback !== "idle" && (
               <div
                 className={cn(
-                  "mt-3.5 flex items-center rounded-sm border px-3.5 py-2.5 text-[13px]",
+                  "mt-3.5 flex items-center rounded-sm border px-3.5 py-2.5 text-body",
                   importFeedback === "success"
-                    ? "border-[oklch(0.54_0.16_153/25%)] bg-[oklch(0.54_0.16_153/10%)] text-success-text"
-                    : "border-[oklch(0.57_0.22_26/25%)] bg-[oklch(0.57_0.22_26/10%)] text-destructive-text",
+                    ? "border-success/25 bg-success/10 text-success-text"
+                    : "border-destructive/25 bg-destructive/10 text-destructive-text",
                 )}
                 role={importFeedback === "failed" ? "alert" : "status"}
               >
@@ -383,22 +383,22 @@ export default function Subscriptions() {
                     >
                       <div className="mb-3.5 flex items-start justify-between gap-2.5">
                         <div className="flex flex-col gap-1">
-                          <h3 className="m-0 text-[15px] font-[650] text-foreground">
+                          <h3 className="m-0 text-subtitle font-[650] text-foreground">
                             {sub.name}
                           </h3>
                           <div className="flex items-center gap-1.5">
-                            <span className="rounded-[4px] bg-inset px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            <span className="rounded-[4px] bg-inset px-2 py-0.5 text-label font-medium text-muted-foreground">
                               {sub.type === "xbond"
                                 ? t("typeXbond")
                                 : t("typeUniversal")}
                             </span>
                             {isActive && (
-                              <span className="rounded-[4px] bg-brand px-2 py-0.5 text-[11px] font-semibold text-brand-foreground">
+                              <span className="rounded-[4px] bg-brand px-2 py-0.5 text-label font-semibold text-brand-foreground">
                                 {t("active")}
                               </span>
                             )}
                             {sub.sourcePinned && (
-                              <span className="rounded-[4px] bg-brand px-2 py-0.5 text-[11px] font-semibold text-warning">
+                              <span className="rounded-[4px] bg-brand px-2 py-0.5 text-label font-semibold text-warning">
                                 {t("sourcePinned")}
                               </span>
                             )}
@@ -442,7 +442,7 @@ export default function Subscriptions() {
                           </p>
                         )}
 
-                        <dl className="m-0 flex flex-col gap-1 text-[11px]">
+                        <dl className="m-0 flex flex-col gap-1 text-label">
                           {sub.expire > 0 && (
                             <div className="flex justify-between gap-2">
                               <dt className="text-muted-foreground">
@@ -678,7 +678,7 @@ export default function Subscriptions() {
                 {t("sourceEditHint")}
               </p>
               <textarea
-                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
+                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-body leading-normal text-foreground"
                 rows={16}
                 value={editorContent}
                 onChange={(event) => setEditorContent(event.target.value)}
@@ -769,7 +769,7 @@ export default function Subscriptions() {
             <label>
               {t("overridePrepend")}
               <textarea
-                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
+                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-body leading-normal text-foreground"
                 rows={4}
                 value={overridePrepend}
                 onChange={(event) => setOverridePrepend(event.target.value)}
@@ -779,7 +779,7 @@ export default function Subscriptions() {
             <label>
               {t("overrideAppend")}
               <textarea
-                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
+                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-body leading-normal text-foreground"
                 rows={4}
                 value={overrideAppend}
                 onChange={(event) => setOverrideAppend(event.target.value)}
@@ -789,7 +789,7 @@ export default function Subscriptions() {
             <label>
               {t("overrideDns")}
               <textarea
-                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
+                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-body leading-normal text-foreground"
                 rows={4}
                 value={overrideDns}
                 onChange={(event) => setOverrideDns(event.target.value)}

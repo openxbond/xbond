@@ -28,7 +28,7 @@ export function Provider(props: ProvidersProps) {
   }
 
   return (
-    <div className="rule-provider relative flex flex-col px-5 py-4 text-[15px] text-foreground">
+    <div className="rule-provider relative flex flex-col px-5 py-4 text-subtitle text-foreground">
       <div className="rule-provider-header flex items-center justify-between max-md:flex-col max-md:items-start">
         <div className="rule-provider-header-part flex items-center max-md:my-1.5">
           <span className="rule-provider-name mr-1.5 w-[120px] overflow-hidden text-ellipsis whitespace-nowrap">
@@ -36,11 +36,11 @@ export function Provider(props: ProvidersProps) {
           </span>
           <Tag>{provider.vehicleType}</Tag>
           <Tag>{provider.behavior}</Tag>
-          <span className="rule-provider-update text-[13px] leading-[14px] text-muted-foreground tabular-nums">{`${t("ruleCount")}: ${provider.ruleCount}`}</span>
+          <span className="rule-provider-update text-body leading-[14px] text-muted-foreground tabular-nums">{`${t("ruleCount")}: ${provider.ruleCount}`}</span>
         </div>
         <div className="rule-provider-header-part flex items-center max-md:my-1.5">
           {provider.updatedAt && (
-            <span className="rule-provider-update text-[13px] leading-[14px] text-muted-foreground tabular-nums">{`${t("providerUpdateTime")}: ${fromNow(new Date(provider.updatedAt), lang)}`}</span>
+            <span className="rule-provider-update text-body leading-[14px] text-muted-foreground tabular-nums">{`${t("providerUpdateTime")}: ${fromNow(new Date(provider.updatedAt), lang)}`}</span>
           )}
           {visible ? (
             <Spinner className="ml-5 size-[18px] motion-reduce:animate-none" />

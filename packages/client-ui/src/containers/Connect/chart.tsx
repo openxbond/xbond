@@ -29,7 +29,7 @@ function Legend({
         {uploadLabel}
       </span>
       {peak && (
-        <span className="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground">
+        <span className="ml-auto font-mono text-label tabular-nums text-muted-foreground">
           {peak}
         </span>
       )}
@@ -57,11 +57,11 @@ export function TrafficChart({
     return (
       <div className="flex min-w-0 flex-1 flex-col gap-2 max-md:hidden">
         <Legend downloadLabel={downloadLabel} uploadLabel={uploadLabel} />
-        <p className="grid min-h-[120px] flex-1 place-items-center text-[12.5px] text-muted-foreground">
+        <p className="grid min-h-[120px] flex-1 place-items-center text-label text-muted-foreground">
           {empty}
         </p>
         <span
-          className="self-end text-[11px] text-muted-foreground"
+          className="self-end text-label text-muted-foreground"
           aria-hidden="true"
         >
           {windowLabel}
@@ -148,13 +148,13 @@ export function TrafficChart({
             className="fill-none stroke-muted-foreground opacity-70 [stroke-linejoin:round] [stroke-width:1.4] [vector-effect:non-scaling-stroke]"
           />
         </svg>
-        <span
-          className="self-end text-[11px] text-muted-foreground"
-          aria-hidden="true"
-        >
-          {windowLabel}
-        </span>
       </div>
+      <span
+        className="self-end text-label text-muted-foreground"
+        aria-hidden="true"
+      >
+        {windowLabel}
+      </span>
     </div>
   );
 }

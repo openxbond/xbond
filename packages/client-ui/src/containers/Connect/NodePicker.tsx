@@ -116,7 +116,7 @@ export function NodePicker({
             </SheetTitle>
             <button
               type="button"
-              className="cursor-pointer rounded-sm px-1.5 py-1 text-[13px] font-semibold text-brand-text"
+              className="cursor-pointer rounded-sm px-1.5 py-1 text-body font-semibold text-brand-text"
               onClick={onClose}
               aria-label={tc("close")}
             >
@@ -132,7 +132,7 @@ export function NodePicker({
                   key={item.name}
                   aria-pressed={pickerGroup?.name === item.name}
                   className={cn(
-                    "max-w-full cursor-pointer truncate rounded-full border border-border bg-inset px-3 py-1.5 text-[12.5px] text-muted-foreground",
+                    "max-w-full cursor-pointer truncate rounded-full border border-border bg-inset px-3 py-1.5 text-label text-muted-foreground",
                     pickerGroup?.name === item.name &&
                       "border-transparent bg-brand-soft font-semibold text-brand-text",
                   )}
@@ -217,7 +217,7 @@ export function NodePicker({
                 {(selection.pending || selection.result !== "idle") && (
                   <span
                     className={cn(
-                      "text-[12.5px]",
+                      "text-label",
                       selection.result === "failed"
                         ? "text-destructive-text"
                         : "text-success-text",
@@ -236,9 +236,7 @@ export function NodePicker({
               </footer>
             </>
           ) : (
-            <p className="text-[13.5px] text-muted-foreground">
-              {t("noGroup")}
-            </p>
+            <p className="text-body text-muted-foreground">{t("noGroup")}</p>
           )}
         </div>
       </SheetContent>

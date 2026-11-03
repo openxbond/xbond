@@ -46,7 +46,7 @@ const cardSurface =
 const orbBase =
   "relative grid size-[124px] max-md:size-24 shrink-0 cursor-pointer place-items-center mt-2.5 mb-1.5 rounded-full focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-8 [transition:transform_var(--duration-fast)_var(--ease-out-expo),box-shadow_var(--duration-base)_var(--ease-out-expo)] motion-reduce:[transition:none] enabled:hover:shadow-[inset_0_0_0_1px_var(--brand),0_10px_28px_-12px_var(--brand-text)] enabled:active:[transform:scale(0.97)]";
 const orbOn =
-  "bg-[image:radial-gradient(circle_at_36%_30%,oklch(0.88_0.14_65)_0%,var(--brand)_60%,var(--brand-strong)_100%)] text-white shadow-[inset_0_2px_3px_rgba(255,255,255,0.65),inset_0_-4px_8px_rgba(0,0,0,0.22),var(--orb-glow)]";
+  "bg-[image:radial-gradient(circle_at_36%_30%,oklch(0.88_0.14_65)_0%,var(--brand)_60%,var(--brand-strong)_100%)] text-brand-foreground shadow-[inset_0_2px_3px_rgba(255,255,255,0.65),inset_0_-4px_8px_rgba(0,0,0,0.22),var(--orb-glow)]";
 const orbOff =
   "border border-border bg-[image:linear-gradient(145deg,#ffffff_0%,var(--surface-inset)_100%)] text-muted-foreground shadow-[inset_0_2px_2px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.04),0_4px_14px_rgba(0,0,0,0.05)]";
 
@@ -187,7 +187,9 @@ export default function Connect() {
     ? running
       ? t("connected")
       : t("stopped")
-    : r(trafficState);
+    : trafficState === "open"
+      ? t("coreReachable")
+      : r(trafficState);
   // 運行時的副行交代接管方式；未運行交代下一步，遠端交代管理歸屬。
   const stateNote = hasLocalAPI
     ? running
@@ -384,7 +386,7 @@ export default function Connect() {
             </button>
           )}
 
-          <h2 className="m-0 text-[26px] font-bold leading-[1.25] tracking-[-0.02em] text-foreground max-md:text-[24px]">
+          <h2 className="m-0 text-display font-bold leading-[1.25] tracking-[-0.02em] text-foreground max-md:text-headline">
             {stateWord}
           </h2>
           <p className="m-0 text-sm text-muted-foreground [overflow-wrap:anywhere]">
@@ -392,7 +394,7 @@ export default function Connect() {
           </p>
           {uptimeClock && (
             <p
-              className="m-0 mt-1 text-[15px] font-medium font-mono tracking-[0.05em] tabular-nums text-muted-foreground max-md:hidden"
+              className="m-0 mt-1 text-subtitle font-medium font-mono tracking-[0.05em] tabular-nums text-muted-foreground max-md:hidden"
               aria-label={t("uptime", { duration: uptimeClock })}
             >
               {uptimeClock}
@@ -401,7 +403,7 @@ export default function Connect() {
           {!hasLocalAPI && (
             <button
               type="button"
-              className="cursor-pointer rounded-sm px-1.5 py-1 text-[13px] font-semibold text-brand-text"
+              className="cursor-pointer rounded-sm px-1.5 py-1 text-body font-semibold text-brand-text"
               onClick={() => setIdentity(false)}
             >
               {t("manageController")}
@@ -451,7 +453,7 @@ export default function Connect() {
             ))}
           </ul>
 
-          <div className="flex items-center gap-2.5 self-stretch mt-4 border-t border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] px-1 pt-4 text-[13px] text-muted-foreground max-md:hidden">
+          <div className="flex items-center gap-2.5 self-stretch mt-4 border-t border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] px-1 pt-4 text-body text-muted-foreground max-md:hidden">
             <span
               className="grid size-8 shrink-0 place-items-center rounded-[11px] bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/55%)]"
               aria-hidden="true"
@@ -477,12 +479,14 @@ export default function Connect() {
                 <b className="font-semibold text-foreground">{sub.name}</b>
               </span>
             ) : (
-              <span className="min-w-0 truncate">{t("noConfig")}</span>
+              <span className="min-w-0 truncate">
+                {hasLocalAPI ? t("noConfig") : t("noConfigRemote")}
+              </span>
             )}
             {hasLocalAPI && (
               <Link
                 to="/subscriptions"
-                className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[13px] font-semibold text-brand-text no-underline hover:underline hover:underline-offset-4"
+                className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-body font-semibold text-brand-text no-underline hover:underline hover:underline-offset-4"
               >
                 {t("manage")}
                 <svg
@@ -511,7 +515,7 @@ export default function Connect() {
             )}
             aria-label={t("currentNode")}
           >
-            <h2 className="text-[15px] font-semibold">{t("currentNode")}</h2>
+            <h2 className="text-subtitle font-semibold">{t("currentNode")}</h2>
             <button
               type="button"
               className="group flex w-full cursor-pointer items-center gap-3.5 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card px-3.5 py-3 text-left text-foreground shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)] [transition:box-shadow_var(--duration-fast)_var(--ease-out-expo),border-color_var(--duration-fast)_var(--ease-out-expo)] motion-reduce:[transition:none] enabled:hover:border-[color:color-mix(in_srgb,var(--border-strong)_80%,transparent)] enabled:hover:shadow-[0_2px_8px_oklch(0.55_0.08_60/0.07)]"
@@ -546,17 +550,17 @@ export default function Connect() {
                 )}
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-[11.5px] text-muted-foreground">
+                <span className="text-label text-muted-foreground">
                   {t("nodeSelection")}
                 </span>
-                <span className="truncate text-[17px] font-[650]">
+                <span className="truncate text-subtitle font-[650]">
                   {group?.now
                     ? nodeFlag
                       ? stripFlagEmoji(group.now)
                       : group.now
                     : t("strategy.noNodeSelected")}
                 </span>
-                <span className="truncate text-[12.5px] tabular-nums text-muted-foreground">
+                <span className="truncate text-label tabular-nums text-muted-foreground">
                   {currentDelay ? (
                     <>
                       <b
@@ -603,16 +607,16 @@ export default function Connect() {
             )}
             aria-label={t("prefs")}
           >
-            <h2 className="text-[15px] font-semibold">{t("prefs")}</h2>
+            <h2 className="text-subtitle font-semibold">{t("prefs")}</h2>
             {hasLocalAPI && (
               <div className="flex flex-col gap-2.5 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card px-4 py-3.5 shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)]">
                 <div className="flex items-center gap-2">
-                  <span className="text-[12.5px] font-semibold text-muted-foreground">
+                  <span className="text-label font-semibold text-muted-foreground">
                     {t("takeoverMode")}
                   </span>
                   <button
                     type="button"
-                    className="ml-auto hidden max-md:inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-[13px] font-semibold text-brand-text"
+                    className="ml-auto hidden max-md:inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-body font-semibold text-brand-text"
                     aria-haspopup="dialog"
                     onClick={() => setTakeoverSheetOpen(true)}
                   >
@@ -661,7 +665,7 @@ export default function Connect() {
               </div>
             )}
             <div className="flex flex-col gap-2.5 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card px-4 py-3.5 shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)]">
-              <span className="text-[12.5px] font-semibold text-muted-foreground">
+              <span className="text-label font-semibold text-muted-foreground">
                 {tc("routingMode.title")}
               </span>
               <Segmented
@@ -674,7 +678,7 @@ export default function Connect() {
               {currentMode === "rule" ||
               currentMode === "global" ||
               currentMode === "direct" ? (
-                <p className="m-0 text-[12.5px] text-muted-foreground">
+                <p className="m-0 text-label text-muted-foreground">
                   {t(`routingHint.${currentMode}`)}
                 </p>
               ) : null}
@@ -689,7 +693,7 @@ export default function Connect() {
           )}
           aria-label={t("trafficStats")}
         >
-          <h2 className="text-[15px] font-semibold">{t("trafficStats")}</h2>
+          <h2 className="text-subtitle font-semibold">{t("trafficStats")}</h2>
           <div className="grid min-h-[150px] grid-cols-[auto_minmax(0,1fr)_auto] items-stretch gap-6 max-md:grid-cols-1 max-md:gap-4">
             <div className="flex flex-col justify-center gap-[18px] pr-1 max-md:flex-row max-md:flex-wrap max-md:justify-start max-md:gap-x-7 max-md:gap-y-3.5">
               <div className="flex flex-col gap-0.5 max-md:flex-row max-md:items-center max-md:gap-3 max-md:flex-1 max-md:min-w-[130px]">
@@ -710,8 +714,8 @@ export default function Connect() {
                     <path d="M12 4v14M6 12l6 6 6-6" />
                   </svg>
                 </div>
-                <div className="max-md:flex max-md:flex-col max-md:gap-px">
-                  <span className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground max-md:hidden">
+                <div className="flex flex-col gap-px">
+                  <span className="inline-flex items-center gap-1.5 text-label text-muted-foreground max-md:hidden">
                     <svg
                       className="inline-block align-middle text-brand max-md:hidden"
                       viewBox="0 0 24 24"
@@ -727,12 +731,12 @@ export default function Connect() {
                     </svg>
                     {t("download")}
                   </span>
-                  <b className="whitespace-nowrap text-[21px] font-[650] tabular-nums">
+                  <b className="whitespace-nowrap text-title font-[650] tabular-nums">
                     {trafficState === "open" && speed
                       ? formatRate(speed.down)
                       : "—"}
                   </b>
-                  <span className="hidden max-md:mt-px max-md:block max-md:text-[11.5px] max-md:text-muted-foreground">
+                  <span className="hidden max-md:mt-px max-md:block max-md:text-label max-md:text-muted-foreground">
                     {t("download")}
                   </span>
                 </div>
@@ -755,8 +759,8 @@ export default function Connect() {
                     <path d="M12 20V6M6 12l6-6 6 6" />
                   </svg>
                 </div>
-                <div className="max-md:flex max-md:flex-col max-md:gap-px">
-                  <span className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground max-md:hidden">
+                <div className="flex flex-col gap-px">
+                  <span className="inline-flex items-center gap-1.5 text-label text-muted-foreground max-md:hidden">
                     <svg
                       className="inline-block align-middle text-brand max-md:hidden"
                       viewBox="0 0 24 24"
@@ -772,12 +776,12 @@ export default function Connect() {
                     </svg>
                     {t("upload")}
                   </span>
-                  <b className="whitespace-nowrap text-[21px] font-[650] tabular-nums">
+                  <b className="whitespace-nowrap text-title font-[650] tabular-nums">
                     {trafficState === "open" && speed
                       ? formatRate(speed.up)
                       : "—"}
                   </b>
-                  <span className="hidden max-md:mt-px max-md:block max-md:text-[11.5px] max-md:text-muted-foreground">
+                  <span className="hidden max-md:mt-px max-md:block max-md:text-label max-md:text-muted-foreground">
                     {t("upload")}
                   </span>
                 </div>
@@ -798,11 +802,11 @@ export default function Connect() {
                 <span className="text-xs text-muted-foreground">
                   {t("sessionTotal")}
                 </span>
-                <b className="text-[19px] font-[650] tabular-nums">
+                <b className="text-title font-[650] tabular-nums">
                   {sessionTotal !== null ? formatTraffic(sessionTotal) : "—"}
                 </b>
                 {connectionState !== "open" && (
-                  <span className="text-[12.5px] text-muted-foreground">
+                  <span className="text-label text-muted-foreground">
                     {r(connectionState)}
                   </span>
                 )}
@@ -813,9 +817,9 @@ export default function Connect() {
                 </span>
                 {sub && quota ? (
                   <>
-                    <b className="text-[19px] font-[650] tabular-nums">
+                    <b className="text-title font-[650] tabular-nums">
                       {formatTraffic(quota.remaining)}{" "}
-                      <i className="text-[13px] font-medium not-italic text-muted-foreground">
+                      <i className="text-body font-medium not-italic text-muted-foreground">
                         / {formatTraffic(sub.total)}
                       </i>
                     </b>
@@ -836,8 +840,12 @@ export default function Connect() {
                     </span>
                   </>
                 ) : (
-                  <span className="text-[12.5px] text-muted-foreground">
-                    {sub ? t("quota.unknown") : t("noConfig")}
+                  <span className="text-label text-muted-foreground">
+                    {sub
+                      ? t("quota.unknown")
+                      : hasLocalAPI
+                        ? t("noConfig")
+                        : t("quotaUnavailable")}
                   </span>
                 )}
               </div>
@@ -845,7 +853,7 @@ export default function Connect() {
           </div>
 
           {/* Mobile-only config row under speeds */}
-          <div className="hidden max-md:mt-3.5 max-md:flex max-md:items-center max-md:gap-2.5 max-md:border-t max-md:border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] max-md:pt-3.5 max-md:text-[13px] max-md:text-muted-foreground">
+          <div className="hidden max-md:mt-3.5 max-md:flex max-md:items-center max-md:gap-2.5 max-md:border-t max-md:border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] max-md:pt-3.5 max-md:text-body max-md:text-muted-foreground">
             <span
               className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-inset text-muted-foreground"
               aria-hidden="true"
@@ -867,7 +875,11 @@ export default function Connect() {
             </span>
             <span className="min-w-0 flex-1 truncate">
               <b className="font-semibold text-foreground">
-                {sub ? sub.name : t("noConfig")}
+                {sub
+                  ? sub.name
+                  : hasLocalAPI
+                    ? t("noConfig")
+                    : t("noConfigRemote")}
               </b>
               {sub && quota && (
                 <span>
@@ -946,7 +958,7 @@ export default function Connect() {
                 </SheetTitle>
                 <button
                   type="button"
-                  className="cursor-pointer rounded-sm px-1.5 py-1 text-[13px] font-semibold text-brand-text"
+                  className="cursor-pointer rounded-sm px-1.5 py-1 text-body font-semibold text-brand-text"
                   onClick={() => setTakeoverSheetOpen(false)}
                   aria-label={tc("close")}
                 >
@@ -971,7 +983,7 @@ export default function Connect() {
                   >
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <b className="text-sm font-semibold">{option.label}</b>
-                      <span className="text-[12.5px] text-muted-foreground">
+                      <span className="text-label text-muted-foreground">
                         {st(`takeover.${option.value}Desc` as const)}
                       </span>
                     </span>

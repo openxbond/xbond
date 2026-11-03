@@ -171,7 +171,7 @@ export default function Onboarding({
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-6">
       <div className="flex flex-col items-center gap-2 text-center">
         <XBondIcon className="size-12 text-foreground" />
-        <h1 className="m-0 text-[22px]">{t("title")}</h1>
+        <h1 className="m-0 text-headline">{t("title")}</h1>
         <p className="m-0 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
@@ -217,7 +217,7 @@ export default function Onboarding({
       {showImport && (
         <div className="flex w-[min(520px,100%)] flex-col items-center gap-3 rounded-card border border-border bg-card p-5 text-left">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <strong className="text-[15px]">{t("importTitle")}</strong>
+            <strong className="text-subtitle">{t("importTitle")}</strong>
             <ButtonSelect<ImportMode>
               value={mode}
               options={IMPORT_MODES.map((entry) => ({
@@ -233,7 +233,7 @@ export default function Onboarding({
 
           {mode === "url" && (
             <input
-              className="w-full rounded-sm border border-border bg-inset px-3 py-2.5 text-[13px] text-foreground"
+              className="w-full rounded-sm border border-border bg-inset px-3 py-2.5 text-body text-foreground"
               placeholder={t("urlPlaceholder")}
               value={url}
               onChange={(event) => setUrl(event.target.value)}
@@ -250,7 +250,7 @@ export default function Onboarding({
               >
                 {t("chooseFile")}
               </Button>
-              <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] text-muted-foreground">
+              <span className="overflow-hidden text-ellipsis whitespace-nowrap text-body text-muted-foreground">
                 {file?.name ?? ""}
               </span>
               <input
@@ -265,7 +265,7 @@ export default function Onboarding({
 
           {mode === "paste" && (
             <textarea
-              className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-[13px] leading-normal text-foreground"
+              className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-body leading-normal text-foreground"
               placeholder={t("pastePlaceholder")}
               value={paste}
               rows={8}
@@ -275,7 +275,7 @@ export default function Onboarding({
           )}
 
           {notice && (
-            <p className="break-all text-[13px] text-[#e5484d]">{notice}</p>
+            <p className="break-all text-body text-[#e5484d]">{notice}</p>
           )}
           {busy && downloaded && (
             <p className="text-xs text-muted-foreground">

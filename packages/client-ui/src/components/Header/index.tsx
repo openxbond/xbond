@@ -20,7 +20,9 @@ export function Header(props: HeaderProps) {
       <h1 className="shrink-0 text-2xl leading-8 font-semibold tracking-normal text-foreground md:text-xl">
         {title}
       </h1>
-      <div className="flex flex-auto items-center justify-end">{children}</div>
+      <div className="flex flex-auto flex-wrap items-center justify-end gap-y-1">
+        {children}
+      </div>
     </header>
   );
 }

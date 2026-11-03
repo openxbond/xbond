@@ -45,13 +45,13 @@ function RuleRow({
           {rule.type}
         </div>
         <div
-          className="payload min-w-0 flex-1 overflow-hidden font-mono text-[13px] text-ellipsis whitespace-nowrap text-foreground"
+          className="payload min-w-0 flex-1 overflow-hidden font-mono text-body text-ellipsis whitespace-nowrap text-foreground"
           title={rule.payload}
         >
           {rule.payload}
         </div>
         <div
-          className="rule-proxy w-56 overflow-hidden text-right text-[12.5px] text-ellipsis whitespace-nowrap text-muted-foreground"
+          className="rule-proxy w-56 overflow-hidden text-right text-label text-ellipsis whitespace-nowrap text-muted-foreground"
           title={rule.proxy}
         >
           {rule.proxy}

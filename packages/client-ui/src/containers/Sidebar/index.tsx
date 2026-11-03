@@ -230,7 +230,7 @@ function NavLink({
         className={cn(
           "no-underline transition-colors duration-[120ms] ease-[var(--ease-out-expo)] motion-reduce:transition-none",
           compact
-            ? "mx-1 flex min-h-[52px] flex-col items-center justify-center gap-[3px] rounded-[20px] px-0 py-1.5 text-[11px] font-medium text-sidebar-foreground-muted"
+            ? "mx-1 flex min-h-[52px] flex-col items-center justify-center gap-[3px] rounded-[20px] px-0 py-1.5 text-label font-medium text-sidebar-foreground-muted"
             : "flex min-h-[46px] items-center gap-[11px] rounded-control px-[13px] py-2.5 text-sm font-medium text-sidebar-foreground-muted",
           isActive
             ? "bg-brand-soft font-semibold text-brand-text"
@@ -274,7 +274,7 @@ export default function Sidebar(props: SidebarProps) {
       <header className="fixed inset-x-0 top-0 z-50 hidden h-[calc(var(--topbar-height)+env(safe-area-inset-top))] items-center gap-2.5 bg-[color-mix(in_srgb,var(--background)_86%,transparent)] pt-[env(safe-area-inset-top)] pr-3.5 pl-3.5 backdrop-blur-[var(--glass-blur)] max-md:flex">
         <div className="flex shrink-0 items-center gap-[7px]">
           <XBondIcon className="size-6" />
-          <span className="text-[17px] font-bold tracking-[-0.02em] text-foreground">
+          <span className="text-subtitle font-bold tracking-[-0.02em] text-foreground">
             XBond
           </span>
         </div>
@@ -294,7 +294,7 @@ export default function Sidebar(props: SidebarProps) {
       >
         <div className="flex items-center gap-2.5 px-[18px] pt-5 pb-3.5">
           <XBondIcon className="size-7 shrink-0" />
-          <span className="text-[19px] font-bold tracking-[-0.02em] text-foreground">
+          <span className="text-title font-bold tracking-[-0.02em] text-foreground">
             XBond
           </span>
         </div>

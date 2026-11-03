@@ -22,6 +22,20 @@
   --strategy-surface-border: var(--border);
   --strategy-surface-inset: var(--surface-inset);
 
+  /* 延遲色階：交通燈狀態自成一族；深淺色各自成對，避免固定淺彩在深色下失配。 */
+  --latency-good-bg: oklch(0.92 0.08 145);
+  --latency-good-text: oklch(0.38 0.14 145);
+  --latency-good-dot: oklch(0.48 0.16 145);
+  --latency-medium-bg: oklch(0.94 0.1 85);
+  --latency-medium-text: oklch(0.48 0.14 85);
+  --latency-medium-dot: oklch(0.58 0.16 85);
+  --latency-slow-bg: oklch(0.92 0.09 45);
+  --latency-slow-text: oklch(0.48 0.15 45);
+  --latency-slow-dot: oklch(0.58 0.17 45);
+  --latency-failed-bg: oklch(0.92 0.08 25);
+  --latency-failed-text: var(--destructive);
+  --latency-failed-dot: var(--destructive);
+
   --radius: 0.75rem;
   --background: oklch(0.975 0.003 90);
   --foreground: oklch(0.145 0 0);
@@ -44,8 +58,8 @@
   --ring: oklch(0.7163 0.1706 53.45);
   --brand: oklch(0.7163 0.1706 53.45);
   --brand-strong: oklch(0.64 0.19 50);
-  --brand-foreground: oklch(0.99 0 0);
-  --brand-text: oklch(0.6 0.18 48);
+  --brand-foreground: oklch(0.187 0 0);
+  --brand-text: oklch(0.55 0.15 45);
   --success: oklch(0.54 0.16 153);
   --success-foreground: oklch(0.985 0 0);
   --success-text: oklch(0.489 0.116 156.7);
@@ -131,7 +145,7 @@
   --ring: oklch(0.7163 0.1706 53.45);
   --brand: oklch(0.7163 0.1706 53.45);
   --brand-strong: oklch(0.66 0.18 52);
-  --brand-foreground: oklch(0.99 0 0);
+  --brand-foreground: oklch(0.187 0 0);
   --brand-text: oklch(0.78 0.13 58);
   --success: oklch(0.72 0.16 150);
   --success-foreground: oklch(0.15 0 0);
@@ -163,6 +177,19 @@
     inset 0 1px 0 oklch(1 0 0 / 9%), 0 6px 16px oklch(0 0 0 / 30%),
     0 20px 48px -12px oklch(0 0 0 / 50%);
   --theme-color: #0a0a0a;
+
+  --latency-good-bg: oklch(0.3 0.06 150);
+  --latency-good-text: oklch(0.8 0.13 150);
+  --latency-good-dot: oklch(0.72 0.15 150);
+  --latency-medium-bg: oklch(0.32 0.07 85);
+  --latency-medium-text: oklch(0.85 0.12 85);
+  --latency-medium-dot: oklch(0.8 0.14 85);
+  --latency-slow-bg: oklch(0.33 0.08 45);
+  --latency-slow-text: oklch(0.82 0.12 45);
+  --latency-slow-dot: oklch(0.78 0.15 45);
+  --latency-failed-bg: oklch(0.3 0.08 25);
+  --latency-failed-text: oklch(0.78 0.13 25);
+  --latency-failed-dot: oklch(0.78 0.13 25);
 
   /* 深色玻璃維持石墨階梯：表面不透明度提高補償對比，形狀與淺色一致。 */
   --glass-bg: color-mix(in srgb, var(--sidebar) 88%, transparent);

@@ -62,7 +62,7 @@ export function ControllerSwitcher({
       <div className="hidden">
         <span>{t("controller")}</span>
         {controllers.length > 1 && (
-          <span className="inline-flex h-[15px] min-w-4 items-center justify-center rounded-[7px] bg-inset px-[5px] font-mono text-[9.5px] leading-none tabular-nums text-muted-foreground">
+          <span className="inline-flex h-[15px] min-w-4 items-center justify-center rounded-[7px] bg-inset px-[5px] font-mono text-2xs leading-none tabular-nums text-muted-foreground">
             {controllers.length}
           </span>
         )}
@@ -105,7 +105,7 @@ export function ControllerSwitcher({
           />
         </span>
         <span className="flex min-w-0 flex-1 flex-row items-center gap-1">
-          <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-[12.5px] font-medium text-foreground">
+          <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-label font-medium text-foreground">
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
               {selected
                 ? isDaemon
@@ -161,13 +161,13 @@ export function ControllerSwitcher({
                 }}
               >
                 <span className="flex min-w-0 flex-1 flex-col gap-px">
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] font-semibold text-foreground">
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap text-label font-semibold text-foreground">
                     {controller.id === DAEMON_CONTROLLER_ID
                       ? "XBond"
                       : controller.name || hostOf(controller.url)}
                   </span>
                   {controller.id !== DAEMON_CONTROLLER_ID && (
-                    <span className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10.5px] text-muted-foreground">
+                    <span className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-2xs text-muted-foreground">
                       {hostOf(controller.url)}
                     </span>
                   )}

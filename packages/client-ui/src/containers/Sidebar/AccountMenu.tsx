@@ -124,7 +124,7 @@ export function AccountMenu({
           aria-hidden="true"
         >
           {signedIn ? (
-            <span className="text-[13px] font-semibold leading-none">
+            <span className="text-body font-semibold leading-none">
               {initial}
             </span>
           ) : (
@@ -143,10 +143,10 @@ export function AccountMenu({
           )}
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-px">
-          <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-sidebar-foreground">
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap text-body font-semibold text-sidebar-foreground">
             {signedIn && name ? name : t("cloudAccount")}
           </span>
-          <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] text-sidebar-foreground-muted">
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap text-label text-sidebar-foreground-muted">
             {signedIn ? t("signedIn") : t("signedOut")}
           </span>
         </span>

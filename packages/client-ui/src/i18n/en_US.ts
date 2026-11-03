@@ -63,6 +63,8 @@ const EN = {
     disconnect: "Disconnect",
     connected: "Proxy running",
     stopped: "Not connected",
+    coreReachable: "Core reachable",
+    quotaUnavailable: "Quota unavailable from this controller",
     port: "Port",
     sysproxy: "System proxy",
     tun: "TUN",
@@ -190,7 +192,7 @@ const EN = {
       download: "Download",
     },
     closeAllTitle: "Close connections",
-    closeAllMessage: "Close all active connections?",
+    closeAllMessage: "Close all {{count}} active connections?",
     filterAll: "All",
     closeFiltered: "Close matching connections",
     filterHost: "Host or IP",
@@ -198,7 +200,8 @@ const EN = {
     filterRule: "Rule",
     filterChain: "Outbound",
     filteredConfirm:
-      "Close all active connections matching the current filters?",
+      "Close {{count}} active connections matching the current filters?",
+    closeAllConfirm: "Close {{count}}",
     retention: "Up to 1000 closed connections are kept for 30 minutes.",
     columns: {
       host: "Host",

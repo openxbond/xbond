@@ -78,6 +78,31 @@
   --color-row-selected: var(--row-selected);
   --color-overlay: var(--overlay);
 
+  /* Type scale (DESIGN.md typography roles + a 10px badge tier). Custom
+     names carry font-size only, so authored line-heights stay intact. */
+  --text-2xs: 0.625rem;
+  --text-label: 0.75rem;
+  --text-body: 0.875rem;
+  --text-subtitle: 1rem;
+  --text-title: 1.25rem;
+  --text-headline: 1.5rem;
+  --text-display: 1.75rem;
+
+  --color-latency-good: var(--latency-good-bg);
+  --color-latency-good-text: var(--latency-good-text);
+  --color-latency-good-dot: var(--latency-good-dot);
+  --color-latency-medium: var(--latency-medium-bg);
+  --color-latency-medium-text: var(--latency-medium-text);
+  --color-latency-medium-dot: var(--latency-medium-dot);
+  --color-latency-slow: var(--latency-slow-bg);
+  --color-latency-slow-text: var(--latency-slow-text);
+  --color-latency-slow-dot: var(--latency-slow-dot);
+  --color-latency-failed: var(--latency-failed-bg);
+  --color-latency-failed-text: var(--latency-failed-text);
+  --color-latency-failed-dot: var(--latency-failed-dot);
+
+  --shadow-brand: 0 1px 4px oklch(0.66 0.18 52 / 35%);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -213,7 +238,7 @@
   .section-link {
     color: var(--brand-text);
     text-decoration: none;
-    font-size: 13px;
+    font-size: var(--text-body);
     font-weight: 600;
   }
 
@@ -250,7 +275,7 @@
     background: transparent;
     color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-body);
     padding: 7px 16px;
     border-radius: 9px;
     cursor: pointer;
@@ -267,7 +292,7 @@
     background: var(--brand);
     color: var(--brand-foreground);
     font-weight: 600;
-    box-shadow: 0 1px 4px oklch(0.66 0.18 52 / 35%);
+    box-shadow: var(--shadow-brand);
   }
 
   /* Empty-state next action: a quiet outlined button, shared by the
@@ -275,7 +300,7 @@
   .empty-state-action {
     margin-top: 10px;
     padding: 5px 14px;
-    font-size: 13px;
+    font-size: var(--text-body);
     font-family: inherit;
     color: var(--foreground);
     background: var(--card);
@@ -315,7 +340,7 @@
      sticky behavior and resizers stay with each table. */
   .table-header {
     min-height: 32px;
-    font-size: 12px;
+    font-size: var(--text-label);
     font-weight: 500;
     color: var(--muted-foreground);
     background: var(--surface-inset);

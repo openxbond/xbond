@@ -20,7 +20,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center px-5 text-center text-[13px] text-muted-foreground select-none",
+        "flex flex-col items-center justify-center px-5 text-center text-body text-muted-foreground select-none",
         className,
       )}
       style={style}

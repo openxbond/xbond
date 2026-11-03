@@ -11,18 +11,18 @@ type BadgeTone = "fast" | "medium" | "slow" | "failed" | "testing" | "untested";
    values are the original SCSS traffic-light washes; the dot gets a stronger
    step of the same hue so it stays legible on the wash. */
 const BADGE_TONES: Record<BadgeTone, string> = {
-  fast: "bg-[oklch(0.92_0.08_145)] text-[oklch(0.38_0.14_145)]",
-  medium: "bg-[oklch(0.94_0.1_85)] text-[oklch(0.48_0.14_85)]",
-  slow: "bg-[oklch(0.92_0.09_45)] text-[oklch(0.48_0.15_45)]",
-  failed: "bg-[oklch(0.92_0.08_25)] text-destructive",
+  fast: "bg-latency-good text-latency-good-text",
+  medium: "bg-latency-medium text-latency-medium-text",
+  slow: "bg-latency-slow text-latency-slow-text",
+  failed: "bg-latency-failed text-latency-failed-text",
   testing: "animate-pulse bg-brand-soft text-brand-text",
   untested: "text-muted-foreground",
 };
 
 const BADGE_DOTS: Record<BadgeTone, string> = {
-  fast: "bg-[oklch(0.48_0.16_145)]",
-  medium: "bg-[oklch(0.58_0.16_85)]",
-  slow: "bg-[oklch(0.58_0.17_45)]",
+  fast: "bg-latency-good-dot",
+  medium: "bg-latency-medium-dot",
+  slow: "bg-latency-slow-dot",
   failed: "bg-current",
   testing: "bg-current",
   untested: "bg-current",
@@ -103,7 +103,7 @@ export function Proxy(props: ProxyProps) {
         <div className="flex flex-wrap items-center gap-1.5">
           <span
             className={cn(
-              "inline-flex items-center rounded-[5px] border border-border bg-inset px-[7px] py-[2.5px] text-[11px] font-bold uppercase leading-[1.2] tracking-[0.04em] text-muted-foreground",
+              "inline-flex items-center rounded-[5px] border border-border bg-inset px-[7px] py-[2.5px] text-label font-bold uppercase leading-[1.2] tracking-[0.04em] text-muted-foreground",
               isFailed && "bg-transparent opacity-65",
               isUntested && "bg-transparent",
             )}
@@ -113,7 +113,7 @@ export function Proxy(props: ProxyProps) {
           {config.udp && (
             <span
               className={cn(
-                "inline-flex items-center rounded-[4px] border border-border bg-inset px-1.5 py-0.5 text-[10px] font-bold leading-[1.2] tracking-[0.02em] text-muted-foreground",
+                "inline-flex items-center rounded-[4px] border border-border bg-inset px-1.5 py-0.5 text-2xs font-bold leading-[1.2] tracking-[0.02em] text-muted-foreground",
                 isFailed && "bg-transparent opacity-65",
                 isUntested && "bg-transparent",
               )}
@@ -179,7 +179,7 @@ export function Proxy(props: ProxyProps) {
       <div className="mt-3 min-w-0">
         <p
           className={cn(
-            "m-0 truncate text-[14.5px] font-semibold leading-[1.35] tracking-[-0.01em] text-foreground",
+            "m-0 truncate text-body font-semibold leading-[1.35] tracking-[-0.01em] text-foreground",
             (isFailed || isUntested) && "text-muted-foreground",
           )}
           title={config.name}

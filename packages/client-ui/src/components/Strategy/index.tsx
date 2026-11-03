@@ -52,14 +52,14 @@ export function StrategyDirectory({
           <span className="flex items-center justify-between gap-2">
             <strong
               className={cn(
-                "overflow-hidden text-[13px] font-semibold text-ellipsis whitespace-nowrap",
+                "overflow-hidden text-body font-semibold text-ellipsis whitespace-nowrap",
                 value === item.name && "font-[650] text-brand-text",
               )}
             >
               {renderNodeTitle(item.name)}
             </strong>
             {item.kind && (
-              <span className="shrink-0 rounded border border-border px-1 py-px text-[10px] text-muted-foreground">
+              <span className="shrink-0 rounded border border-border px-1 py-px text-2xs text-muted-foreground">
                 {item.kind}
               </span>
             )}
@@ -68,7 +68,7 @@ export function StrategyDirectory({
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
               {renderNodeTitle(item.detail || "—")}
             </span>
-            <span className="shrink-0 text-[11px] tabular-nums">
+            <span className="shrink-0 text-label tabular-nums">
               {item.count}
             </span>
           </span>
@@ -148,7 +148,7 @@ export function StrategyChoice({
         >
           {renderNodeTitle(name)}
           {detail && (
-            <small className="mt-1 block text-[11px] font-normal text-muted-foreground">
+            <small className="mt-1 block text-label font-normal text-muted-foreground">
               {detail}
             </small>
           )}
