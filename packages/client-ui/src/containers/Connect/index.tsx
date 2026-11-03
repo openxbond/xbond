@@ -46,7 +46,7 @@ const cardSurface =
 const orbBase =
   "relative grid size-[124px] max-md:size-24 shrink-0 cursor-pointer place-items-center mt-2.5 mb-1.5 rounded-full focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-8 [transition:transform_var(--duration-fast)_var(--ease-out-expo),box-shadow_var(--duration-base)_var(--ease-out-expo)] motion-reduce:[transition:none] enabled:hover:shadow-[inset_0_0_0_1px_var(--brand),0_10px_28px_-12px_var(--brand-text)] enabled:active:[transform:scale(0.97)]";
 const orbOn =
-  "bg-[image:radial-gradient(circle_at_36%_30%,oklch(0.88_0.14_65)_0%,var(--brand)_60%,var(--brand-strong)_100%)] text-brand-foreground shadow-[inset_0_2px_3px_rgba(255,255,255,0.65),inset_0_-4px_8px_rgba(0,0,0,0.22),var(--orb-glow)]";
+  "bg-[image:var(--orb-gradient)] text-brand-foreground shadow-[inset_0_2px_3px_rgba(255,255,255,0.65),inset_0_-4px_8px_rgba(0,0,0,0.22),var(--orb-glow)]";
 const orbOff =
   "border border-border bg-[image:linear-gradient(145deg,#ffffff_0%,var(--surface-inset)_100%)] text-muted-foreground shadow-[inset_0_2px_2px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.04),0_4px_14px_rgba(0,0,0,0.05)]";
 

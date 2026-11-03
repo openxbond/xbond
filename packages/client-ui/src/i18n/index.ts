@@ -116,6 +116,20 @@ void i18next.use(initReactI18next).init({
 });
 
 export function setAppLanguage(lang: Lang) {
+  // The document language and direction follow the interface language, so
+  // screen readers and the Persian RTL layout stop inheriting the host's.
+  const intl = {
+    en_US: "en",
+    zh_CN: "zh-CN",
+    zh_HK: "zh-HK",
+    ko: "ko",
+    fa: "fa",
+  } satisfies Record<Lang, string>;
+  document.documentElement.lang = intl[lang];
+  // The shell is composed LTR (fixed rail, physical margins), so Persian
+  // keeps Unicode bidi inside an LTR frame until the layout migrates to
+  // logical properties.
+  document.documentElement.dir = "ltr";
   void i18next.changeLanguage(lang);
 }
 

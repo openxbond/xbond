@@ -72,6 +72,7 @@ export default function Logs() {
   const [search, setSearch] = useState("");
   const list = useRef<ListImperativeAPI | null>(null);
   const follow = useRef(true);
+  const [following, setFollowing] = useState(true);
   const filtered = useMemo(
     () =>
       logs.filter(
@@ -162,12 +163,15 @@ export default function Logs() {
           onChange={(event) => setSearch(event.target.value)}
           className="min-w-40 flex-1 text-left"
         />
-        <Button onClick={togglePause}>
+        <Button variant="outline" onClick={togglePause}>
           {paused ? t("resume") : t("paused")}
         </Button>
         <Button
+          aria-pressed={following}
+          className="aria-pressed:bg-brand aria-pressed:text-brand-foreground aria-pressed:hover:bg-brand-strong"
           onClick={() => {
             follow.current = true;
+            setFollowing(true);
             if (filtered.length)
               list.current?.scrollToRow({
                 index: filtered.length - 1,
@@ -177,8 +181,14 @@ export default function Logs() {
         >
           {t("follow")}
         </Button>
-        <Button onClick={clear}>{tc("clear")}</Button>
-        <Button disabled={!filtered.length} onClick={download}>
+        <Button variant="outline" onClick={clear}>
+          {tc("clear")}
+        </Button>
+        <Button
+          variant="outline"
+          disabled={!filtered.length}
+          onClick={download}
+        >
           {t("export")}
         </Button>
         <span className="text-xs text-muted-foreground">{t("logLimit")}</span>
@@ -210,9 +220,13 @@ export default function Logs() {
                 }}
                 onScroll={() => {
                   const el = list.current?.element;
-                  if (el)
-                    follow.current =
-                      el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+                  if (!el) return;
+                  const next =
+                    el.scrollHeight - el.scrollTop - el.clientHeight < 90;
+                  if (next !== follow.current) {
+                    follow.current = next;
+                    setFollowing(next);
+                  }
                 }}
               />
             </div>

@@ -615,7 +615,7 @@ export default function Connections() {
           if (!open && !pending) hide();
         }}
       >
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t("closeAllTitle")}</DialogTitle>
           </DialogHeader>

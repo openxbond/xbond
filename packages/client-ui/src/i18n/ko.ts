@@ -286,6 +286,7 @@ const KO = {
     confirmDNS: "코어 DNS 캐시를 지울까요?",
     confirmFakeIP: "FakeIP 매핑을 지울까요? 활성 연결이 끊길 수 있습니다.",
     testNode: "테스트 노드: {{name}}",
+    summary: "{{ok}} 정상 · {{failed}} 실패 · {{pending}} 대기",
     connectivity: {
       title: "웹사이트 연결성",
       testAll: "전체 테스트",

@@ -280,6 +280,7 @@ const CN = {
     confirmDNS: "清理核心 DNS 缓存？",
     confirmFakeIP: "清理 FakeIP 映射？现有连接可能被中断。",
     testNode: "测试节点：{{name}}",
+    summary: "{{ok}} 正常 · {{failed}} 失败 · {{pending}} 待测",
     connectivity: {
       title: "网站连通性",
       testAll: "全部测速",

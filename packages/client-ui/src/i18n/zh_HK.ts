@@ -280,6 +280,7 @@ const HK = {
     confirmDNS: "清理核心 DNS 快取？",
     confirmFakeIP: "清理 FakeIP 對映？現有連線可能被中斷。",
     testNode: "測試節點：{{name}}",
+    summary: "{{ok}} 正常 · {{failed}} 失敗 · {{pending}} 待測",
     connectivity: {
       title: "網站連通性",
       testAll: "全部測速",

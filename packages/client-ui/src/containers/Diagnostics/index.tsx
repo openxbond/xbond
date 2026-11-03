@@ -71,6 +71,22 @@ function pingBadge(
   return { cls: "slow", text: `${delay} ms` };
 }
 
+function tallySites(
+  ids: string[],
+  testing: Record<string, boolean | undefined>,
+  delays: Record<string, number | undefined>,
+) {
+  let ok = 0;
+  let failed = 0;
+  let pending = 0;
+  for (const id of ids) {
+    if (testing[id] || delays[id] === undefined) pending++;
+    else if (delays[id] < 0) failed++;
+    else ok++;
+  }
+  return { ok, failed, pending };
+}
+
 const pillBase = "rounded-[5px] px-[7px] py-0.5 text-label font-semibold";
 
 const pillClass: Record<string, string> = {
@@ -253,6 +269,18 @@ export default function Diagnostics() {
             {t("connectivity.title")}
           </h2>
           <div className="flex items-center gap-2.5">
+            {(() => {
+              const tally = tallySites(
+                DEFAULT_SITES.map((site) => site.id),
+                siteTesting,
+                siteDelays,
+              );
+              return tally.ok + tally.failed > 0 ? (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {t("summary", tally)}
+                </span>
+              ) : null;
+            })()}
             <span className="text-xs text-muted-foreground">
               {t("testNode", { name: targetProxy })}
             </span>
@@ -292,10 +320,15 @@ export default function Diagnostics() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
-                  <span className="max-w-[140px] truncate font-mono text-xs text-muted-foreground">
+                  <span
+                    className="max-w-[140px] truncate font-mono text-xs text-muted-foreground"
+                    title={site.url}
+                  >
                     {site.url.replace(/^https?:\/\//, "")}
                   </span>
                   <Button
+                    variant="outline"
+                    size="sm"
                     disabled={!!siteTesting[site.id]}
                     onClick={() => void testSite(site)}
                   >
@@ -327,6 +360,18 @@ export default function Diagnostics() {
             {t("stream.title")}
           </h2>
           <div className="flex items-center gap-2.5">
+            {(() => {
+              const tally = tallySites(
+                STREAM_SERVICES.map((site) => site.id),
+                siteTesting,
+                siteDelays,
+              );
+              return tally.ok + tally.failed > 0 ? (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {t("summary", tally)}
+                </span>
+              ) : null;
+            })()}
             <span className="text-xs text-muted-foreground">
               {t("testNode", { name: targetProxy })}
             </span>
@@ -366,10 +411,15 @@ export default function Diagnostics() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
-                  <span className="max-w-[140px] truncate font-mono text-xs text-muted-foreground">
+                  <span
+                    className="max-w-[140px] truncate font-mono text-xs text-muted-foreground"
+                    title={site.url}
+                  >
                     {site.url.replace(/^https?:\/\//, "")}
                   </span>
                   <Button
+                    variant="outline"
+                    size="sm"
                     disabled={!!siteTesting[site.id]}
                     onClick={() => void testSite(site)}
                   >
@@ -794,7 +844,7 @@ export default function Diagnostics() {
           if (!open && !pending) setClear(null);
         }}
       >
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t("cache")}</DialogTitle>
           </DialogHeader>

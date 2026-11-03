@@ -286,6 +286,7 @@ const FA = {
     confirmDNS: "حافظه نهان DNS هسته پاک شود؟",
     confirmFakeIP: "نگاشت‌های FakeIP پاک شوند؟ اتصال‌های فعال ممکن است قطع شوند.",
     testNode: "گره تست: {{name}}",
+    summary: "{{ok}} سالم · {{failed}} ناموفق · {{pending}} در انتظار",
     connectivity: {
       title: "اتصال وب‌سایت‌ها",
       testAll: "تست همه",

@@ -40,6 +40,7 @@ export function AccountMenu({
   variant?: "row" | "avatar";
 }) {
   const { t } = useTranslation("account");
+  const { t: tc } = useTranslation("common");
   const { account } = useAccount();
   const [open, setOpen] = useState(false);
   const signedIn = account?.status === "signed_in";
@@ -98,7 +99,7 @@ export function AccountMenu({
             if (!next) setOpen(false);
           }}
         >
-          <DialogContent className="sm:max-w-[400px]">
+          <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle>{t("title")}</DialogTitle>
             </DialogHeader>
@@ -143,7 +144,10 @@ export function AccountMenu({
           )}
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-px">
-          <span className="overflow-hidden text-ellipsis whitespace-nowrap text-body font-semibold text-sidebar-foreground">
+          <span
+            className="overflow-hidden text-ellipsis whitespace-nowrap text-body font-semibold text-sidebar-foreground"
+            title={signedIn && name ? name : t("cloudAccount")}
+          >
             {signedIn && name ? name : t("cloudAccount")}
           </span>
           <span className="overflow-hidden text-ellipsis whitespace-nowrap text-label text-sidebar-foreground-muted">
@@ -159,7 +163,7 @@ export function AccountMenu({
           if (!next) setOpen(false);
         }}
       >
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t("title")}</DialogTitle>
           </DialogHeader>

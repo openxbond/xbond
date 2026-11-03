@@ -41,6 +41,9 @@ function RuleRow({
       style={style}
     >
       <div className="rule-row flex h-full items-center gap-3 px-4">
+        <div className="w-10 shrink-0 text-right text-label tabular-nums text-muted-foreground">
+          {index + 1}
+        </div>
         <div className="rule-type w-44 overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap text-muted-foreground">
           {rule.type}
         </div>
@@ -86,6 +89,7 @@ export default function Rules() {
       <RuleProviders />
       <Card className="flex flex-1 flex-col overflow-hidden p-0 focus:outline-none">
         <div className="table-header rule-header flex shrink-0 items-center gap-3 px-4">
+          <div className="w-10 shrink-0 text-right">#</div>
           <div className="w-44">{t("columns.type")}</div>
           <div className="flex-1">{t("columns.payload")}</div>
           <div className="w-56 text-right">{t("columns.proxy")}</div>

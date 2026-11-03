@@ -134,7 +134,10 @@ export default function ExternalController({
         if (!open && !pending) close();
       }}
     >
-      <DialogContent className="max-w-[calc(100vw-32px)] sm:max-w-[500px]">
+      <DialogContent
+        closeLabel={tc("close")}
+        className="max-w-[calc(100vw-32px)] sm:max-w-[500px]"
+      >
         <DialogHeader>
           <DialogTitle>{t("external.title")}</DialogTitle>
         </DialogHeader>

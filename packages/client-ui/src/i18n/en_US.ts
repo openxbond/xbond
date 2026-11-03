@@ -287,6 +287,7 @@ const EN = {
     confirmFakeIP:
       "Clear FakeIP mappings? Active connections may be interrupted.",
     testNode: "Testing node: {{name}}",
+    summary: "{{ok}} ok · {{failed}} failed · {{pending}} pending",
     connectivity: {
       title: "Website connectivity",
       testAll: "Test all",

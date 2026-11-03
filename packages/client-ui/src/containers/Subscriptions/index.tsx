@@ -571,7 +571,7 @@ export default function Subscriptions() {
           if (!open && !pending) setRenameId(null);
         }}
       >
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t("rename")}</DialogTitle>
           </DialogHeader>
@@ -622,7 +622,7 @@ export default function Subscriptions() {
           if (!open && !pending) setRemoveId(null);
         }}
       >
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t("remove")}</DialogTitle>
           </DialogHeader>
@@ -668,7 +668,7 @@ export default function Subscriptions() {
           if (!open && !pending) setEditorId(null);
         }}
       >
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t("sourceEdit")}</DialogTitle>
           </DialogHeader>
@@ -712,7 +712,7 @@ export default function Subscriptions() {
           if (!open && !pending) setProxyChannelId(null);
         }}
       >
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t("channelProxy")}</DialogTitle>
           </DialogHeader>
@@ -753,7 +753,7 @@ export default function Subscriptions() {
           if (!open && !pending) setOverrideId(null);
         }}
       >
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>{t("override")}</DialogTitle>
           </DialogHeader>
