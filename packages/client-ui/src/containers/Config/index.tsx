@@ -77,8 +77,32 @@ export default function Config() {
     }
   }
 
+  const isDaemonController = (item?: { id?: string; url?: string } | null) =>
+    Boolean(
+      item &&
+      (item.id === DAEMON_CONTROLLER_ID ||
+        item.id === "default" ||
+        (target.targetKind === "daemon" && item.id === target.id)),
+    );
+
+  const isCloudSub = (
+    sub?: {
+      id?: string;
+      type?: string;
+      kind?: string;
+      accountIssuer?: string;
+    } | null,
+  ) =>
+    Boolean(
+      sub &&
+      (sub.type === "xbond" ||
+        sub.kind === "cloud" ||
+        Boolean(sub.accountIssuer) ||
+        (cloudProfile && sub.id === cloudProfile.id)),
+    );
+
   const controllers = savedControllers
-    .filter((item) => item.id !== DAEMON_CONTROLLER_ID || !supported)
+    .filter((item) => !isDaemonController(item))
     .map((item) =>
       target.targetKind === "controller" && item.id === target.id
         ? { ...target }
@@ -86,12 +110,13 @@ export default function Config() {
     );
   if (
     target.targetKind === "controller" &&
+    !isDaemonController(target) &&
     !controllers.some((item) => item.id === target.id)
   )
     controllers.push({ ...target });
   const defaultItem = supported
     ? activeId
-      ? subscriptions.find((item) => item.id === activeId)?.type === "xbond"
+      ? isCloudSub(subscriptions.find((item) => item.id === activeId))
         ? "cloud"
         : `sub:${activeId}`
       : "cloud"
@@ -100,11 +125,16 @@ export default function Config() {
       : "add-controller";
   const requested = explicit || defaultItem;
   const selected =
-    requested.startsWith("sub:") &&
-    subscriptions.some(
-      (item) => item.id === requested.slice(4) && item.type === "xbond",
-    )
-      ? "cloud"
+    (requested.startsWith("sub:") &&
+      subscriptions.some(
+        (item) => item.id === requested.slice(4) && isCloudSub(item),
+      )) ||
+    (requested.startsWith("controller:") &&
+      isDaemonController({ id: requested.slice(11) }))
+      ? defaultItem.startsWith("controller:") &&
+        isDaemonController({ id: defaultItem.slice(11) })
+        ? "cloud"
+        : defaultItem
       : requested;
   const selectedController = selected.startsWith("controller:")
     ? controllers.find((item) => item.id === selected.slice(11))
@@ -114,13 +144,15 @@ export default function Config() {
     : undefined;
   const filteredSubs = subscriptions.filter(
     (item) =>
-      item.type !== "xbond" &&
+      !isCloudSub(item) &&
       item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
   );
-  const filteredControllers = controllers.filter((item) =>
-    `${item.name} ${item.url}`
-      .toLocaleLowerCase()
-      .includes(search.toLocaleLowerCase()),
+  const filteredControllers = controllers.filter(
+    (item) =>
+      !isDaemonController(item) &&
+      `${item.name} ${item.url}`
+        .toLocaleLowerCase()
+        .includes(search.toLocaleLowerCase()),
   );
   function choose(item?: string) {
     setParams((previous) => {

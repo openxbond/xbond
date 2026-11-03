@@ -26,8 +26,32 @@ export function ConfigMenu() {
   const { run, pending } = useAction();
   const [controllers] = useControllers();
 
+  const isDaemonController = (item?: { id?: string; url?: string } | null) =>
+    Boolean(
+      item &&
+      (item.id === DAEMON_CONTROLLER_ID ||
+        item.id === "default" ||
+        (target.targetKind === "daemon" && item.id === target.id)),
+    );
+
+  const isCloudSub = (
+    sub?: {
+      id?: string;
+      type?: string;
+      kind?: string;
+      accountIssuer?: string;
+    } | null,
+  ) =>
+    Boolean(
+      sub &&
+      (sub.type === "xbond" ||
+        sub.kind === "cloud" ||
+        Boolean(sub.accountIssuer) ||
+        (cloudProfile && sub.id === cloudProfile.id)),
+    );
+
   const external = controllers
-    .filter((item) => item.id !== DAEMON_CONTROLLER_ID || !supported)
+    .filter((item) => !isDaemonController(item))
     .map((item) =>
       target.targetKind === "controller" && item.id === target.id
         ? { ...target }
@@ -35,6 +59,7 @@ export function ConfigMenu() {
     );
   if (
     target.targetKind === "controller" &&
+    !isDaemonController(target) &&
     !external.some((item) => item.id === target.id)
   ) {
     external.push({ ...target });
@@ -156,7 +181,7 @@ export function ConfigMenu() {
         {/* Universal Profiles List */}
         {supported &&
           subscriptions
-            .filter((item) => item.type !== "xbond")
+            .filter((item) => !isCloudSub(item))
             .map((item) => {
               const isSubActive = local && activeId === item.id;
               return (
