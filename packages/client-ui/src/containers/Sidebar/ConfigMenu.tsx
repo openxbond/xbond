@@ -14,11 +14,12 @@ import { workspaceLink } from "@xbond/client/workspace";
 import { Check, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export function ConfigMenu() {
   const { t } = useTranslation("configuration");
   const { t: a } = useTranslation("account");
+  const { t: s } = useTranslation("subscriptions");
   const supported = hasDaemonConfig();
   const target = useAPIInfo();
   const { account, cloudProfile, activateCloud } = useAccount();
@@ -67,6 +68,7 @@ export function ConfigMenu() {
 
   const select = useSelectController();
   const location = useLocation();
+  const navigate = useNavigate();
   const root = useRef<HTMLDetailsElement>(null);
 
   const local = target.targetKind === "daemon";
@@ -156,7 +158,9 @@ export function ConfigMenu() {
                   close();
                 });
               } else {
+                // 未登入不是死路：帶用戶到配置頁的 Cloud 詳情登入。
                 close();
+                navigate({ pathname: "/config", search: "?item=cloud" });
               }
             }}
           >
@@ -192,6 +196,7 @@ export function ConfigMenu() {
                   disabled={
                     pending || Boolean(operation) || !item.format || isSubActive
                   }
+                  title={!item.format ? t("notReady") : undefined}
                   onClick={() =>
                     void run(async () => {
                       await selectSub(item.id);
@@ -208,12 +213,13 @@ export function ConfigMenu() {
                       {item.name}
                     </span>
                     <small>
-                      {item.format || "Universal"}
+                      {item.format || s("typeUniversal")}
                       {item.kind === "local"
                         ? ` · ${t("kindLocal")}`
                         : item.kind === "inline"
                           ? ` · ${t("kindInline")}`
                           : ""}
+                      {item.lastErrorMessage ? ` · ${t("syncFailed")}` : ""}
                     </small>
                   </span>
                   {isSubActive && (

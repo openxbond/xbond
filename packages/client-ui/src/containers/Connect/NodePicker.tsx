@@ -226,7 +226,7 @@ export function NodePicker({
                         <button
                           type="button"
                           className={cn(
-                            "flex min-h-12 w-full cursor-pointer items-center gap-2.5 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-foreground enabled:hover:bg-row-hover disabled:cursor-not-allowed transition-colors",
+                            "flex min-h-12 w-full cursor-pointer items-center gap-2.5 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-foreground enabled:hover:bg-row-hover disabled:cursor-not-allowed disabled:opacity-55 transition-colors",
                             selected &&
                               "border-transparent bg-brand-soft font-medium text-brand-text",
                           )}

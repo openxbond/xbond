@@ -90,40 +90,15 @@ export default function AccountPanel() {
         ? 2
         : 1;
 
-  const displayProgress =
-    step === 0
-      ? 25
-      : phase === "exchanging_token"
-        ? 45
-        : phase === "fetching_subscription"
-          ? 60
-          : phase === "syncing_subscription"
-            ? fetchProgress.active && fetchProgress.total > 0
-              ? Math.min(
-                  95,
-                  Math.max(
-                    65,
-                    Math.round(
-                      65 + (fetchProgress.bytes / fetchProgress.total) * 30,
-                    ),
-                  ),
-                )
-              : fetchProgress.active && fetchProgress.bytes > 0
-                ? 80
-                : 72
-            : phase === "loading_account"
-              ? 95
-              : 100;
-
-  const syncPercent =
-    fetchProgress.active && fetchProgress.total > 0
+  // 只有真實位元組樣本才顯示百分比；階段本身由步驟條與文案交代，
+  // 不為填滿進度條發明數字（DESIGN.md：沒有真實進度不畫百分比）。
+  const downloadPercent =
+    fetchProgress.total > 0
       ? Math.min(
           100,
           Math.round((fetchProgress.bytes / fetchProgress.total) * 100),
         )
-      : fetchProgress.active && fetchProgress.bytes > 0
-        ? 75
-        : 40;
+      : null;
 
   const quota = subscriptionQuota(cloudProfile ?? null);
   const failure =
@@ -343,12 +318,16 @@ export default function AccountPanel() {
                 <LoaderCircle className="size-4 animate-spin text-brand" />
                 {phase ? phaseText[phase] : common("loading")}
               </span>
-              <span className="font-mono text-xs font-medium text-muted-foreground">
-                {displayProgress}%
-              </span>
+              {downloadPercent !== null && (
+                <span className="font-mono text-xs font-medium text-muted-foreground tabular-nums">
+                  {downloadPercent}%
+                </span>
+              )}
             </div>
 
-            <Progress value={displayProgress} className="h-2.5 bg-inset" />
+            {downloadPercent !== null && (
+              <Progress value={downloadPercent} className="h-2.5 bg-inset" />
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-muted-foreground">
               <span>{step === 0 ? t("authorizationHint") : t("syncHint")}</span>
@@ -427,14 +406,16 @@ export default function AccountPanel() {
                   {t("syncingProgressTitle")}
                 </span>
                 <span className="font-mono text-xs font-semibold text-brand">
-                  {fetchProgress.total > 0
-                    ? `${syncPercent}%`
+                  {downloadPercent !== null
+                    ? `${downloadPercent}%`
                     : fetchProgress.bytes > 0
                       ? formatTraffic(fetchProgress.bytes)
                       : ""}
                 </span>
               </div>
-              <Progress value={syncPercent} className="h-2" />
+              {downloadPercent !== null && (
+                <Progress value={downloadPercent} className="h-2" />
+              )}
               <p className="text-xs text-muted-foreground">
                 {fetchProgress.total > 0
                   ? t("downloadedTotal", {
