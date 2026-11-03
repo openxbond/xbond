@@ -383,10 +383,14 @@ export default function SubscriptionDetail({
             <>
               <QuotaRing percent={quota.remainingPercent} />
               <div className="flex min-w-0 flex-col gap-2">
-                <Stat label={c("quota.remaining")}>
+                <Stat label={c("quota.remaining")} className="tabular-nums">
                   {formatTraffic(quota.remaining)}
                 </Stat>
-                <Stat size="sm" label={`${c("used")} / ${c("quota.total")}`}>
+                <Stat
+                  size="sm"
+                  label={`${c("used")} / ${c("quota.total")}`}
+                  className="tabular-nums"
+                >
                   {formatTraffic(quota.used)} / {formatTraffic(sub.total)}
                 </Stat>
               </div>
@@ -404,7 +408,7 @@ export default function SubscriptionDetail({
                   <Calendar className="size-3.5" />
                   {c("expiry")}
                 </span>
-                <span className="font-mono font-medium text-foreground">
+                <span className="font-mono font-medium text-foreground tabular-nums">
                   {new Date(sub.expire * 1000).toLocaleDateString(
                     lang.replace("_", "-"),
                   )}
@@ -416,7 +420,7 @@ export default function SubscriptionDetail({
                 <Clock className="size-3.5" />
                 {t("updated")}
               </span>
-              <span className="font-mono font-medium text-foreground">
+              <span className="font-mono font-medium text-foreground tabular-nums">
                 {sub.lastUpdated
                   ? new Date(sub.lastUpdated * 1000).toLocaleString(
                       lang.replace("_", "-"),
@@ -441,7 +445,7 @@ export default function SubscriptionDetail({
         {isRemote && (
           <>
             {/* URL Display with Copy and Edit buttons */}
-            <div className="flex items-center gap-2 rounded-control border border-border bg-inset px-3 py-2">
+            <div className="flex items-center gap-2 rounded-control border border-border/80 bg-surface-inset px-3 py-2">
               <Globe className="size-4 shrink-0 text-muted-foreground" />
               <span className="flex-1 select-all truncate font-mono text-xs text-foreground">
                 {sub.urlOrFile || "—"}
@@ -539,20 +543,22 @@ export default function SubscriptionDetail({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {/* Source Editor */}
-          <div className="flex flex-col justify-between rounded-xl border border-border/70 bg-inset/40 p-4">
+          <div className="flex flex-col justify-between rounded-xl bg-surface-inset/60 p-4 transition-colors hover:bg-surface-inset">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <FileText className="size-4 text-muted-foreground" />
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground shadow-2xs">
+                  <FileText className="size-3.5" />
+                </div>
                 {t("sourceEdit")}
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
                 {t("sourceEditDesc")}
               </p>
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="mt-4 w-full"
+              className="mt-4 w-full bg-card hover:bg-accent"
               disabled={pending || Boolean(operation)}
               onClick={() => void openSourceEditor(sub.id)}
             >
@@ -561,20 +567,22 @@ export default function SubscriptionDetail({
           </div>
 
           {/* Rule Override */}
-          <div className="flex flex-col justify-between rounded-xl border border-border/70 bg-inset/40 p-4">
+          <div className="flex flex-col justify-between rounded-xl bg-surface-inset/60 p-4 transition-colors hover:bg-surface-inset">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <SlidersHorizontal className="size-4 text-muted-foreground" />
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground shadow-2xs">
+                  <SlidersHorizontal className="size-3.5" />
+                </div>
                 {t("override")}
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
                 {t("overrideDesc")}
               </p>
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="mt-4 w-full"
+              className="mt-4 w-full bg-card hover:bg-accent"
               disabled={pending || Boolean(operation)}
               onClick={() => void openOverride(sub.id)}
             >
@@ -583,20 +591,22 @@ export default function SubscriptionDetail({
           </div>
 
           {/* Rollback */}
-          <div className="flex flex-col justify-between rounded-xl border border-border/70 bg-inset/40 p-4">
+          <div className="flex flex-col justify-between rounded-xl bg-surface-inset/60 p-4 transition-colors hover:bg-surface-inset">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <RotateCcw className="size-4 text-muted-foreground" />
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground shadow-2xs">
+                  <RotateCcw className="size-3.5" />
+                </div>
                 {t("rollback")}
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
                 {t("rollbackDesc")}
               </p>
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="mt-4 w-full"
+              className="mt-4 w-full bg-card hover:bg-accent"
               disabled={pending || Boolean(operation)}
               onClick={() => rollback(sub.id)}
             >

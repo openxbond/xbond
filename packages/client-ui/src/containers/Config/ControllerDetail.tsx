@@ -272,7 +272,7 @@ export default function ControllerDetail({
             <h3 className="text-sm font-semibold text-foreground">
               {t("external.url")}
             </h3>
-            <div className="flex items-center gap-2 rounded-control border border-border bg-inset px-3 py-2">
+            <div className="flex items-center gap-2 rounded-control border border-border/80 bg-surface-inset px-3 py-2">
               <Globe className="size-4 shrink-0 text-muted-foreground" />
               <span className="flex-1 select-all truncate font-mono text-xs text-foreground">
                 {controller.url}
@@ -295,15 +295,15 @@ export default function ControllerDetail({
             </div>
 
             <div className="grid gap-3 pt-2 text-xs sm:grid-cols-2">
-              <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+              <div className="flex items-center justify-between rounded-xl bg-surface-inset/70 px-3.5 py-2.5">
                 <span className="text-muted-foreground">
                   {t("about.coreVersion")}
                 </span>
-                <span className="font-mono font-medium text-foreground">
+                <span className="font-mono font-medium text-foreground tabular-nums">
                   {version || c("unverified")}
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+              <div className="flex items-center justify-between rounded-xl bg-surface-inset/70 px-3.5 py-2.5">
                 <span className="text-muted-foreground">
                   {t("external.secret")}
                 </span>

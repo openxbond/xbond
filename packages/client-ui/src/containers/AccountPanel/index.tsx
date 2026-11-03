@@ -19,8 +19,10 @@ import { formatTraffic } from "@xbond/client/helper";
 import { subscriptionQuota } from "@xbond/client/localapi";
 import {
   AlertCircle,
+  Calendar,
   Check,
   ExternalLink,
+  Globe,
   LoaderCircle,
   LogOut,
   RefreshCw,
@@ -32,6 +34,7 @@ import { useTranslation } from "react-i18next";
 export default function AccountPanel() {
   const { t } = useTranslation("account");
   const { t: c } = useTranslation("configuration");
+  const { t: conn } = useTranslation("connect");
   const { t: common } = useTranslation("common");
   const { lang } = useLanguage();
   const { hasDaemon, daemonState, refresh, isLocalTarget } = useLocalAPI();
@@ -152,7 +155,7 @@ export default function AccountPanel() {
   }
 
   return (
-    <div className="config-detail-stack" aria-busy={busy}>
+    <div className="w-full space-y-6" aria-busy={busy}>
       {/* Top Header */}
       <div className="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4">
@@ -488,107 +491,112 @@ export default function AccountPanel() {
             </div>
           )}
 
-          {/* Quota & Plan Overview Grid */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Quota Card */}
-            <div className="flex flex-col justify-between gap-4 rounded-card border bg-card p-5 shadow-elevation-card">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("quotaRemaining")}
+          {/* Quota & Plan Overview Card */}
+          <div className="rounded-card border bg-card p-5 shadow-elevation-card">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">
+                {conn("quota.title")}
               </h3>
-              {quota ? (
-                <div className="flex items-center gap-4">
-                  <QuotaRing percent={quota.remainingPercent} />
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <Stat label={t("quotaRemaining")}>
-                      {formatTraffic(quota.remaining)}
-                    </Stat>
-                    <span className="text-xs text-muted-foreground">
-                      {t("quotaUsed")}: {formatTraffic(quota.used)} /{" "}
-                      {formatTraffic(cloudProfile?.total ?? 0)}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {c("unknownService")}
-                </p>
+              {account.consoleUrl && (
+                <a
+                  className="inline-flex h-7 items-center justify-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  href={account.consoleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink aria-hidden="true" className="size-3" />
+                  {t("openConsole")}
+                </a>
               )}
             </div>
 
-            {/* Service Details Card */}
-            <div className="flex flex-col justify-between gap-4 rounded-card border bg-card p-5 shadow-elevation-card">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t("servicePlan")}
-                </h3>
-                {account.consoleUrl && (
-                  <a
-                    className="inline-flex h-7 items-center justify-center gap-1 rounded-md border border-input bg-background px-2.5 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
-                    href={account.consoleUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink aria-hidden="true" className="size-3" />
-                    {t("openConsole")}
-                  </a>
-                )}
-              </div>
-              <dl className="grid gap-2.5 text-sm">
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">{t("servicePlan")}</dt>
-                  <dd className="font-semibold text-foreground">
-                    {account.service?.enabled
-                      ? account.service.plan
-                      : t("noService")}
-                  </dd>
+            <div className="grid gap-5 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+              {quota ? (
+                <>
+                  <QuotaRing percent={quota.remainingPercent} />
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <Stat label={t("quotaRemaining")} className="tabular-nums">
+                      {formatTraffic(quota.remaining)}
+                    </Stat>
+                    <Stat
+                      size="sm"
+                      label={`${t("quotaUsed")} / ${t("quotaTotal")}`}
+                      className="tabular-nums"
+                    >
+                      {formatTraffic(quota.used)} /{" "}
+                      {formatTraffic(cloudProfile?.total ?? 0)}
+                    </Stat>
+                  </div>
+                </>
+              ) : (
+                <div className="col-span-2 text-xs text-muted-foreground">
+                  {c("unknownService")}
                 </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">
+              )}
+
+              <div className="flex flex-col gap-2.5 border-t border-border pt-4 text-xs sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6">
+                <div className="flex items-center justify-between gap-4 sm:justify-start">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Calendar className="size-3.5" />
                     {t("serviceExpiry")}
-                  </dt>
-                  <dd className="font-mono text-xs text-foreground">
+                  </span>
+                  <span className="font-mono font-medium text-foreground tabular-nums">
                     {account.service?.servicePeriodEnd
                       ? new Date(
                           account.service.servicePeriodEnd,
                         ).toLocaleDateString(lang.replace("_", "-"))
                       : "—"}
-                  </dd>
+                  </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">{t("protocol")}</dt>
-                  <dd className="font-medium text-xs text-brand">
+                <div className="flex items-center justify-between gap-4 sm:justify-start">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Zap className="size-3.5" />
+                    {t("servicePlan")}
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {account.service?.enabled
+                      ? account.service.plan
+                      : t("noService")}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4 sm:justify-start">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Globe className="size-3.5" />
+                    {t("protocol")}
+                  </span>
+                  <span className="font-medium text-brand">
                     {cloudProfile?.format === "clash"
                       ? "Clash / mihomo"
                       : cloudProfile?.format === "sing-box"
                         ? "sing-box"
                         : "VLESS / Trojan"}
-                  </dd>
+                  </span>
                 </div>
-              </dl>
+              </div>
             </div>
           </div>
 
+          {/* Announcements Card */}
           {account.announcements && account.announcements.length > 0 && (
-            <section className="grid gap-4 border-t border-border pt-5">
-              <h3 className="text-subtitle font-semibold">
+            <div className="rounded-card border bg-card p-5 shadow-elevation-card space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">
                 {t("announcements")}
               </h3>
-              {account.announcements.slice(0, 3).map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-xl border border-border bg-card p-4 shadow-xs"
-                >
-                  <h4 className="text-sm font-medium leading-relaxed">
-                    {item.title}
-                  </h4>
-                  {item.summary && (
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                      {item.summary}
-                    </p>
-                  )}
-                </article>
-              ))}
-            </section>
+              <div className="divide-y divide-border/60">
+                {account.announcements.slice(0, 3).map((item) => (
+                  <article key={item.id} className="py-3 first:pt-1 last:pb-1">
+                    <h4 className="text-sm font-medium leading-snug text-foreground">
+                      {item.title}
+                    </h4>
+                    {item.summary && (
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {item.summary}
+                      </p>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Danger Zone: Log Out */}

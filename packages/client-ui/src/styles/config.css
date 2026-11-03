@@ -4,7 +4,7 @@
   }
   .config-workspace {
     display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-columns: clamp(260px, 22vw, 300px) minmax(0, 1fr);
     height: calc(100dvh - 150px);
     min-height: 480px;
     max-height: calc(100dvh - 150px);
@@ -14,15 +14,19 @@
     overflow: hidden;
   }
   .config-resources {
-    padding: 20px 14px;
-    background: color-mix(in oklch, var(--surface-inset) 35%, var(--card));
-    border-inline-end: 1px solid var(--border);
+    padding: 18px 12px;
+    background: color-mix(in oklch, var(--surface-inset) 40%, var(--card));
+    border-inline-end: 1px solid
+      color-mix(in oklch, var(--border) 70%, transparent);
     min-width: 0;
     height: 100%;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--border) 80%, transparent)
+      transparent;
   }
   .config-group {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
   .config-group:last-child {
     margin-bottom: 0;
@@ -32,44 +36,64 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding-inline: 10px 4px;
-    margin-bottom: 5px;
+    padding-inline: 8px 4px;
+    margin-bottom: 6px;
   }
   .config-group-heading h2 {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: var(--muted-foreground);
   }
   .config-group-heading button {
-    min-width: 44px;
-    min-height: 44px;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    padding: 0;
+    border-radius: 6px;
+    color: var(--muted-foreground);
+    transition:
+      color 120ms ease,
+      background-color 120ms ease;
+  }
+  .config-group-heading button:hover {
+    color: var(--foreground);
+    background: var(--surface-inset);
   }
   .config-resource {
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 13px 12px;
+    gap: 10px;
+    padding: 9px 10px;
     text-align: start;
-    border-radius: 12px;
-    font-size: 14px;
+    border-radius: 10px;
+    font-size: 13px;
     cursor: pointer;
-    transition: background-color 120ms;
+    transition:
+      background-color 120ms ease,
+      color 120ms ease;
   }
   .config-resource:hover {
     background: var(--surface-inset);
   }
   .config-resource.is-selected {
     background: var(--brand-soft);
+    color: var(--brand-text);
   }
   .config-resource:focus-visible {
     outline: 2px solid var(--ring);
-    outline-offset: 2px;
+    outline-offset: 1px;
   }
   .config-detail {
     min-width: 0;
     height: 100%;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--border) 80%, transparent)
+      transparent;
     padding: clamp(20px, 2.5vw, 36px);
   }
   .config-detail-stack {

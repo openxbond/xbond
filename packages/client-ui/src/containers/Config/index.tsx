@@ -279,14 +279,14 @@ export default function Config() {
       )}
       <div className={cn("config-workspace", explicit && "has-selection")}>
         <div className="config-resources">
-          <label htmlFor="config-search" className="relative mb-4 block">
+          <label htmlFor="config-search" className="relative mb-3.5 block">
             <Search
               aria-hidden="true"
-              className="pointer-events-none absolute start-3 top-3 size-4 text-muted-foreground"
+              className="pointer-events-none absolute start-3 top-2.5 size-3.5 text-muted-foreground/70"
             />
             <Input
               id="config-search"
-              className="ps-9"
+              className="h-8.5 rounded-xl border-border/70 bg-surface-inset/60 ps-8.5 text-xs placeholder:text-muted-foreground/70 focus-visible:bg-card focus-visible:ring-1 focus-visible:ring-brand/40 transition-colors"
               type="search"
               aria-label={t("search")}
               placeholder={t("search")}
