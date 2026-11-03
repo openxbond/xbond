@@ -23,13 +23,16 @@ export function useAction() {
   const [pending, setPending] = useState(false);
   const locked = useRef(false);
   const run = useCallback(
-    async (work: () => Promise<unknown>, notify = true) => {
+    // notify: true → generic "saved"; false → caller owns feedback;
+    // string → success copy for the verb actually performed.
+    async (work: () => Promise<unknown>, notify: boolean | string = true) => {
       if (locked.current) return false;
       locked.current = true;
       setPending(true);
       try {
         await work();
-        if (notify) toast.success(tc("saved"));
+        if (notify)
+          toast.success(typeof notify === "string" ? notify : tc("saved"));
         return true;
       } catch (error) {
         toast.error(t(errorKind(error)), { duration: 6000 });

@@ -18,7 +18,10 @@ import {
   useSubscriptions,
 } from "@stores";
 import { formatTraffic } from "@xbond/client/helper";
-import { subscriptionQuota } from "@xbond/client/localapi";
+import {
+  subscriptionQuota,
+  subscriptionQuotaStatus,
+} from "@xbond/client/localapi";
 import {
   AlertCircle,
   Calendar,
@@ -130,7 +133,7 @@ export default function SubscriptionDetail({
       if (!localClient) throw new Error("LocalAPI not available");
       await localClient.setSubChannel(id, channel);
       await refresh();
-    });
+    }, t("channelDone"));
   }
 
   function saveProxyChannel() {
@@ -143,7 +146,7 @@ export default function SubscriptionDetail({
       );
       await refresh();
       setProxyChannelId(null);
-    });
+    }, t("channelDone"));
   }
 
   function rollback(id: string) {
@@ -152,7 +155,7 @@ export default function SubscriptionDetail({
       await localClient.rollbackSub(id);
       await refresh();
       toast.success(t("rollbackDone"));
-    });
+    }, false);
   }
 
   async function openSourceEditor(id: string) {
@@ -202,6 +205,7 @@ export default function SubscriptionDetail({
   }
 
   const quota = subscriptionQuota(sub);
+  const quotaStatus = subscriptionQuotaStatus(sub);
   const isActive = isLocalTarget && sub.id === activeId;
   const isRemote =
     sub.kind === "remote" ||
@@ -285,7 +289,7 @@ export default function SubscriptionDetail({
                   }
                   await refresh();
                   await refreshSubs();
-                })
+                }, t("updateDone"))
               }
             >
               <RefreshCw
@@ -304,7 +308,7 @@ export default function SubscriptionDetail({
               disabled
               className="pointer-events-none gap-1.5"
             >
-              <Check className="size-4 text-emerald-500" />
+              <Check className="size-4 text-success" />
               {cfg("activeLocal")}
             </Button>
           ) : (
@@ -317,7 +321,7 @@ export default function SubscriptionDetail({
                   await selectSub(sub.id);
                   await refresh();
                   await refreshSubs();
-                })
+                }, t("activateDone"))
               }
             >
               <Zap className="size-4" />
@@ -391,11 +395,28 @@ export default function SubscriptionDetail({
                 >
                   {formatTraffic(quota.used)} / {formatTraffic(sub.total)}
                 </Stat>
+                {quota.remaining <= 0 && (
+                  <span className="text-xs font-medium text-warning-text">
+                    {c("quota.exhausted")}
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {c("quota.source")}: {c("quota.sourceSubscription")}
+                </span>
               </div>
             </>
           ) : (
             <div className="col-span-2 text-xs text-muted-foreground">
-              {c("quota.unknown")}
+              <p>
+                {quotaStatus === "noTotal"
+                  ? c("quota.noTotal")
+                  : c("quota.unknown")}
+              </p>
+              <p className="mt-1">
+                {quotaStatus === "noTotal"
+                  ? c("quota.noTotalDesc")
+                  : c("quota.unknownDesc")}
+              </p>
             </div>
           )}
 

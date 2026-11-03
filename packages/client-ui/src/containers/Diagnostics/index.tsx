@@ -620,9 +620,11 @@ export default function Diagnostics() {
                         : pillClass.warn,
                     )}
                   >
-                    {doctorReport.threeTier.coreReachable
-                      ? t("doctor.coreOK")
-                      : t("doctor.coreError")}
+                    {!doctorReport.threeTier.coreReachable
+                      ? t("doctor.coreError")
+                      : doctorReport.threeTier.trafficIntercepted
+                        ? t("doctor.coreOK")
+                        : t("doctor.coreNotIntercepted")}
                   </span>
                 </div>
                 <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-label">
@@ -658,6 +660,11 @@ export default function Diagnostics() {
                       {doctorReport.threeTier.strategyChain?.join(" → ") || "—"}
                     </strong>
                   </li>
+                  {doctorReport.threeTier.interceptNote && (
+                    <li className="text-muted-foreground [overflow-wrap:anywhere]">
+                      {doctorReport.threeTier.interceptNote}
+                    </li>
+                  )}
                 </ul>
               </div>
 
@@ -709,6 +716,11 @@ export default function Diagnostics() {
                       <strong className="font-mono text-xs font-medium text-foreground [overflow-wrap:anywhere]">
                         {doctorReport.dns.proxyIPs}
                       </strong>
+                    </li>
+                  )}
+                  {doctorReport.dns.error && (
+                    <li className="text-destructive-text [overflow-wrap:anywhere]">
+                      {doctorReport.dns.error}
                     </li>
                   )}
                 </ul>

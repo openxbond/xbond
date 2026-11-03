@@ -23,6 +23,7 @@ export function NodePicker({
   open,
   onClose,
   groups,
+  loading,
   focusGroupName,
   chain,
   nodeDelay,
@@ -33,6 +34,7 @@ export function NodePicker({
   open: boolean;
   onClose: () => void;
   groups: Group[];
+  loading?: boolean;
   focusGroupName: string | null;
   onFocusGroup?: (name: string) => void;
   chain: string[];
@@ -198,7 +200,7 @@ export function NodePicker({
               <ul className="m-0 flex flex-1 list-none flex-col gap-1 overflow-y-auto p-0 [scrollbar-width:thin]">
                 {candidates.length === 0 ? (
                   <li className="grid py-12 place-items-center text-xs text-muted-foreground">
-                    未找到匹配的节点
+                    {tc("empty")}
                   </li>
                 ) : (
                   candidates.map((name) => {
@@ -336,7 +338,9 @@ export function NodePicker({
                       "text-label",
                       selection.result === "failed"
                         ? "text-destructive-text"
-                        : "text-success-text",
+                        : selection.result === "partial"
+                          ? "text-warning-text"
+                          : "text-success-text",
                     )}
                     role="status"
                   >
@@ -345,12 +349,18 @@ export function NodePicker({
                         ? "switching"
                         : selection.result === "success"
                           ? "switched"
-                          : "switchFailed",
+                          : selection.result === "partial"
+                            ? "switchPartial"
+                            : "switchFailed",
                     )}
                   </span>
                 )}
               </footer>
             </>
+          ) : loading ? (
+            <p className="text-body text-muted-foreground">{tc("loading")}</p>
+          ) : groups.length === 0 ? (
+            <p className="text-body text-muted-foreground">{t("noGroups")}</p>
           ) : (
             <p className="text-body text-muted-foreground">{t("noGroup")}</p>
           )}

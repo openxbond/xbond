@@ -38,6 +38,7 @@ import { useSetAtom } from "jotai";
 import { useMemo, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { groupBy } from "remeda";
+import { toast } from "sonner";
 
 import { Devices } from "./Devices";
 import { ConnectionInfo } from "./Info";
@@ -126,7 +127,32 @@ export default function Connections() {
           .getFilteredRowModel()
           .rows.filter((row) => !row.original.completed)
           .map((row) => row.original.id);
-        await Promise.all(ids.map((id) => client.closeConnection(id)));
+        // 逐批關閉：數千條連線同時打向核心會過載，且部分失敗需要
+        // 如實回報已完成數量，不能整體靜默。
+        const concurrency = 8;
+        let index = 0;
+        let closed = 0;
+        await Promise.all(
+          Array.from(
+            { length: Math.min(concurrency, ids.length) },
+            async () => {
+              while (index < ids.length) {
+                const id = ids[index++];
+                try {
+                  await client.closeConnection(id);
+                  closed += 1;
+                } catch {
+                  /* 單條失敗計入配額回報，不中斷其餘關閉。 */
+                }
+              }
+            },
+          ),
+        );
+        if (closed < ids.length)
+          toast.error(t("closePartial", { closed, total: ids.length }), {
+            duration: 6000,
+          });
+        else toast.success(t("closeDone", { count: closed }));
       } else await client.closeAllConnections();
       hide();
     }, false);
@@ -607,14 +633,40 @@ export default function Connections() {
           {instance.getRowModel().rows.length === 0 && (
             <EmptyState
               className="connections-empty absolute inset-x-0 bottom-0 top-8"
-              message={t("empty")}
+              message={
+                // 篩選無結果、串流中斷與「真的沒有連線」是三種事實，
+                // 各自給對應的下一步。
+                streamState !== "open"
+                  ? r(streamState)
+                  : instance.getCoreRowModel().rows.length > 0
+                    ? tc("empty")
+                    : t("empty")
+              }
               action={
-                <button
-                  className="empty-state-action"
-                  onClick={() => setIdentity(false)}
-                >
-                  {t("emptyAction")}
-                </button>
+                streamState !== "open" ? undefined : instance.getCoreRowModel()
+                    .rows.length > 0 ? (
+                  <button
+                    className="empty-state-action"
+                    onClick={() => {
+                      setFilters({
+                        host: "",
+                        process: "",
+                        rule: "",
+                        chains: "",
+                      });
+                      setDevice("");
+                    }}
+                  >
+                    {tc("clear")}
+                  </button>
+                ) : (
+                  <button
+                    className="empty-state-action"
+                    onClick={() => setIdentity(false)}
+                  >
+                    {t("emptyAction")}
+                  </button>
+                )
               }
             />
           )}

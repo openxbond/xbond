@@ -125,32 +125,37 @@ export default function Overview() {
       <div className="mt-8 mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-semibold">{t("traffic")}</h2>
         <div className="flex gap-4 text-sm">
-          <span className="text-success">{t("upload")}</span>
-          <span className="text-info">{t("download")}</span>
+          <span className="text-muted-foreground">{t("upload")}</span>
+          <span className="text-brand">{t("download")}</span>
         </div>
       </div>
       <Card className="min-h-60">
-        <div className="text-xs tabular-nums text-muted-foreground">
-          {formatTraffic(max)}/s
+        <div className="flex items-center justify-between gap-3 text-xs tabular-nums text-muted-foreground">
+          <span>{formatTraffic(max)}/s</span>
+          {state !== "open" && history.length > 0 && (
+            <span className="rounded-full bg-inset px-2 py-0.5 text-label">
+              {t("streamStopped")}
+            </span>
+          )}
         </div>
         {history.length ? (
           <svg
             viewBox="0 0 800 220"
             aria-label={t("traffic")}
-            className="w-full h-60"
+            className={`w-full h-60${state !== "open" ? " opacity-50" : ""}`}
           >
             <line x1="20" y1="200" x2="780" y2="200" stroke="var(--border)" />
             <polyline
               points={line("up")}
               fill="none"
-              stroke="var(--success)"
+              stroke="var(--chart-2)"
               strokeWidth="2"
               strokeDasharray="5 3"
             />
             <polyline
               points={line("down")}
               fill="none"
-              stroke="var(--info)"
+              stroke="var(--chart-1)"
               strokeWidth="2"
             />
           </svg>

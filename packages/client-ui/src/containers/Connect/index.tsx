@@ -282,7 +282,7 @@ export default function Connect() {
   const client = useClient();
   const { general, update } = useGeneral();
   const nodeSelection = useNodeSelection();
-  const { groups, global } = useProxy();
+  const { groups, global, isLoading: proxiesLoading } = useProxy();
   const mapping = useProxyMapping();
   const {
     hasLocalAPI,
@@ -338,6 +338,16 @@ export default function Connect() {
     connections.subscribe("data", onData);
     return () => connections.unsubscribe("data", onData);
   }, [connections]);
+
+  // 重新連上串流時清空樣本：跨越失聯時段的線段不是真實走勢。
+  const previousTrafficState = useRef(trafficState);
+  useEffect(() => {
+    if (trafficState === "open" && previousTrafficState.current !== "open") {
+      setHistory([]);
+      setSpeed(null);
+    }
+    previousTrafficState.current = trafficState;
+  }, [trafficState]);
 
   const running = hasLocalAPI && (status?.engine.running ?? false);
   const sub = hasLocalAPI ? (status?.activeSub ?? null) : null;
@@ -1162,6 +1172,8 @@ export default function Connect() {
               samples={history}
               title={t("trafficHistory")}
               empty={t("collectingSamples")}
+              stale={trafficState !== "open"}
+              staleLabel={t("streamStopped")}
               windowLabel={t("recentWindow")}
             />
 
@@ -1284,6 +1296,7 @@ export default function Connect() {
           open={pickerOpen}
           onClose={() => setPickerOpen(false)}
           groups={available}
+          loading={proxiesLoading}
           focusGroupName={group?.name ?? null}
           onFocusGroup={setFocusGroup}
           chain={chain}

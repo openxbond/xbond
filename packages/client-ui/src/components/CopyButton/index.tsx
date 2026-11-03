@@ -1,5 +1,5 @@
 import { Button } from "@components/ui/button";
-import { CopyIcon } from "lucide-react";
+import { Check, CopyIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -55,5 +55,54 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** 行內圖示版：用於密集清單（如規則表），就地回饋已複製。 */
+export function CopyIconButton({
+  value,
+  label,
+}: {
+  value: string;
+  label: string;
+}) {
+  const { t } = useTranslation("common");
+  const [status, setStatus] = useState<
+    "idle" | "pending" | "copied" | "failed"
+  >("idle");
+  useEffect(() => {
+    if (status !== "copied" && status !== "failed") return;
+    const timer = setTimeout(() => setStatus("idle"), 2400);
+    return () => clearTimeout(timer);
+  }, [status]);
+  async function copy() {
+    setStatus("pending");
+    try {
+      await navigator.clipboard.writeText(value);
+      setStatus("copied");
+    } catch {
+      setStatus("failed");
+    }
+  }
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      disabled={!value || status === "pending"}
+      aria-label={status === "copied" ? t("copied") : label}
+      title={status === "copied" ? t("copied") : label}
+      onClick={() => void copy()}
+    >
+      {status === "copied" ? (
+        <Check className="size-4 text-success" aria-hidden="true" />
+      ) : (
+        <CopyIcon className="size-4" aria-hidden="true" />
+      )}
+      {status === "failed" && (
+        <span role="alert" className="sr-only">
+          {t("copyFailed")}
+        </span>
+      )}
+    </Button>
   );
 }

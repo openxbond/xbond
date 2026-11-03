@@ -115,6 +115,7 @@ export default function Settings() {
 
   const [port, setPort] = useState("");
   const [portValidation, setPortValidation] = useState("");
+  const [portFeedback, setPortFeedback] = useState<"" | "saved" | "failed">("");
   const [terminalFormat, setTerminalFormat] =
     useState<TerminalFormat>("powershell");
   const [copied, setCopied] = useState(false);
@@ -147,8 +148,11 @@ export default function Settings() {
       return;
     }
     setPortValidation("");
+    setPortFeedback("");
     const parsed = Number(currentPort);
-    await run(async () => {
+    // 儲存回應留在欄位旁：成功顯示「已儲存」，失敗留下可讀錯誤，
+    // 不只依賴全域 toast。
+    const ok = await run(async () => {
       if (hasLocalAPI) {
         await setMode({ port: parsed });
         await refresh();
@@ -157,7 +161,13 @@ export default function Settings() {
         await update();
       }
       setPort("");
-    });
+    }, false);
+    if (ok) {
+      setPortFeedback("saved");
+      setTimeout(() => setPortFeedback(""), 2400);
+    } else {
+      setPortFeedback("failed");
+    }
   }
 
   function copyTerminalCommand() {
@@ -425,8 +435,23 @@ export default function Settings() {
               </div>
 
               {portValidation && (
-                <p role="alert" className="text-xs text-destructive">
+                <p role="alert" className="text-xs text-destructive-text">
                   {portValidation}
+                </p>
+              )}
+
+              {portFeedback && (
+                <p
+                  role={portFeedback === "failed" ? "alert" : "status"}
+                  className={
+                    portFeedback === "failed"
+                      ? "text-xs text-destructive-text"
+                      : "text-xs text-success-text"
+                  }
+                >
+                  {portFeedback === "saved"
+                    ? tc("saved")
+                    : t("takeover.portSaveFailed")}
                 </p>
               )}
 

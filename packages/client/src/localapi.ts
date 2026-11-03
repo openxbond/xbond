@@ -118,17 +118,28 @@ export function cloudSubscription(
   );
 }
 
+/**
+ * 配額狀態的三種事實：未知（沒有資料或數值不可用）、未設定總額
+ * （total <= 0）與可用。介面必須分開呈現，不能合併成一句「未有配額資料」。
+ */
+export function subscriptionQuotaStatus(
+  meta: Pick<SubscriptionMeta, "upload" | "download" | "total"> | null,
+): "unknown" | "noTotal" | "ready" {
+  if (!meta) return "unknown";
+  if (
+    ![meta.upload, meta.download, meta.total].every(Number.isFinite) ||
+    meta.upload < 0 ||
+    meta.download < 0
+  )
+    return "unknown";
+  if (meta.total <= 0) return "noTotal";
+  return "ready";
+}
+
 export function subscriptionQuota(
   meta: Pick<SubscriptionMeta, "upload" | "download" | "total"> | null,
 ) {
-  if (
-    !meta ||
-    ![meta.upload, meta.download, meta.total].every(Number.isFinite) ||
-    meta.upload < 0 ||
-    meta.download < 0 ||
-    meta.total <= 0
-  )
-    return null;
+  if (!meta || subscriptionQuotaStatus(meta) !== "ready") return null;
   const used = meta.upload + meta.download;
   if (!Number.isFinite(used)) return null;
   const remaining = Math.max(0, meta.total - used);

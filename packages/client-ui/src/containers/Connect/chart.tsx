@@ -81,6 +81,8 @@ export function TrafficChart({
   title,
   empty,
   windowLabel,
+  stale,
+  staleLabel,
   _downloadLabel,
   _uploadLabel,
 }: {
@@ -88,6 +90,8 @@ export function TrafficChart({
   title: string;
   empty: string;
   windowLabel: string;
+  stale?: boolean;
+  staleLabel?: string;
   downloadLabel?: string;
   uploadLabel?: string;
   _downloadLabel?: string;
@@ -158,7 +162,7 @@ export function TrafficChart({
       <div className="flex flex-1 items-stretch gap-2.5">
         {/* Y 轴刻度 (自适应如 100K/50K/0, 500K/250K/0, 30/15/0) */}
         <div
-          className="flex flex-col justify-between py-0.5 text-right font-mono text-label tabular-nums text-muted-foreground/60 select-none w-8 shrink-0"
+          className="flex flex-col justify-between py-0.5 text-right font-mono text-label tabular-nums text-muted-foreground select-none w-8 shrink-0"
           aria-hidden="true"
         >
           <span>{scale.top}</span>
@@ -168,11 +172,19 @@ export function TrafficChart({
 
         {/* 图表主区域 */}
         <div className="relative min-h-[72px] flex-1">
+          {stale && staleLabel && samples.length > 0 && (
+            <span className="absolute top-0 right-0 z-10 rounded-full bg-inset px-2 py-0.5 text-label text-muted-foreground">
+              {staleLabel}
+            </span>
+          )}
           <svg
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
             preserveAspectRatio="none"
             aria-label={title}
-            className="absolute inset-0 size-full overflow-visible"
+            className={
+              "absolute inset-0 size-full overflow-visible" +
+              (stale ? " opacity-50" : "")
+            }
           >
             <title>{title}</title>
             <defs>
@@ -260,7 +272,7 @@ export function TrafficChart({
                 {upLine && (
                   <path
                     d={upLine}
-                    className="fill-none stroke-muted-foreground/50 [stroke-linecap:round] [stroke-linejoin:round] [stroke-dasharray:3_3] [stroke-width:1.4] [vector-effect:non-scaling-stroke]"
+                    className="fill-none stroke-muted-foreground [stroke-linecap:round] [stroke-linejoin:round] [stroke-dasharray:3_3] [stroke-width:1.4] [vector-effect:non-scaling-stroke]"
                   />
                 )}
               </>
@@ -268,7 +280,7 @@ export function TrafficChart({
           </svg>
 
           {samples.length < 2 && (
-            <div className="absolute inset-0 flex items-center justify-center text-label text-muted-foreground/60 select-none">
+            <div className="absolute inset-0 flex items-center justify-center text-label text-muted-foreground select-none">
               {empty}
             </div>
           )}
@@ -277,7 +289,7 @@ export function TrafficChart({
 
       {/* 右下角时间窗标签 */}
       <span
-        className="mt-1 self-end text-label text-muted-foreground/60 select-none"
+        className="mt-1 self-end text-label text-muted-foreground select-none"
         aria-hidden="true"
       >
         {windowLabel}

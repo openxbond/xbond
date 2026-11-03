@@ -268,6 +268,8 @@ export function useProxy() {
     markProxySelected,
     set,
     error,
+    // 首次載入與「沒有策略組」不同：空狀態在載入期間不能誤報。
+    isLoading: data === undefined,
   };
 }
 export function useProxyMapping() {
@@ -304,7 +306,13 @@ export function useRule() {
     ["/rules", client],
     async () => (await client.getRules()).data.rules ?? [],
   );
-  return { rules: data ?? [], update: mutate, error };
+  // 首次載入與「真的沒有規則」必須可分，否則空態會在載入期間誤報。
+  return {
+    rules: data ?? [],
+    update: mutate,
+    error,
+    isLoading: data === undefined,
+  };
 }
 
 export function useStreamReader<T>(path: string | null, bufferLength = 0) {

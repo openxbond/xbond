@@ -3,6 +3,7 @@ import { useLanguage, useLocalAPI, useSubscriptions } from "@stores";
 import { subscriptionLang } from "@xbond/client/localapi";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import UpdateFrequency from "./UpdateFrequency";
 
@@ -32,9 +33,14 @@ export default function ImportConfig({
     setError("");
     try {
       if (mode === "url") {
-        const parsed = new URL(url);
+        let parsed: URL;
+        try {
+          parsed = new URL(url.trim());
+        } catch {
+          throw new Error(t("invalidUrl"));
+        }
         if (!["http:", "https:"].includes(parsed.protocol))
-          throw new Error(t("urlPlaceholder"));
+          throw new Error(t("invalidUrl"));
       }
       const result = await addSub({
         ...(mode === "url"
@@ -45,7 +51,17 @@ export default function ImportConfig({
       });
       await refresh();
       if (result.updateError) {
-        setError(result.updateError);
+        // 訂閱已寫入，只是首次更新失敗：不能當成整體失敗（重送會產生重複），
+        // 直接進入詳情讓更新狀態與重試入口就位。
+        if (result.meta) {
+          toast.warning(t("addedUpdateFailed"), {
+            description: result.updateError,
+            duration: 8000,
+          });
+          onAdded(result.meta.id);
+        } else {
+          setError(result.updateError);
+        }
         return;
       }
       if (result.meta) onAdded(result.meta.id);
