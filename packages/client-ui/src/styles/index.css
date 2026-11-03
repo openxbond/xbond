@@ -10,6 +10,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./tokens.css";
+@import "./config.css";
 
 /* The vite root is apps/<host>, so automatic source detection starts inside
    the host app and never sees the workspace package. Scan the whole repo

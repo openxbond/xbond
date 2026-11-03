@@ -51,6 +51,7 @@ type SubscriptionMeta struct {
 	Format              engine.CoreFormat `json:"format,omitempty"`
 	NameCustomized      bool              `json:"nameCustomized,omitempty"`
 	Type                SubscriptionType  `json:"type"`
+	AccountIssuer       string            `json:"accountIssuer,omitempty"`
 	SourceURL           string            `json:"sourceUrl,omitempty"`
 	Token               string            `json:"token,omitempty"`
 	Origin              string            `json:"origin,omitempty"`

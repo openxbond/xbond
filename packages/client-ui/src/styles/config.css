@@ -1,0 +1,288 @@
+@layer components {
+  .config-page {
+    gap: 16px;
+  }
+  .config-workspace {
+    display: grid;
+    grid-template-columns: 290px minmax(0, 1fr);
+    min-height: min(660px, calc(100dvh - 160px));
+    border-radius: var(--radius-card, 24px);
+    background: var(--card);
+    box-shadow: var(--shadow-elevation-card);
+    overflow: clip;
+  }
+  .config-resources {
+    padding: 20px 14px;
+    background: color-mix(in oklch, var(--surface-inset) 35%, var(--card));
+    border-inline-end: 1px solid var(--border);
+    min-width: 0;
+  }
+  .config-group {
+    margin-bottom: 24px;
+  }
+  .config-group:last-child {
+    margin-bottom: 0;
+  }
+  .config-group-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-inline: 10px 4px;
+    margin-bottom: 5px;
+  }
+  .config-group-heading h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+  .config-group-heading button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .config-resource {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 12px;
+    text-align: start;
+    border-radius: 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 120ms;
+  }
+  .config-resource:hover {
+    background: var(--surface-inset);
+  }
+  .config-resource.is-selected {
+    background: var(--brand-soft);
+  }
+  .config-resource:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  .config-detail {
+    min-width: 0;
+    padding: clamp(24px, 3vw, 40px);
+  }
+  .config-detail-stack {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .config-detail-stack h2,
+  .config-detail-stack h3 {
+    margin: 0;
+  }
+  .config-detail-stack button {
+    min-height: 44px;
+  }
+  .config-list-empty {
+    margin: 8px 12px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted-foreground);
+  }
+  .config-status {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--brand-soft);
+    color: var(--brand-text);
+  }
+  .config-notice {
+    display: grid;
+    justify-items: start;
+    gap: 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 16px;
+    color: var(--foreground);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .config-error {
+    color: var(--destructive-text);
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+  .config-empty {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+    padding-block: 24px;
+  }
+  .config-textarea {
+    width: 100%;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--foreground);
+    background: var(--surface-inset);
+  }
+  .config-file {
+    min-height: 44px;
+    width: 100%;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-inset);
+  }
+  .config-advanced {
+    width: 100%;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+  .config-advanced summary {
+    min-height: 44px;
+    cursor: pointer;
+    padding-block: 12px;
+    color: var(--muted-foreground);
+    font-size: 14px;
+  }
+  .config-facts {
+    display: grid;
+    gap: 20px;
+    padding-block: 24px;
+    border-block: 1px solid var(--border);
+  }
+  .config-facts > div {
+    display: grid;
+    grid-template-columns: minmax(90px, 1fr) minmax(0, 3fr);
+    gap: 20px;
+    font-size: 14px;
+  }
+  .config-facts dt {
+    color: var(--muted-foreground);
+  }
+  .config-unified {
+    position: relative;
+  }
+  .config-unified-trigger {
+    display: flex;
+    min-height: 76px;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 5px;
+    border-radius: 12px;
+    cursor: pointer;
+    list-style: none;
+  }
+  .config-unified-trigger::-webkit-details-marker {
+    display: none;
+  }
+  .config-unified-trigger:hover,
+  .config-unified[open] > summary {
+    background: var(--sidebar-accent);
+  }
+  .config-unified-trigger:focus-visible {
+    outline: 2px solid var(--ring);
+  }
+  .config-unified-panel {
+    position: absolute;
+    z-index: 70;
+    inset-inline-start: 0;
+    bottom: calc(100% + 16px);
+    width: 300px;
+    max-height: min(70dvh, 540px);
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--popover);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 12px 36px
+      color-mix(in oklch, var(--foreground) 12%, transparent);
+  }
+  .config-menu-heading {
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+  .config-menu-item {
+    display: flex;
+    align-items: center;
+    text-align: start;
+    width: 100%;
+    min-height: 48px;
+    gap: 10px;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .config-menu-item small {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted-foreground);
+  }
+  .config-menu-item:hover,
+  .config-menu-item:disabled {
+    background: var(--surface-inset);
+  }
+  .config-menu-item:disabled {
+    opacity: 1;
+    cursor: default;
+  }
+  .config-menu-link {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 10px;
+    color: var(--brand-text);
+    font-size: 13px;
+    text-decoration: none;
+  }
+  .config-menu-link:hover {
+    background: var(--surface-inset);
+  }
+  .config-menu-divider {
+    border-top: 1px solid var(--border);
+    margin-block: 6px;
+  }
+  @media (max-width: 767px) {
+    .config-workspace {
+      display: block;
+      min-height: 0;
+      border-radius: 20px;
+    }
+    .config-resources {
+      border-inline-end: 0;
+      padding: 16px 10px;
+    }
+    .config-detail {
+      display: none;
+      padding: 20px;
+    }
+    .config-workspace.has-selection .config-resources {
+      display: none;
+    }
+    .config-workspace.has-selection .config-detail {
+      display: block;
+    }
+    .config-detail input,
+    .config-detail textarea {
+      font-size: 16px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .config-resource {
+      transition: none;
+    }
+  }
+}

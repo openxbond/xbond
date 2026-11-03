@@ -1,9 +1,11 @@
+import configuration from "./configuration.ts";
 /**
  * کاتالوگ پیام فارسی. ساختار کلیدها باید دقیقاً با en_US یکی باشد
  * (تضمین‌شده توسط گاردهای نوع در ./index.ts). واژگان با CLI (fa.json)
  * هم‌راستاست: اشتراک، گروه سیاست، کنترلر، هدایت ترافیک، حالت مسیریابی.
  */
 const FA = {
+  configuration: configuration.fa,
   common: {
     ok: "تأیید",
     cancel: "لغو",

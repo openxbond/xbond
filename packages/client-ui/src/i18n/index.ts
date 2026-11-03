@@ -88,6 +88,7 @@ declare module "i18next" {
       runtime: typeof en_US.runtime;
       onboarding: typeof en_US.onboarding;
       account: typeof en_US.account;
+      configuration: typeof en_US.configuration;
     };
   }
 }

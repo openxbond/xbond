@@ -1,8 +1,10 @@
+import configuration from "./configuration.ts";
 /**
  * 繁體中文（香港）文案。鍵結構必須與 en_US 完全一致（由 ./index.ts 的類型守衛保證）。
  * 術語遵循 GLOSSARY.md：節點、策略組、訂閱、控制器、流量接管、路由模式。
  */
 const HK = {
+  configuration: configuration.zh_HK,
   common: {
     ok: "確定",
     cancel: "取消",

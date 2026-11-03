@@ -20,6 +20,7 @@ export function useLocalAPI() {
     error,
     mutateStatus,
     hasDaemon,
+    daemonState,
   } = useDaemonConnection();
   const { targetKind } = useAPIInfo();
   const isLocalTarget = targetKind === "daemon";
@@ -83,6 +84,7 @@ export function useLocalAPI() {
     hasLocalAPI,
     isLocalTarget,
     hasDaemon,
+    daemonState,
     daemonClient,
     client,
     config,
@@ -100,9 +102,11 @@ export function useLocalAPI() {
 export function useSubscriptions() {
   // Subscriptions are daemon-owned: they stay manageable regardless of which
   // controller the window is currently viewing.
-  const { client, hasDaemon } = useDaemonConnection();
+  const { client, config } = useDaemonConnection();
   const { data, error, mutate } = useSWR(
-    client && hasDaemon ? ["/localapi/v0/subs", client] : null,
+    client && config
+      ? ["/localapi/v0/subs", config.endpoint, config.token]
+      : null,
     async () => {
       if (!client) return { subscriptions: [], activeId: "" };
       return client.listSubs();

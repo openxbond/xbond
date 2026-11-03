@@ -1,80 +1,67 @@
 import { Toaster } from "@components/ui/sonner";
 import Activity from "@containers/Activity";
+import Config from "@containers/Config";
 import Connect from "@containers/Connect";
 import Connections from "@containers/Connections";
 import Diagnostics from "@containers/Diagnostics";
-import ExternalControllerModal from "@containers/ExternalControllerDrawer";
 import Logs from "@containers/Logs";
-import Onboarding from "@containers/Onboarding";
 import Proxies from "@containers/Proxies";
 import Rules from "@containers/Rules";
 import Settings from "@containers/Settings";
 import SideBar from "@containers/Sidebar";
-import Subscriptions from "@containers/Subscriptions";
 import { isClashX } from "@lib/jsBridge";
-import {
-  detectLocalAPIConfig,
-  hasDaemonConfig,
-  isDesktopApp,
-} from "@lib/localapi-bootstrap";
+import { hasDaemonConfig } from "@lib/localapi-bootstrap";
 import { cn } from "@lib/utils";
+import { identityAtom, useAPIInfo, useLocalAPI, useTheme } from "@stores";
+import { useAtom } from "jotai";
+import { useEffect } from "react";
 import {
-  identityAtom,
-  useAccount,
-  useClient,
-  useLocalAPI,
-  useTheme,
-} from "@stores";
-import { useSetAtom } from "jotai";
-import { Route, Navigate, Routes, useLocation, Outlet } from "react-router-dom";
+  Route,
+  Navigate,
+  Routes,
+  useLocation,
+  Outlet,
+  useNavigate,
+} from "react-router-dom";
 
 export default function App() {
-  const client = useClient();
   useTheme();
 
-  const { hasLocalAPI, status } = useLocalAPI();
-  const { account, accountReady } = useAccount();
-  const setIdentity = useSetAtom(identityAtom);
-
+  const { status, daemonState } = useLocalAPI();
+  const [identity, setIdentity] = useAtom(identityAtom);
+  const target = useAPIInfo();
   const location = useLocation();
+  const navigate = useNavigate();
   const initialPage =
-    detectLocalAPIConfig() || isDesktopApp() ? "/connect" : "/proxies";
-
-  // First-run gate: with the window's daemon reachable and no signed-in
-  // account, a missing (or credential-revoked) configuration opens the
-  // onboarding flow (sign in / import); resync re-binds the current
-  // subscriptionLink. Remote-controller and web sessions are never gated.
-  // `accountReady` keeps signed-in users from seeing a flash.
-  const activeSub = status?.activeSub ?? null;
-  const configUnusable =
-    !activeSub || activeSub.health === "credential_invalid";
-  const signedInNoSub =
-    hasLocalAPI &&
-    !!status &&
-    configUnusable &&
-    account?.status === "signed_in";
-  const needsOnboarding =
-    hasLocalAPI && !!status && configUnusable && accountReady && !signedInNoSub;
-
-  if (needsOnboarding || signedInNoSub) {
-    return (
-      <>
-        <Onboarding
-          signedInNoSub={signedInNoSub}
-          onConnectRemote={() => setIdentity(false)}
-        />
-        <ExternalControllerModal createOnly />
-        <Toaster />
-      </>
+    hasDaemonConfig() && status?.activeSub ? "/connect" : "/config";
+  // Pages ask for controller management by clearing the identity flag; send
+  // them to the matching detail instead of reviving the removed modal.
+  useEffect(() => {
+    if (identity) return;
+    const next = new URLSearchParams(location.search);
+    next.set(
+      "item",
+      target.targetKind === "controller"
+        ? `controller:${target.id}`
+        : "add-controller",
     );
-  }
+    navigate({ pathname: "/config", search: next.toString() });
+    setIdentity(true);
+  }, [
+    identity,
+    target.targetKind,
+    target.id,
+    location.search,
+    navigate,
+    setIdentity,
+  ]);
 
   // Mobile bottom navigation targets (4 core destinations)
   const mobileRoutes = [
     { path: "/connect", name: "Connect" },
     { path: "/proxies", name: "Proxies" },
     { path: "/activity", name: "Activity" },
-    { path: "/settings", name: "Settings" },
+    { path: "/config", name: "Config" },
   ];
 
   const layout = (
@@ -88,9 +75,8 @@ export default function App() {
     >
       <SideBar routes={mobileRoutes} />
       <div className="h-full w-full min-w-0 overflow-y-auto max-md:px-3 max-md:[&::-webkit-scrollbar]:hidden">
-        <ControllerPage key={client.id} />
+        <ControllerPage />
       </div>
-      <ExternalControllerModal />
       <Toaster />
     </div>
   );
@@ -101,30 +87,33 @@ export default function App() {
         <Route
           path="/"
           element={
-            <Navigate
-              to={{
-                pathname: initialPage,
-                search: location.search,
-              }}
-              replace
-            />
+            daemonState === "connecting" ? (
+              <div role="status" className="p-6">
+                XBond…
+              </div>
+            ) : (
+              <Navigate
+                to={{
+                  pathname: initialPage,
+                  search: location.search,
+                }}
+                replace
+              />
+            )
           }
         />
 
         {/* 8 Distinct Dedicated Routes */}
         <Route path="/connect" element={<Connect />} />
         <Route path="/proxies" element={<Proxies />} />
+        <Route path="/config" element={<Config />} />
         <Route
           path="/subscriptions"
           element={
-            !hasDaemonConfig() ? (
-              <Navigate
-                to={{ pathname: "/proxies", search: location.search }}
-                replace
-              />
-            ) : (
-              <Subscriptions />
-            )
+            <Navigate
+              to={{ pathname: "/config", search: location.search }}
+              replace
+            />
           }
         />
         <Route path="/connections" element={<Connections />} />

@@ -98,7 +98,7 @@ func NewServer(addr string, webDir string) (*Server, error) {
 	s.account = newAccountController(
 		account.NewManager(paths.AccountSessionPath()),
 		s.bindCredentials,
-		s.runtime.Logout,
+		s.runtime.LogoutAccount,
 		s.activeXBondSub,
 	)
 
@@ -220,6 +220,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/subs/versions", s.authMiddleware(s.handleSubVersions))
 	mux.HandleFunc("/localapi/v0/subs/rollback", s.authMiddleware(s.handleSubRollback))
 	mux.HandleFunc("/localapi/v0/subs/source", s.authMiddleware(s.handleSubSource))
+	mux.HandleFunc("/localapi/v0/subs/url", s.authMiddleware(s.handleSubURL))
 	mux.HandleFunc("/localapi/v0/subs/unpin", s.authMiddleware(s.handleSubUnpin))
 	mux.HandleFunc("/localapi/v0/subs/progress", s.authMiddleware(s.handleSubsProgress))
 
@@ -324,6 +325,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Name            string   `json:"name"`
 		URLOrFile       string   `json:"urlOrFile"`
 		Content         string   `json:"content"`
+		Use             *bool    `json:"use"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -341,6 +343,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		req.Name,
 		req.URLOrFile,
 		req.Content,
+		req.Use == nil || *req.Use,
 	)
 	if err != nil {
 		var bindErr *bindError
@@ -371,6 +374,7 @@ func (s *Server) bindSubscription(
 	token, origin string,
 	fallbackOrigins []string,
 	protocol, lang, name, urlOrFile, content string,
+	activate bool,
 ) (*sub.SubscriptionMeta, string, error) {
 	if token == "" && urlOrFile == "" && content == "" {
 		return nil, "", &bindError{err: errors.New("must provide token, content or urlOrFile"), input: true}
@@ -405,8 +409,10 @@ func (s *Server) bindSubscription(
 		updateErrMsg = updateErr.Error()
 	} else if res != nil && res.Meta != nil {
 		finalMeta = res.Meta
-		if err := s.runtime.Use(ctx, meta.ID); err != nil {
-			return finalMeta, updateErrMsg, &bindError{err: err, input: false}
+		if activate {
+			if err := s.runtime.Use(ctx, meta.ID); err != nil {
+				return finalMeta, updateErrMsg, &bindError{err: err, input: false}
+			}
 		}
 	}
 	return finalMeta, updateErrMsg, nil
@@ -417,24 +423,29 @@ func (s *Server) bindCredentials(
 	credentials *account.Credentials,
 	options accountBindOptions,
 ) (*sub.SubscriptionMeta, string, error) {
-	return s.bindSubscription(
-		ctx,
-		credentials.SubscriptionToken,
-		credentials.Origin,
-		credentials.FallbackOrigins,
-		options.Protocol,
-		options.Lang,
-		options.Name,
-		"",
-		"",
-	)
+	if err := ctx.Err(); err != nil {
+		return nil, "", err
+	}
+	issuer := credentials.Issuer
+	if issuer == "" {
+		issuer = credentials.Origin
+	}
+	meta, err := s.subMgr.BindAccount(credentials.SubscriptionToken, issuer, credentials.Origin, credentials.FallbackOrigins, options.Protocol, options.Lang, options.Name)
+	if err != nil {
+		return nil, "", err
+	}
+	result, err := s.runtime.Update(ctx, meta.ID, true, nil)
+	if err != nil {
+		return meta, err.Error(), nil
+	}
+	return result.Meta, "", nil
 }
 
 func (s *Server) activeXBondSub() *sub.SubscriptionMeta {
 	activeID := s.subMgr.ActiveID()
 	var first *sub.SubscriptionMeta
 	for _, item := range s.subMgr.List() {
-		if item.Type != sub.SubTypeXBond {
+		if item.Type != sub.SubTypeXBond || item.AccountIssuer == "" {
 			continue
 		}
 		copy := item

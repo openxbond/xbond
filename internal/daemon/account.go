@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/oauth2"
+
 	"github.com/openxbond/xbond/internal/account"
 	"github.com/openxbond/xbond/internal/clientapi"
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
@@ -60,6 +62,7 @@ type accountLoginManager interface {
 
 type accountController struct {
 	mu         sync.Mutex
+	operation  sync.Mutex
 	manager    accountLoginManager
 	state      AccountState
 	cancel     context.CancelFunc
@@ -88,22 +91,16 @@ func newAccountController(
 	return controller
 }
 
-// hydrate derives the initial state from persisted evidence. An XBond
-// subscription created by the CLI also counts as signed in: the subscription
-// token is the durable credential the daemon already owns. The cached
-// overview shows immediately; a signed-in session then refreshes it in the
-// background.
+// Only an OAuth session establishes account identity. A saved subscription
+// link permits downloads, but cannot authorize account refresh operations.
 func (c *accountController) hydrate() {
 	c.mu.Lock()
 	c.state = AccountState{Status: "signed_out"}
 	if _, err := c.manager.Session(); err == nil {
 		c.state.Status = "signed_in"
 	}
-	if meta := c.listXBond(); meta != nil {
-		c.state.Status = "signed_in"
-		c.state.Subscription = meta
-	}
 	if c.state.Status == "signed_in" {
+		c.state.Subscription = c.listXBond()
 		if cached := loadOverviewCache(); cached != nil {
 			c.applyOverviewLocked(cached, "")
 		}
@@ -131,6 +128,8 @@ func (c *accountController) start(
 		return state
 	}
 	loginCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	c.syncGen++
+	generation := c.syncGen
 	c.cancel = cancel
 	started := time.Now()
 	c.state = AccountState{
@@ -143,7 +142,7 @@ func (c *accountController) start(
 	}
 	c.mu.Unlock()
 
-	go c.run(loginCtx, login, bindOptions)
+	go c.run(loginCtx, login, bindOptions, generation)
 	return c.snapshot()
 }
 
@@ -151,9 +150,14 @@ func (c *accountController) run(
 	ctx context.Context,
 	login account.LoginOptions,
 	bindOptions accountBindOptions,
+	generation int,
 ) {
 	credentials, err := c.manager.Login(ctx, login, func(progress account.Progress) {
 		c.mu.Lock()
+		if ctx.Err() != nil || c.syncGen != generation {
+			c.mu.Unlock()
+			return
+		}
 		c.state.Method = progress.Method
 		c.state.AuthURL = progress.AuthURL
 		c.state.VerificationURI = progress.VerificationURI
@@ -162,7 +166,18 @@ func (c *accountController) run(
 		c.mu.Unlock()
 	})
 	if err != nil {
-		c.fail(err)
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return
+		}
+		c.fail(err, generation)
+		return
+	}
+	c.operation.Lock()
+	defer c.operation.Unlock()
+	c.mu.Lock()
+	current := c.syncGen == generation
+	c.mu.Unlock()
+	if !current || errors.Is(ctx.Err(), context.Canceled) {
 		return
 	}
 
@@ -189,6 +204,13 @@ func (c *accountController) run(
 	c.syncOverviewCtx(ctx)
 
 	c.mu.Lock()
+	if ctx.Err() != nil || c.syncGen != generation {
+		c.mu.Unlock()
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			c.fail(ctx.Err(), generation)
+		}
+		return
+	}
 	c.state.Status = "signed_in"
 	c.state.Subscription = meta
 	c.state.UpdateError = updateError
@@ -198,13 +220,20 @@ func (c *accountController) run(
 	c.mu.Unlock()
 }
 
-func (c *accountController) fail(err error) {
+func (c *accountController) fail(err error, generation int) {
 	code := "oauth"
 	var accountErr *account.Error
 	if errors.As(err, &accountErr) {
 		code = accountErr.Code
 	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		code = account.ErrCodeTimeout
+	}
 	c.mu.Lock()
+	if generation != c.syncGen {
+		c.mu.Unlock()
+		return
+	}
 	defer c.mu.Unlock()
 	if c.state.Status == "signed_out" && c.cancel == nil {
 		// A logout or reset already cleared the flow; do not resurrect an
@@ -234,16 +263,34 @@ func (c *accountController) cancelPending() {
 func (c *accountController) logout(ctx context.Context) ([]sub.SubscriptionMeta, error) {
 	c.cancelPending()
 	err := c.manager.Logout(ctx)
+	c.operation.Lock()
+	defer c.operation.Unlock()
 	removeOverviewCache()
 	removed, logoutErr := c.logoutSubs()
 	return removed, errors.Join(err, logoutErr)
 }
 
 func (c *accountController) refresh(ctx context.Context) (AccountState, error) {
+	c.operation.Lock()
+	defer c.operation.Unlock()
+	c.mu.Lock()
+	generation := c.syncGen
+	c.mu.Unlock()
 	link, err := c.manager.RefreshLink(ctx)
 	if err != nil {
 		c.mu.Lock()
+		if c.syncGen != generation {
+			state := c.state
+			c.mu.Unlock()
+			return state, context.Canceled
+		}
 		c.state.UpdateError = err.Error()
+		var tokenErr *oauth2.RetrieveError
+		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, clientapi.ErrUnauthorized) || (errors.As(err, &tokenErr) && tokenErr.ErrorCode == "invalid_grant") {
+			c.state.Status = "error"
+			c.state.ErrorCode = "session_expired"
+			c.state.Error = "Account session expired. Sign in again."
+		}
 		state := c.state
 		c.mu.Unlock()
 		return state, err
@@ -253,17 +300,27 @@ func (c *accountController) refresh(ctx context.Context) (AccountState, error) {
 	if err != nil {
 		return c.snapshot(), err
 	}
+	c.mu.Lock()
+	current := c.syncGen == generation
+	c.mu.Unlock()
+	if !current {
+		return c.snapshot(), context.Canceled
+	}
 	origin := session.Origin
 	if len(link.FallbackDomains) > 0 && origin == account.DefaultOrigin {
 		origin = link.FallbackDomains[0]
 	}
 	credentials := &account.Credentials{
 		Origin:            origin,
+		Issuer:            session.Origin,
 		SubscriptionToken: link.SubscriptionToken,
 		FallbackOrigins:   link.FallbackDomains,
 	}
 	var meta *sub.SubscriptionMeta
 	updateError := ""
+	if credentials.SubscriptionToken == "" {
+		updateError = "No subscription link is available. Open the Cloud console."
+	}
 	if credentials.SubscriptionToken != "" {
 		options := accountBindOptions{}
 		if existing := c.listXBond(); existing != nil {
@@ -283,6 +340,11 @@ func (c *accountController) refresh(ctx context.Context) (AccountState, error) {
 	c.syncOverviewCtx(ctx)
 
 	c.mu.Lock()
+	if c.syncGen != generation {
+		state := c.state
+		c.mu.Unlock()
+		return state, context.Canceled
+	}
 	c.state.Status = "signed_in"
 	c.state.Subscription = meta
 	c.state.UpdateError = updateError

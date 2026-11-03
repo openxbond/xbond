@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -188,6 +189,31 @@ func (m *Manager) Remove(idOrName string) error {
 }
 
 // Rename changes the display name without replacing configuration or credentials.
+func (m *Manager) ChangeSourceURL(id, source string) error {
+	parsed, err := url.Parse(source)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return errors.New("subscription source must be an HTTP or HTTPS URL")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, item := range m.store.Subscriptions {
+		if item.ID != id {
+			continue
+		}
+		if item.Type != SubTypeUniversal {
+			return errors.New("account subscription URLs are managed by the account")
+		}
+		m.store.Subscriptions[i].SourceURL = source
+		m.store.Subscriptions[i].ETag = ""
+		if err := m.saveStoreLocked(); err != nil {
+			m.store.Subscriptions[i] = item
+			return err
+		}
+		return nil
+	}
+	return errors.New("subscription not found")
+}
+
 func (m *Manager) Rename(id, name string) error {
 	name = strings.TrimSpace(name)
 	if name == "" || len([]rune(name)) > 256 {
@@ -281,6 +307,43 @@ func (m *Manager) AddXBond(
 	}
 
 	return m.upsertAndInit(meta, activate)
+}
+
+// BindAccount keeps an account source's identity across credential rotation.
+// A manually imported source is adopted only when its token matches the
+// authenticated account; unrelated sources and their overrides stay intact.
+func (m *Manager) BindAccount(token, issuer, origin string, fallbacks []string, protocol, lang, name string) (*SubscriptionMeta, error) {
+	if !strings.HasPrefix(token, "sub-") || issuer == "" {
+		return nil, errors.New("account subscription credentials are missing")
+	}
+	var existing *SubscriptionMeta
+	for _, item := range m.List() {
+		if item.Type == SubTypeXBond && (item.AccountIssuer == issuer || (item.AccountIssuer == "" && item.Token == token)) {
+			copy := item
+			existing = &copy
+			break
+		}
+	}
+	if existing == nil {
+		if name == "" {
+			name = "XBond Cloud"
+		}
+		existing = &SubscriptionMeta{ID: "account_" + hashString(issuer)[:12], Name: name, Type: SubTypeXBond, AutoUpdate: true, UpdateIntervalHours: 24, Health: HealthOK}
+	}
+	existing.Token = token
+	existing.AccountIssuer = issuer
+	existing.Origin = origin
+	existing.FallbackOrigins = fallbacks
+	if protocol != "" {
+		existing.Protocol = protocol
+	}
+	if existing.Protocol == "" {
+		existing.Protocol = "vless-reality"
+	}
+	if lang != "" {
+		existing.Lang = normalizeRenderLang(lang)
+	}
+	return m.upsertAndInit(*existing, false)
 }
 
 func (m *Manager) AddUniversal(

@@ -1,9 +1,11 @@
+import configuration from "./configuration.ts";
 /**
  * 한국어 메시지 카탈로그. 키 구조는 en_US와 정확히 일치해야 합니다
  * (./index.ts의 타입 가드가 보장). 용어는 CLI(ko.json)와 일치시킵니다:
  * 구독, 노드/프록시, 정책 그룹, 컨트롤러, 트래픽 인계, 라우팅 모드.
  */
 const KO = {
+  configuration: configuration.ko,
   common: {
     ok: "확인",
     cancel: "취소",

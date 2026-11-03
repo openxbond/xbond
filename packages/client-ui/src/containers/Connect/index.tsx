@@ -677,7 +677,7 @@ export default function Connect() {
             )}
             {hasLocalAPI && (
               <Link
-                to="/subscriptions"
+                to="/config"
                 className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-body font-semibold text-brand-text no-underline hover:underline hover:underline-offset-4"
               >
                 {t("manage")}
@@ -1234,7 +1234,7 @@ export default function Connect() {
             </span>
             {hasLocalAPI && (
               <Link
-                to="/subscriptions"
+                to="/config"
                 className="ml-auto grid size-6 place-items-center text-muted-foreground"
                 aria-label={t("manage")}
               >

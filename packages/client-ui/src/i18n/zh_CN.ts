@@ -1,8 +1,10 @@
+import configuration from "./configuration.ts";
 /**
  * 简体中文文案。键结构必须与 en_US 完全一致（由 ./index.ts 的类型守卫保证）。
  * 术语遵循 GLOSSARY.md：节点、策略组、订阅、控制器、流量接管、路由模式。
  */
 const CN = {
+  configuration: configuration.zh_CN,
   common: {
     ok: "确定",
     cancel: "取消",

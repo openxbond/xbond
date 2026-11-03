@@ -67,6 +67,7 @@ export interface SubscriptionMeta {
   id: string;
   name: string;
   type: "xbond" | "universal";
+  accountIssuer?: string;
   urlOrFile?: string;
   token?: string;
   upload: number;
@@ -121,6 +122,7 @@ interface SubscriptionWire extends Omit<
   };
   sourceUrl?: string;
   lastUpdatedAt?: string;
+  contentHash?: string;
   upload?: number;
   download?: number;
   total?: number;
@@ -135,6 +137,7 @@ function normalizeSubscription(meta: SubscriptionWire): SubscriptionMeta {
   return {
     ...meta,
     urlOrFile: meta.urlOrFile ?? meta.sourceUrl,
+    lastHash: meta.lastHash ?? meta.contentHash,
     upload: meta.quota?.uploadBytes ?? meta.upload ?? 0,
     download: meta.quota?.downloadBytes ?? meta.download ?? 0,
     total: meta.quota?.totalBytes ?? meta.total ?? 0,
@@ -442,6 +445,14 @@ export class LocalAPIClient {
     };
   }
 
+  /** Changes a universal subscription's source URL without replacing it. */
+  async changeSubURL(id: string, url: string): Promise<{ ok: boolean }> {
+    return this.request("/localapi/v0/subs/url", {
+      method: "PUT",
+      body: JSON.stringify({ id, url }),
+    });
+  }
+
   /** Removes the pin an edited source carries, resuming auto-updates. */
   async unpinSub(id: string): Promise<{ ok: boolean }> {
     return this.request("/localapi/v0/subs/unpin", {
@@ -471,7 +482,7 @@ export class LocalAPIClient {
       updateError?: string;
     }>("/localapi/v0/login", {
       method: "POST",
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, use: false }),
     });
     return {
       ok: data.ok ?? false,

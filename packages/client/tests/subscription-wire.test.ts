@@ -69,7 +69,9 @@ test("daemon quota and RFC3339 timestamps normalize consistently across status a
       Date.parse(subscription.lastUpdatedAt) / 1000,
     );
   }
+  // Importing saves the source but must not replace the active config.
   assert.deepEqual(imported, {
     urlOrFile: "https://example.invalid",
+    use: false,
   });
 });

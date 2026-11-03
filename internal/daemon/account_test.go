@@ -16,6 +16,7 @@ type fakeAccountManager struct {
 	login       func(context.Context, account.LoginOptions, func(account.Progress)) (*account.Credentials, error)
 	link        *clientapi.SubscriptionLink
 	refreshErr  error
+	refresh     func(context.Context) (*clientapi.SubscriptionLink, error)
 	overview    *clientapi.AccountOverview
 	overviewErr error
 	logoutCalls int
@@ -36,7 +37,10 @@ func (f *fakeAccountManager) Session() (*account.Session, error) {
 	return f.session, nil
 }
 
-func (f *fakeAccountManager) RefreshLink(context.Context) (*clientapi.SubscriptionLink, error) {
+func (f *fakeAccountManager) RefreshLink(ctx context.Context) (*clientapi.SubscriptionLink, error) {
+	if f.refresh != nil {
+		return f.refresh(ctx)
+	}
 	if f.refreshErr != nil {
 		return nil, f.refreshErr
 	}
@@ -148,6 +152,59 @@ func TestAccountControllerHydrateFromSession(t *testing.T) {
 	)
 	if state := controller.snapshot(); state.Status != "signed_in" {
 		t.Fatalf("expected signed_in, got %+v", state)
+	}
+}
+
+func TestAccountControllerSubscriptionLinkDoesNotEstablishLogin(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	controller := newAccountController(&fakeAccountManager{}, nil, nil, func() *sub.SubscriptionMeta {
+		return &sub.SubscriptionMeta{ID: "manual", Type: sub.SubTypeXBond}
+	})
+	if state := controller.snapshot(); state.Status != "signed_out" || state.Subscription != nil {
+		t.Fatalf("a saved link must not impersonate an OAuth session: %+v", state)
+	}
+}
+
+func TestAccountControllerDeadlineReportsFailure(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	manager := &fakeAccountManager{login: func(ctx context.Context, _ account.LoginOptions, _ func(account.Progress)) (*account.Credentials, error) {
+		return nil, ctx.Err()
+	}}
+	controller := newAccountController(manager, nil, nil, func() *sub.SubscriptionMeta { return nil })
+	controller.state.Status = "pending"
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	controller.run(ctx, account.LoginOptions{}, accountBindOptions{}, controller.syncGen)
+	state := controller.snapshot()
+	if state.Status != "error" || state.ErrorCode != "timeout" {
+		t.Fatalf("expired login remained pending: %+v", state)
+	}
+}
+
+func TestAccountControllerLogoutInvalidatesRefreshBeforeBinding(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	started, release := make(chan struct{}), make(chan struct{})
+	manager := &fakeAccountManager{session: &account.Session{Origin: account.DefaultOrigin}, refresh: func(context.Context) (*clientapi.SubscriptionLink, error) {
+		close(started)
+		<-release
+		return &clientapi.SubscriptionLink{SubscriptionToken: "sub-fixture"}, nil
+	}}
+	bound := false
+	controller := newAccountController(manager, func(context.Context, *account.Credentials, accountBindOptions) (*sub.SubscriptionMeta, string, error) {
+		bound = true
+		return nil, "", nil
+	}, func() ([]sub.SubscriptionMeta, error) { return nil, nil }, func() *sub.SubscriptionMeta { return nil })
+	refreshed := make(chan struct{})
+	go func() { defer close(refreshed); _, _ = controller.refresh(context.Background()) }()
+	<-started
+	loggedOut := make(chan struct{})
+	go func() { defer close(loggedOut); _, _ = controller.logout(context.Background()) }()
+	waitForAccountStatus(t, controller, "signed_out")
+	close(release)
+	<-refreshed
+	<-loggedOut
+	if bound || controller.snapshot().Status != "signed_out" {
+		t.Fatal("late refresh restored an account after logout")
 	}
 }
 

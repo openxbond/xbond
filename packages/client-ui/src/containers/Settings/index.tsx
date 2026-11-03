@@ -1,6 +1,4 @@
 import { Button, ButtonSelect, Header, Switch } from "@components";
-import { ControllerPicker } from "@components/ControllerPicker";
-import AccountPanel from "@containers/AccountPanel";
 import type { Lang } from "@i18n";
 import { useAction } from "@lib/actions";
 import {
@@ -8,10 +6,8 @@ import {
   proxyTerminalCommand,
   type ProxyTerminalFormat,
 } from "@lib/proxy-endpoint";
-import { cn } from "@lib/utils";
-import { DASHBOARD_VERSION, parseClientInfo } from "@lib/version";
+import { DASHBOARD_VERSION } from "@lib/version";
 import {
-  DAEMON_CONTROLLER_ID,
   useAPIInfo,
   useCapabilities,
   useClient,
@@ -19,18 +15,13 @@ import {
   useGeneral,
   useLanguage,
   useLocalAPI,
-  useSelectController,
-  useVersion,
-  externalControllerModalAtom,
-  identityAtom,
   themeAtom,
   type ThemePreference,
 } from "@stores";
 import { validPort } from "@xbond/client/controller";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 type TerminalFormat = ProxyTerminalFormat;
@@ -39,22 +30,17 @@ export default function Settings() {
   const { lang, setLang } = useLanguage();
   const { t } = useTranslation("settings");
   const { t: tc } = useTranslation("common");
-  const { t: ta } = useTranslation("account");
   const { t: c } = useTranslation("connect");
 
   const controller = useAPIInfo();
   const caps = useCapabilities();
-  const version = useVersion();
   const client = useClient();
   const { general, update } = useGeneral();
-  const { hasLocalAPI, isLocalTarget, hasDaemon, status, setMode, refresh } =
+  const { hasLocalAPI, isLocalTarget, status, setMode, refresh } =
     useLocalAPI();
   const { data: profile, set: setProfile } = useConfig();
-  const select = useSelectController();
 
   const [theme, setTheme] = useAtom(themeAtom);
-  const setIdentity = useSetAtom(identityAtom);
-  const setModalState = useSetAtom(externalControllerModalAtom);
   const { run, pending } = useAction();
 
   const [port, setPort] = useState("");
@@ -70,13 +56,6 @@ export default function Settings() {
     controller.hostname,
     mixedPort,
   );
-  const clientInfo = parseClientInfo(
-    version.version,
-    false,
-    version.premium,
-    version.meta,
-  );
-
   const terminalCommands: Record<TerminalFormat, string> = {
     powershell: proxyTerminalCommand("powershell", proxyAddress),
     cmd: proxyTerminalCommand("cmd", proxyAddress),
@@ -113,63 +92,6 @@ export default function Settings() {
       <Header title={t("title")} />
 
       <div className="grid w-full grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3 items-start">
-        {/* Account: identity, service status and the trusted console entry.
-            The sidebar avatar opens the same panel as a dialog; this card
-            keeps the account reachable on mobile and within settings. */}
-        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
-          <div className="mb-5 flex items-center justify-between border-b border-border pb-3.5">
-            <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
-              <svg
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                aria-hidden="true"
-              >
-                <path d="M17.5 19a4.5 4.5 0 0 0 .38-8.98 6.5 6.5 0 0 0-12.6 1.74A4 4 0 0 0 6 19.94h11.5Z" />
-              </svg>
-              {ta("title")}
-            </h2>
-          </div>
-          <div className="flex flex-col gap-[18px]">
-            <AccountPanel />
-          </div>
-        </section>
-
-        {/* Mobile-only entry: DESIGN.md promises subscriptions reachable
-            from settings, since the phone crop hides the desktop rail. */}
-        <section className="hidden max-md:flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
-          <Link
-            to="/subscriptions"
-            className="flex min-h-11 items-center justify-between gap-3 text-foreground no-underline"
-          >
-            <div className="flex flex-col gap-0.5">
-              <strong className="text-body font-semibold">
-                {t("subscriptionsEntry")}
-              </strong>
-              <span className="text-xs text-muted-foreground">
-                {t("subscriptionsEntryDesc")}
-              </span>
-            </div>
-            <svg
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="shrink-0 text-muted-foreground"
-              aria-hidden="true"
-            >
-              <path d="m9 18 6-6-6-6" />
-            </svg>
-          </Link>
-        </section>
-
         {/* Card 1: 網絡與連接埠。接管模式在桌面端由首頁環境帶獨家承載,
             這裡僅移動端保留(手機首頁裁掉了環境帶)。 */}
         <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
@@ -470,133 +392,8 @@ export default function Settings() {
           </div>
         </section>
 
-        {/* Card 3: 控制目标与核心 */}
         <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
-          <div className="mb-5 flex items-center justify-between border-b border-border pb-3.5">
-            <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
-              <svg
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-              {t("targetAndCore")}
-            </h2>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="h-8 text-xs"
-                onClick={() => setModalState({ open: true, createOnly: true })}
-              >
-                {tc("addExternalController")}
-              </Button>
-              {!isLocalTarget && (
-                <Button
-                  className="h-8 text-xs"
-                  onClick={() => setIdentity(false)}
-                >
-                  {tc("edit")}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-[18px]">
-            <div className="setting-label-col flex flex-col gap-1">
-              <strong className="text-body font-semibold text-foreground">
-                {tc("controlTarget")}
-              </strong>
-              <div className="mt-2">
-                <ControllerPicker />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 rounded-sm border border-border bg-inset p-3.5 text-body">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {t("controller.takeoverType")}
-                </span>
-                <strong className="font-mono text-label">
-                  {isLocalTarget
-                    ? t("controller.localDaemon")
-                    : t("controller.externalCore")}
-                </strong>
-              </div>
-
-              {isLocalTarget ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">
-                      {t("about.coreVersion")}
-                    </span>
-                    <strong className="font-mono text-label">
-                      {clientInfo.type} {clientInfo.version || "—"}
-                    </strong>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">
-                      {t("core.localApi")}
-                    </span>
-                    <div className="flex items-center gap-1.5 font-mono text-label">
-                      <span
-                        className={cn(
-                          "size-2 rounded-full",
-                          status?.engine.running
-                            ? "bg-success"
-                            : "bg-muted-foreground",
-                        )}
-                      />
-                      <strong>
-                        {hasDaemon
-                          ? status?.engine.running
-                            ? tc("running")
-                            : tc("stopped")
-                          : t("core.localApiNone")}
-                      </strong>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">
-                      {t("controller.address")}
-                    </span>
-                    <strong className="font-mono text-label">
-                      {controller.url}
-                    </strong>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">
-                      {t("about.coreVersion")}
-                    </span>
-                    <strong className="font-mono text-label">
-                      {clientInfo.type} {clientInfo.version || "—"}
-                    </strong>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                    {t("targetNotice")}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      className="h-8 text-xs font-semibold"
-                      onClick={() => select(DAEMON_CONTROLLER_ID)}
-                    >
-                      {tc("switchToLocal")}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-
+          <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-5 text-body max-md:flex-wrap">
               <div className="setting-label-col flex flex-col gap-1">
                 <strong className="text-body font-semibold text-foreground">

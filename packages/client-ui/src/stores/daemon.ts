@@ -21,6 +21,11 @@ export function useDaemonConnection() {
   const [config, setConfig] = useState<LocalAPIConfig | null>(() =>
     detectLocalAPIConfig(),
   );
+  // Desktop resolves its injected config over IPC asynchronously. Until that
+  // settles, "no client" means connecting, not a down daemon.
+  const [configReady, setConfigReady] = useState(
+    () => Boolean(detectLocalAPIConfig()) || !isDesktopApp(),
+  );
   const lastReresolveAt = useRef(0);
 
   useEffect(() => {
@@ -29,6 +34,7 @@ export function useDaemonConnection() {
         if (desktopCfg) {
           setConfig(desktopCfg);
         }
+        setConfigReady(true);
       });
     }
   }, [config]);
@@ -71,12 +77,21 @@ export function useDaemonConnection() {
     return () => clearTimeout(timer);
   }, [error, config]);
 
+  const daemonState = !configReady
+    ? ("connecting" as const)
+    : !config || error
+      ? ("offline" as const)
+      : !data
+        ? ("connecting" as const)
+        : ("ready" as const);
+
   return {
     client,
     config,
     data: data ?? null,
     error: error ?? null,
     mutateStatus: mutate,
-    hasDaemon: Boolean(client && data && !error),
+    hasDaemon: daemonState === "ready",
+    daemonState,
   };
 }

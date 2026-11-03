@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/openxbond/xbond/internal/clientapi"
@@ -55,6 +56,7 @@ type LoginOptions struct {
 type Credentials struct {
 	Token             *oauth2.Token
 	Origin            string
+	Issuer            string
 	SubscriptionToken string
 	FallbackOrigins   []string
 	LinkError         error
@@ -109,6 +111,8 @@ type TokenRevoker func(context.Context, string, string) error
 
 // Manager owns the persisted session and the OAuth/link operations.
 type Manager struct {
+	mu            sync.Mutex
+	generation    uint64
 	sessionPath   string
 	flow          Flow
 	fetchLink     LinkFetcher
@@ -134,6 +138,7 @@ func (m *Manager) Login(
 	opts LoginOptions,
 	progress func(Progress),
 ) (*Credentials, error) {
+	generation := m.currentGeneration()
 	origin, err := NormalizeOrigin(opts.Origin)
 	if err != nil {
 		return nil, err
@@ -150,11 +155,11 @@ func (m *Manager) Login(
 		Expiry:       token.Expiry,
 		Origin:       origin,
 	}
-	if err := SaveSession(m.sessionPath, session); err != nil {
+	if err := m.saveCurrentSession(ctx, generation, session); err != nil {
 		return nil, err
 	}
 
-	credentials := &Credentials{Token: token, Origin: origin}
+	credentials := &Credentials{Token: token, Origin: origin, Issuer: origin}
 	link, err := m.fetchLink(ctx, origin, token)
 	if err != nil {
 		credentials.LinkError = err
@@ -186,6 +191,7 @@ func (m *Manager) Session() (*Session, error) {
 // persists any rotated tokens. This is the recovery path after a purchase or a
 // temporary Cloud failure.
 func (m *Manager) RefreshLink(ctx context.Context) (*clientapi.SubscriptionLink, error) {
+	generation := m.currentGeneration()
 	session, err := m.Session()
 	if err != nil {
 		return nil, err
@@ -199,7 +205,7 @@ func (m *Manager) RefreshLink(ctx context.Context) (*clientapi.SubscriptionLink,
 	session.RefreshToken = token.RefreshToken
 	session.TokenType = token.TokenType
 	session.Expiry = token.Expiry
-	if err := SaveSession(m.sessionPath, session); err != nil {
+	if err := m.saveCurrentSession(ctx, generation, session); err != nil {
 		return nil, err
 	}
 	return link, nil
@@ -209,6 +215,7 @@ func (m *Manager) RefreshLink(ctx context.Context) (*clientapi.SubscriptionLink,
 // announcements) with the saved session and persists any rotated tokens.
 // It is the read path behind the daemon's account status.
 func (m *Manager) Overview(ctx context.Context) (*clientapi.AccountOverview, error) {
+	generation := m.currentGeneration()
 	session, err := m.Session()
 	if err != nil {
 		return nil, err
@@ -222,7 +229,7 @@ func (m *Manager) Overview(ctx context.Context) (*clientapi.AccountOverview, err
 	session.RefreshToken = token.RefreshToken
 	session.TokenType = token.TokenType
 	session.Expiry = token.Expiry
-	if err := SaveSession(m.sessionPath, session); err != nil {
+	if err := m.saveCurrentSession(ctx, generation, session); err != nil {
 		return nil, err
 	}
 	return overview, nil
@@ -232,15 +239,38 @@ func (m *Manager) Overview(ctx context.Context) (*clientapi.AccountOverview, err
 // failure must not strand local credentials) and removes the local session.
 // Revoking an already-dead session is a no-op per RFC 7009.
 func (m *Manager) Logout(ctx context.Context) error {
-	if session, err := m.Session(); err == nil && session.RefreshToken != "" {
+	m.mu.Lock()
+	session, sessionErr := m.Session()
+	m.generation++
+	err := os.Remove(m.sessionPath)
+	m.mu.Unlock()
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if sessionErr == nil && session.RefreshToken != "" {
 		revokeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		_ = m.revoke(revokeCtx, session.Origin, session.RefreshToken)
 		cancel()
 	}
-	if err := os.Remove(m.sessionPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	return nil
+}
+
+func (m *Manager) currentGeneration() uint64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.generation
+}
+
+func (m *Manager) saveCurrentSession(ctx context.Context, generation uint64, session *Session) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return nil
+	if generation != m.generation {
+		return context.Canceled
+	}
+	return SaveSession(m.sessionPath, session)
 }
 
 func SaveSession(path string, session *Session) error {

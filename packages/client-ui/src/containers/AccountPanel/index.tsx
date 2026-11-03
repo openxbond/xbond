@@ -1,213 +1,316 @@
 import { Button } from "@components";
-import { useAction } from "@lib/actions";
-import { useAccount, useLanguage, useLocalAPI } from "@stores";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@components/ui/dialog";
+import { ResourceIcon } from "@containers/Config/ResourceIcon";
+import {
+  useAccount,
+  useLanguage,
+  useLocalAPI,
+  useSubscriptions,
+} from "@stores";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 
-/**
- * The XBond Cloud account surface: identity, service status, announcements
- * and the trusted console entry. One implementation, two mounts — the
- * sidebar avatar dialog and the Settings account card (the mobile bottom
- * bar has no avatar, so Settings keeps account reachable there).
- */
 export default function AccountPanel() {
-  const { t: ta } = useTranslation("account");
+  const { t } = useTranslation("account");
+  const { t: c } = useTranslation("configuration");
+  const { t: common } = useTranslation("common");
   const { lang } = useLanguage();
-  const { status, hasDaemon, refresh } = useLocalAPI();
+  const { hasDaemon, daemonState, refresh } = useLocalAPI();
+  const { refresh: refreshSubs } = useSubscriptions();
   const {
     account,
-    login: loginAccount,
-    logout: logoutAccount,
+    accountReady,
+    accountError,
+    mutateAccount,
+    login,
+    logout,
     cancelLogin,
     resync,
   } = useAccount();
-  const { run, pending } = useAction();
-
-  if (!hasDaemon) {
-    return (
-      <div className="setting-label-col flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">
-          {ta("webModeAccountNote")}
-        </p>
-      </div>
-    );
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const connecting = daemonState === "connecting";
+  async function action(work: () => Promise<unknown>, success = "") {
+    if (pending || daemonState !== "ready") return;
+    setPending(true);
+    setError("");
+    setNotice("");
+    try {
+      await work();
+      await Promise.all([refresh(), refreshSubs()]);
+      setNotice(success);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPending(false);
+    }
   }
-
-  if (account?.status === "signed_in") {
-    return (
-      <div className="setting-label-col flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <span className="size-2 rounded-full bg-success" />
-          <strong className="text-sm font-semibold">
-            {account.name || account.email
-              ? [account.name, account.email].filter(Boolean).join(" · ")
-              : ta("signedIn")}
-          </strong>
-        </div>
-        {account.service ? (
-          <p className="text-sm text-muted-foreground">
-            {[
-              account.service.plan,
-              account.service.servicePeriodEnd
-                ? ta("serviceExpires", {
-                    date: new Date(
-                      account.service.servicePeriodEnd,
-                    ).toLocaleDateString(lang),
-                  })
-                : null,
-              account.service.quotaState === "blocked"
-                ? ta("serviceQuotaBlocked")
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground">{ta("noService")}</p>
-        )}
-        {account.updateError && (
-          <p className="text-sm text-destructive">{account.updateError}</p>
-        )}
-        {account.overviewError && (
-          <p className="text-sm text-warning">
-            {ta("overviewFailed", { error: account.overviewError })}
-          </p>
-        )}
-        {account.announcements && account.announcements.length > 0 && (
-          <div className="setting-label-col mt-2 flex flex-col gap-1">
-            <strong className="text-sm">{ta("announcements")}</strong>
-            {account.announcements.slice(0, 3).map((item) => (
-              <div key={item.id} className="text-sm">
-                <span
-                  className={item.readAt ? "text-muted-foreground" : undefined}
-                >
-                  {item.title}
-                </span>
-                {item.summary && (
-                  <p className="text-sm text-muted-foreground">
-                    {item.summary}
-                  </p>
-                )}
-              </div>
-            ))}
+  async function update() {
+    const result = await resync();
+    if (result.updateError) throw new Error(result.updateError);
+  }
+  const signedIn = account?.status === "signed_in";
+  const authorizing = account?.status === "pending";
+  const device = account?.method === "device";
+  return (
+    <div className="config-detail-stack" aria-busy={pending}>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <ResourceIcon kind="cloud" className="size-14" />
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold">XBond Cloud</h2>
+            <p className="mt-1 break-words text-sm text-muted-foreground">
+              {signedIn
+                ? account.name || account.email || t("signedIn")
+                : t("cloudDesc")}
+            </p>
           </div>
-        )}
-        <div className="setting-inline mt-3 flex flex-wrap items-center gap-2.5">
-          <Button
-            variant="brand"
-            disabled={pending}
-            onClick={() =>
-              void run(async () => {
-                const res = await resync();
-                await refresh();
-                if (res.updateError) {
-                  toast.error(res.updateError);
-                } else {
-                  toast.success(ta("syncSuccess"));
-                }
-              })
-            }
-          >
-            {ta("syncSubscription")}
+        </div>
+        {signedIn && <span className="config-status">{t("signedIn")}</span>}
+      </div>
+      {connecting ? (
+        <p role="status" className="text-muted-foreground">
+          {common("loading")}
+        </p>
+      ) : !hasDaemon ? (
+        <p className="config-notice" role="status">
+          {c("serviceUnavailable")}
+        </p>
+      ) : accountError ? (
+        <div className="config-notice" role="alert">
+          <p>{t("failed")}</p>
+          <Button variant="outline" onClick={() => void mutateAccount()}>
+            {common("retry")}
           </Button>
-          {account.consoleUrl && (
+        </div>
+      ) : !accountReady ? (
+        <p role="status" className="text-muted-foreground">
+          {common("loading")}
+        </p>
+      ) : authorizing ? (
+        <div className="flex flex-col items-start gap-4">
+          <h3 className="text-subtitle font-semibold">{t("pending")}</h3>
+          {account.userCode && (
+            <div className="grid gap-2">
+              <span className="text-sm">{t("deviceCode")}</span>
+              <code className="rounded-control bg-inset px-4 py-3 text-xl font-semibold">
+                {account.userCode}
+              </code>
+            </div>
+          )}
+          {(account.authUrl ||
+            account.verificationUriComplete ||
+            account.verificationUri) && (
             <a
-              href={account.consoleUrl}
+              className="section-link"
+              href={
+                account.authUrl ||
+                account.verificationUriComplete ||
+                account.verificationUri
+              }
               target="_blank"
               rel="noopener noreferrer"
-              className="section-link text-sm"
             >
-              {ta("openConsole")} ↗
+              {t("openAuthPage")} ↗
             </a>
           )}
-          <Button
-            variant="destructive"
-            disabled={pending}
-            onClick={() => void run(logoutAccount)}
-          >
-            {ta("logout")}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (account?.status === "pending") {
-    // PKCE is the default: the daemon already opened the system browser, and
-    // the auth URL stays reachable here for when that did not happen (browser
-    // blocked, remote daemon). The device flow needs no loopback callback at
-    // all — it is the fallback for web management of a remote daemon, where
-    // the redirect cannot reach the machine holding the session.
-    const deviceFlow = account.method === "device";
-    return (
-      <div className="setting-label-col flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">{ta("pending")}</p>
-        {deviceFlow ? (
-          <div className="setting-label-col mt-2 flex flex-col gap-1">
-            <p className="text-sm">
-              <a
-                href={
-                  account.verificationUriComplete || account.verificationUri
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className="section-link"
-              >
-                {account.verificationUri}
-              </a>
-            </p>
-            <p className="text-sm">
-              {ta("deviceCode")}: <strong>{account.userCode}</strong>
-            </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => void action(cancelLogin)}
+            >
+              {common("cancel")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                void action(async () => {
+                  await cancelLogin();
+                  await login({ device: !device });
+                })
+              }
+            >
+              {device ? t("browserLogin") : t("deviceLogin")}
+            </Button>
           </div>
-        ) : (
-          account.authUrl && (
-            <p className="text-sm mt-2">
+        </div>
+      ) : signedIn ? (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="brand"
+              disabled={pending}
+              onClick={() => void action(update, c("updated"))}
+            >
+              {pending ? common("loading") : t("syncSubscription")}
+            </Button>
+            {account.consoleUrl && (
               <a
-                href={account.authUrl}
+                className="section-link text-sm"
+                href={account.consoleUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="section-link"
               >
-                {ta("openAuthPage")}
+                {t("openConsole")} ↗
               </a>
+            )}
+            <Button
+              variant="ghost"
+              disabled={pending}
+              onClick={() => setConfirmLogout(true)}
+            >
+              {t("logout")}
+            </Button>
+          </div>
+          {(error || account.updateError) && (
+            <div className="config-notice" role="alert">
+              <p className="font-medium">{c("updateFailed")}</p>
+              <p className="mt-1 break-words text-sm text-muted-foreground">
+                {error || account.updateError}
+              </p>
+            </div>
+          )}
+          <section className="grid gap-3 border-t border-border pt-5">
+            <h3 className="text-subtitle font-semibold">{t("title")}</h3>
+            {account.service ? (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {[
+                  account.service.enabled
+                    ? account.service.plan
+                    : t("noService"),
+                  account.service.servicePeriodEnd
+                    ? t("serviceExpires", {
+                        date: new Date(
+                          account.service.servicePeriodEnd,
+                        ).toLocaleDateString(lang.replace("_", "-")),
+                      })
+                    : null,
+                  account.service.quotaState === "blocked"
+                    ? t("serviceQuotaBlocked")
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {c("unknownService")}
+              </p>
+            )}
+            {account.overviewError && (
+              <p className="text-sm text-warning-text">
+                {t("overviewFailed", { error: account.overviewError })}
+              </p>
+            )}
+          </section>
+          {account.subscription && (
+            <section className="grid gap-3 border-t border-border pt-5">
+              <h3 className="text-subtitle font-semibold">
+                {c("sourceCloud")}
+              </h3>
+              <div className="flex items-center gap-3">
+                <ResourceIcon kind={account.subscription.format || "local"} />
+                <div>
+                  <p className="font-medium">{account.subscription.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {c("localScope")}
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+          {account.announcements && account.announcements.length > 0 && (
+            <section className="grid gap-3 border-t border-border pt-5">
+              <h3 className="text-subtitle font-semibold">
+                {t("announcements")}
+              </h3>
+              {account.announcements.slice(0, 3).map((item) => (
+                <article key={item.id}>
+                  <h4 className="text-sm font-medium">{item.title}</h4>
+                  {item.summary && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {item.summary}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </section>
+          )}
+        </>
+      ) : (
+        <div className="grid justify-items-start gap-4">
+          {account?.status === "error" && (
+            <p className="config-error" role="alert">
+              {account.errorCode === "session_expired"
+                ? c("needsLogin")
+                : t("failed")}
             </p>
-          )
-        )}
-        <div className="setting-inline mt-2 flex items-center gap-2.5">
+          )}
           <Button
             variant="brand"
             disabled={pending}
-            onClick={() =>
-              void run(async () => {
-                await cancelLogin();
-                await loginAccount({ device: true });
-              }, false)
-            }
+            onClick={() => void action(() => login())}
           >
-            {deviceFlow ? ta("browserLogin") : ta("deviceLogin")}
+            {t("loginCta")}
           </Button>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="setting-label-col flex flex-col gap-2">
-      <p className="text-sm text-muted-foreground">{ta("cloudDesc")}</p>
-      {status?.activeSub?.type === "universal" && (
-        <p className="text-sm text-muted-foreground">{ta("note")}</p>
       )}
-      {account?.status === "error" && (
-        <p className="text-sm text-warning">
-          {ta("failed")}: {account.error}
+      {!signedIn && error && (
+        <p className="config-error" role="alert">
+          {error}
         </p>
       )}
-      <div className="mt-1">
-        <Button variant="brand" onClick={() => loginAccount().catch(() => {})}>
-          {ta("loginCta")}
-        </Button>
-      </div>
+      {notice && (
+        <p role="status" className="text-sm text-success-text">
+          {notice}
+        </p>
+      )}
+      <Dialog
+        open={confirmLogout}
+        onOpenChange={(open) => {
+          if (!pending) setConfirmLogout(open);
+        }}
+      >
+        <DialogContent closeLabel={common("close")}>
+          <DialogHeader>
+            <DialogTitle>{c("logoutConfirm")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {c("logoutImpact")}
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => setConfirmLogout(false)}
+            >
+              {common("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={pending}
+              onClick={() =>
+                void action(async () => {
+                  await logout();
+                  setConfirmLogout(false);
+                })
+              }
+            >
+              {t("logout")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,9 +1,11 @@
+import configuration from "./configuration.ts";
 /**
  * Canonical message catalog. zh_CN and zh_HK must keep the exact same
  * key structure (enforced by type guards in ./index.ts) so a missing
  * translation fails the build instead of falling back silently.
  */
 const EN = {
+  configuration: configuration.en_US,
   common: {
     ok: "OK",
     cancel: "Cancel",

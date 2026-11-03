@@ -1,21 +1,18 @@
 import { XBondIcon } from "@components";
-import { hasDaemonConfig } from "@lib/localapi-bootstrap";
 import { cn } from "@lib/utils";
-import { identityAtom, useStreamReader, useStreamState } from "@stores";
 import { workspaceLink } from "@xbond/client/workspace";
-import { useSetAtom } from "jotai";
+import { Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
-import { AccountMenu } from "./AccountMenu";
-import { ControllerSwitcher } from "./ControllerSwitcher";
+import { ConfigMenu } from "./ConfigMenu";
 
 /** Route display names map to sidebar message keys (desktop 8 + mobile 4). */
 function navLabel(name: string) {
   const keys = {
     Connect: "home",
     Proxies: "proxies",
-    Subscriptions: "subscriptions",
+    Config: "subscriptions",
     Connections: "connections",
     Rules: "rules",
     Logs: "logs",
@@ -75,7 +72,7 @@ function getRouteIcon(name: string, compact?: boolean) {
           <line x1="6" y1="18" x2="6.01" y2="18" />
         </svg>
       );
-    case "Subscriptions":
+    case "Config":
       return (
         <svg
           viewBox="0 0 24 24"
@@ -222,7 +219,8 @@ function NavLink({
   const location = useLocation();
   const isActive = location.pathname === item.path;
   const { t } = useTranslation("sidebar");
-  const label = t(navLabel(item.name));
+  const { t: cfg } = useTranslation("configuration");
+  const label = item.name === "Config" ? cfg("title") : t(navLabel(item.name));
   return (
     <li className={cn(compact && "min-w-0 flex-1")}>
       <Link
@@ -251,22 +249,17 @@ function NavLink({
 export default function Sidebar(props: SidebarProps) {
   const { routes } = props;
   const { t } = useTranslation("sidebar");
-  const setIdentity = useSetAtom(identityAtom);
-  const traffic = useStreamReader<{ up: number; down: number }>("traffic");
-  const trafficState = useStreamState(traffic);
-
-  // 无 daemon 的纯前端只通过远程控制器管理：不出现订阅入口（App 同步重定向）。
-  const daemonConfigured = hasDaemonConfig();
+  const location = useLocation();
   const desktopItems = [
     { path: "/connect", name: "Connect" },
     { path: "/proxies", name: "Proxies" },
-    { path: "/subscriptions", name: "Subscriptions" },
+    { path: "/config", name: "Config" },
     { path: "/connections", name: "Connections" },
     { path: "/rules", name: "Rules" },
     { path: "/logs", name: "Logs" },
     { path: "/diagnostics", name: "Diagnostics" },
     { path: "/settings", name: "Settings" },
-  ].filter((item) => !(!daemonConfigured && item.name === "Subscriptions"));
+  ];
 
   return (
     <>
@@ -278,13 +271,15 @@ export default function Sidebar(props: SidebarProps) {
             XBond
           </span>
         </div>
-        <ControllerSwitcher
-          connected={trafficState === "open"}
-          onEdit={() => setIdentity(false)}
-        />
-        <div className="ml-auto">
-          <AccountMenu variant="avatar" />
-        </div>
+        <span className="ml-auto">
+          <Link
+            to={workspaceLink(location.search, "/settings")}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-control hover:bg-inset"
+            aria-label={t("settings")}
+          >
+            <SettingsIcon className="size-5" />
+          </Link>
+        </span>
       </header>
 
       {/* 桌面玻璃浮島側欄 */}
@@ -299,13 +294,6 @@ export default function Sidebar(props: SidebarProps) {
           </span>
         </div>
 
-        <div className="px-3 pb-2.5">
-          <ControllerSwitcher
-            connected={trafficState === "open"}
-            onEdit={() => setIdentity(false)}
-          />
-        </div>
-
         <ul className="m-0 flex list-none flex-1 flex-col gap-[3px] overflow-y-auto px-2.5 pt-1 pb-3">
           {desktopItems.map((item) => (
             <NavLink key={item.name} item={item} />
@@ -313,7 +301,7 @@ export default function Sidebar(props: SidebarProps) {
         </ul>
 
         <div className="flex flex-col border-t border-sidebar-border px-3 pt-3 pb-3.5">
-          <AccountMenu variant="row" />
+          <ConfigMenu />
         </div>
       </nav>
 

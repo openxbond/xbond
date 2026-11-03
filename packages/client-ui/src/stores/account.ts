@@ -1,6 +1,6 @@
 import type { AccountStatus } from "@xbond/client/localapi";
-import { useCallback } from "react";
-import useSWR from "swr";
+import { useCallback, useEffect } from "react";
+import useSWR, { useSWRConfig } from "swr";
 
 import { useDaemonConnection } from "./daemon";
 
@@ -9,9 +9,12 @@ import { useDaemonConnection } from "./daemon";
  * this hook only exposes login state and the actions LocalAPI offers.
  */
 export function useAccount() {
-  const { client, hasDaemon } = useDaemonConnection();
+  const { client, config } = useDaemonConnection();
+  const { mutate: mutateCache } = useSWRConfig();
   const { data, error, mutate } = useSWR<AccountStatus>(
-    client && hasDaemon ? ["/localapi/v0/account", client] : null,
+    client && config
+      ? ["/localapi/v0/account", config.endpoint, config.token]
+      : null,
     () => {
       if (!client) throw new Error("LocalAPI not available");
       return client.accountStatus();
@@ -20,10 +23,22 @@ export function useAccount() {
       // Fast-poll only while an authorization is pending; otherwise the
       // LocalAPI status refresh drives state changes.
       refreshInterval: (latest: AccountStatus | undefined) =>
-        latest?.status === "pending" ? 1000 : 0,
+        latest?.status === "pending" ? 1000 : 4000,
       shouldRetryOnError: false,
     },
   );
+
+  useEffect(() => {
+    if (config && data?.status)
+      void mutateCache(["/localapi/v0/subs", config.endpoint, config.token]);
+  }, [
+    data?.status,
+    data?.subscription?.id,
+    data?.subscription?.lastUpdated,
+    data?.updateError,
+    config,
+    mutateCache,
+  ]);
 
   const login = useCallback(
     async (options?: { origin?: string; device?: boolean }) => {

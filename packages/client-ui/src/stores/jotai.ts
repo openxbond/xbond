@@ -24,18 +24,6 @@ import { useAPIInfo, useClient } from "./request";
 
 export const identityAtom = atom(true);
 
-export const onboardingDismissedAtom = atom(false);
-
-export interface ExternalControllerModalState {
-  open: boolean;
-  createOnly?: boolean;
-}
-
-export const externalControllerModalAtom = atom<ExternalControllerModalState>({
-  open: false,
-  createOnly: false,
-});
-
 export const languageAtom = atomWithStorage<Lang | undefined>(
   LANG_STORAGE_KEY,
   undefined,

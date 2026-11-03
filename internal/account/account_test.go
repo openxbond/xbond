@@ -17,6 +17,33 @@ import (
 	"golang.org/x/oauth2"
 )
 
+func TestRefreshAfterLogoutCannotRestoreSessionFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "account.json")
+	if err := SaveSession(path, &Session{AccessToken: "fixture-access", Origin: "https://cloud.example.invalid"}); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager(path)
+	started, release := make(chan struct{}), make(chan struct{})
+	manager.fetchLink = func(context.Context, string, *oauth2.Token) (*clientapi.SubscriptionLink, error) {
+		close(started)
+		<-release
+		return &clientapi.SubscriptionLink{SubscriptionToken: "sub-fixture"}, nil
+	}
+	done := make(chan error)
+	go func() { _, err := manager.RefreshLink(context.Background()); done <- err }()
+	<-started
+	if err := manager.Logout(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("late refresh was not invalidated: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatal("late refresh recreated the session file")
+	}
+}
+
 func TestDeviceLoginPersistsSessionAndResolvesLink(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

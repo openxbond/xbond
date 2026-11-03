@@ -461,6 +461,12 @@ func (c *runtimeController) stopLocked() (bool, error) {
 	return true, nil
 }
 
+func (c *runtimeController) ChangeSourceURL(id, source string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.subs.ChangeSourceURL(id, source)
+}
+
 func (c *runtimeController) Remove(id string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -481,12 +487,20 @@ func (c *runtimeController) Remove(id string) error {
 // universal subscriptions are never touched — removing those is `sub remove`.
 // Remote authorization is not revoked; that is a dashboard action.
 func (c *runtimeController) Logout() ([]sub.SubscriptionMeta, error) {
+	return c.logout(false)
+}
+
+func (c *runtimeController) LogoutAccount() ([]sub.SubscriptionMeta, error) {
+	return c.logout(true)
+}
+
+func (c *runtimeController) logout(accountOnly bool) ([]sub.SubscriptionMeta, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	active := c.subs.ActiveID()
 	var removed []sub.SubscriptionMeta
 	for _, item := range c.subs.List() {
-		if item.Type != sub.SubTypeXBond {
+		if item.Type != sub.SubTypeXBond || (accountOnly && item.AccountIssuer == "") {
 			continue
 		}
 		if item.ID == active {

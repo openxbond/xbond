@@ -1,11 +1,14 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/openxbond/xbond/internal/account"
 	"github.com/openxbond/xbond/internal/sub"
 )
 
@@ -13,6 +16,46 @@ import (
 // on the default path, while content the core rejects must fail without
 // touching the working runtime. The explicit node-extraction policy remains
 // cloud-import exclusive.
+func TestConfigurationImportWithoutUseKeepsCurrentCore(t *testing.T) {
+	f := newRuntimeFixture(t)
+	server := &Server{subMgr: f.subs, runtime: f.controller}
+	before := string(f.core.configuration())
+	response := runtimeRequest(server.handleLogin, `{"content":"proxies:\n  - {name: imported, type: trojan, server: example.invalid, port: 443, password: fixture}\nrules:\n  - MATCH,DIRECT\n","use":false}`)
+	if response.Code != http.StatusOK || f.subs.ActiveID() != f.first.ID || string(f.core.configuration()) != before {
+		t.Fatalf("import changed the selected configuration: status=%d", response.Code)
+	}
+	var result struct {
+		UpdateError string `json:"updateError"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil || result.UpdateError != "" {
+		t.Fatalf("fixture import failed: %v %s", err, result.UpdateError)
+	}
+}
+
+func TestCloudSyncRetainsThirdPartyConfigurationAndAccountIdentity(t *testing.T) {
+	f := newRuntimeFixture(t)
+	server := &Server{subMgr: f.subs, runtime: f.controller}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("proxies:\n  - {name: cloud, type: trojan, server: example.invalid, port: 443, password: fixture}\nrules:\n  - MATCH,DIRECT\n"))
+	}))
+	defer upstream.Close()
+	before := string(f.core.configuration())
+	first, updateError, err := server.bindCredentials(context.Background(), &account.Credentials{Issuer: "https://cloud.example.invalid", Origin: upstream.URL, SubscriptionToken: "sub-first"}, accountBindOptions{})
+	if err != nil || updateError != "" {
+		t.Fatalf("bind account source: %v %s", err, updateError)
+	}
+	second, updateError, err := server.bindCredentials(context.Background(), &account.Credentials{Issuer: "https://cloud.example.invalid", Origin: upstream.URL, SubscriptionToken: "sub-second"}, accountBindOptions{})
+	if err != nil || updateError != "" || first.ID != second.ID || f.subs.ActiveID() != f.first.ID || string(f.core.configuration()) != before {
+		t.Fatal("account rotation switched or replaced the third-party configuration")
+	}
+	if _, err := f.controller.LogoutAccount(); err != nil {
+		t.Fatal(err)
+	}
+	if f.subs.ActiveID() != f.first.ID || !f.core.IsRunning() {
+		t.Fatal("account logout disrupted a third-party connection")
+	}
+}
+
 func TestImportValidatesAgainstCoreAndPreservesWorkingRuntime(t *testing.T) {
 	f := newRuntimeFixture(t)
 	server := &Server{subMgr: f.subs, runtime: f.controller}
