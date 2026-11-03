@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@components/ui/dialog";
 import { useAction } from "@lib/actions";
+import { cn } from "@lib/utils";
 import {
   useCapabilities,
   useClient,
@@ -15,7 +16,7 @@ import {
   useProxy,
 } from "@stores";
 import type { DNSResult } from "@xbond/client/request";
-import { cn } from "cn";
+import { Globe, MonitorPlay, Server, Stethoscope } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -254,18 +255,7 @@ export default function Diagnostics() {
       <section className="rounded-card border border-border bg-card p-6 shadow-elevation-card">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="m12 6 3 6-6 2 3-8Z" />
-            </svg>
+            <Globe size={20} aria-hidden="true" />
             {t("connectivity.title")}
           </h2>
           <div className="flex items-center gap-2.5">
@@ -345,18 +335,7 @@ export default function Diagnostics() {
       <section className="rounded-card border border-border bg-card p-6 shadow-elevation-card">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="m10 8 6 4-6 4V8Z" />
-            </svg>
+            <MonitorPlay size={20} aria-hidden="true" />
             {t("stream.title")}
           </h2>
           <div className="flex items-center gap-2.5">
@@ -438,18 +417,7 @@ export default function Diagnostics() {
       <section className="rounded-card border border-border bg-card p-6 shadow-elevation-card">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>
+            <Server size={20} aria-hidden="true" />
             {t("dnsSection")}
           </h2>
         </div>
@@ -590,17 +558,7 @@ export default function Diagnostics() {
       <section className="rounded-card border border-border bg-card p-6 shadow-elevation-card">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="m-0 flex items-center gap-2.5 text-base font-semibold">
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
+            <Stethoscope size={20} aria-hidden="true" />
             {t("doctor.title")}
           </h2>
           <div className="flex items-center gap-2.5">

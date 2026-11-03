@@ -1,12 +1,14 @@
 import { XBondIcon } from "@components";
+import { cn } from "@lib/utils";
 import {
   DAEMON_CONTROLLER_ID,
+  externalControllerModalAtom,
   selectedControllerAtom,
   useControllers,
+  useLocalAPI,
   useSelectController,
 } from "@stores";
-import { cn } from "cn";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -28,6 +30,8 @@ export function ControllerSwitcher({
   const [controllers] = useControllers();
   const selectedID = useAtomValue(selectedControllerAtom);
   const select = useSelectController();
+  const { hasDaemon, status } = useLocalAPI();
+  const setModalState = useSetAtom(externalControllerModalAtom);
   const { t } = useTranslation("common");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -36,6 +40,9 @@ export function ControllerSwitcher({
     controllers.find((controller) => controller.id === selectedID) ??
     controllers[0];
   const isDaemon = selected?.id === DAEMON_CONTROLLER_ID;
+  const externalControllers = controllers.filter(
+    (c) => c.id !== DAEMON_CONTROLLER_ID,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -53,27 +60,23 @@ export function ControllerSwitcher({
     };
   }, [open]);
 
+  const localStateLabel = hasDaemon
+    ? status?.engine.running
+      ? t("running")
+      : t("stopped")
+    : t("notReady");
+
   return (
     <div
       className="relative mt-0.5 flex min-w-0 flex-col max-md:mt-0 max-md:flex-row max-md:items-center max-md:max-w-[210px]"
       ref={rootRef}
     >
-      {/* Legacy caption row, kept hidden with its count badge. */}
-      <div className="hidden">
-        <span>{t("controller")}</span>
-        {controllers.length > 1 && (
-          <span className="inline-flex h-[15px] min-w-4 items-center justify-center rounded-[7px] bg-inset px-[5px] font-mono text-2xs leading-none tabular-nums text-muted-foreground">
-            {controllers.length}
-          </span>
-        )}
-      </div>
-
       <button
         type="button"
         className="relative flex w-full cursor-pointer items-center gap-[7px] rounded-full border border-border bg-inset px-3 py-1.5 text-left font-[inherit] text-foreground shadow-[0_1px_2px_oklch(0_0_0/4%)] transition-[border-color,background-color,box-shadow] duration-[120ms] hover:border-border-strong hover:bg-card hover:shadow-[0_2px_6px_oklch(0_0_0/6%)] aria-expanded:border-brand aria-expanded:bg-card motion-reduce:transition-none max-md:w-auto max-md:gap-1.5 max-md:py-1.5 max-md:pr-3 max-md:pl-2 max-md:shadow-none"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={t("controller")}
+        aria-label={t("controlTarget")}
         onClick={() => setOpen((value) => !value)}
       >
         <span
@@ -85,8 +88,8 @@ export function ControllerSwitcher({
           ) : (
             <svg
               viewBox="0 0 24 24"
-              width="16"
-              height="16"
+              width="15"
+              height="15"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.6"
@@ -100,18 +103,16 @@ export function ControllerSwitcher({
           <span
             className={cn(
               "absolute right-[-1px] bottom-[-1px] size-[7px] rounded-full border-[1.5px] border-card bg-muted-foreground",
-              connected && "bg-success",
+              (isDaemon ? status?.engine.running : connected) && "bg-success",
             )}
           />
         </span>
         <span className="flex min-w-0 flex-1 flex-row items-center gap-1">
           <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-label font-medium text-foreground">
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-              {selected
-                ? isDaemon
-                  ? "XBond"
-                  : selected.name || hostOf(selected.url)
-                : "—"}
+              {isDaemon
+                ? t("localService")
+                : selected?.name || hostOf(selected?.url || "")}
             </span>
             <svg
               className={cn(
@@ -131,75 +132,124 @@ export function ControllerSwitcher({
               <path d="m6 9 6 6 6-6" />
             </svg>
           </span>
-          {selected?.name && !isDaemon && (
-            <span className="hidden">{hostOf(selected.url)}</span>
-          )}
         </span>
       </button>
 
       {open && (
         <div
-          className="absolute right-0 bottom-[calc(100%+6px)] left-0 z-40 flex max-h-[260px] flex-col gap-0.5 overflow-y-auto rounded-[10px] border border-border bg-popover p-1 shadow-[0_8px_24px_oklch(0_0_0/12%)] max-md:bottom-auto max-md:left-0 max-md:top-[calc(100%+6px)] max-md:min-w-60"
+          className="absolute right-0 bottom-[calc(100%+6px)] left-0 z-40 flex max-h-[300px] flex-col gap-1 overflow-y-auto rounded-[10px] border border-border bg-popover p-1.5 shadow-[0_8px_24px_oklch(0_0_0/12%)] max-md:bottom-auto max-md:left-0 max-md:top-[calc(100%+6px)] max-md:min-w-64"
           role="listbox"
-          aria-label={t("controller")}
+          aria-label={t("controlTarget")}
         >
-          {controllers.map((controller) => {
-            const active = controller.id === selectedID;
-            return (
-              <button
-                key={controller.id}
-                type="button"
-                role="option"
-                aria-selected={active}
-                className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-[7px] text-left font-[inherit] text-foreground transition-colors duration-[120ms] hover:bg-inset motion-reduce:transition-none",
-                  active && "bg-brand-soft",
-                )}
-                onClick={() => {
-                  select(controller.id);
-                  setOpen(false);
-                }}
-              >
-                <span className="flex min-w-0 flex-1 flex-col gap-px">
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap text-label font-semibold text-foreground">
-                    {controller.id === DAEMON_CONTROLLER_ID
-                      ? "XBond"
-                      : controller.name || hostOf(controller.url)}
-                  </span>
-                  {controller.id !== DAEMON_CONTROLLER_ID && (
-                    <span className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-2xs text-muted-foreground">
-                      {hostOf(controller.url)}
-                    </span>
-                  )}
-                </span>
-                {active && (
-                  <svg
-                    className="shrink-0 text-brand-text"
-                    viewBox="0 0 24 24"
-                    width="14"
-                    height="14"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="m4.5 12.5 5 5 10-11" />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-
-          <div className="mx-0.5 my-[3px] h-px bg-border" aria-hidden="true" />
-
+          {/* Section 1: Local Service */}
+          <div className="px-2 pt-1 pb-0.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            {t("localService")}
+          </div>
           <button
             type="button"
-            className="flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-[7px] text-left font-[inherit] text-xs text-muted-foreground transition-colors duration-[120ms] hover:bg-inset hover:text-foreground motion-reduce:transition-none"
+            role="option"
+            aria-selected={isDaemon}
+            className={cn(
+              "flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-1.5 text-left font-[inherit] text-foreground transition-colors duration-[120ms] hover:bg-inset motion-reduce:transition-none",
+              isDaemon && "bg-brand-soft",
+            )}
+            onClick={() => {
+              select(DAEMON_CONTROLLER_ID);
+              setOpen(false);
+            }}
+          >
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="flex items-center gap-1.5 text-label font-semibold text-foreground">
+                <span className="size-2 rounded-full bg-brand" />
+                {t("localService")}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {localStateLabel}
+              </span>
+            </span>
+            {isDaemon && (
+              <svg
+                className="shrink-0 text-brand-text"
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m4.5 12.5 5 5 10-11" />
+              </svg>
+            )}
+          </button>
+
+          {/* Section 2: External Controllers */}
+          <div className="mt-1 px-2 pt-1 pb-0.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            {t("externalController")}
+          </div>
+
+          {externalControllers.length > 0 ? (
+            externalControllers.map((controller) => {
+              const active = controller.id === selectedID;
+              return (
+                <button
+                  key={controller.id}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-1.5 text-left font-[inherit] text-foreground transition-colors duration-[120ms] hover:bg-inset motion-reduce:transition-none",
+                    active && "bg-brand-soft",
+                  )}
+                  onClick={() => {
+                    select(controller.id);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="overflow-hidden text-ellipsis whitespace-nowrap text-label font-semibold text-foreground">
+                      {controller.name || hostOf(controller.url)}
+                    </span>
+                    <span className="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+                      {controller.url}
+                    </span>
+                  </span>
+                  {active && (
+                    <svg
+                      className="shrink-0 text-brand-text"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m4.5 12.5 5 5 10-11" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })
+          ) : (
+            <div className="px-2 py-1 text-xs text-muted-foreground italic">
+              {t("empty")}
+            </div>
+          )}
+
+          <div className="mx-0.5 my-1 h-px bg-border" aria-hidden="true" />
+
+          {/* Actions */}
+          <button
+            type="button"
+            className="flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-1.5 text-left font-[inherit] text-xs font-medium text-brand-text transition-colors duration-[120ms] hover:bg-inset motion-reduce:transition-none"
             onClick={() => {
               setOpen(false);
-              onEdit();
+              setModalState({ open: true, createOnly: true });
             }}
           >
             <svg
@@ -208,13 +258,38 @@ export function ControllerSwitcher({
               height="14"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.6"
+              strokeWidth="2"
               aria-hidden="true"
             >
-              <path d="m13 3 4 4-9 9-5 1 1-5Z" />
+              <line x1="10" y1="4" x2="10" y2="16" />
+              <line x1="4" y1="10" x2="16" y2="10" />
             </svg>
-            {t("editController")}
+            {t("addExternalController")}
           </button>
+
+          {!isDaemon && (
+            <button
+              type="button"
+              className="flex cursor-pointer items-center gap-2 rounded-[7px] px-2 py-1.5 text-left font-[inherit] text-xs text-muted-foreground transition-colors duration-[120ms] hover:bg-inset hover:text-foreground motion-reduce:transition-none"
+              onClick={() => {
+                setOpen(false);
+                onEdit();
+              }}
+            >
+              <svg
+                viewBox="0 0 20 20"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                aria-hidden="true"
+              >
+                <path d="m13 3 4 4-9 9-5 1 1-5Z" />
+              </svg>
+              {t("editController")}
+            </button>
+          )}
         </div>
       )}
     </div>

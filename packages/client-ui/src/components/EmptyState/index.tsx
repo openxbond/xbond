@@ -1,5 +1,5 @@
+import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models";
-import { cn } from "cn";
 import type { ReactNode } from "react";
 
 interface EmptyStateProps extends BaseComponentProps {

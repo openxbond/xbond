@@ -5,8 +5,8 @@ import {
   DialogTitle,
 } from "@components/ui/dialog";
 import AccountPanel from "@containers/AccountPanel";
+import { cn } from "@lib/utils";
 import { useAccount } from "@stores";
-import { cn } from "cn";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 

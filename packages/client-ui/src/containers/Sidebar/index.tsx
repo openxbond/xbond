@@ -1,8 +1,8 @@
 import { XBondIcon } from "@components";
 import { hasDaemonConfig } from "@lib/localapi-bootstrap";
+import { cn } from "@lib/utils";
 import { identityAtom, useStreamReader, useStreamState } from "@stores";
 import { workspaceLink } from "@xbond/client/workspace";
-import { cn } from "cn";
 import { useSetAtom } from "jotai";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";

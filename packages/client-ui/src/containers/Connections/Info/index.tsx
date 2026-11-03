@@ -1,6 +1,6 @@
+import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models";
 import { basePath, formatTraffic } from "@xbond/client/helper";
-import { cn } from "cn";
 import { useTranslation } from "react-i18next";
 
 import { type Connection } from "../store";

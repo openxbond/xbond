@@ -1,5 +1,5 @@
+import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models/BaseProps";
-import { cn } from "cn";
 
 import "../../styles/iconfont.css";
 

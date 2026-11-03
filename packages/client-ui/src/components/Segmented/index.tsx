@@ -1,4 +1,4 @@
-import { cn } from "cn";
+import { cn } from "@lib/utils";
 
 export interface SegmentedOption<T extends string> {
   value: T;

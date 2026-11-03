@@ -1,9 +1,9 @@
 import { useNodeSelection } from "@lib/node-selection";
+import { cn } from "@lib/utils";
 import { useProxyMapping } from "@stores";
 import { useLatency } from "@stores/latency";
 import type { Group as IGroup } from "@xbond/client/request";
 import { strategyPath } from "@xbond/client/workspace";
-import { cn } from "cn";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 

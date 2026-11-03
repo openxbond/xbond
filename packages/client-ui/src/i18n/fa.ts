@@ -25,6 +25,14 @@ const FA = {
     local: "این دستگاه",
     remote: "کنترلر ازراه‌دور",
     controller: "کنترلر",
+    localService: "سرویس محلی",
+    externalController: "کنترلر خارجی",
+    controlTarget: "هدف کنترل",
+    addExternalController: "افزودن کنترلر خارجی",
+    switchToLocal: "تغییر به سرویس محلی",
+    running: "در حال اجرا",
+    stopped: "متوقف شده",
+    notReady: "آماده نیست",
     routingMode: {
       title: "حالت مسیریابی",
       rule: "قاعده",
@@ -77,6 +85,10 @@ const FA = {
       "این کنترلر به‌صورت ازراه‌دور مدیریت می‌شود. وضعیت هدایت محلی نامشخص است.",
     statusReadFailed: "خواندن وضعیت محلی ممکن نشد. دوباره تلاش کنید.",
     currentNode: "گره فعلی",
+    strategyGroups: "گروه‌های استراتژی",
+    allStrategies: "همه استراتژی‌ها",
+    strategyMembers: "عضو",
+    routingChain: "مسیر مسیریابی",
     chooseGroup: "گروه سیاست",
     noGroup: "برای دیدن گره فعلی، یک گروه سیاست انتخاب کنید.",
     copyNode: "کپی نام گره",
@@ -433,6 +445,10 @@ const FA = {
     use: "فعال‌سازی",
     updated: "آخرین به‌روزرسانی",
     readonly: "مدیریت‌شده توسط هسته ازراه‌دور",
+    externalTargetNote:
+      "توجه: در حال حاضر کنترلر خارجی ({{name}}) را مشاهده می‌کنید. اشتراک‌های مدیریت‌شده در اینجا به سرویس محلی تعلق دارند.",
+    pureWebNote:
+      "در حالت داشبورد تحت وب بدون سرویس محلی اجرا می‌شود. برای مدیریت اشتراک‌های محلی از برنامه دسکتاپ XBond استفاده کنید.",
     remove: "حذف پیکربندی",
     bindNote:
       "این دستگاه با اعتبار اشتراک ثبت می‌شود. ورود با xbond login هم ممکن است.",
@@ -472,6 +488,9 @@ const FA = {
   settings: {
     title: "تنظیمات",
     network: "شبکه و درگاه‌ها",
+    targetAndCore: "هدف کنترل و هسته",
+    targetNotice:
+      "در حال حاضر هسته خارجی را کنترل می‌کنید. گره‌ها و قوانین مستقیماً از مبدأ دور خوانده می‌شوند؛ پروکسی سیستم محلی و TUN روی هسته خارجی اعمال نمی‌شوند.",
     subscriptionsEntry: "اشتراک‌ها و پیکربندی‌ها",
     subscriptionsEntryDesc:
       "مدیریت منابع اشتراک، وارد کردن پیکربندی و بررسی سهمیه.",
@@ -584,6 +603,18 @@ const FA = {
     login: "ورود به XBond",
     importOption: "وارد کردن پیکربندی",
     remoteOption: "اتصال به کنترل‌کننده راه دور",
+    skipToApp: "اکنون رد شوید، به برنامه بروید",
+    cloudCardTitle: "حساب کاربری XBond Cloud",
+    cloudCardDesc:
+      "برای همگام‌سازی خودکار اشتراک و گره‌ها وارد حساب کاربری رسمی شوید.",
+    subCardTitle: "لینک اشتراک شخص ثالث",
+    subCardDesc:
+      "لینک‌های اشتراک Clash / sing-box یا فایل‌های پیکربندی محلی را وارد کنید.",
+    remoteCardTitle: "اتصال به کنترلر خارجی",
+    remoteCardDesc:
+      "به یک هسته فعال در روتر، سرور یا پورت محلی به عنوان پنل متصل شوید.",
+    subReady: "اشتراک رسمی با موفقیت همگام شد ({{name}}).",
+    startUsing: "شروع کنید",
     importTitle: "وارد کردن پیکربندی",
     modeUrl: "URL",
     modeFile: "فایل محلی",
@@ -628,6 +659,12 @@ const FA = {
     announcements: "اعلان‌ها",
     openConsole: "باز کردن کنسول",
     logout: "خروج",
+    syncSubscription: "به‌روزرسانی اشتراک",
+    syncSuccess: "اشتراک از Cloud همگام شد",
+    cloudDesc:
+      "با XBond Cloud وارد شوید تا خطوط اشتراک رسمی به‌طور خودکار همگام شوند.",
+    webModeAccountNote:
+      "در حالت داشبورد تحت وب. حساب کاربری XBond Cloud از طریق برنامه دسکتاپ مدیریت می‌شود.",
   },
 } as const;
 

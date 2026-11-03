@@ -13,8 +13,8 @@ import {
   renderNodeTitle,
 } from "@xbond/client-ui/components";
 import { setAppLanguage } from "@xbond/client-ui/locale";
+import { cn } from "@xbond/client-ui/utils";
 import { formatTraffic } from "@xbond/client/helper";
-import { cn } from "cn";
 import { useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 

@@ -16,11 +16,18 @@ import {
   DialogTitle,
 } from "@components/ui/dialog";
 import { useAction } from "@lib/actions";
-import { useLanguage, useLocalAPI, useSubscriptions } from "@stores";
+import { cn } from "@lib/utils";
+import {
+  DAEMON_CONTROLLER_ID,
+  useAPIInfo,
+  useLanguage,
+  useLocalAPI,
+  useSelectController,
+  useSubscriptions,
+} from "@stores";
 import { formatTraffic } from "@xbond/client/helper";
 import { subscriptionLang, subscriptionQuota } from "@xbond/client/localapi";
 import { workspaceLink } from "@xbond/client/workspace";
-import { cn } from "cn";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
@@ -34,7 +41,15 @@ export default function Subscriptions() {
   const { t: sb } = useTranslation("sidebar");
   const location = useLocation();
   const [params] = useSearchParams();
-  const { hasLocalAPI, status, refresh, client: localClient } = useLocalAPI();
+  const {
+    isLocalTarget,
+    hasDaemon,
+    status,
+    refresh,
+    client: localClient,
+  } = useLocalAPI();
+  const controller = useAPIInfo();
+  const select = useSelectController();
   const {
     subscriptions,
     activeId,
@@ -219,10 +234,10 @@ export default function Subscriptions() {
   }
 
   return (
-    <div className="page max-w-[1200px]">
+    <div className="page w-full">
       <Header title={t("title")}>
         <div className="flex items-center gap-2">
-          {hasLocalAPI && subscriptions.length > 1 && (
+          {hasDaemon && subscriptions.length > 1 && (
             <Button
               disabled={pending}
               onClick={() =>
@@ -239,8 +254,25 @@ export default function Subscriptions() {
         </div>
       </Header>
 
-      {hasLocalAPI ? (
+      {hasDaemon ? (
         <>
+          {!isLocalTarget && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-brand/30 bg-brand-soft p-4 text-sm text-brand-text">
+              <span>
+                {t("externalTargetNote", {
+                  name: controller.name || controller.url,
+                })}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs font-semibold"
+                onClick={() => select(DAEMON_CONTROLLER_ID)}
+              >
+                {tc("switchToLocal")}
+              </Button>
+            </div>
+          )}
           <section
             className="rounded-card border border-border bg-card p-5"
             aria-label={t("import")}
@@ -560,8 +592,8 @@ export default function Subscriptions() {
           </section>
         </>
       ) : (
-        <section className="p-8 text-center text-muted-foreground">
-          <p>{t("readonly")}</p>
+        <section className="rounded-card border border-border bg-card p-8 text-center text-muted-foreground shadow-elevation-card">
+          <p className="m-0 text-body leading-relaxed">{t("pureWebNote")}</p>
         </section>
       )}
 

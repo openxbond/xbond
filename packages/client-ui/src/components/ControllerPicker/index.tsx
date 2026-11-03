@@ -1,10 +1,10 @@
+import { cn } from "@lib/utils";
 import {
   DAEMON_CONTROLLER_ID,
   selectedControllerAtom,
   useControllers,
   useSelectController,
 } from "@stores";
-import { cn } from "cn";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
 

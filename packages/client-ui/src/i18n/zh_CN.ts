@@ -24,6 +24,14 @@ const CN = {
     local: "此设备",
     remote: "远程控制器",
     controller: "控制端",
+    localService: "本机服务",
+    externalController: "外部控制端",
+    controlTarget: "控制目标",
+    addExternalController: "添加外部控制端",
+    switchToLocal: "切换为本机服务",
+    running: "运行中",
+    stopped: "已停止",
+    notReady: "未就绪",
     routingMode: {
       title: "路由模式",
       rule: "规则",
@@ -74,6 +82,10 @@ const CN = {
     remoteNote: "此控制器由远程管理，本机接管状态未知。",
     statusReadFailed: "无法读取本机状态，请重试。",
     currentNode: "当前节点",
+    strategyGroups: "策略组",
+    allStrategies: "全部策略",
+    strategyMembers: "个成员",
+    routingChain: "策略链路",
     chooseGroup: "策略组",
     noGroup: "选择一个策略组，查看它正在使用的节点。",
     copyNode: "复制节点名称",
@@ -85,7 +97,7 @@ const CN = {
     expiry: "到期日期",
     quota: {
       title: "订阅配额",
-      remaining: "剩余配额",
+      remaining: "剩余",
       total: "总量",
       unknown: "暂无配额资料",
       unknownDesc: "该订阅未提供用量数据。",
@@ -424,6 +436,10 @@ const CN = {
     use: "启用",
     updated: "最近更新",
     readonly: "由远程核心管理",
+    externalTargetNote:
+      "提示：当前控制目标为外部控制端（{{name}}）。在此处管理的订阅归属本机服务；在顶部切换回「本机服务」即可直接使用。",
+    pureWebNote:
+      "当前处于纯 Web 控制端模式，未连接本机服务。订阅与配置由运行核心的主机直接维护。如需在本机管理和运行订阅，请使用 XBond 桌面客户端。",
     remove: "移除配置",
     bindNote: "使用订阅凭据接入本设备；账号登录也可通过 xbond login 完成。",
     override: "覆盖规则",
@@ -462,6 +478,9 @@ const CN = {
     title: "设置",
     preferences: "外观与语言",
     network: "网络与端口",
+    targetAndCore: "控制目标与核心",
+    targetNotice:
+      "当前正在控制外部核心。节点、规则与连线直接从远端读取；本机系统代理与 TUN 不作用于外部核心。",
     subscriptionsEntry: "订阅与配置",
     subscriptionsEntryDesc: "管理订阅来源、导入配置与查看配额。",
     terminalCommand: "终端代理命令",
@@ -561,6 +580,18 @@ const CN = {
     login: "登录 XBond",
     importOption: "导入配置",
     remoteOption: "连接远端控制器",
+    skipToApp: "暂不配置，进入主界面",
+    cloudCardTitle: "XBond Cloud 官方账号",
+    cloudCardDesc:
+      "登录官方账号，自动下发生效的订阅线路，享有一键同步与状态通知。",
+    subCardTitle: "第三方订阅链接",
+    subCardDesc:
+      "支持导入外部服务商提供的 Clash / sing-box 订阅 URL 或本地配置文件。",
+    remoteCardTitle: "连接外部控制端",
+    remoteCardDesc:
+      "已有运行在本地、路由器（OpenWrt）或远端的核心，作为控制面板接入。",
+    subReady: "官方订阅已成功同步（{{name}}），可以开始使用。",
+    startUsing: "开始使用",
     importTitle: "导入配置",
     modeUrl: "URL",
     modeFile: "本地配置",
@@ -604,6 +635,12 @@ const CN = {
     announcements: "公告",
     openConsole: "打开控制台",
     logout: "退出登录",
+    syncSubscription: "更新订阅",
+    syncSuccess: "已从 Cloud 同步最新订阅",
+    cloudDesc:
+      "登录 XBond Cloud 账号，官方订阅线路将自动同步至本机，无需手动导入。",
+    webModeAccountNote:
+      "当前处于纯 Web 控制端模式。XBond Cloud 账号在桌面客户端中集中托管。",
   },
 } as const;
 

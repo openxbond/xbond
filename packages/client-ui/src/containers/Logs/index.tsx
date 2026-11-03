@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@components/ui/select";
+import { cn } from "@lib/utils";
 import type { Log } from "@models/Log";
 import {
   useConfig,
@@ -13,7 +14,6 @@ import {
   useLogsStreamReader,
   useStreamState,
 } from "@stores";
-import { cn } from "cn";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

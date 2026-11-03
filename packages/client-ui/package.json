@@ -8,7 +8,8 @@
     "./components": "./src/public-components.ts",
     "./locale": "./src/public-locale.ts",
     "./tokens.css": "./src/styles/tokens.css",
-    "./styles.css": "./src/styles/index.css"
+    "./styles.css": "./src/styles/index.css",
+    "./utils": "./src/lib/utils.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.0.0",
@@ -18,7 +19,6 @@
     "axios": "^1.20.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cn": "^0.5.1",
     "dayjs": "^1.11.23",
     "eventemitter3": "^5.0.4",
     "flag-icons": "^7.6.0",

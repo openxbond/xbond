@@ -8,7 +8,6 @@
     "@fontsource-variable/inter": "^5.0.0",
     "@xbond/client": "workspace:*",
     "@xbond/client-ui": "workspace:*",
-    "cn": "^0.5.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   }

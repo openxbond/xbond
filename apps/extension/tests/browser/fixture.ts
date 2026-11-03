@@ -230,7 +230,7 @@ window.fetch = async (input, init) => {
     return Response.json({
       device_code: "synthetic-device",
       user_code: "DEMO-ONLY",
-      verification_uri: "https://cloud.example.org/device",
+      verification_uri: "https://cloud.example.org/auth/activate",
       expires_in: 600,
       interval: 5,
     });

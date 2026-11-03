@@ -1,5 +1,5 @@
+import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models";
-import { cn } from "cn";
 import { useTranslation } from "react-i18next";
 
 interface DevicesProps extends BaseComponentProps {

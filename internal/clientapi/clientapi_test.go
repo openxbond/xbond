@@ -117,8 +117,8 @@ func TestDeviceAuthCarriesContractAndParsesResponse(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"device_code":               "dvc-1",
 			"user_code":                 "ABCD-EFGH",
-			"verification_uri":          "https://www.xbond.net/activate",
-			"verification_uri_complete": "https://www.xbond.net/activate?user_code=ABCD-EFGH",
+			"verification_uri":          "https://www.xbond.net/auth/activate",
+			"verification_uri_complete": "https://www.xbond.net/auth/activate?user_code=ABCD-EFGH",
 			"expires_in":                900,
 			"interval":                  1,
 		})
@@ -136,6 +136,12 @@ func TestDeviceAuthCarriesContractAndParsesResponse(t *testing.T) {
 	}
 	if deviceAuth.DeviceCode != "dvc-1" || deviceAuth.UserCode != "ABCD-EFGH" {
 		t.Errorf("unexpected device auth response: %+v", deviceAuth)
+	}
+	if deviceAuth.VerificationURI != "https://www.xbond.net/auth/activate" {
+		t.Errorf("verification URI: got %q", deviceAuth.VerificationURI)
+	}
+	if deviceAuth.VerificationURIComplete != "https://www.xbond.net/auth/activate?user_code=ABCD-EFGH" {
+		t.Errorf("complete verification URI: got %q", deviceAuth.VerificationURIComplete)
 	}
 	if deviceAuth.Interval != 1 {
 		t.Errorf("interval: got %d", deviceAuth.Interval)

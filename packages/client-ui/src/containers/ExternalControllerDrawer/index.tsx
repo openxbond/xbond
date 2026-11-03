@@ -9,9 +9,11 @@ import {
 } from "@components/ui/dialog";
 import { useAction } from "@lib/actions";
 import { useObject } from "@lib/hook";
+import { cn } from "@lib/utils";
 import {
   useAPIInfo,
   identityAtom,
+  externalControllerModalAtom,
   useControllers,
   useSelectController,
 } from "@stores";
@@ -20,7 +22,6 @@ import {
   createControllerId,
 } from "@xbond/client/controller";
 import { Client } from "@xbond/client/request";
-import { cn } from "cn";
 import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,6 +37,12 @@ export default function ExternalController({
   const { t: tc } = useTranslation("common");
   const controller = useAPIInfo();
   const [identity, setIdentity] = useAtom(identityAtom);
+  const [modalState, setModalState] = useAtom(externalControllerModalAtom);
+  const isOpen = modalState.open || !identity;
+  const isCreateOnly = modalState.open
+    ? (modalState.createOnly ?? createOnly)
+    : createOnly;
+
   const [value, set] = useObject({ name: "", url: "", secret: "" });
   const [hosts, setter] = useControllers();
   const select = useSelectController();
@@ -55,10 +62,12 @@ export default function ExternalController({
     setHelpOpen(false);
     setUrlError("");
     setIdentity(true);
+    setModalState({ open: false, createOnly: false });
   }
   useEffect(() => {
+    if (!isOpen) return;
     set(
-      createOnly
+      isCreateOnly
         ? { name: "", url: "", secret: "" }
         : {
             name: controller.name,
@@ -66,7 +75,14 @@ export default function ExternalController({
             secret: controller.secret,
           },
     );
-  }, [createOnly, controller.name, controller.url, controller.secret, set]);
+  }, [
+    isOpen,
+    isCreateOnly,
+    controller.name,
+    controller.url,
+    controller.secret,
+    set,
+  ]);
 
   function validated() {
     const text = value.url.trim();
@@ -129,7 +145,7 @@ export default function ExternalController({
   const insecureURL = `${scheme}://settings/content/insecureContent`;
   return (
     <Dialog
-      open={!identity}
+      open={isOpen}
       onOpenChange={(open) => {
         if (!open && !pending) close();
       }}
@@ -265,8 +281,10 @@ export default function ExternalController({
             </div>
           )}
         </div>
-        <DialogFooter className={createOnly ? undefined : "sm:justify-between"}>
-          {!createOnly && (
+        <DialogFooter
+          className={isCreateOnly ? undefined : "sm:justify-between"}
+        >
+          {!isCreateOnly && (
             <div className="flex gap-2">
               <Button disabled={pending} onClick={() => save(true)}>
                 {t("external.add")}
@@ -284,7 +302,7 @@ export default function ExternalController({
             <Button variant="outline" disabled={pending} onClick={close}>
               {tc("cancel")}
             </Button>
-            <Button disabled={pending} onClick={() => save(createOnly)}>
+            <Button disabled={pending} onClick={() => save(isCreateOnly)}>
               {tc("ok")}
             </Button>
           </div>

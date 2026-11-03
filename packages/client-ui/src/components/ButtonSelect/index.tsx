@@ -1,6 +1,6 @@
 import { ToggleGroup, ToggleGroupItem } from "@components/ui/toggle-group";
+import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models/BaseProps";
-import { cn } from "cn";
 
 export interface ButtonSelectOptions<T = string> {
   label: string;

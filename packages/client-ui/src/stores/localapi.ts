@@ -24,7 +24,7 @@ export function useLocalAPI() {
   const { targetKind } = useAPIInfo();
   const isLocalTarget = targetKind === "daemon";
   const hasLocalAPI = isLocalTarget && hasDaemon;
-  const client = hasLocalAPI ? daemonClient : null;
+  const client = hasDaemon ? daemonClient : null;
 
   const up = useCallback(
     async (options?: {
@@ -34,27 +34,27 @@ export function useLocalAPI() {
       allowLan?: boolean;
       subId?: string;
     }) => {
-      if (!client) throw new Error("Selected target has no LocalAPI");
-      const res = await client.up(options);
+      if (!daemonClient) throw new Error("LocalAPI not available");
+      const res = await daemonClient.up(options);
       await mutateStatus();
       return res;
     },
-    [client, mutateStatus],
+    [daemonClient, mutateStatus],
   );
 
   const down = useCallback(async () => {
-    if (!client) throw new Error("Selected target has no LocalAPI");
-    const res = await client.down();
+    if (!daemonClient) throw new Error("LocalAPI not available");
+    const res = await daemonClient.down();
     await mutateStatus();
     return res;
-  }, [client, mutateStatus]);
+  }, [daemonClient, mutateStatus]);
 
   const restart = useCallback(async () => {
-    if (!client) throw new Error("Selected target has no LocalAPI");
-    const res = await client.restart();
+    if (!daemonClient) throw new Error("LocalAPI not available");
+    const res = await daemonClient.restart();
     await mutateStatus();
     return res;
-  }, [client, mutateStatus]);
+  }, [daemonClient, mutateStatus]);
 
   const setMode = useCallback(
     async (options: {
@@ -63,30 +63,31 @@ export function useLocalAPI() {
       port?: number;
       allowLan?: boolean;
     }) => {
-      if (!client) throw new Error("Selected target has no LocalAPI");
-      const res = await client.setMode(options);
+      if (!daemonClient) throw new Error("LocalAPI not available");
+      const res = await daemonClient.setMode(options);
       await mutateStatus();
       return res;
     },
-    [client, mutateStatus],
+    [daemonClient, mutateStatus],
   );
 
   const selectNode = useCallback(
     async (group: string, node: string) => {
-      if (!client) throw new Error("Selected target has no LocalAPI");
-      return client.selectNode(group, node);
+      if (!daemonClient) throw new Error("LocalAPI not available");
+      return daemonClient.selectNode(group, node);
     },
-    [client],
+    [daemonClient],
   );
 
   return {
     hasLocalAPI,
     isLocalTarget,
     hasDaemon,
+    daemonClient,
     client,
-    config: isLocalTarget ? config : null,
-    status: isLocalTarget ? data : null,
-    error: isLocalTarget ? error : null,
+    config,
+    status: data,
+    error,
     refresh: mutateStatus,
     up,
     down,

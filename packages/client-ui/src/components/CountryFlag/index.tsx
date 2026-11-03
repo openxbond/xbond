@@ -1,22 +1,41 @@
 import "flag-icons/css/flag-icons.min.css";
-import { cn } from "cn";
+import { cn } from "@lib/utils";
 import { type ReactNode } from "react";
 
 export interface CountryFlagProps {
   code: string;
   className?: string;
+  avatar?: boolean;
 }
 
-export function CountryFlag({ code, className }: CountryFlagProps) {
+export function CountryFlag({
+  code,
+  className,
+  avatar = false,
+}: CountryFlagProps) {
   const normalized = code.toLowerCase();
   return (
     <span
       className={cn(
-        "fi fi-" + normalized,
-        // Compact flag chip: fixed ratio, hairline ring, baseline aligned.
-        "mr-1.5 inline-block h-[13.5px] w-[18px] shrink-0 rounded-[2.5px] bg-cover leading-[13.5px] shadow-[0_0_0_1px_oklch(0_0_0/12%)] align-[-1.5px] before:hidden",
+        "fi",
+        avatar && "fis",
+        "fi-" + normalized,
+        avatar
+          ? "!inline-block !size-full !m-0 !rounded-none !bg-cover !bg-center !shadow-none !border-0 before:!hidden before:!content-none"
+          : "mr-1.5 inline-block h-[13.5px] w-[18px] shrink-0 rounded-[2.5px] bg-cover leading-[13.5px] shadow-[0_0_0_1px_oklch(0_0_0/12%)] align-[-1.5px] before:hidden",
         className,
       )}
+      style={
+        avatar
+          ? {
+              display: "block",
+              width: "100%",
+              height: "100%",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }
+          : undefined
+      }
       aria-label={code.toUpperCase()}
       title={code.toUpperCase()}
     />

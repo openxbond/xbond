@@ -1,8 +1,8 @@
 import { renderNodeTitle } from "@components";
+import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models";
 import { useLatency } from "@stores/latency";
 import { type Proxy as IProxy } from "@xbond/client/request";
-import { cn } from "cn";
 import { useTranslation } from "react-i18next";
 
 type BadgeTone = "fast" | "medium" | "slow" | "failed" | "testing" | "untested";
@@ -103,7 +103,7 @@ export function Proxy(props: ProxyProps) {
         <div className="flex flex-wrap items-center gap-1.5">
           <span
             className={cn(
-              "inline-flex items-center rounded-[5px] border border-border bg-inset px-[7px] py-[2.5px] text-label font-bold uppercase leading-[1.2] tracking-[0.04em] text-muted-foreground",
+              "inline-flex items-center rounded-full bg-inset px-2 py-0.5 text-label font-semibold leading-[1.2] text-muted-foreground",
               isFailed && "bg-transparent opacity-65",
               isUntested && "bg-transparent",
             )}
@@ -113,7 +113,7 @@ export function Proxy(props: ProxyProps) {
           {config.udp && (
             <span
               className={cn(
-                "inline-flex items-center rounded-[4px] border border-border bg-inset px-1.5 py-0.5 text-2xs font-bold leading-[1.2] tracking-[0.02em] text-muted-foreground",
+                "inline-flex items-center rounded-full bg-inset px-2 py-0.5 text-label font-medium leading-[1.2] text-muted-foreground",
                 isFailed && "bg-transparent opacity-65",
                 isUntested && "bg-transparent",
               )}
@@ -179,7 +179,7 @@ export function Proxy(props: ProxyProps) {
       <div className="mt-3 min-w-0">
         <p
           className={cn(
-            "m-0 truncate text-body font-semibold leading-[1.35] tracking-[-0.01em] text-foreground",
+            "m-0 truncate text-sm leading-[1.35] tracking-[-0.01em] text-foreground",
             (isFailed || isUntested) && "text-muted-foreground",
           )}
           title={config.name}

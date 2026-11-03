@@ -1,5 +1,5 @@
+import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models/BaseProps";
-import { cn } from "cn";
 
 interface HeaderProps extends BaseComponentProps {
   // header title

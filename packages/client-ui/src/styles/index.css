@@ -78,9 +78,8 @@
   --color-row-selected: var(--row-selected);
   --color-overlay: var(--overlay);
 
-  /* Type scale (DESIGN.md typography roles + a 10px badge tier). Custom
-     names carry font-size only, so authored line-heights stay intact. */
-  --text-2xs: 0.625rem;
+  /* Type scale (DESIGN.md typography roles). Custom names carry font-size
+     only, so authored line-heights stay intact. */
   --text-label: 0.75rem;
   --text-body: 0.875rem;
   --text-subtitle: 1rem;

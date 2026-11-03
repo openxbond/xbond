@@ -17,6 +17,7 @@ import {
   hasDaemonConfig,
   isDesktopApp,
 } from "@lib/localapi-bootstrap";
+import { cn } from "@lib/utils";
 import {
   identityAtom,
   useAccount,
@@ -24,7 +25,6 @@ import {
   useLocalAPI,
   useTheme,
 } from "@stores";
-import { cn } from "cn";
 import { useSetAtom } from "jotai";
 import { Route, Navigate, Routes, useLocation, Outlet } from "react-router-dom";
 

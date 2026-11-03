@@ -44,9 +44,9 @@ test("device flow start carries client, scope and resource", async () => {
         json: {
           device_code: "dc-1",
           user_code: "ABCD-EFGH",
-          verification_uri: "https://www.xbond.net/dash/device",
+          verification_uri: "https://www.xbond.net/auth/activate",
           verification_uri_complete:
-            "https://www.xbond.net/dash/device?code=ABCD-EFGH",
+            "https://www.xbond.net/auth/activate?user_code=ABCD-EFGH",
           expires_in: 600,
           interval: 3,
         },
@@ -57,6 +57,11 @@ test("device flow start carries client, scope and resource", async () => {
   const start = await api.startDeviceFlow();
   assert.equal(start.deviceCode, "dc-1");
   assert.equal(start.userCode, "ABCD-EFGH");
+  assert.equal(start.verificationUri, "https://www.xbond.net/auth/activate");
+  assert.equal(
+    start.verificationUriComplete,
+    "https://www.xbond.net/auth/activate?user_code=ABCD-EFGH",
+  );
   assert.equal(start.intervalSeconds, 3);
   const body = String(requests[0]?.init?.body ?? "");
   assert.ok(

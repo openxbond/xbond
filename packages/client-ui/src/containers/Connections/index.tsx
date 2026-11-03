@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetTitle } from "@components/ui/sheet";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
 import { useObject, useVisible } from "@lib/hook";
+import { cn } from "@lib/utils";
 import {
   useIntersectionObserver,
   useMediaQuery,
@@ -33,7 +34,6 @@ import {
 } from "@tanstack/react-table";
 import { basePath, formatTraffic } from "@xbond/client/helper";
 import type * as API from "@xbond/client/request";
-import { cn } from "cn";
 import { useSetAtom } from "jotai";
 import { useMemo, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -432,7 +432,7 @@ export default function Connections() {
             <div
               role="cell"
               className={cn(
-                "connections-block inline-blockh-9.25 shrink-0 overflow-hidden px-3.5 text-body leading-9 text-ellipsis whitespace-nowrap border-b border-border text-foreground group-hover:bg-inset",
+                "connections-block h-9.25 shrink-0 overflow-hidden px-3.5 text-body leading-9 text-ellipsis whitespace-nowrap border-b border-border text-foreground group-hover:bg-inset",
                 alignClass(cell.column.id),
                 isHost && "sticky left-0 z-998 bg-card",
                 scrolled && isHost && stickyShadow,

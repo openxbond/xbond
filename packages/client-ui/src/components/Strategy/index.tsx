@@ -1,4 +1,4 @@
-import { cn } from "cn";
+import { cn } from "@lib/utils";
 import type { ReactNode } from "react";
 
 import { renderNodeTitle } from "../CountryFlag";
@@ -59,7 +59,7 @@ export function StrategyDirectory({
               {renderNodeTitle(item.name)}
             </strong>
             {item.kind && (
-              <span className="shrink-0 rounded border border-border px-1 py-px text-2xs text-muted-foreground">
+              <span className="shrink-0 rounded-full bg-inset px-1.5 py-px text-label font-medium text-muted-foreground">
                 {item.kind}
               </span>
             )}

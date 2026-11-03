@@ -25,8 +25,8 @@ func TestDeviceLoginPersistsSessionAndResolvesLink(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"device_code":               "dvc-1",
 				"user_code":                 "ABCD-EFGH",
-				"verification_uri":          "https://www.xbond.net/activate",
-				"verification_uri_complete": "https://www.xbond.net/activate?user_code=ABCD-EFGH",
+				"verification_uri":          "https://www.xbond.net/auth/activate",
+				"verification_uri_complete": "https://www.xbond.net/auth/activate?user_code=ABCD-EFGH",
 				"expires_in":                900,
 				"interval":                  1,
 			})
@@ -66,9 +66,17 @@ func TestDeviceLoginPersistsSessionAndResolvesLink(t *testing.T) {
 	manager := NewManager(sessionPath)
 
 	var progress Progress
+	var openedURL string
 	credentials, err := manager.Login(
 		context.Background(),
-		LoginOptions{Origin: server.URL, Device: true, NoBrowser: true},
+		LoginOptions{
+			Origin: server.URL,
+			Device: true,
+			OpenBrowser: func(target string) error {
+				openedURL = target
+				return nil
+			},
+		},
 		func(value Progress) { progress = value },
 	)
 	if err != nil {
@@ -85,6 +93,16 @@ func TestDeviceLoginPersistsSessionAndResolvesLink(t *testing.T) {
 	}
 	if progress.Method != "device" || progress.UserCode != "ABCD-EFGH" {
 		t.Errorf("progress: %+v", progress)
+	}
+	if progress.VerificationURI != "https://www.xbond.net/auth/activate" {
+		t.Errorf("verification URI: got %q", progress.VerificationURI)
+	}
+	const verificationURL = "https://www.xbond.net/auth/activate?user_code=ABCD-EFGH"
+	if progress.VerificationURIComplete != verificationURL {
+		t.Errorf("complete verification URI: got %q", progress.VerificationURIComplete)
+	}
+	if openedURL != verificationURL {
+		t.Errorf("browser URL: got %q, want %q", openedURL, verificationURL)
 	}
 
 	session, err := manager.Session()
@@ -192,7 +210,7 @@ func TestLoginKeepsSessionWhenLinkFetchFails(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"device_code":      "dvc-1",
 				"user_code":        "ABCD-EFGH",
-				"verification_uri": "https://www.xbond.net/activate",
+				"verification_uri": "https://www.xbond.net/auth/activate",
 				"expires_in":       900,
 				"interval":         1,
 			})

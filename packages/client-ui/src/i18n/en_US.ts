@@ -25,6 +25,14 @@ const EN = {
     local: "This device",
     remote: "Remote controller",
     controller: "Controller",
+    localService: "Local Service",
+    externalController: "External Controller",
+    controlTarget: "Control Target",
+    addExternalController: "Add External Controller",
+    switchToLocal: "Switch to Local Service",
+    running: "Running",
+    stopped: "Stopped",
+    notReady: "Not Ready",
     routingMode: {
       title: "Routing mode",
       rule: "Rule",
@@ -77,6 +85,10 @@ const EN = {
       "This controller is managed remotely. Local takeover status is unavailable.",
     statusReadFailed: "Could not read local status. Retry to check again.",
     currentNode: "Current node",
+    strategyGroups: "Strategy groups",
+    allStrategies: "All strategies",
+    strategyMembers: "members",
+    routingChain: "Routing chain",
     chooseGroup: "Policy group",
     noGroup: "Choose a policy group to see its current node.",
     copyNode: "Copy node name",
@@ -435,6 +447,10 @@ const EN = {
     use: "Activate",
     updated: "Last updated",
     readonly: "Managed by the remote core",
+    externalTargetNote:
+      "Note: Currently viewing external controller ({{name}}). Subscriptions managed here belong to your local service.",
+    pureWebNote:
+      "Running in pure Web dashboard mode without a local service. Use the XBond Desktop app to manage local subscriptions.",
     remove: "Remove configuration",
     bindNote:
       "Uses a subscription credential to enroll this device. You can also sign in with xbond login.",
@@ -477,6 +493,9 @@ const EN = {
     title: "Settings",
     preferences: "Appearance & language",
     network: "Network & ports",
+    targetAndCore: "Control Target & Engine",
+    targetNotice:
+      "Currently controlling an external core. Nodes and rules are read directly from the remote endpoint; local system proxy and TUN do not apply.",
     subscriptionsEntry: "Subscriptions & profiles",
     subscriptionsEntryDesc:
       "Manage subscription sources, import profiles and check quota.",
@@ -586,6 +605,18 @@ const EN = {
     login: "Sign in to XBond",
     importOption: "Import configuration",
     remoteOption: "Connect to a remote controller",
+    skipToApp: "Skip for now, go to app",
+    cloudCardTitle: "XBond Cloud Account",
+    cloudCardDesc:
+      "Sign in to your official account to auto-sync subscriptions and routes.",
+    subCardTitle: "Third-party Subscription",
+    subCardDesc:
+      "Import Clash / sing-box subscription URLs or local configuration files.",
+    remoteCardTitle: "Connect External Controller",
+    remoteCardDesc:
+      "Connect to an existing core on a local port, OpenWrt router, or remote host.",
+    subReady: "Official subscription synced successfully ({{name}}).",
+    startUsing: "Get Started",
     importTitle: "Import configuration",
     modeUrl: "URL",
     modeFile: "Local file",
@@ -631,6 +662,12 @@ const EN = {
     announcements: "Announcements",
     openConsole: "Open console",
     logout: "Sign out",
+    syncSubscription: "Sync Subscription",
+    syncSuccess: "Subscription synced from Cloud",
+    cloudDesc:
+      "Sign in with XBond Cloud to automatically sync official subscriptions and routes.",
+    webModeAccountNote:
+      "Running in pure Web dashboard mode. XBond Cloud account is managed via Desktop app.",
   },
 } as const;
 

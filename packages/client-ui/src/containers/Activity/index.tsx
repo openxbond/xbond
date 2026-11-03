@@ -1,11 +1,11 @@
 import { Button, Header } from "@components";
 import Connections from "@containers/Connections";
 import Logs from "@containers/Logs";
+import { cn } from "@lib/utils";
 import { useCapabilities, useStreamReader, useStreamState } from "@stores";
 import { formatRate } from "@xbond/client/activity";
 import { formatTraffic } from "@xbond/client/helper";
 import type { Snapshot } from "@xbond/client/request";
-import { cn } from "cn";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";

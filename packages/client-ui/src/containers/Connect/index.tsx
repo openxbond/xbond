@@ -3,6 +3,7 @@ import { nodeFlagCode, stripFlagEmoji } from "@components/CountryFlag";
 import { Sheet, SheetContent, SheetTitle } from "@components/ui/sheet";
 import { useAction } from "@lib/actions";
 import { useNodeSelection } from "@lib/node-selection";
+import { cn } from "@lib/utils";
 import {
   useAPIInfo,
   useClient,
@@ -14,8 +15,7 @@ import {
   useStreamState,
   identityAtom,
 } from "@stores";
-import { formatRate } from "@xbond/client/activity";
-import { formatTraffic, formatUptimeClock } from "@xbond/client/helper";
+import { formatUptimeClock } from "@xbond/client/helper";
 import { subscriptionQuota } from "@xbond/client/localapi";
 import type { Snapshot } from "@xbond/client/request";
 import {
@@ -23,10 +23,9 @@ import {
   strategyPath,
   controllerIdentity,
 } from "@xbond/client/workspace";
-import { cn } from "cn";
 import { useAtom, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
@@ -37,6 +36,32 @@ const focusAtom = atomWithStorage<Record<string, string>>(
   "xbond_focus_groups.v3",
   {},
 );
+
+/** 格式化流量速率，如 12.5 MB/s, 3.2 MB/s */
+function formatDisplayRate(bytesPerSec: number): string {
+  if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return "0 B/s";
+  const units = ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"];
+  const exp = Math.min(
+    units.length - 1,
+    Math.floor(Math.log(bytesPerSec || 1) / Math.log(1024)),
+  );
+  const val = bytesPerSec / Math.pow(1024, exp);
+  const formatted = val >= 100 ? val.toFixed(0) : val.toFixed(1);
+  return `${formatted} ${units[exp]}`;
+}
+
+/** 格式化累计/总量流量，如 1.8 GB, 392 GB, 500 GB */
+function formatDisplayTraffic(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const exp = Math.min(
+    units.length - 1,
+    Math.floor(Math.log(bytes || 1) / Math.log(1024)),
+  );
+  const val = bytes / Math.pow(1024, exp);
+  const formatted = val >= 100 ? val.toFixed(0) : val.toFixed(1);
+  return `${formatted} ${units[exp]}`;
+}
 
 /* 任務卡（乳白實面、髮邊、卡片陰影），四張卡共用。 */
 const cardSurface =
@@ -91,6 +116,162 @@ function FactIcon({ kind }: { kind: "core" | "takeover" | "egress" }) {
   );
 }
 
+/**
+ * 策略组横向滑动胶囊容器：
+ * 支持桌面端鼠标拖拽横向滚动 (Drag-to-Scroll)、鼠标滚轮横向滚动、左右微型翻页箭头及触摸平滑滚动。
+ */
+function ScrollablePills({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const isMouseDownRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+
+  const updateScrollState = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 2);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    updateScrollState();
+    const ro = new ResizeObserver(() => updateScrollState());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateScrollState]);
+
+  const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const el = containerRef.current;
+    if (!el) return;
+    isMouseDownRef.current = true;
+    startXRef.current = e.pageX - el.offsetLeft;
+    scrollLeftRef.current = el.scrollLeft;
+    hasDraggedRef.current = false;
+  };
+
+  const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isMouseDownRef.current) return;
+    const el = containerRef.current;
+    if (!el) return;
+    e.preventDefault();
+    const x = e.pageX - el.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    if (Math.abs(walk) > 4) {
+      hasDraggedRef.current = true;
+    }
+    el.scrollLeft = scrollLeftRef.current - walk;
+    updateScrollState();
+  };
+
+  const onMouseUpOrLeave = () => {
+    isMouseDownRef.current = false;
+    setTimeout(() => {
+      hasDraggedRef.current = false;
+    }, 50);
+  };
+
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (hasDraggedRef.current) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
+  const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (e.deltaY !== 0 && !e.shiftKey && el.scrollWidth > el.clientWidth) {
+      el.scrollLeft += e.deltaY;
+      updateScrollState();
+    }
+  };
+
+  const scrollByAmount = (offset: number) => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: offset, behavior: "smooth" });
+  };
+
+  return (
+    <div
+      className={cn("relative group/pills flex items-center w-full", className)}
+    >
+      {canScrollLeft && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={() => scrollByAmount(-180)}
+          className="absolute -left-2 z-10 grid size-6 place-items-center rounded-full bg-card/95 text-muted-foreground shadow-md border border-border/80 backdrop-blur-sm hover:text-foreground hover:bg-card cursor-pointer transition-opacity max-md:hidden"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="12"
+            height="12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+        </button>
+      )}
+
+      <div
+        ref={containerRef}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUpOrLeave}
+        onMouseLeave={onMouseUpOrLeave}
+        onClickCapture={onClickCapture}
+        onWheel={onWheel}
+        onScroll={updateScrollState}
+        className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] cursor-grab active:cursor-grabbing select-none w-full"
+      >
+        {children}
+      </div>
+
+      {canScrollRight && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={() => scrollByAmount(180)}
+          className="absolute -right-2 z-10 grid size-6 place-items-center rounded-full bg-card/95 text-muted-foreground shadow-md border border-border/80 backdrop-blur-sm hover:text-foreground hover:bg-card cursor-pointer transition-opacity max-md:hidden"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="12"
+            height="12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function Connect() {
   const { t } = useTranslation("connect");
   const { t: r } = useTranslation("runtime");
@@ -122,7 +303,13 @@ export default function Connect() {
 
   const available = general.mode.toLowerCase() === "global" ? [global] : groups;
   const focusKey = controllerIdentity(controller.id, controller.url);
-  const group = focusedGroup(available, focus[focusKey]);
+  const group =
+    (focus[focusKey]
+      ? available.find((g) => g.name === focus[focusKey])
+      : null) ??
+    focusedGroup(available, focus[focusKey]) ??
+    available[0] ??
+    null;
   const chain = strategyPath(group, mapping);
 
   const traffic = useStreamReader<{ up: number; down: number }>("traffic");
@@ -173,6 +360,13 @@ export default function Connect() {
     return last && last.delay > 0 ? last.delay : null;
   };
 
+  const leafNodeName =
+    chain.length > 0 ? chain[chain.length - 1] : (group?.now ?? "");
+  const leafFlag = leafNodeName ? nodeFlagCode(leafNodeName) : null;
+  const leafDelay = leafNodeName ? nodeDelay(leafNodeName) : null;
+  const isDirect = leafNodeName.toLowerCase() === "direct";
+  const isReject = leafNodeName.toLowerCase() === "reject";
+
   const uptimeClock = running ? formatUptimeClock(status?.engine.uptime) : null;
   const sessionTotal =
     connectionState === "open" && snapshot
@@ -180,8 +374,6 @@ export default function Connect() {
       : null;
   const quotaPercent =
     sub && quota ? Math.max(0, Math.min(100, quota.remainingPercent)) : null;
-  const currentDelay = group?.now ? nodeDelay(group.now) : null;
-  const nodeFlag = group?.now ? nodeFlagCode(group.now) : null;
 
   const stateWord = hasLocalAPI
     ? running
@@ -511,93 +703,216 @@ export default function Connect() {
           <section
             className={cn(
               cardSurface,
-              "flex flex-col gap-3.5 py-5 px-[22px] max-md:p-[18px]",
+              "flex flex-col gap-3 py-4.5 px-5 max-md:p-4",
             )}
-            aria-label={t("currentNode")}
+            aria-label={t("strategyGroups") || "策略组"}
           >
-            <h2 className="text-subtitle font-semibold">{t("currentNode")}</h2>
-            <button
-              type="button"
-              className="group flex w-full cursor-pointer items-center gap-3.5 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card px-3.5 py-3 text-left text-foreground shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)] [transition:box-shadow_var(--duration-fast)_var(--ease-out-expo),border-color_var(--duration-fast)_var(--ease-out-expo)] motion-reduce:[transition:none] enabled:hover:border-[color:color-mix(in_srgb,var(--border-strong)_80%,transparent)] enabled:hover:shadow-[0_2px_8px_oklch(0.55_0.08_60/0.07)]"
-              onClick={() => setPickerOpen(true)}
-              aria-haspopup="dialog"
-            >
-              <span
-                className="grid size-[46px] shrink-0 place-items-center overflow-hidden rounded-[13px] bg-inset text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_60%,transparent),0_1px_3px_oklch(0.55_0.08_60/0.06)]"
-                aria-hidden="true"
-              >
-                {nodeFlag ? (
-                  <CountryFlag
-                    code={nodeFlag}
-                    className="size-full bg-cover bg-center"
-                  />
-                ) : (
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="20"
-                    height="20"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="4" width="18" height="7" rx="2" />
-                    <rect x="3" y="13" width="18" height="7" rx="2" />
-                    <line x1="7" y1="7.5" x2="7.01" y2="7.5" />
-                    <line x1="7" y1="16.5" x2="7.01" y2="16.5" />
-                  </svg>
+            {/* Header: 标题 + 策略组数量 + 全部策略跳转 */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="text-subtitle font-semibold text-foreground">
+                  {t("strategyGroups") || "策略组"}
+                </h2>
+                {available.length > 0 && (
+                  <span className="rounded-full bg-inset px-2 py-0.5 text-label tabular-nums text-muted-foreground font-medium">
+                    {available.length} {t("strategyMembers") || "组"}
+                  </span>
                 )}
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-label text-muted-foreground">
-                  {t("nodeSelection")}
-                </span>
-                <span className="truncate text-subtitle font-[650]">
-                  {group?.now
-                    ? nodeFlag
-                      ? stripFlagEmoji(group.now)
-                      : group.now
-                    : t("strategy.noNodeSelected")}
-                </span>
-                <span className="truncate text-label tabular-nums text-muted-foreground">
-                  {currentDelay ? (
-                    <>
-                      <b
-                        className={cn(
-                          "shrink-0 font-mono text-xs tabular-nums",
-                          latencyClass(currentDelay),
-                        )}
-                      >
-                        {currentDelay} ms
-                      </b>
-                      {` · ${t("lastMeasured")}`}
-                    </>
-                  ) : group?.now ? (
-                    px("untested")
-                  ) : (
-                    t("strategy.title")
-                  )}
-                </span>
-              </span>
-              <span
-                className="grid size-8 shrink-0 place-items-center rounded-full bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/50%)] [transition:color_var(--duration-fast)_ease] group-hover:text-brand-text"
-                aria-hidden="true"
+              </div>
+              <Link
+                to="/proxies"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-brand-text no-underline hover:underline hover:underline-offset-4"
               >
+                {t("allStrategies") || "全部策略"}
                 <svg
                   viewBox="0 0 24 24"
-                  width="16"
-                  height="16"
+                  width="13"
+                  height="13"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  aria-hidden="true"
                 >
                   <path d="m9 6 6 6-6 6" />
                 </svg>
-              </span>
-            </button>
+              </Link>
+            </div>
+
+            {/* 策略组横排胶囊切换标签 (支持桌面端鼠标拖拽横向滚动、滚轮横向滚动与微型翻页箭头) */}
+            {available.length > 1 && (
+              <ScrollablePills>
+                {available.map((item) => {
+                  const isCurrent = item.name === group?.name;
+                  return (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => setFocusGroup(item.name)}
+                      className={cn(
+                        "shrink-0 cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-150 select-none",
+                        isCurrent
+                          ? "bg-brand text-white shadow-sm font-semibold"
+                          : "bg-inset text-muted-foreground hover:bg-card hover:text-foreground",
+                      )}
+                    >
+                      {item.name}
+                    </button>
+                  );
+                })}
+              </ScrollablePills>
+            )}
+
+            {/* 当前选中策略组的出站详情卡片 */}
+            <div className="flex flex-col gap-2 rounded-[18px] border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-card p-3.5 shadow-[0_1px_2px_oklch(0.55_0.08_60/0.04)] [transition:box-shadow_var(--duration-fast)_var(--ease-out-expo),border-color_var(--duration-fast)_var(--ease-out-expo)] hover:border-[color:color-mix(in_srgb,var(--border-strong)_80%,transparent)] hover:shadow-[0_2px_8px_oklch(0.55_0.08_60/0.07)]">
+              {/* 组信息小标头：组名、类型 (Selector/URLTest/Fallback)、成员总数 */}
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">
+                    {group ? group.name : t("strategy.title")}
+                  </span>
+                  {group?.type && (
+                    <span className="rounded-md bg-inset px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                      {group.type}
+                    </span>
+                  )}
+                </div>
+                {group?.all && (
+                  <span className="tabular-nums text-[11px]">
+                    {group.all.length} {t("strategyMembers") || "个成员"}
+                  </span>
+                )}
+              </div>
+
+              {/* 真实出站节点选择按钮 */}
+              <button
+                type="button"
+                className="group flex w-full cursor-pointer items-center gap-3.5 text-left text-foreground pt-1"
+                onClick={() => setPickerOpen(true)}
+                aria-haspopup="dialog"
+              >
+                {/* 节点大图标头像 (52px 满幅圆角国旗 / 直连 / 拦截 / 服务器图标) */}
+                <span
+                  className="flex size-[52px] max-md:size-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-inset text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_60%,transparent),0_2px_6px_oklch(0.55_0.08_60/0.08)]"
+                  aria-hidden="true"
+                >
+                  {isDirect ? (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="22"
+                      height="22"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                  ) : isReject ? (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="22"
+                      height="22"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                    </svg>
+                  ) : leafFlag ? (
+                    <CountryFlag code={leafFlag} avatar className="size-full" />
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="22"
+                      height="22"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="4" width="18" height="7" rx="2" />
+                      <rect x="3" y="13" width="18" height="7" rx="2" />
+                      <line x1="7" y1="7.5" x2="7.01" y2="7.5" />
+                      <line x1="7" y1="16.5" x2="7.01" y2="16.5" />
+                    </svg>
+                  )}
+                </span>
+
+                {/* 节点名称、延迟与策略链路 */}
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate text-subtitle font-[650]">
+                    {leafNodeName
+                      ? leafFlag
+                        ? stripFlagEmoji(leafNodeName)
+                        : leafNodeName
+                      : t("strategy.noNodeSelected")}
+                  </span>
+
+                  <span className="flex items-center gap-1.5 text-label tabular-nums text-muted-foreground">
+                    {leafDelay ? (
+                      <>
+                        <b
+                          className={cn(
+                            "shrink-0 font-mono text-xs tabular-nums",
+                            latencyClass(leafDelay),
+                          )}
+                        >
+                          {leafDelay} ms
+                        </b>
+                        <span className="text-muted-foreground">
+                          · {t("lastMeasured")}
+                        </span>
+                      </>
+                    ) : leafNodeName ? (
+                      px("untested")
+                    ) : (
+                      t("strategy.title")
+                    )}
+                  </span>
+
+                  {/* 策略链路由链路 (若存在嵌套多级) */}
+                  {chain.length > 2 && (
+                    <span
+                      className="mt-0.5 truncate text-[11px] text-muted-foreground/75"
+                      title={chain.join(" → ")}
+                    >
+                      {chain.join(" → ")}
+                    </span>
+                  )}
+                </span>
+
+                {/* 右侧提示与进入箭头 */}
+                <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground group-hover:text-brand-text transition-colors">
+                  <span className="text-xs font-medium max-md:hidden">
+                    {t("nodeSelection") || "节点选择"}
+                  </span>
+                  <span
+                    className="grid size-7 place-items-center rounded-full bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/50%)] [transition:color_var(--duration-fast)_ease,background-color_var(--duration-fast)_ease] group-hover:bg-brand-soft group-hover:text-brand-text"
+                    aria-hidden="true"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="15"
+                      height="15"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m9 6 6 6-6 6" />
+                    </svg>
+                  </span>
+                </span>
+              </button>
+            </div>
           </section>
 
           <section
@@ -689,16 +1004,78 @@ export default function Connect() {
         <section
           className={cn(
             cardSurface,
-            "[grid-area:live] flex flex-col gap-3.5 py-5 px-[22px] max-md:p-[18px]",
+            "[grid-area:live] flex flex-col gap-4 py-5 px-6 max-md:p-4.5",
           )}
           aria-label={t("trafficStats")}
         >
-          <h2 className="text-subtitle font-semibold">{t("trafficStats")}</h2>
-          <div className="grid min-h-[150px] grid-cols-[auto_minmax(0,1fr)_auto] items-stretch gap-6 max-md:grid-cols-1 max-md:gap-4">
-            <div className="flex flex-col justify-center gap-[18px] pr-1 max-md:flex-row max-md:flex-wrap max-md:justify-start max-md:gap-x-7 max-md:gap-y-3.5">
-              <div className="flex flex-col gap-0.5 max-md:flex-row max-md:items-center max-md:gap-3 max-md:flex-1 max-md:min-w-[130px]">
+          <h2 className="text-[15px] font-semibold text-foreground tracking-tight">
+            {t("trafficStats")}
+          </h2>
+
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-stretch gap-6 max-md:grid-cols-1 max-md:gap-4">
+            {/* Desktop Speeds: 左右横排，橙色箭头，中间发丝分割线 */}
+            <div className="flex items-center gap-6 my-auto pr-2 max-md:hidden">
+              {/* 下载速率 */}
+              <div className="flex flex-col gap-1">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <svg
+                    className="text-brand shrink-0"
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 4v14M6 12l6 6 6-6" />
+                  </svg>
+                  {t("download")}
+                </span>
+                <b className="whitespace-nowrap text-[20px] font-bold text-foreground tabular-nums tracking-tight">
+                  {trafficState === "open" && speed
+                    ? formatDisplayRate(speed.down)
+                    : "—"}
+                </b>
+              </div>
+
+              {/* 发丝分割线 */}
+              <div className="h-8 w-px bg-border/80" aria-hidden="true" />
+
+              {/* 上传速率 */}
+              <div className="flex flex-col gap-1">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <svg
+                    className="text-brand shrink-0"
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 20V6M6 12l6-6 6 6" />
+                  </svg>
+                  {t("upload")}
+                </span>
+                <b className="whitespace-nowrap text-[20px] font-bold text-foreground tabular-nums tracking-tight">
+                  {trafficState === "open" && speed
+                    ? formatDisplayRate(speed.up)
+                    : "—"}
+                </b>
+              </div>
+            </div>
+
+            {/* Mobile Speeds */}
+            <div className="hidden max-md:flex max-md:items-center max-md:justify-between max-md:gap-4">
+              <div className="flex flex-1 items-center gap-3">
                 <div
-                  className="hidden max-md:grid max-md:size-11 max-md:shrink-0 max-md:place-items-center max-md:rounded-full max-md:bg-[oklch(0.54_0.16_153/12%)] max-md:text-success"
+                  className="grid size-11 shrink-0 place-items-center rounded-full bg-[oklch(0.54_0.16_153/12%)] text-success"
                   aria-hidden="true"
                 >
                   <svg
@@ -714,36 +1091,23 @@ export default function Connect() {
                     <path d="M12 4v14M6 12l6 6 6-6" />
                   </svg>
                 </div>
-                <div className="flex flex-col gap-px">
-                  <span className="inline-flex items-center gap-1.5 text-label text-muted-foreground max-md:hidden">
-                    <svg
-                      className="inline-block align-middle text-brand max-md:hidden"
-                      viewBox="0 0 24 24"
-                      width="13"
-                      height="13"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 4v14M6 12l6 6 6-6" />
-                    </svg>
-                    {t("download")}
-                  </span>
-                  <b className="whitespace-nowrap text-title font-[650] tabular-nums">
+                <div className="flex flex-col gap-0.5">
+                  <b className="text-[17px] font-bold text-foreground tabular-nums">
                     {trafficState === "open" && speed
-                      ? formatRate(speed.down)
+                      ? formatDisplayRate(speed.down)
                       : "—"}
                   </b>
-                  <span className="hidden max-md:mt-px max-md:block max-md:text-label max-md:text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {t("download")}
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col gap-0.5 max-md:flex-row max-md:items-center max-md:gap-3 max-md:flex-1 max-md:min-w-[130px]">
+
+              <div className="h-8 w-px bg-border/80" aria-hidden="true" />
+
+              <div className="flex flex-1 items-center gap-3">
                 <div
-                  className="hidden max-md:grid max-md:size-11 max-md:shrink-0 max-md:place-items-center max-md:rounded-full max-md:bg-[oklch(0.7163_0.1706_53.45/12%)] max-md:text-brand"
+                  className="grid size-11 shrink-0 place-items-center rounded-full bg-[oklch(0.7163_0.1706_53.45/12%)] text-brand"
                   aria-hidden="true"
                 >
                   <svg
@@ -759,72 +1123,53 @@ export default function Connect() {
                     <path d="M12 20V6M6 12l6-6 6 6" />
                   </svg>
                 </div>
-                <div className="flex flex-col gap-px">
-                  <span className="inline-flex items-center gap-1.5 text-label text-muted-foreground max-md:hidden">
-                    <svg
-                      className="inline-block align-middle text-brand max-md:hidden"
-                      viewBox="0 0 24 24"
-                      width="13"
-                      height="13"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 20V6M6 12l6-6 6 6" />
-                    </svg>
-                    {t("upload")}
-                  </span>
-                  <b className="whitespace-nowrap text-title font-[650] tabular-nums">
+                <div className="flex flex-col gap-0.5">
+                  <b className="text-[17px] font-bold text-foreground tabular-nums">
                     {trafficState === "open" && speed
-                      ? formatRate(speed.up)
+                      ? formatDisplayRate(speed.up)
                       : "—"}
                   </b>
-                  <span className="hidden max-md:mt-px max-md:block max-md:text-label max-md:text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {t("upload")}
                   </span>
                 </div>
               </div>
             </div>
 
+            {/* 实时走势折线/面积图 */}
             <TrafficChart
               samples={history}
               title={t("trafficHistory")}
               empty={t("collectingSamples")}
               windowLabel={t("recentWindow")}
-              downloadLabel={t("download")}
-              uploadLabel={t("upload")}
             />
 
-            <div className="flex min-w-[170px] flex-col justify-center gap-4 border-l border-border pl-5 max-md:hidden">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">
+            {/* Desktop Totals & Quota: 本次累计与剩余配额 */}
+            <div className="flex min-w-[190px] flex-col justify-center gap-3.5 border-l border-border/80 pl-6 pr-1 max-md:hidden">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-medium text-muted-foreground">
                   {t("sessionTotal")}
                 </span>
-                <b className="text-title font-[650] tabular-nums">
-                  {sessionTotal !== null ? formatTraffic(sessionTotal) : "—"}
+                <b className="whitespace-nowrap text-[20px] font-bold text-foreground tabular-nums tracking-tight">
+                  {sessionTotal !== null
+                    ? formatDisplayTraffic(sessionTotal)
+                    : "—"}
                 </b>
-                {connectionState !== "open" && (
-                  <span className="text-label text-muted-foreground">
-                    {r(connectionState)}
-                  </span>
-                )}
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs font-medium text-muted-foreground">
                   {t("quota.remaining")}
                 </span>
                 {sub && quota ? (
                   <>
-                    <b className="text-title font-[650] tabular-nums">
-                      {formatTraffic(quota.remaining)}{" "}
-                      <i className="text-body font-medium not-italic text-muted-foreground">
-                        / {formatTraffic(sub.total)}
-                      </i>
+                    <b className="whitespace-nowrap text-[15px] font-bold text-foreground tabular-nums">
+                      {formatDisplayTraffic(quota.remaining)}{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        / {formatDisplayTraffic(sub.total)}
+                      </span>
                     </b>
                     <span
-                      className="mt-1.5 block h-2 overflow-hidden rounded-full bg-inset"
+                      className="mt-1.5 block h-[7px] w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-zinc-800"
                       role="meter"
                       aria-valuemin={0}
                       aria-valuemax={100}
@@ -832,15 +1177,15 @@ export default function Connect() {
                       aria-label={t("quota.remaining")}
                     >
                       <span
-                        className="block h-full w-full origin-left rounded-full bg-brand [transition:transform_var(--duration-base)_var(--ease-out-expo)] motion-reduce:[transition:none]"
+                        className="block h-full origin-left rounded-full bg-brand transition-all duration-300"
                         style={{
-                          transform: `scaleX(${(quotaPercent ?? 0) / 100})`,
+                          width: `${Math.round(quotaPercent ?? 0)}%`,
                         }}
                       />
                     </span>
                   </>
                 ) : (
-                  <span className="text-label text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {sub
                       ? t("quota.unknown")
                       : hasLocalAPI
@@ -883,7 +1228,7 @@ export default function Connect() {
               </b>
               {sub && quota && (
                 <span>
-                  {` · ${t("quota.remaining")} ${formatTraffic(quota.remaining)}`}
+                  {` · ${t("quota.remaining")} ${formatDisplayTraffic(quota.remaining)}`}
                 </span>
               )}
             </span>
@@ -922,6 +1267,7 @@ export default function Connect() {
           onFocusGroup={setFocusGroup}
           chain={chain}
           nodeDelay={nodeDelay}
+          mapping={mapping}
           selection={nodeSelection}
           onSelect={async (groupName, nodeName) => {
             setFocusGroup(groupName);

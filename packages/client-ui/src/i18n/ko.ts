@@ -25,6 +25,14 @@ const KO = {
     local: "이 기기",
     remote: "원격 컨트롤러",
     controller: "컨트롤러",
+    localService: "로컬 서비스",
+    externalController: "외부 컨트롤러",
+    controlTarget: "제어 대상",
+    addExternalController: "외부 컨트롤러 추가",
+    switchToLocal: "로컬 서비스로 전환",
+    running: "실행 중",
+    stopped: "중지됨",
+    notReady: "준비되지 않음",
     routingMode: {
       title: "라우팅 모드",
       rule: "규칙",
@@ -77,6 +85,10 @@ const KO = {
       "이 컨트롤러는 원격으로 관리됩니다. 로컬 인계 상태는 알 수 없습니다.",
     statusReadFailed: "로컬 상태를 읽을 수 없습니다. 다시 시도하세요.",
     currentNode: "현재 노드",
+    strategyGroups: "전략 그룹",
+    allStrategies: "전체 전략",
+    strategyMembers: "개 멤버",
+    routingChain: "라우팅 체인",
     chooseGroup: "정책 그룹",
     noGroup: "정책 그룹을 선택하면 현재 노드를 볼 수 있습니다.",
     copyNode: "노드 이름 복사",
@@ -433,6 +445,10 @@ const KO = {
     use: "활성화",
     updated: "마지막 업데이트",
     readonly: "원격 코어가 관리합니다",
+    externalTargetNote:
+      "안내: 현재 외부 컨트롤러({{name}})를 보고 있습니다. 여기서 관리하는 구독은 로컬 서비스에 적용됩니다.",
+    pureWebNote:
+      "로컬 서비스 없이 순수 웹 대시보드 모드로 실행 중입니다. 로컬 구독을 관리하려면 XBond 데스크톱 앱을 사용하세요.",
     remove: "설정 제거",
     bindNote:
       "구독 자격 증명으로 이 기기를 등록합니다. xbond login으로 로그인할 수도 있습니다.",
@@ -472,6 +488,9 @@ const KO = {
   settings: {
     title: "설정",
     network: "네트워크와 포트",
+    targetAndCore: "제어 대상 및 코어",
+    targetNotice:
+      "현재 외부 코어를 제어 중입니다. 노드 및 규칙은 원격 엔드포인트에서 직접 읽어오며 로컬 시스템 프록시 및 TUN은 적용되지 않습니다.",
     subscriptionsEntry: "구독 및 프로필",
     subscriptionsEntryDesc: "구독 소스 관리, 프로필 가져오기, 할당량 확인.",
     terminalCommand: "터미널 프록시 명령",
@@ -580,6 +599,18 @@ const KO = {
     login: "XBond 로그인",
     importOption: "설정 가져오기",
     remoteOption: "원격 컨트롤러 연결",
+    skipToApp: "지금 건너뛰고 앱으로 이동",
+    cloudCardTitle: "XBond Cloud 계정",
+    cloudCardDesc:
+      "공식 계정으로 로그인하여 구독과 노드를 자동으로 동기화합니다.",
+    subCardTitle: "서드파티 구독 링크",
+    subCardDesc:
+      "외부 제공업체의 Clash / sing-box 구독 URL 또는 로컬 설정 파일을 가져옵니다.",
+    remoteCardTitle: "외부 컨트롤러 연결",
+    remoteCardDesc:
+      "로컬, 공유기(OpenWrt) 또는 원격에서 실행 중인 코어를 제어판으로 연결합니다.",
+    subReady: "공식 구독이 성공적으로 동기화되었습니다 ({{name}}).",
+    startUsing: "시작하기",
     importTitle: "설정 가져오기",
     modeUrl: "URL",
     modeFile: "로컬 파일",
@@ -624,6 +655,12 @@ const KO = {
     announcements: "공지",
     openConsole: "콘솔 열기",
     logout: "로그아웃",
+    syncSubscription: "구독 업데이트",
+    syncSuccess: "Cloud에서 최신 구독을 동기화했습니다",
+    cloudDesc:
+      "XBond Cloud로 로그인하면 공식 구독 노드가 자동으로 동기화됩니다.",
+    webModeAccountNote:
+      "순수 웹 대시보드 모드입니다. XBond Cloud 계정과 시스템 프록시는 데스크톱 앱에서 관리됩니다.",
   },
 } as const;
 

@@ -2,6 +2,7 @@ import { Button } from "@components";
 import { useAction } from "@lib/actions";
 import { useAccount, useLanguage, useLocalAPI } from "@stores";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 /**
  * The XBond Cloud account surface: identity, service status, announcements
@@ -12,23 +13,37 @@ import { useTranslation } from "react-i18next";
 export default function AccountPanel() {
   const { t: ta } = useTranslation("account");
   const { lang } = useLanguage();
-  const { status } = useLocalAPI();
+  const { status, hasDaemon, refresh } = useLocalAPI();
   const {
     account,
     login: loginAccount,
     logout: logoutAccount,
     cancelLogin,
+    resync,
   } = useAccount();
   const { run, pending } = useAction();
+
+  if (!hasDaemon) {
+    return (
+      <div className="setting-label-col flex flex-col gap-1">
+        <p className="text-sm text-muted-foreground">
+          {ta("webModeAccountNote")}
+        </p>
+      </div>
+    );
+  }
 
   if (account?.status === "signed_in") {
     return (
       <div className="setting-label-col flex flex-col gap-1">
-        <p className="text-sm">
-          {account.name || account.email
-            ? [account.name, account.email].filter(Boolean).join(" · ")
-            : ta("signedIn")}
-        </p>
+        <div className="flex items-center gap-2">
+          <span className="size-2 rounded-full bg-success" />
+          <strong className="text-sm font-semibold">
+            {account.name || account.email
+              ? [account.name, account.email].filter(Boolean).join(" · ")
+              : ta("signedIn")}
+          </strong>
+        </div>
         {account.service ? (
           <p className="text-sm text-muted-foreground">
             {[
@@ -49,6 +64,9 @@ export default function AccountPanel() {
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">{ta("noService")}</p>
+        )}
+        {account.updateError && (
+          <p className="text-sm text-destructive">{account.updateError}</p>
         )}
         {account.overviewError && (
           <p className="text-sm text-warning">
@@ -74,13 +92,30 @@ export default function AccountPanel() {
             ))}
           </div>
         )}
-        <div className="setting-inline mt-2 flex items-center gap-2.5">
+        <div className="setting-inline mt-3 flex flex-wrap items-center gap-2.5">
+          <Button
+            variant="brand"
+            disabled={pending}
+            onClick={() =>
+              void run(async () => {
+                const res = await resync();
+                await refresh();
+                if (res.updateError) {
+                  toast.error(res.updateError);
+                } else {
+                  toast.success(ta("syncSuccess"));
+                }
+              })
+            }
+          >
+            {ta("syncSubscription")}
+          </Button>
           {account.consoleUrl && (
             <a
               href={account.consoleUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="section-link"
+              className="section-link text-sm"
             >
               {ta("openConsole")} ↗
             </a>
@@ -158,7 +193,8 @@ export default function AccountPanel() {
   }
 
   return (
-    <div className="setting-label-col flex flex-col gap-1">
+    <div className="setting-label-col flex flex-col gap-2">
+      <p className="text-sm text-muted-foreground">{ta("cloudDesc")}</p>
       {status?.activeSub?.type === "universal" && (
         <p className="text-sm text-muted-foreground">{ta("note")}</p>
       )}
@@ -167,7 +203,7 @@ export default function AccountPanel() {
           {ta("failed")}: {account.error}
         </p>
       )}
-      <div className="mt-2">
+      <div className="mt-1">
         <Button variant="brand" onClick={() => loginAccount().catch(() => {})}>
           {ta("loginCta")}
         </Button>
