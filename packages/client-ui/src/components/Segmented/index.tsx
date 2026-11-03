@@ -40,22 +40,36 @@ export function Segmented<T extends string>({
     >
       {options.map((option) => {
         const isDisabled = disabled || option.disabledReason !== undefined;
+        // 禁用擋位保留焦點（aria-disabled），原因以 aria-describedby +
+        // title 同步告知；disabled 按鈕不可聚焦，鍵盤與讀屏用戶會錯過原因。
+        const reasonId = option.disabledReason
+          ? `${ariaLabel}-${option.value}-reason`
+          : undefined;
         return (
           <button
             type="button"
             key={option.value}
             aria-pressed={value === option.value}
+            aria-disabled={isDisabled || undefined}
+            aria-describedby={reasonId}
             className={cn(
-              "min-w-0 cursor-pointer rounded-[9px] px-4 py-[7px] text-body whitespace-nowrap transition-colors duration-150 motion-reduce:transition-none",
+              "min-w-0 max-md:flex max-md:min-h-11 max-md:items-center cursor-pointer rounded-[9px] px-4 py-[7px] text-body whitespace-nowrap transition-colors duration-150 motion-reduce:transition-none",
               value === option.value
                 ? "bg-brand font-semibold text-brand-foreground shadow-brand"
                 : "bg-transparent text-foreground/72 hover:text-foreground",
+              isDisabled && "cursor-not-allowed",
             )}
-            disabled={isDisabled}
             title={option.disabledReason}
-            onClick={() => onChange(option.value)}
+            onClick={() => {
+              if (!isDisabled) onChange(option.value);
+            }}
           >
             {option.label}
+            {option.disabledReason && (
+              <span id={reasonId} className="sr-only">
+                {option.disabledReason}
+              </span>
+            )}
           </button>
         );
       })}

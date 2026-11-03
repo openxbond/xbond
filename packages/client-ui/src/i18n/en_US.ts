@@ -161,6 +161,8 @@ const EN = {
     parameters: "Test settings",
     providerTitle: "Providers",
     providerUpdateTime: "Last updated",
+    providerHealthCheck: "Health check",
+    providerUpdate: "Update provider",
     expand: "Show group members",
     collapse: "Hide group members",
     speedTest: "Speed test",
@@ -273,6 +275,7 @@ const EN = {
     tabMixin: "Global Mixin",
     providerTitle: "Rule providers",
     providerUpdateTime: "Last updated",
+    providerUpdate: "Update provider",
     ruleCount: "Rules",
     columns: {
       type: "Type",

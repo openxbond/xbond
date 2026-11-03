@@ -159,6 +159,8 @@ const HK = {
     parameters: "測速設定",
     providerTitle: "代理集",
     providerUpdateTime: "最近更新",
+    providerHealthCheck: "健康檢查",
+    providerUpdate: "更新代理集",
     expand: "展開組內節點",
     collapse: "收起組內節點",
     speedTest: "測速",
@@ -269,6 +271,7 @@ const HK = {
     tabMixin: "全域分流增強",
     providerTitle: "規則集",
     providerUpdateTime: "最近更新",
+    providerUpdate: "更新規則集",
     ruleCount: "規則條數",
     columns: {
       type: "類型",

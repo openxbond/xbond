@@ -159,6 +159,8 @@ const CN = {
     parameters: "测速设置",
     providerTitle: "代理集",
     providerUpdateTime: "最近更新",
+    providerHealthCheck: "健康检查",
+    providerUpdate: "更新代理集",
     expand: "展开组内节点",
     collapse: "收起组内节点",
     speedTest: "测速",
@@ -269,6 +271,7 @@ const CN = {
     tabMixin: "全局分流增强",
     providerTitle: "规则集",
     providerUpdateTime: "最近更新",
+    providerUpdate: "更新规则集",
     ruleCount: "规则条数",
     columns: {
       type: "类型",

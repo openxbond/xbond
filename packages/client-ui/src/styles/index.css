@@ -319,6 +319,12 @@
     border-color: var(--ring);
   }
 
+  @media (max-width: 767px) {
+    .empty-state-action {
+      min-height: 44px;
+    }
+  }
+
   /* Tiny circular live-state indicator. `.online` marks a ready state (success),
      `.info` an active data stream (info); the glow keeps the dot legible on
      both themes. Layout around the dot stays with the page. */

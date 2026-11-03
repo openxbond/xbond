@@ -190,12 +190,18 @@ function Proxies() {
       {sortedProxies.length !== 0 && (
         <div className="flex flex-col">
           <Header title={t("title")}>
-            <Icon
-              className="ml-3"
-              type={sortMap[sort]}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("sortState", {
+                mode:
+                  sort === sortType.None ? t("sortDefault") : t("sortLatency"),
+              })}
+              className="ml-2 text-muted-foreground hover:text-foreground"
               onClick={handleSort}
-              size={20}
-            />
+            >
+              <Icon aria-hidden="true" type={sortMap[sort]} size={20} />
+            </Button>
             <button
               type="button"
               className="ml-3 inline-flex items-center gap-1.5 text-body text-brand-text disabled:cursor-not-allowed disabled:opacity-50"
@@ -285,7 +291,7 @@ function ProxyPage() {
                   <path d="m21 21-4.35-4.35" />
                 </svg>
                 <input
-                  className="h-9 w-full rounded-sm border border-border bg-inset pr-8 pl-[34px] text-body text-foreground transition-all duration-150 focus:border-brand focus:bg-card focus:ring-2 focus:ring-brand-soft focus:outline-none"
+                  className="h-9 max-md:min-h-11 w-full rounded-sm border border-border bg-inset pr-8 pl-[34px] text-body text-foreground transition-all duration-150 focus:border-brand focus:bg-card focus:ring-2 focus:ring-brand-soft focus:outline-none"
                   value={search}
                   placeholder={t("searchPlaceholder")}
                   onChange={(e) => setSearch(e.target.value)}
@@ -294,7 +300,7 @@ function ProxyPage() {
                 {search && (
                   <button
                     type="button"
-                    className="absolute right-2 cursor-pointer border-0 bg-transparent px-1 py-0 text-base leading-none text-muted-foreground hover:text-foreground"
+                    className="absolute right-1 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent text-base leading-none text-muted-foreground hover:text-foreground max-md:size-11"
                     onClick={() => setSearch("")}
                     aria-label={tc("clear")}
                   >
@@ -325,7 +331,9 @@ function ProxyPage() {
                   </span>
                 </Button>
                 {progress.running && (
-                  <Button onClick={cancel}>{t("cancelTest")}</Button>
+                  <Button variant="outline" onClick={cancel}>
+                    {t("cancelTest")}
+                  </Button>
                 )}
                 {progress.total > 0 && (
                   <output className="rounded-[6px] bg-inset px-2.5 py-1 text-label tabular-nums text-muted-foreground">

@@ -45,7 +45,7 @@ export function ButtonSelect<T = string>(props: ButtonSelectProps<T>) {
           key={String(option.value)}
           value={String(option.value)}
           className={cn(
-            "h-[26px] rounded-[calc(var(--radius)-4px)] px-3 text-label font-normal data-[state=on]:bg-brand data-[state=on]:font-semibold data-[state=on]:text-brand-foreground data-[state=on]:shadow-brand",
+            "h-[26px] max-md:h-auto max-md:min-h-11 rounded-[calc(var(--radius)-4px)] px-3 max-md:px-4 text-label font-normal data-[state=on]:bg-brand data-[state=on]:font-semibold data-[state=on]:text-brand-foreground data-[state=on]:shadow-brand",
           )}
         >
           {option.label}

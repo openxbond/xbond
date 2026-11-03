@@ -247,9 +247,9 @@ export default function ControllerDetail({
         </div>
       )}
 
-      {error && (
+      {error && !editing && (
         <div
-          className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+          className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive-text"
           role="alert"
         >
           <AlertCircle className="size-4 shrink-0" />
@@ -362,7 +362,12 @@ export default function ControllerDetail({
                     required
                     placeholder="http://127.0.0.1:9090"
                     disabled={pending}
-                    onChange={(e) => setURL(e.target.value)}
+                    onChange={(e) => {
+                      setURL(e.target.value);
+                      setVersion("");
+                      setNotice("");
+                      setError("");
+                    }}
                   />
                 </label>
                 <label className="grid gap-2 text-sm">
@@ -372,9 +377,24 @@ export default function ControllerDetail({
                     autoComplete="off"
                     value={secret}
                     disabled={pending}
-                    onChange={(e) => setSecret(e.target.value)}
+                    onChange={(e) => {
+                      setSecret(e.target.value);
+                      setVersion("");
+                      setNotice("");
+                      setError("");
+                    }}
                   />
                 </label>
+                {/* 儲存與測試的錯誤留在對話框內，否則會被遮罩擋住。 */}
+                {error && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 rounded-control border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-text"
+                  >
+                    <AlertCircle className="size-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
                 <DialogFooter className="mt-2">
                   <Button
                     type="button"

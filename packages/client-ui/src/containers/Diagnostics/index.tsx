@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@components/ui/dialog";
-import { useAction } from "@lib/actions";
+import { errorKind, useAction } from "@lib/actions";
 import { cn } from "@lib/utils";
 import {
   useCapabilities,
@@ -143,6 +143,7 @@ interface DoctorReportData {
 export default function Diagnostics() {
   const { t } = useTranslation("diagnostics");
   const { t: tc } = useTranslation("common");
+  const { t: tr } = useTranslation("runtime");
 
   const client = useClient();
   const caps = useCapabilities();
@@ -172,6 +173,9 @@ export default function Diagnostics() {
     null,
   );
   const [doctorRunning, setDoctorRunning] = useState(false);
+  const [doctorError, setDoctorError] = useState<
+    ReturnType<typeof errorKind> | ""
+  >("");
 
   // Target proxy node for site latency tests
   const targetProxy =
@@ -222,9 +226,13 @@ export default function Diagnostics() {
   async function runDoctor() {
     if (!localClient) return;
     setDoctorRunning(true);
+    setDoctorError("");
     try {
       const rep = (await localClient.runDoctor()) as DoctorReportData;
       setDoctorReport(rep);
+    } catch (error) {
+      // 失敗與「未曾執行」必須分開呈現，否則 daemon 中斷時卡片回到空白提示。
+      setDoctorError(errorKind(error));
     } finally {
       setDoctorRunning(false);
     }
@@ -581,6 +589,21 @@ export default function Diagnostics() {
           <p className="text-sm text-muted-foreground">
             {t("doctor.remoteNote")}
           </p>
+        ) : doctorError ? (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-3 rounded-control border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive-text"
+          >
+            <span>{tr(doctorError)}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={doctorRunning}
+              onClick={() => void runDoctor()}
+            >
+              {tc("retry")}
+            </Button>
+          </div>
         ) : doctorReport ? (
           <div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">

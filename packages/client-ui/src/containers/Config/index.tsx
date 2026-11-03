@@ -1,5 +1,6 @@
 import { Button, Header, Input } from "@components";
 import AccountPanel from "@containers/AccountPanel";
+import { errorKind } from "@lib/actions";
 import { hasDaemonConfig } from "@lib/localapi-bootstrap";
 import { cn } from "@lib/utils";
 import {
@@ -14,6 +15,7 @@ import { ArrowLeft, Check, Plus, Search } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import ControllerDetail from "./ControllerDetail";
 import ImportConfig from "./ImportConfig";
@@ -24,6 +26,7 @@ export default function Config() {
   const { t } = useTranslation("configuration");
   const { t: accountT } = useTranslation("account");
   const { t: common } = useTranslation("common");
+  const { t: runtimeT } = useTranslation("runtime");
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const explicit = params.get("item");
@@ -60,6 +63,9 @@ export default function Config() {
       await selectSub(subId);
       await refresh();
       await refreshSubs();
+    } catch (error) {
+      // 快速啟用失敗不可靜默：未捕獲的 Promise 會讓按鈕毫無回應。
+      toast.error(runtimeT(errorKind(error)), { duration: 6000 });
     } finally {
       setActivating(null);
     }
@@ -72,6 +78,8 @@ export default function Config() {
       await activateCloud();
       await refresh();
       await refreshSubs();
+    } catch (error) {
+      toast.error(runtimeT(errorKind(error)), { duration: 6000 });
     } finally {
       setActivating(null);
     }
@@ -206,7 +214,7 @@ export default function Config() {
             type="button"
             size="sm"
             variant="outline"
-            className="h-6 shrink-0 px-2 text-xs transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+            className="h-6 shrink-0 px-2 text-xs transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
             disabled={activating !== null}
             onClick={(e) => {
               e.stopPropagation();

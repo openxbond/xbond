@@ -1,4 +1,5 @@
 import { Tag, Icon } from "@components";
+import { Button } from "@components/ui/button";
 import { Spinner } from "@components/ui/spinner";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
@@ -45,12 +46,15 @@ export function Provider(props: ProvidersProps) {
           {visible ? (
             <Spinner className="ml-5 size-[18px] motion-reduce:animate-none" />
           ) : (
-            <Icon
-              type="update"
-              size={18}
-              className="ml-5 block cursor-pointer text-muted-foreground hover:text-foreground"
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("providerUpdate")}
+              className="ml-4 text-muted-foreground hover:text-foreground"
               onClick={handleUpdate}
-            />
+            >
+              <Icon aria-hidden="true" type="update" size={18} />
+            </Button>
           )}
         </div>
       </div>

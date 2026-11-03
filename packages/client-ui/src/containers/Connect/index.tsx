@@ -766,9 +766,9 @@ export default function Connect() {
                       type="button"
                       onClick={() => setFocusGroup(item.name)}
                       className={cn(
-                        "shrink-0 cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-all duration-150 select-none",
+                        "shrink-0 cursor-pointer rounded-full px-3 py-1 max-md:min-h-11 max-md:px-4 text-xs font-medium transition-all duration-150 select-none",
                         isCurrent
-                          ? "bg-brand text-white shadow-sm font-semibold"
+                          ? "bg-brand text-brand-foreground shadow-sm font-semibold"
                           : "bg-inset text-muted-foreground hover:bg-card hover:text-foreground",
                       )}
                     >
@@ -1325,7 +1325,7 @@ export default function Connect() {
                 </SheetTitle>
                 <button
                   type="button"
-                  className="cursor-pointer rounded-sm px-1.5 py-1 text-body font-semibold text-brand-text"
+                  className="inline-flex cursor-pointer items-center justify-center rounded-sm px-1.5 py-1 max-md:min-h-11 max-md:min-w-11 text-body font-semibold text-brand-text"
                   onClick={() => setTakeoverSheetOpen(false)}
                   aria-label={tc("close")}
                 >

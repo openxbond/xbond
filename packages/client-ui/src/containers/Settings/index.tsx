@@ -561,6 +561,7 @@ export default function Settings() {
             >
               <ButtonSelect<string>
                 value={general.logLevel || "info"}
+                disabled={pending}
                 options={[
                   { value: "debug", label: "Debug" },
                   { value: "info", label: "Info" },

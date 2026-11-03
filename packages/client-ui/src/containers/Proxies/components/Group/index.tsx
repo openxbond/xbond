@@ -207,7 +207,7 @@ export function Group({
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text"
+              className="inline-flex size-[30px] max-md:size-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text"
               title={t("locate")}
               aria-label={t("locate")}
               disabled={!config.now}
@@ -237,7 +237,7 @@ export function Group({
 
             <button
               type="button"
-              className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text"
+              className="inline-flex size-[30px] max-md:size-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text"
               title={t("groupTest")}
               aria-label={t("groupTest")}
               disabled={progress.running || !names.length}
@@ -261,7 +261,7 @@ export function Group({
             <button
               type="button"
               className={cn(
-                "inline-flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text",
+                "inline-flex size-[30px] max-md:size-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text",
                 sortMode !== "default" &&
                   "border-brand bg-brand-soft text-brand-text",
               )}
@@ -311,7 +311,7 @@ export function Group({
             <button
               type="button"
               className={cn(
-                "inline-flex size-[30px] cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text",
+                "inline-flex size-[30px] max-md:size-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-inset p-0 text-muted-foreground transition-colors duration-150 enabled:hover:border-brand enabled:hover:bg-brand-soft enabled:hover:text-brand-text",
                 (filterOpen || filter) &&
                   "border-brand bg-brand-soft text-brand-text",
               )}
@@ -427,12 +427,12 @@ export function Group({
                 <button
                   type="button"
                   className={cn(
-                    "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-[5px] border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
+                    "inline-flex size-6 max-md:size-10 shrink-0 cursor-pointer items-center justify-center rounded-[5px] border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
                     isTesting && "animate-pulse text-brand-text opacity-70",
                   )}
                   title={t("testNode")}
                   aria-label={t("testNodeAria", { name })}
-                  disabled={isTesting}
+                  disabled={progress.running || isTesting}
                   onClick={(e) => {
                     e.stopPropagation();
                     void run([name]);

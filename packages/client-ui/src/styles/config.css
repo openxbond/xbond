@@ -62,6 +62,19 @@
     color: var(--foreground);
     background: var(--surface-inset);
   }
+
+  /* 觸控下限：行動寬度下標題加號與清單項都回到 44px。 */
+  @media (max-width: 767px) {
+    .config-group-heading button {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
+    }
+    .config-resource {
+      min-height: 44px;
+    }
+  }
   .config-resource {
     width: 100%;
     display: flex;

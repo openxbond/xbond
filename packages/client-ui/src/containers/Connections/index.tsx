@@ -411,7 +411,8 @@ export default function Connections() {
     return (
       <div
         role="row"
-        className="connections-data-row group flex h-9.25 cursor-default select-none"
+        tabIndex={0}
+        className="connections-data-row group flex h-9.25 cursor-default select-none focus-visible:bg-inset"
         key={row.original?.id}
         onClick={() =>
           setDrawerState({
@@ -419,6 +420,15 @@ export default function Connections() {
             selectedID: row.original?.id,
           })
         }
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setDrawerState({
+              visible: true,
+              selectedID: row.original?.id,
+            });
+          }
+        }}
       >
         {row.getAllCells().map((cell) => {
           const size = cell.column.getSize();

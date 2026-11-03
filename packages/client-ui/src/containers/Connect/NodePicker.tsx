@@ -146,7 +146,7 @@ export function NodePicker({
             </div>
             <button
               type="button"
-              className="cursor-pointer rounded-sm px-1.5 py-1 text-body font-semibold text-muted-foreground hover:text-foreground"
+              className="inline-flex cursor-pointer items-center justify-center rounded-sm px-1.5 py-1 max-md:min-h-11 max-md:min-w-11 text-body font-semibold text-muted-foreground hover:text-foreground"
               onClick={onClose}
               aria-label={tc("close")}
             >
@@ -167,7 +167,7 @@ export function NodePicker({
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                className="absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-xs text-muted-foreground hover:text-foreground max-md:size-11"
               >
                 ✕
               </button>

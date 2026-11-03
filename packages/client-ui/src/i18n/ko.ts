@@ -161,6 +161,8 @@ const KO = {
     parameters: "테스트 설정",
     providerTitle: "프로바이더",
     providerUpdateTime: "마지막 업데이트",
+    providerHealthCheck: "상태 확인",
+    providerUpdate: "프로바이더 업데이트",
     expand: "그룹 멤버 펼치기",
     collapse: "그룹 멤버 접기",
     speedTest: "속도 테스트",
@@ -273,6 +275,7 @@ const KO = {
     tabMixin: "전역 라우팅 강화",
     providerTitle: "규칙 프로바이더",
     providerUpdateTime: "마지막 업데이트",
+    providerUpdate: "프로바이더 업데이트",
     ruleCount: "규칙 수",
     columns: {
       type: "유형",

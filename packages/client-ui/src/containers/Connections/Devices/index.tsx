@@ -19,7 +19,7 @@ export function Devices(props: DevicesProps) {
   // only apply to unselected ones, matching the old cascade order.
   const itemClass = (selected: boolean) =>
     cn(
-      "connections-devices-item mb-2 mr-2 cursor-pointer rounded-full border bg-inset px-3 py-1 text-label leading-[18px] tabular-nums transition-colors duration-[120ms]",
+      "connections-devices-item mb-2 mr-2 cursor-pointer rounded-full border bg-inset px-3 py-1 max-md:min-h-11 max-md:px-4 text-label leading-[18px] tabular-nums transition-colors duration-[120ms]",
       selected
         ? "border-brand bg-brand-soft font-medium text-brand-text"
         : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",

@@ -147,7 +147,7 @@ export function Proxy(props: ProxyProps) {
             <button
               type="button"
               className={cn(
-                "inline-flex size-7 cursor-pointer items-center justify-center rounded-[7px] border border-border bg-inset p-0 text-muted-foreground transition-all duration-150 hover:scale-[1.06] hover:border-brand hover:bg-brand-soft hover:text-brand-text",
+                "inline-flex size-7 max-md:size-10 cursor-pointer items-center justify-center rounded-[7px] border border-border bg-inset p-0 text-muted-foreground transition-all duration-150 hover:scale-[1.06] hover:border-brand hover:bg-brand-soft hover:text-brand-text",
                 (isFailed || isUntested) && "opacity-75",
                 isTesting && "animate-pulse text-brand-text opacity-80",
               )}

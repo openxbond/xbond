@@ -41,15 +41,16 @@ function useLatencyRunner() {
   const cancel = () => {
     current.current?.abort();
     current.current = null;
+    // 取消的節點回到「未測試」，不留下任何結果；寫入 "untested" 會被
+    // 各顯示層當成失敗（狀態值非空且非 ok/testing）。
     setResults((values) =>
       Object.fromEntries(
-        Object.entries(values).map(([name, result]) => [
-          name,
-          result.status === "testing" ? { status: "untested" } : result,
-        ]),
+        Object.entries(values).filter(
+          ([, result]) => result.status !== "testing",
+        ),
       ),
     );
-    setProgress((p) => ({ ...p, running: false }));
+    setProgress({ running: false, completed: 0, total: 0 });
   };
   const run = async (names: string[]) => {
     if (current.current) return;
@@ -107,7 +108,8 @@ function useLatencyRunner() {
     } finally {
       if (current.current === controller) {
         current.current = null;
-        setProgress((p) => ({ ...p, running: false }));
+        // 完成後收起進度：完成數停留在畫面上會被誤讀為仍在執行。
+        setProgress({ running: false, completed: 0, total: 0 });
       }
     }
   };

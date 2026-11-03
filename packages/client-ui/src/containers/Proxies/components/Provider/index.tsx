@@ -1,4 +1,5 @@
 import { Card, Tag, Icon } from "@components";
+import { Button } from "@components/ui/button";
 import { Spinner } from "@components/ui/spinner";
 import { compareDesc } from "@containers/Proxies";
 import { Proxy } from "@containers/Proxies/components/Proxy";
@@ -29,7 +30,7 @@ export function Provider(props: ProvidersProps) {
   const { pending: visible, run } = useAction();
   const { invalidate } = useLatency();
 
-  function handleHealthChech() {
+  function handleHealthCheck() {
     void run(async () => {
       await client.healthCheckProvider(provider.name);
       await update();
@@ -66,18 +67,26 @@ export function Provider(props: ProvidersProps) {
           {provider.updatedAt && (
             <span className="text-sm">{`${t("providerUpdateTime")}: ${fromNow(new Date(provider.updatedAt), lang)}`}</span>
           )}
-          <Icon
-            className="cursor-pointer pl-5 text-destructive"
-            type="healthcheck"
-            size={18}
-            onClick={handleHealthChech}
-          />
-          <Icon
-            className="cursor-pointer pl-5"
-            type="update"
-            size={18}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("providerHealthCheck")}
+            className="ml-4 text-destructive hover:text-destructive"
+            disabled={visible}
+            onClick={handleHealthCheck}
+          >
+            <Icon aria-hidden="true" type="healthcheck" size={18} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("providerUpdate")}
+            className="ml-1"
+            disabled={visible}
             onClick={handleUpdate}
-          />
+          >
+            <Icon aria-hidden="true" type="update" size={18} />
+          </Button>
         </div>
       </div>
       <ul className="mt-5 mb-10 grid list-none grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4 p-0 max-md:grid-cols-1">

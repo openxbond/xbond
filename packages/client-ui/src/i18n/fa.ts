@@ -161,6 +161,8 @@ const FA = {
     parameters: "تنظیمات تست",
     providerTitle: "فراهم‌کننده‌ها",
     providerUpdateTime: "آخرین به‌روزرسانی",
+    providerHealthCheck: "بررسی سلامت",
+    providerUpdate: "به‌روزرسانی فراهم‌کننده",
     expand: "نمایش اعضای گروه",
     collapse: "پنهان‌کردن اعضای گروه",
     speedTest: "تست سرعت",
@@ -273,6 +275,7 @@ const FA = {
     tabMixin: "تقویت سراسری",
     providerTitle: "فراهم‌کننده‌های قاعده",
     providerUpdateTime: "آخرین به‌روزرسانی",
+    providerUpdate: "به‌روزرسانی فراهم‌کننده",
     ruleCount: "تعداد قواعد",
     columns: {
       type: "نوع",
