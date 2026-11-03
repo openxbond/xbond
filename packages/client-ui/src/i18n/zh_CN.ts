@@ -36,7 +36,7 @@ const CN = {
     connect: "连接",
     activity: "活动",
     overview: "总览",
-    proxies: "节点",
+    proxies: "代理",
     subscriptions: "订阅",
     connections: "连接",
     logs: "日志",
@@ -140,7 +140,7 @@ const CN = {
     },
   },
   proxies: {
-    title: "节点",
+    title: "代理",
     groups: "策略组",
     parameters: "测速设置",
     providerTitle: "代理集",

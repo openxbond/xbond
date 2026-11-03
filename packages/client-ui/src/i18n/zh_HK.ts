@@ -36,7 +36,7 @@ const HK = {
     connect: "連線",
     activity: "活動",
     overview: "總覽",
-    proxies: "節點",
+    proxies: "代理",
     subscriptions: "訂閱",
     connections: "連線",
     logs: "日誌",
@@ -140,7 +140,7 @@ const HK = {
     },
   },
   proxies: {
-    title: "節點",
+    title: "代理",
     groups: "策略組",
     parameters: "測速設定",
     providerTitle: "代理集",

@@ -191,8 +191,8 @@ export default function Connections() {
         header: t(`columns.${Columns.Type}`),
       }),
       columnHelper.accessor(Columns.Chains, {
-        minSize: 200,
-        size: 200,
+        minSize: 240,
+        size: 240,
         header: t(`columns.${Columns.Chains}`),
       }),
       columnHelper.accessor(Columns.Rule, {
@@ -411,7 +411,7 @@ export default function Connections() {
     return (
       <div
         role="row"
-        className="connections-data-row group flex h-[37px] cursor-default select-none"
+        className="connections-data-row group flex h-9.25 cursor-default select-none"
         key={row.original?.id}
         onClick={() =>
           setDrawerState({
@@ -425,15 +425,16 @@ export default function Connections() {
           const monospace =
             cell.column.id === Columns.Host ||
             cell.column.id === Columns.Rule ||
-            cell.column.id === Columns.SourceIP;
+            cell.column.id === Columns.SourceIP ||
+            cell.column.id === Columns.Chains;
           const isHost = cell.column.id === Columns.Host;
           return (
             <div
               role="cell"
               className={cn(
-                "connections-block inline-block h-[37px] shrink-0 overflow-hidden px-3.5 text-body leading-9 text-ellipsis whitespace-nowrap border-b border-border text-foreground group-hover:bg-inset",
+                "connections-block inline-blockh-9.25 shrink-0 overflow-hidden px-3.5 text-body leading-9 text-ellipsis whitespace-nowrap border-b border-border text-foreground group-hover:bg-inset",
                 alignClass(cell.column.id),
-                isHost && "sticky left-0 z-[998] bg-card",
+                isHost && "sticky left-0 z-998 bg-card",
                 scrolled && isHost && stickyShadow,
                 row.original?.completed && "bg-inset text-muted-foreground",
                 monospace && "font-mono text-label",

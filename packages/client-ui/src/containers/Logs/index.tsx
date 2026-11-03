@@ -193,7 +193,7 @@ export default function Logs() {
         </Button>
         <span className="text-xs text-muted-foreground">{t("logLimit")}</span>
       </div>
-      <Card className="log-table min-h-80 flex flex-1 flex-col p-0">
+      <Card className="log-table overflow-hidden min-h-80 flex flex-1 flex-col p-0">
         {filtered.length ? (
           <>
             <div className="table-header log-header flex shrink-0 items-center gap-4 px-4">
