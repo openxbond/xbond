@@ -22,6 +22,7 @@ import {
   Check,
   ExternalLink,
   LoaderCircle,
+  LogOut,
   RefreshCw,
   Zap,
 } from "lucide-react";
@@ -153,35 +154,95 @@ export default function AccountPanel() {
   return (
     <div className="config-detail-stack" aria-busy={busy}>
       {/* Top Header */}
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-4">
-          <ResourceIcon kind="cloud" className="size-12 shadow-xs" />
-          <div className="min-w-0">
-            <h2 className="text-title font-semibold tracking-tight text-foreground">
+      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-4">
+          <ResourceIcon kind="cloud" className="size-12 shrink-0 rounded-2xl" />
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
               XBond Cloud
             </h2>
-            <p className="mt-1 break-words text-sm text-muted-foreground">
-              {signedIn
-                ? account.name || account.email || t("signedIn")
-                : t("cloudDesc")}
-            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
+                {cloudProfile?.format || "XBond"}
+              </span>
+              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {signedIn
+                  ? account.name || account.email || t("signedIn")
+                  : t("cloudDesc")}
+              </span>
+              {signedIn && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {t("serviceHealthy")}
+                </span>
+              )}
+              {current && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-text">
+                  <Check className="size-3" />
+                  {c("activeLocal")}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        {signedIn && (
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {t("serviceHealthy")}
-            </span>
-            {current && (
-              <span className="config-status font-medium">
-                <Check aria-hidden="true" className="me-1 size-3.5" />
-                {c("activeLocal")}
-              </span>
-            )}
-          </div>
-        )}
-      </header>
+
+        {/* Top-Right Action Buttons (Consistent with SubscriptionDetail & ControllerDetail) */}
+        <div className="flex shrink-0 items-center gap-2.5">
+          {signedIn && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              className="gap-2"
+              onClick={() => void action(update, c("updated"), "sync")}
+            >
+              <RefreshCw
+                className={cn(
+                  "size-4",
+                  pendingAction === "sync" && "animate-spin",
+                )}
+              />
+              {pendingAction === "sync"
+                ? t("phaseSync")
+                : failure
+                  ? common("retry")
+                  : t("syncSubscription")}
+            </Button>
+          )}
+
+          {current ? (
+            <Button
+              variant="secondary"
+              disabled
+              className="pointer-events-none gap-1.5"
+            >
+              <Check className="size-4 text-emerald-500" />
+              {c("activeLocal")}
+            </Button>
+          ) : signedIn ? (
+            <Button
+              variant="brand"
+              disabled={busy}
+              className="gap-1.5"
+              onClick={() => void action(activateCloud, "", "use")}
+            >
+              {pendingAction === "use" ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <Zap className="size-4" />
+              )}
+              {pendingAction === "use" ? t("applyingConfig") : c("use")}
+            </Button>
+          ) : (
+            <Button
+              variant="brand"
+              disabled={busy}
+              onClick={() => void action(() => login())}
+            >
+              {t("loginCta")}
+            </Button>
+          )}
+        </div>
+      </div>
 
       {connecting ? (
         <p
@@ -386,79 +447,6 @@ export default function AccountPanel() {
             </div>
           )}
 
-          {/* Cloud Action Center Card */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                disabled={busy || current}
-                variant={current ? "secondary" : "default"}
-                size="default"
-                className="gap-2 font-medium"
-                onClick={() => void action(activateCloud, "", "use")}
-              >
-                {pendingAction === "use" ? (
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="size-4 motion-safe:animate-spin"
-                  />
-                ) : current ? (
-                  <Check
-                    aria-hidden="true"
-                    className="size-4 text-emerald-500"
-                  />
-                ) : (
-                  <Zap aria-hidden="true" className="size-4" />
-                )}
-                {pendingAction === "use"
-                  ? t("applyingConfig")
-                  : current
-                    ? c("activeLocal")
-                    : t("useCloudCta")}
-              </Button>
-
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => void action(update, c("updated"), "sync")}
-                className="gap-2"
-              >
-                <RefreshCw
-                  aria-hidden="true"
-                  className={cn(
-                    "size-4",
-                    pendingAction === "sync" && "animate-spin",
-                  )}
-                />
-                {pendingAction === "sync"
-                  ? t("phaseSync")
-                  : failure
-                    ? common("retry")
-                    : t("syncSubscription")}
-              </Button>
-
-              {account.consoleUrl && (
-                <a
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                  href={account.consoleUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink aria-hidden="true" className="size-3.5" />
-                  {t("openConsole")}
-                </a>
-              )}
-
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => setConfirmLogout(true)}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                {t("logout")}
-              </Button>
-            </div>
-          </div>
-
           {!cloudProfile?.format && !failure && !pending && (
             <p
               role="status"
@@ -503,7 +491,7 @@ export default function AccountPanel() {
           {/* Quota & Plan Overview Grid */}
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Quota Card */}
-            <div className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs">
+            <div className="flex flex-col justify-between gap-4 rounded-card border bg-card p-5 shadow-elevation-card">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {t("quotaRemaining")}
               </h3>
@@ -528,10 +516,23 @@ export default function AccountPanel() {
             </div>
 
             {/* Service Details Card */}
-            <div className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("servicePlan")}
-              </h3>
+            <div className="flex flex-col justify-between gap-4 rounded-card border bg-card p-5 shadow-elevation-card">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t("servicePlan")}
+                </h3>
+                {account.consoleUrl && (
+                  <a
+                    className="inline-flex h-7 items-center justify-center gap-1 rounded-md border border-input bg-background px-2.5 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
+                    href={account.consoleUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink aria-hidden="true" className="size-3" />
+                    {t("openConsole")}
+                  </a>
+                )}
+              </div>
               <dl className="grid gap-2.5 text-sm">
                 <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground">{t("servicePlan")}</dt>
@@ -589,6 +590,28 @@ export default function AccountPanel() {
               ))}
             </section>
           )}
+
+          {/* Danger Zone: Log Out */}
+          <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
+                <LogOut className="size-4" />
+                {t("logout")}
+              </h3>
+              <p className="mt-1 max-w-md text-xs text-muted-foreground">
+                {c("logoutImpact")}
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="shrink-0"
+              disabled={busy}
+              onClick={() => setConfirmLogout(true)}
+            >
+              {t("logout")}
+            </Button>
+          </div>
         </>
       ) : (
         /* Signed-Out Landing Card */

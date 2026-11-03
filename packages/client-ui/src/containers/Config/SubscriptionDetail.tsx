@@ -31,6 +31,7 @@ import {
   RotateCcw,
   SlidersHorizontal,
   Trash2,
+  Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -269,6 +270,34 @@ export default function SubscriptionDetail({
         </div>
 
         <div className="flex shrink-0 items-center gap-2.5">
+          {(isRemote || isLocal) && (
+            <Button
+              variant="outline"
+              disabled={pending || Boolean(operation)}
+              className="gap-2"
+              onClick={() =>
+                void run(async () => {
+                  if (sub.accountIssuer) {
+                    const result = await resync();
+                    if (result.updateError) throw new Error(result.updateError);
+                  } else {
+                    await updateSub(sub.id);
+                  }
+                  await refresh();
+                  await refreshSubs();
+                })
+              }
+            >
+              <RefreshCw
+                className={cn(
+                  "size-4",
+                  (pending || operation) && "animate-spin",
+                )}
+              />
+              {isLocal ? cfg("reloadFile") : t("updateBtn")}
+            </Button>
+          )}
+
           {isActive ? (
             <Button
               variant="secondary"
@@ -281,6 +310,7 @@ export default function SubscriptionDetail({
           ) : (
             <Button
               variant="brand"
+              className="gap-1.5"
               disabled={pending || Boolean(operation)}
               onClick={() =>
                 void run(async () => {
@@ -290,6 +320,7 @@ export default function SubscriptionDetail({
                 })
               }
             >
+              <Zap className="size-4" />
               {cfg("use")}
             </Button>
           )}
@@ -431,55 +462,25 @@ export default function SubscriptionDetail({
               )}
             </div>
 
-            {/* Sync Frequency + Update Now */}
-            <div className="flex flex-col gap-4 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                {sub.type === "universal" && (
-                  <UpdateFrequency
-                    inline
-                    value={sub.autoUpdate ? sub.updateIntervalHours : 0}
-                    disabled={pending || Boolean(operation) || !localClient}
-                    onChange={(hours) =>
-                      void run(async () => {
-                        if (!localClient)
-                          throw new Error("LocalAPI not available");
-                        await localClient.setSubUpdateSchedule(sub.id, hours);
-                        await refreshSubs();
-                        await refresh();
-                      })
-                    }
-                  />
-                )}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 self-start sm:self-auto"
-                disabled={pending || Boolean(operation)}
-                onClick={() =>
-                  void run(async () => {
-                    if (sub.accountIssuer) {
-                      const result = await resync();
-                      if (result.updateError)
-                        throw new Error(result.updateError);
-                    } else {
-                      await updateSub(sub.id);
-                    }
-                    await refresh();
-                    await refreshSubs();
-                  })
-                }
-              >
-                <RefreshCw
-                  className={cn(
-                    "size-3.5",
-                    (pending || operation) && "animate-spin",
-                  )}
+            {/* Sync Frequency */}
+            {sub.type === "universal" && (
+              <div className="border-t border-border/60 pt-3">
+                <UpdateFrequency
+                  inline
+                  value={sub.autoUpdate ? sub.updateIntervalHours : 0}
+                  disabled={pending || Boolean(operation) || !localClient}
+                  onChange={(hours) =>
+                    void run(async () => {
+                      if (!localClient)
+                        throw new Error("LocalAPI not available");
+                      await localClient.setSubUpdateSchedule(sub.id, hours);
+                      await refreshSubs();
+                      await refresh();
+                    })
+                  }
                 />
-                {t("updateBtn")}
-              </Button>
-            </div>
+              </div>
+            )}
 
             {/* Update Channel Selector */}
             <div className="flex flex-col gap-2 border-t border-border/60 pt-3 text-xs sm:flex-row sm:items-center sm:justify-between">
@@ -499,31 +500,11 @@ export default function SubscriptionDetail({
         )}
 
         {isLocal && (
-          <>
-            <div className="flex items-center gap-2 rounded-control border border-border bg-inset px-3 py-2">
-              <span className="flex-1 select-all truncate font-mono text-xs text-foreground">
-                {sub.urlOrFile || "—"}
-              </span>
-            </div>
-            <div className="flex justify-end border-t border-border/60 pt-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                disabled={pending || Boolean(operation)}
-                onClick={() =>
-                  void run(async () => {
-                    await updateSub(sub.id);
-                    await refresh();
-                    await refreshSubs();
-                  })
-                }
-              >
-                <RefreshCw className="size-3.5" />
-                {cfg("reloadFile")}
-              </Button>
-            </div>
-          </>
+          <div className="flex items-center gap-2 rounded-control border border-border bg-inset px-3 py-2">
+            <span className="flex-1 select-all truncate font-mono text-xs text-foreground">
+              {sub.urlOrFile || "—"}
+            </span>
+          </div>
         )}
 
         {isInline && (
