@@ -40,7 +40,7 @@
     margin-bottom: 6px;
   }
   .config-group-heading h2 {
-    font-size: 11px;
+    font-size: var(--text-label);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -52,7 +52,7 @@
     min-width: 26px;
     min-height: 26px;
     padding: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--muted-foreground);
     transition:
       color 120ms ease,
@@ -82,8 +82,8 @@
     gap: 10px;
     padding: 9px 10px;
     text-align: start;
-    border-radius: 10px;
-    font-size: 13px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-body);
     cursor: pointer;
     transition:
       background-color 120ms ease,
@@ -125,7 +125,7 @@
   }
   .config-list-empty {
     margin: 8px 12px;
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.7;
     color: var(--muted-foreground);
   }
@@ -248,13 +248,13 @@
     padding: 8px;
     background: var(--popover);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     box-shadow: 0 12px 32px -4px
       color-mix(in oklch, var(--foreground) 16%, transparent);
   }
   .config-menu-heading {
     padding: 6px 8px 4px;
-    font-size: 11px;
+    font-size: var(--text-label);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -267,9 +267,9 @@
     width: 100%;
     min-height: 42px;
     gap: 10px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     padding: 6px 8px;
-    font-size: 13px;
+    font-size: var(--text-body);
     text-decoration: none;
     background: transparent;
     border: none;
@@ -296,7 +296,7 @@
   .config-menu-item small {
     display: block;
     margin-top: 1px;
-    font-size: 11px;
+    font-size: var(--text-label);
     line-height: 1.4;
     color: var(--muted-foreground);
   }
@@ -308,7 +308,7 @@
     align-items: center;
     gap: 5px;
     padding: 6px 8px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     color: var(--muted-foreground);
     font-size: 12px;
     font-weight: 500;
@@ -331,7 +331,7 @@
       height: auto;
       max-height: none;
       min-height: 0;
-      border-radius: 20px;
+      border-radius: var(--radius-card);
     }
     .config-resources {
       border-inline-end: 0;
