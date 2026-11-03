@@ -14,10 +14,11 @@
       {
         "label": "main",
         "title": "XBond",
-        "width": 960,
-        "height": 720,
-        "minWidth": 375,
-        "minHeight": 600
+        "width": 1140,
+        "height": 780,
+        "minWidth": 840,
+        "minHeight": 580,
+        "center": true
       }
     ],
     "security": {
