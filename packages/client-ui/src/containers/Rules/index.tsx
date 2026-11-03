@@ -1,11 +1,20 @@
-import { Header, Card, Input } from "@components";
+import { ButtonSelect, Card, Header, Input } from "@components";
 import { RequestStatus } from "@components/RequestStatus";
-import { useRule, useRuleProviders, useCapabilities } from "@stores";
+import { hasDaemonConfig } from "@lib/localapi-bootstrap";
+import {
+  useCapabilities,
+  useGlobalMixin,
+  useLocalAPI,
+  useRule,
+  useRuleProviders,
+} from "@stores";
 import type * as API from "@xbond/client/request";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { List, type RowComponentProps } from "react-window";
 
+import GlobalMixinPanel from "./GlobalMixinPanel";
 import { Provider } from "./Provider";
 
 function RuleProviders() {
@@ -76,36 +85,79 @@ export default function Rules() {
   );
   const capabilities = useCapabilities();
   const { t } = useTranslation("rules");
+  const supported = hasDaemonConfig();
+  const { isLocalTarget } = useLocalAPI();
+  const { mixin } = useGlobalMixin();
+  const [params, setParams] = useSearchParams();
+  const tab = (params.get("tab") as "rules" | "mixin") || "rules";
+
+  const activeMixinCount =
+    (mixin.bypassLan ? 1 : 0) +
+    (mixin.rulesPrepend?.length || 0) +
+    (mixin.rulesAppend?.length || 0) +
+    (mixin.dns ? 1 : 0);
+
   return (
     <div className="page">
-      <RequestStatus error={error} retry={update} />
-      <Header title={t("title")} />
-      {!capabilities.ruleProviders && capabilities.kind === "sing-box" && (
-        <ProviderNote />
-      )}
-      <div className="page-toolbar">
-        <RuleSearch value={search} onChange={setSearch} />
-      </div>
-      <RuleProviders />
-      <Card className="flex flex-1 flex-col overflow-hidden p-0 focus:outline-none">
-        <div className="table-header rule-header flex shrink-0 items-center gap-3 px-4">
-          <div className="w-10 shrink-0 text-right">#</div>
-          <div className="w-44">{t("columns.type")}</div>
-          <div className="flex-1">{t("columns.payload")}</div>
-          <div className="w-56 text-right">{t("columns.proxy")}</div>
-        </div>
-        {/* CSS-only bounds: flex basis 0 sizes the box from the card's
-            remaining space after the header, never from row content. */}
-        <div className="rule-list-box min-h-[480px] flex-1 overflow-hidden">
-          <List
-            style={{ height: "100%", width: "100%" }}
-            rowCount={rules.length}
-            rowHeight={50}
-            rowComponent={RuleRow}
-            rowProps={{ rules }}
+      <Header title={t("title")}>
+        {supported && isLocalTarget && (
+          <ButtonSelect<"rules" | "mixin">
+            value={tab}
+            options={[
+              { label: t("tabActive"), value: "rules" },
+              {
+                label:
+                  activeMixinCount > 0
+                    ? `${t("tabMixin")} (${activeMixinCount})`
+                    : t("tabMixin"),
+                value: "mixin",
+              },
+            ]}
+            onSelect={(nextTab) => {
+              setParams((prev) => {
+                const next = new URLSearchParams(prev);
+                if (nextTab === "rules") next.delete("tab");
+                else next.set("tab", nextTab);
+                return next;
+              });
+            }}
           />
-        </div>
-      </Card>
+        )}
+      </Header>
+
+      {tab === "mixin" && supported && isLocalTarget ? (
+        <GlobalMixinPanel />
+      ) : (
+        <>
+          <RequestStatus error={error} retry={update} />
+          {!capabilities.ruleProviders && capabilities.kind === "sing-box" && (
+            <ProviderNote />
+          )}
+          <div className="page-toolbar">
+            <RuleSearch value={search} onChange={setSearch} />
+          </div>
+          <RuleProviders />
+          <Card className="flex flex-1 flex-col overflow-hidden p-0 focus:outline-none">
+            <div className="table-header rule-header flex shrink-0 items-center gap-3 px-4">
+              <div className="w-10 shrink-0 text-right">#</div>
+              <div className="w-44">{t("columns.type")}</div>
+              <div className="flex-1">{t("columns.payload")}</div>
+              <div className="w-56 text-right">{t("columns.proxy")}</div>
+            </div>
+            {/* CSS-only bounds: flex basis 0 sizes the box from the card's
+                remaining space after the header, never from row content. */}
+            <div className="rule-list-box min-h-[480px] flex-1 overflow-hidden">
+              <List
+                style={{ height: "100%", width: "100%" }}
+                rowCount={rules.length}
+                rowHeight={50}
+                rowComponent={RuleRow}
+                rowProps={{ rules }}
+              />
+            </div>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

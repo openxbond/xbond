@@ -1,7 +1,13 @@
-import type { TakeoverMode, RoutingMode } from "@xbond/client/localapi";
+import type {
+  GlobalMixin,
+  SubscriptionMeta,
+  TakeoverMode,
+  RoutingMode,
+} from "@xbond/client/localapi";
 import { useCallback } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
+import { useConfigurationOperation } from "./configuration-operation";
 import { useDaemonConnection } from "./daemon";
 import {
   DAEMON_CONTROLLER_ID,
@@ -108,6 +114,7 @@ export function useSubscriptions() {
   // controller the window is currently viewing.
   const { client, config } = useDaemonConnection();
   const selectController = useSelectController();
+  const { operation, run: runOperation } = useConfigurationOperation();
   const { mutate: mutateCache } = useSWRConfig();
   const { data, error, mutate } = useSWR(
     client && config
@@ -130,53 +137,124 @@ export function useSubscriptions() {
       lang?: string;
     }) => {
       if (!client) throw new Error("LocalAPI not available");
-      const res = await client.addSub(params);
-      await mutate();
-      return res;
+      return runOperation("sync", async () => {
+        const res = await client.addSub(params);
+        await mutate();
+        return res;
+      });
     },
-    [client, mutate],
+    [client, mutate, runOperation],
   );
 
+  const activate = useCallback(
+    (resolveSource: () => Promise<string>) =>
+      runOperation("use", async () => {
+        if (!client) throw new Error("LocalAPI not available");
+        const id = await resolveSource();
+        const result = await client.useSub(id);
+        await mutate(
+          (current) =>
+            current ? { ...current, activeId: result.activeId } : current,
+          { revalidate: false },
+        );
+        selectController(DAEMON_CONTROLLER_ID);
+        // The server has committed the switch. Refresh errors remain visible in
+        // their SWR queries; they must not turn a successful switch into a failure.
+        await Promise.allSettled([
+          mutate(),
+          mutateCache(["/localapi/v0/status", config?.token]),
+        ]);
+        return result;
+      }),
+    [
+      client,
+      config?.token,
+      mutate,
+      mutateCache,
+      runOperation,
+      selectController,
+    ],
+  );
   const selectSub = useCallback(
-    async (id: string) => {
-      if (!client) throw new Error("LocalAPI not available");
-      const res = await client.useSub(id);
-      await mutate();
-      await mutateCache(["/localapi/v0/status", config?.token]);
-      selectController(DAEMON_CONTROLLER_ID);
-      return res;
-    },
-    [client, config?.token, mutate, mutateCache, selectController],
+    (id: string) =>
+      activate(async () => {
+        if (!client) throw new Error("LocalAPI not available");
+        const source = data?.subscriptions.find((item) => item.id === id);
+        if (!source?.format) {
+          await client.updateSub(id);
+          const refreshed = await client.listSubs();
+          const ready = refreshed.subscriptions.find((item) => item.id === id);
+          if (!ready?.format)
+            throw new Error(
+              ready?.lastErrorMessage ||
+                "Configuration is not ready. Update or edit it before use.",
+            );
+        }
+        return id;
+      }),
+    [activate, client, data?.subscriptions],
+  );
+  const selectCloud = useCallback(
+    (source?: SubscriptionMeta) =>
+      activate(async () => {
+        if (!client) throw new Error("LocalAPI not available");
+        let ready = source;
+        if (!ready?.format) {
+          const refreshed = await client.accountRefresh();
+          await Promise.allSettled([
+            mutate(),
+            mutateCache([
+              "/localapi/v0/account",
+              config?.endpoint,
+              config?.token,
+            ]),
+          ]);
+          if (refreshed.updateError) throw new Error(refreshed.updateError);
+          ready = refreshed.subscription ?? undefined;
+        }
+        if (!ready?.format)
+          throw new Error(
+            "No usable Cloud configuration is available. Update the subscription and retry.",
+          );
+        return ready.id;
+      }),
+    [activate, client, config?.endpoint, config?.token, mutate, mutateCache],
   );
 
   const updateSub = useCallback(
     async (id?: string) => {
       if (!client) throw new Error("LocalAPI not available");
-      const res = await client.updateSub(id);
-      await mutate();
-      return res;
+      return runOperation("sync", async () => {
+        const res = await client.updateSub(id);
+        await mutate();
+        return res;
+      });
     },
-    [client, mutate],
+    [client, mutate, runOperation],
   );
 
   const removeSub = useCallback(
     async (id: string) => {
       if (!client) throw new Error("LocalAPI not available");
-      const res = await client.removeSub(id);
-      await mutate();
-      return res;
+      return runOperation("sync", async () => {
+        const res = await client.removeSub(id);
+        await mutate();
+        return res;
+      });
     },
-    [client, mutate],
+    [client, mutate, runOperation],
   );
 
   const renameSub = useCallback(
     async (id: string, name: string) => {
       if (!client) throw new Error("LocalAPI not available");
-      const result = await client.renameSub(id, name);
-      await mutate();
-      return result;
+      return runOperation("sync", async () => {
+        const result = await client.renameSub(id, name);
+        await mutate();
+        return result;
+      });
     },
-    [client, mutate],
+    [client, mutate, runOperation],
   );
 
   return {
@@ -187,8 +265,68 @@ export function useSubscriptions() {
     refresh: mutate,
     addSub,
     selectSub,
+    selectCloud,
+    operation,
     updateSub,
     removeSub,
     renameSub,
   };
+}
+
+export function useGlobalMixin() {
+  const { client, config } = useDaemonConnection();
+  const { mutate: mutateCache } = useSWRConfig();
+  const { data, error, mutate } = useSWR<GlobalMixin>(
+    client && config
+      ? ["/localapi/v0/mixins/global", config.endpoint, config.token]
+      : null,
+    async () => {
+      if (!client)
+        return { bypassLan: false, rulesPrepend: [], rulesAppend: [], dns: "" };
+      return client.getGlobalMixin();
+    },
+  );
+
+  const updateMixin = useCallback(
+    async (mixin: GlobalMixin) => {
+      if (!client) throw new Error("LocalAPI not available");
+      const res = await client.setGlobalMixin(mixin);
+      await mutate(mixin, { revalidate: true });
+      await mutateCache(["/localapi/v0/status", config?.token]);
+      return res;
+    },
+    [client, config?.token, mutate, mutateCache],
+  );
+
+  return {
+    mixin: data ?? {
+      bypassLan: false,
+      rulesPrepend: [],
+      rulesAppend: [],
+      dns: "",
+    },
+    isLoading: !data && !error,
+    error,
+    updateMixin,
+    refresh: mutate,
+  };
+}
+
+export function useSubscriptionFetchProgress(active = false) {
+  const { client, config } = useDaemonConnection();
+  const { data } = useSWR(
+    client && config && active
+      ? ["/localapi/v0/subs/progress", config.endpoint, config.token]
+      : null,
+    async () => {
+      if (!client) return { active: false, bytes: 0, total: 0 };
+      return client.subscriptionProgress();
+    },
+    {
+      refreshInterval: active ? 250 : 0,
+      dedupingInterval: 150,
+    },
+  );
+
+  return data ?? { active: false, bytes: 0, total: 0 };
 }

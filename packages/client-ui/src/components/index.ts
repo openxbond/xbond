@@ -2,6 +2,7 @@ export * from "./Header";
 export * from "./Icon";
 export * from "./Logo";
 export { Switch } from "./ui/switch";
+export { Progress } from "./ui/progress";
 export { Card } from "./ui/card";
 export * from "./ButtonSelect";
 export { Input } from "./ui/input";

@@ -175,16 +175,18 @@
   }
   .config-unified {
     position: relative;
+    width: 100%;
   }
   .config-unified-trigger {
     display: flex;
-    min-height: 76px;
+    min-height: 52px;
     align-items: center;
-    gap: 9px;
-    padding: 10px 5px;
+    gap: 10px;
+    padding: 8px 10px;
     border-radius: 12px;
     cursor: pointer;
     list-style: none;
+    transition: background-color 150ms ease;
   }
   .config-unified-trigger::-webkit-details-marker {
     display: none;
@@ -195,26 +197,29 @@
   }
   .config-unified-trigger:focus-visible {
     outline: 2px solid var(--ring);
+    outline-offset: 1px;
   }
   .config-unified-panel {
     position: absolute;
     z-index: 70;
     inset-inline-start: 0;
-    bottom: calc(100% + 12px);
-    width: 260px;
-    max-height: min(70dvh, 480px);
+    bottom: calc(100% + 10px);
+    width: 280px;
+    max-height: min(75dvh, 520px);
     overflow-y: auto;
     padding: 8px;
     background: var(--popover);
     border: 1px solid var(--border);
     border-radius: 16px;
-    box-shadow: 0 8px 24px -4px
+    box-shadow: 0 12px 32px -4px
       color-mix(in oklch, var(--foreground) 16%, transparent);
   }
   .config-menu-heading {
-    padding: 8px 10px;
-    font-size: 12px;
+    padding: 6px 8px 4px;
+    font-size: 11px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: var(--muted-foreground);
   }
   .config-menu-item {
@@ -222,39 +227,60 @@
     align-items: center;
     text-align: start;
     width: 100%;
-    min-height: 48px;
+    min-height: 42px;
     gap: 10px;
     border-radius: 10px;
-    padding: 8px 10px;
-    font-size: 14px;
+    padding: 6px 8px;
+    font-size: 13px;
     text-decoration: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      color 120ms ease;
+    color: var(--foreground);
+  }
+  .config-menu-item:hover:not(:disabled) {
+    background: var(--surface-inset);
+  }
+  .config-menu-item.is-active {
+    background: var(--brand-soft);
+    color: var(--brand-text);
+  }
+  .config-menu-item:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+  .config-menu-item.is-active:disabled {
+    opacity: 1;
   }
   .config-menu-item small {
     display: block;
-    margin-top: 2px;
-    font-size: 12px;
-    line-height: 1.5;
+    margin-top: 1px;
+    font-size: 11px;
+    line-height: 1.4;
     color: var(--muted-foreground);
   }
-  .config-menu-item:hover,
-  .config-menu-item:disabled {
-    background: var(--surface-inset);
-  }
-  .config-menu-item:disabled {
-    opacity: 1;
-    cursor: default;
+  .config-menu-item.is-active small {
+    color: color-mix(in oklch, var(--brand-text) 80%, transparent);
   }
   .config-menu-link {
-    display: flex;
-    min-height: 44px;
+    display: inline-flex;
     align-items: center;
-    padding: 8px 10px;
-    border-radius: 10px;
-    color: var(--brand-text);
-    font-size: 13px;
+    gap: 5px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    color: var(--muted-foreground);
+    font-size: 12px;
+    font-weight: 500;
     text-decoration: none;
+    transition:
+      color 120ms ease,
+      background-color 120ms ease;
   }
   .config-menu-link:hover {
+    color: var(--foreground);
     background: var(--surface-inset);
   }
   .config-menu-divider {

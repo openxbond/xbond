@@ -1,5 +1,5 @@
 import { XBOND_CHEVRON_PATH } from "@components/Logo";
-import { FileText, Monitor } from "lucide-react";
+import { FileText, Monitor, SlidersHorizontal } from "lucide-react";
 import { useId } from "react";
 
 import clashLogo from "../../assets/clash.png";
@@ -49,13 +49,13 @@ export function ResourceIcon({
   kind,
   className = "size-9",
 }: {
-  kind: "cloud" | "controller" | "clash" | "sing-box" | "local";
+  kind: "cloud" | "controller" | "clash" | "sing-box" | "local" | "mixin";
   className?: string;
 }) {
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center rounded-control p-1.5 text-muted-foreground ${
-        kind === "cloud" ? "bg-brand-soft" : "bg-inset"
+        kind === "cloud" || kind === "mixin" ? "bg-brand-soft" : "bg-inset"
       } ${className}`}
     >
       {kind === "clash" || kind === "sing-box" ? (
@@ -68,6 +68,12 @@ export function ResourceIcon({
         <CloudMark className="size-full" />
       ) : kind === "controller" ? (
         <Monitor aria-hidden="true" className="size-full" strokeWidth={1.6} />
+      ) : kind === "mixin" ? (
+        <SlidersHorizontal
+          aria-hidden="true"
+          className="size-full"
+          strokeWidth={1.6}
+        />
       ) : (
         <FileText aria-hidden="true" className="size-full" strokeWidth={1.6} />
       )}

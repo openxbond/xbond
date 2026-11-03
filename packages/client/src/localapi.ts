@@ -63,10 +63,20 @@ export function subscriptionLang(lang: Lang): SubscriptionLang {
   return SUBSCRIPTION_LANGS[lang];
 }
 
+export type ProfileKind = "remote" | "local" | "inline" | "cloud";
+
+export interface GlobalMixin {
+  bypassLan?: boolean;
+  rulesPrepend?: string[];
+  rulesAppend?: string[];
+  dns?: string;
+}
+
 export interface SubscriptionMeta {
   id: string;
   name: string;
   type: "xbond" | "universal";
+  kind?: ProfileKind;
   accountIssuer?: string;
   urlOrFile?: string;
   token?: string;
@@ -91,6 +101,21 @@ export interface SubscriptionMeta {
   /** An edited source copy: automatic updates skip it; a manual update
    * removes the pin. */
   sourcePinned?: boolean;
+}
+
+/** An account-bound source takes precedence over manually imported Cloud links. */
+export function cloudSubscription(
+  subscriptions: readonly SubscriptionMeta[],
+  accountSource?: SubscriptionMeta | null,
+): SubscriptionMeta | undefined {
+  return (
+    subscriptions.find(
+      (item) => item.type === "xbond" && item.id === accountSource?.id,
+    ) ??
+    (accountSource?.type === "xbond" ? accountSource : undefined) ??
+    subscriptions.find((item) => item.type === "xbond" && item.accountIssuer) ??
+    subscriptions.find((item) => item.type === "xbond")
+  );
 }
 
 export function subscriptionQuota(
@@ -467,7 +492,37 @@ export class LocalAPIClient {
     });
   }
 
+  async createProfile(params: {
+    kind?: ProfileKind;
+    name?: string;
+    url?: string;
+    content?: string;
+    intervalHours?: number;
+    use?: boolean;
+  }): Promise<{
+    ok: boolean;
+    profile: SubscriptionMeta | null;
+    updateError?: string;
+  }> {
+    const data = await this.request<{
+      ok?: boolean;
+      profile?: SubscriptionWire;
+      meta?: SubscriptionWire;
+      updateError?: string;
+    }>("/localapi/v0/profiles", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+    const wire = data.profile ?? data.meta;
+    return {
+      ok: data.ok ?? Boolean(wire),
+      profile: wire ? normalizeSubscription(wire) : null,
+      updateError: data.updateError,
+    };
+  }
+
   async addSub(params: {
+    kind?: ProfileKind;
     token?: string;
     urlOrFile?: string;
     content?: string;
@@ -591,6 +646,19 @@ export class LocalAPIClient {
     return this.request("/localapi/v0/subs/override", {
       method: "PUT",
       body: JSON.stringify({ id, ...override }),
+    });
+  }
+
+  async getGlobalMixin(): Promise<GlobalMixin> {
+    return this.request("/localapi/v0/mixins/global");
+  }
+
+  async setGlobalMixin(
+    mixin: GlobalMixin,
+  ): Promise<{ ok: boolean; mixin?: GlobalMixin }> {
+    return this.request("/localapi/v0/mixins/global", {
+      method: "PUT",
+      body: JSON.stringify(mixin),
     });
   }
 

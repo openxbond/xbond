@@ -223,6 +223,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/subs/url", s.authMiddleware(s.handleSubURL))
 	mux.HandleFunc("/localapi/v0/subs/unpin", s.authMiddleware(s.handleSubUnpin))
 	mux.HandleFunc("/localapi/v0/subs/progress", s.authMiddleware(s.handleSubsProgress))
+	mux.HandleFunc("/localapi/v0/mixins/global", s.authMiddleware(s.handleGlobalMixin))
+	mux.HandleFunc("/localapi/v0/profiles", s.authMiddleware(s.handleProfiles))
 
 	mux.HandleFunc("/localapi/v0/nodes", s.authMiddleware(s.handleNodes))
 	mux.HandleFunc("/localapi/v0/nodes/select", s.authMiddleware(s.handleNodeSelect))
@@ -661,6 +663,7 @@ func (s *Server) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 			ID           string   `json:"id"`
 			RulesPrepend []string `json:"rulesPrepend"`
 			RulesAppend  []string `json:"rulesAppend"`
+			DNS          string   `json:"dns"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&request); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid override request")
@@ -673,6 +676,7 @@ func (s *Server) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 		override := &engine.SubscriptionOverride{
 			RulesPrepend: request.RulesPrepend,
 			RulesAppend:  request.RulesAppend,
+			DNS:          request.DNS,
 		}
 		if err := s.subMgr.SetOverride(request.ID, override); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -685,6 +689,113 @@ func (s *Server) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// handleGlobalMixin reads (GET) or updates (PUT/POST) system-wide mixin rules and DNS.
+func (s *Server) handleGlobalMixin(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		mixin, err := s.subMgr.GlobalMixin()
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if mixin == nil {
+			mixin = &engine.GlobalMixin{}
+		}
+		writeJSON(w, http.StatusOK, mixin)
+	case http.MethodPut, http.MethodPost:
+		var mixin engine.GlobalMixin
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&mixin); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid global mixin request")
+			return
+		}
+		if err := s.subMgr.SetGlobalMixin(&mixin); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if s.subMgr.ActiveID() != "" && s.engineMgr.IsRunning() {
+			if err := s.runtime.Configure(r.Context(), runtimeOptions{}); err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "mixin": mixin})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// handleProfiles provides a unified RESTful endpoint for profile listing and adding.
+func (s *Server) handleProfiles(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		list := s.subMgr.List()
+		activeID := s.subMgr.ActiveID()
+		writeJSON(w, http.StatusOK, map[string]any{
+			"activeProfileId": activeID,
+			"activeId":        activeID,
+			"profiles":        list,
+			"subscriptions":   list,
+		})
+	case http.MethodPost:
+		var req struct {
+			Kind          sub.ProfileKind `json:"kind"`
+			Name          string          `json:"name"`
+			URL           string          `json:"url"`
+			Content       string          `json:"content"`
+			IntervalHours int             `json:"intervalHours"`
+			Use           bool            `json:"use"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		var meta *sub.SubscriptionMeta
+		var err error
+		if req.Kind == sub.KindInline || req.Content != "" {
+			meta, err = s.subMgr.AddUniversalContent(req.Content, req.Name, 0, false)
+		} else {
+			meta, err = s.subMgr.AddUniversal(req.URL, req.Name, req.IntervalHours, false)
+		}
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		res, updateErr := s.runtime.Update(r.Context(), meta.ID, true, nil)
+		updateErrMsg := ""
+		if updateErr != nil {
+			updateErrMsg = updateErr.Error()
+			writeJSON(w, http.StatusOK, map[string]any{
+				"ok":          false,
+				"meta":        meta,
+				"profile":     meta,
+				"activated":   false,
+				"updateError": updateErrMsg,
+			})
+			return
+		}
+		activated := false
+		if req.Use {
+			if err := s.runtime.Use(r.Context(), meta.ID); err != nil {
+				writeRuntimeError(w, err)
+				return
+			}
+			activated = true
+		}
+		if res != nil && res.Meta != nil {
+			meta = res.Meta
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ok":          true,
+			"meta":        meta,
+			"profile":     meta,
+			"activated":   activated,
+			"updateError": updateErrMsg,
+		})
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 	}

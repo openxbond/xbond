@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
+	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/sagernet/sing-box"
@@ -63,7 +66,34 @@ func validateClash(configBytes []byte) error {
 	if len(raw.Proxy) == 0 && len(raw.ProxyProvider) == 0 {
 		return fmt.Errorf("configuration contains no proxies")
 	}
-	if _, err := executor.ParseWithBytes(configBytes); err != nil {
+
+	needsGeoIP := len(raw.DNS.Fallback) > 0 && raw.DNS.FallbackFilter.GeoIP
+	if !needsGeoIP {
+		for _, rule := range raw.Rule {
+			if strings.HasPrefix(rule, "GEOIP,") || strings.HasPrefix(rule, "GEOIP ") {
+				needsGeoIP = true
+				break
+			}
+		}
+	}
+
+	if needsGeoIP {
+		mmdbPath := C.Path.MMDB()
+		if _, err := os.Stat(mmdbPath); os.IsNotExist(err) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			_ = EnsureGeoData(ctx)
+			cancel()
+		}
+	}
+
+	testConfig := configBytes
+	if needsGeoIP {
+		if _, err := os.Stat(C.Path.MMDB()); os.IsNotExist(err) && raw.DNS.FallbackFilter.GeoIP {
+			testConfig = suppressFallbackGeoIP(configBytes)
+		}
+	}
+
+	if _, err := executor.ParseWithBytes(testConfig); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
 	return nil
@@ -265,6 +295,7 @@ func deriveClashMobile(
 	delete(raw, "external-controller-pipe")
 	delete(raw, "external-ui")
 	mergeProfile(raw)
+	applyGeoXMirrors(raw)
 
 	raw["tun"] = map[string]any{
 		"enable":          true,
@@ -329,6 +360,8 @@ func applyClashGeneral(
 	delete(raw, "external-controller-pipe")
 	delete(raw, "external-ui")
 	mergeProfile(raw)
+	applyGeoXMirrors(raw)
+	applyGeoXMirrors(raw)
 }
 
 func mergeProfile(raw map[string]any) {

@@ -187,6 +187,34 @@ func TestValidateInitializesCoreHomeBeforeFirstStart(t *testing.T) {
 	}
 }
 
+func TestValidateWithDNSFallbackFilterGeoIP(t *testing.T) {
+	isolateCoreHome(t)
+	configYAML := []byte(`mixed-port: 7890
+dns:
+  enable: true
+  nameserver:
+    - 223.5.5.5
+  fallback:
+    - tls://1.1.1.1
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
+proxies:
+  - name: test-node
+    type: trojan
+    server: 127.0.0.1
+    port: 443
+    password: test
+rules:
+  - MATCH,DIRECT
+`)
+	if err := Validate(configYAML); err != nil {
+		t.Fatalf("validation with DNS fallback-filter geoip failed: %v", err)
+	}
+}
+
 func TestDeriveRuntimeConfig(t *testing.T) {
 	isolateCoreHome(t)
 

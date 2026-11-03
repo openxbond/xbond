@@ -1,8 +1,10 @@
-import type { AccountStatus } from "@xbond/client/localapi";
+import { cloudSubscription, type AccountStatus } from "@xbond/client/localapi";
 import { useCallback, useEffect } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
+import { useConfigurationOperation } from "./configuration-operation";
 import { useDaemonConnection } from "./daemon";
+import { useSubscriptions } from "./localapi";
 
 /**
  * Daemon-owned XBond account session. The OAuth token never reaches the UI;
@@ -10,7 +12,9 @@ import { useDaemonConnection } from "./daemon";
  */
 export function useAccount() {
   const { client, config } = useDaemonConnection();
+  const { subscriptions, selectCloud } = useSubscriptions();
   const { mutate: mutateCache } = useSWRConfig();
+  const { run: runOperation } = useConfigurationOperation();
   const { data, error, mutate } = useSWR<AccountStatus>(
     client && config
       ? ["/localapi/v0/account", config.endpoint, config.token]
@@ -68,12 +72,22 @@ export function useAccount() {
 
   // Re-resolves the subscription link with the saved session and binds it —
   // the recovery path after a purchase or a temporary Cloud failure.
-  const resync = useCallback(async () => {
-    if (!client) throw new Error("LocalAPI not available");
-    const status = await client.accountRefresh();
-    await mutate();
-    return status;
-  }, [client, mutate]);
+  const resync = useCallback(
+    () =>
+      runOperation("sync", async () => {
+        if (!client) throw new Error("LocalAPI not available");
+        const status = await client.accountRefresh();
+        await mutate();
+        return status;
+      }),
+    [client, mutate, runOperation],
+  );
+
+  const cloudProfile = cloudSubscription(subscriptions, data?.subscription);
+  const activateCloud = useCallback(
+    () => selectCloud(cloudProfile),
+    [cloudProfile, selectCloud],
+  );
 
   return {
     account: data ?? null,
@@ -86,5 +100,7 @@ export function useAccount() {
     cancelLogin,
     logout,
     resync,
+    cloudProfile,
+    activateCloud,
   };
 }

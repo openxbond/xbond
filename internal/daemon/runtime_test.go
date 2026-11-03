@@ -136,6 +136,22 @@ func assertRuntimeUnchanged(t *testing.T, f runtimeFixture, prefs RuntimePrefere
 
 func intPtr(v int) *int { return &v }
 
+func TestUseStoppedCoreRejectsInvalidConfiguration(t *testing.T) {
+	f := newRuntimeFixture(t)
+	if _, err := f.controller.Down(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.SubSourcePath(f.second.ID), []byte("invalid configuration"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.controller.Use(context.Background(), f.second.ID); err == nil {
+		t.Fatal("using an invalid configuration reported success while the core was stopped")
+	}
+	if f.subs.ActiveID() != f.first.ID || f.core.IsRunning() {
+		t.Fatal("failed selection changed the active configuration or started the core")
+	}
+}
+
 // The mixed port follows the subscription's own port unless the user fixed
 // it locally: the subscription port beats the daemon default, an explicit
 // override beats both, clearing the override returns to following, and a

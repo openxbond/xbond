@@ -78,6 +78,10 @@ func SubListPath() string {
 	return filepath.Join(DataDir(), "subscriptions.json")
 }
 
+func GlobalMixinPath() string {
+	return filepath.Join(DataDir(), "mixin.json")
+}
+
 func RuntimeStatePath() string {
 	return filepath.Join(DataDir(), "runtime_state.json")
 }

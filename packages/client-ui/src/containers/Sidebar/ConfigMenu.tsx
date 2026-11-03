@@ -1,17 +1,17 @@
-import { CloudMark, ResourceIcon } from "@containers/Config/ResourceIcon";
+import { ResourceIcon } from "@containers/Config/ResourceIcon";
 import { useAction } from "@lib/actions";
 import { hasDaemonConfig } from "@lib/localapi-bootstrap";
+import { cn } from "@lib/utils";
 import {
   DAEMON_CONTROLLER_ID,
   useAccount,
   useAPIInfo,
   useControllers,
-  useLocalAPI,
   useSelectController,
   useSubscriptions,
 } from "@stores";
 import { workspaceLink } from "@xbond/client/workspace";
-import { Check, ChevronUp } from "lucide-react";
+import { Check, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
@@ -19,17 +19,13 @@ import { Link, useLocation } from "react-router-dom";
 export function ConfigMenu() {
   const { t } = useTranslation("configuration");
   const { t: a } = useTranslation("account");
-  const { t: common } = useTranslation("common");
   const supported = hasDaemonConfig();
   const target = useAPIInfo();
-  const { daemonState } = useLocalAPI();
-  const offline = supported && daemonState === "offline";
-  const connecting = supported && daemonState === "connecting";
-  const { account } = useAccount();
-  const { subscriptions, activeId, selectSub } = useSubscriptions();
+  const { account, cloudProfile, activateCloud } = useAccount();
+  const { subscriptions, activeId, selectSub, operation } = useSubscriptions();
   const { run, pending } = useAction();
-  const cloudProfile = subscriptions.find((item) => item.type === "xbond");
   const [controllers] = useControllers();
+
   const external = controllers
     .filter((item) => item.id !== DAEMON_CONTROLLER_ID || !supported)
     .map((item) =>
@@ -40,20 +36,45 @@ export function ConfigMenu() {
   if (
     target.targetKind === "controller" &&
     !external.some((item) => item.id === target.id)
-  )
+  ) {
     external.push({ ...target });
+  }
+
   const select = useSelectController();
   const location = useLocation();
   const root = useRef<HTMLDetailsElement>(null);
+
   const local = target.targetKind === "daemon";
-  const label = local
-    ? subscriptions.find((item) => item.id === activeId)?.name ||
-      t("localService")
+  const isCloudActive =
+    local && Boolean(cloudProfile) && activeId === cloudProfile?.id;
+  const activeSub = subscriptions.find((item) => item.id === activeId);
+
+  const activeName = local
+    ? isCloudActive
+      ? "XBond Cloud"
+      : activeSub?.name || t("localService")
     : target.name || target.hostname;
-  const profile = subscriptions.find((item) => item.id === activeId);
+
+  const activeSubtitle = local
+    ? isCloudActive
+      ? account?.status === "signed_in"
+        ? account.name || account.email || t("cloud")
+        : t("cloud")
+      : activeSub?.format
+        ? `${activeSub.format} · ${t("activeLocal")}`
+        : t("activeLocal")
+    : t("controllers");
+
+  const triggerIconKind = local
+    ? isCloudActive
+      ? "cloud"
+      : activeSub?.format || "local"
+    : "controller";
+
   function close() {
     if (root.current) root.current.open = false;
   }
+
   useEffect(() => {
     function outside(event: PointerEvent) {
       if (event.target instanceof Node && !root.current?.contains(event.target))
@@ -62,12 +83,11 @@ export function ConfigMenu() {
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
   }, []);
-  const link = (item: string) =>
-    workspaceLink(location.search, "/config", { item });
+
   return (
     <details
       ref={root}
-      className="config-unified"
+      className="config-unified group"
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           close();
@@ -76,114 +96,76 @@ export function ConfigMenu() {
       }}
     >
       <summary className="config-unified-trigger">
-        <ResourceIcon
-          kind={
-            local
-              ? profile?.type === "xbond"
-                ? "cloud"
-                : profile?.format || "local"
-              : "controller"
-          }
-          className="size-8"
-        />
+        <ResourceIcon kind={triggerIconKind} className="size-8 shrink-0" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold" title={label}>
-            {label}
+          <span
+            className="block truncate text-sm font-semibold leading-tight text-foreground"
+            title={activeName}
+          >
+            {activeName}
           </span>
-          <span className="mt-1 block text-xs text-muted-foreground">
-            {local ? t("activeLocal") : t("controllers")}
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            {activeSubtitle}
           </span>
-          {supported && (
-            <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-              <CloudMark className="size-3.5 shrink-0" />
-              <span className="truncate">
-                {connecting
-                  ? common("loading")
-                  : offline
-                    ? t("serviceOffline")
-                    : account?.status === "signed_in"
-                      ? t("signedInShort")
-                      : a("loginCta")}
-              </span>
-            </span>
-          )}
         </span>
         <ChevronUp
           aria-hidden="true"
-          className="size-3.5 shrink-0 text-muted-foreground"
+          className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
         />
       </summary>
+
       <div className="config-unified-panel">
-        <p className="config-menu-heading">{t("viewing")}</p>
+        {/* Section 1: Profiles Switcher */}
+        <p className="config-menu-heading">{t("profiles")}</p>
+
+        {/* XBond Cloud Option */}
         {supported && (
           <button
-            className="config-menu-item"
+            className={cn("config-menu-item", isCloudActive && "is-active")}
             type="button"
-            disabled={local}
+            disabled={pending || Boolean(operation) || isCloudActive}
             onClick={() => {
-              select(DAEMON_CONTROLLER_ID);
-              close();
+              if (account?.status === "signed_in") {
+                void run(async () => {
+                  await activateCloud();
+                  close();
+                });
+              } else {
+                close();
+              }
             }}
           >
-            <ResourceIcon kind="local" className="size-8" />
-            <span>
-              {t("localService")}
+            <ResourceIcon kind="cloud" className="size-7 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">
+              <span className="font-medium text-foreground">XBond Cloud</span>
               <small>
-                {connecting
-                  ? common("loading")
-                  : offline
-                    ? t("serviceOffline")
-                    : t("localScope")}
+                {account?.status === "signed_in"
+                  ? account.name || account.email || t("ready")
+                  : a("loginCta")}
               </small>
             </span>
-            {local && <span aria-hidden="true">✓</span>}
-          </button>
-        )}
-        {external.map((item) => (
-          <button
-            key={item.id}
-            className="config-menu-item"
-            type="button"
-            disabled={
-              !local && target.id === item.id && target.url === item.url
-            }
-            onClick={() => {
-              select(item.id);
-              close();
-            }}
-          >
-            <ResourceIcon kind="controller" className="size-8" />
-            <span className="truncate">
-              {item.name || new URL(item.url).host}
-            </span>
-            {!local && target.id === item.id && (
-              <span aria-hidden="true">✓</span>
+            {isCloudActive && (
+              <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
+                <Check className="size-3.5" />
+                {t("activeLocal")}
+              </span>
             )}
           </button>
-        ))}
-        <Link
-          className="config-menu-link"
-          to={link("add-controller")}
-          onClick={close}
-        >
-          {t("addController")}
-        </Link>
-        {supported && (
-          <>
-            <div className="config-menu-divider" />
-            <p className="config-menu-heading">{t("localProfile")}</p>
-            {subscriptions
-              .filter((item) => item.type !== "xbond")
-              .map((item) => (
+        )}
+
+        {/* Universal Profiles List */}
+        {supported &&
+          subscriptions
+            .filter((item) => item.type !== "xbond")
+            .map((item) => {
+              const isSubActive = local && activeId === item.id;
+              return (
                 <button
                   key={item.id}
-                  className="config-menu-item"
+                  className={cn("config-menu-item", isSubActive && "is-active")}
                   type="button"
                   disabled={
-                    pending || !item.format || (local && activeId === item.id)
-                  }
-                  aria-current={
-                    local && activeId === item.id ? "true" : undefined
+                    pending || Boolean(operation) || !item.format || isSubActive
                   }
                   onClick={() =>
                     void run(async () => {
@@ -194,81 +176,115 @@ export function ConfigMenu() {
                 >
                   <ResourceIcon
                     kind={item.format || "local"}
-                    className="size-8"
+                    className="size-7 shrink-0"
                   />
                   <span className="min-w-0 flex-1 truncate">
-                    {item.name}
+                    <span className="font-medium text-foreground">
+                      {item.name}
+                    </span>
                     <small>
-                      {local && activeId === item.id
-                        ? t("activeLocal")
-                        : t("use")}
+                      {item.format || "Universal"}
+                      {item.kind === "local"
+                        ? ` · ${t("kindLocal")}`
+                        : item.kind === "inline"
+                          ? ` · ${t("kindInline")}`
+                          : ""}
                     </small>
                   </span>
-                  {local && activeId === item.id && (
-                    <Check aria-hidden="true" className="size-4 shrink-0" />
+                  {isSubActive && (
+                    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
+                      <Check className="size-3.5" />
+                      {t("activeLocal")}
+                    </span>
                   )}
                 </button>
-              ))}
+              );
+            })}
+
+        {/* Section 2: External Controllers / Target Switching */}
+        {external.length > 0 && (
+          <>
             <div className="config-menu-divider" />
-            {cloudProfile?.format ? (
+            <p className="config-menu-heading">{t("controllers")}</p>
+
+            {/* This Device */}
+            {supported && (
               <button
-                className="config-menu-item"
+                className={cn("config-menu-item", local && "is-active")}
                 type="button"
-                disabled={pending || (local && activeId === cloudProfile.id)}
-                aria-current={
-                  local && activeId === cloudProfile.id ? "true" : undefined
-                }
-                onClick={() =>
-                  void run(async () => {
-                    await selectSub(cloudProfile.id);
-                    close();
-                  })
-                }
+                disabled={local || Boolean(operation)}
+                onClick={() => {
+                  select(DAEMON_CONTROLLER_ID);
+                  close();
+                }}
               >
-                <ResourceIcon kind="cloud" className="size-8" />
+                <ResourceIcon kind="local" className="size-7 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">
-                  XBond Cloud
-                  <small>
-                    {local && activeId === cloudProfile.id
-                      ? t("activeLocal")
-                      : t("use")}
-                  </small>
+                  <span className="font-medium text-foreground">
+                    {t("localService")}
+                  </span>
+                  <small>{t("localScope")}</small>
                 </span>
-                {local && activeId === cloudProfile.id && (
-                  <Check aria-hidden="true" className="size-4 shrink-0" />
-                )}
+                {local && <Check className="size-3.5 shrink-0 text-brand" />}
               </button>
-            ) : (
-              <Link
-                className="config-menu-item"
-                to={link("cloud")}
-                onClick={close}
-              >
-                <ResourceIcon kind="cloud" className="size-8" />
-                <span>
-                  XBond Cloud
-                  <small>
-                    {connecting
-                      ? common("loading")
-                      : offline
-                        ? t("serviceOffline")
-                        : account?.status === "signed_in"
-                          ? account.name || account.email || a("signedIn")
-                          : a("loginCta")}
-                  </small>
-                </span>
-              </Link>
             )}
+
+            {/* Remote Controllers */}
+            {external.map((item) => {
+              const isCtrlActive =
+                !local && target.id === item.id && target.url === item.url;
+              return (
+                <button
+                  key={item.id}
+                  className={cn(
+                    "config-menu-item",
+                    isCtrlActive && "is-active",
+                  )}
+                  type="button"
+                  disabled={Boolean(operation) || isCtrlActive}
+                  onClick={() => {
+                    select(item.id);
+                    close();
+                  }}
+                >
+                  <ResourceIcon kind="controller" className="size-7 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="font-medium text-foreground">
+                      {item.name || new URL(item.url).host}
+                    </span>
+                    <small>{new URL(item.url).host}</small>
+                  </span>
+                  {isCtrlActive && (
+                    <Check className="size-3.5 shrink-0 text-brand" />
+                  )}
+                </button>
+              );
+            })}
           </>
         )}
+
+        {/* Footer Quick Links */}
         <div className="config-menu-divider" />
-        <Link
-          className="config-menu-link"
-          to={workspaceLink(location.search, "/config")}
-          onClick={close}
-        >
-          {t("title")}
-        </Link>
+        <div className="flex items-center justify-between pt-0.5">
+          <Link
+            className="config-menu-link"
+            to={workspaceLink(location.search, "/config")}
+            onClick={close}
+          >
+            <SlidersHorizontal className="size-3.5" />
+            {t("title")}
+          </Link>
+          <Link
+            className="config-menu-link"
+            to={workspaceLink(location.search, "/config", {
+              item: "add-profile",
+            })}
+            onClick={close}
+          >
+            <Plus className="size-3.5" />
+            {t("addProfile")}
+          </Link>
+        </div>
       </div>
     </details>
   );

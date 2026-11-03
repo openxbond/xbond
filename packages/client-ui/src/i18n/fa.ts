@@ -269,6 +269,8 @@ const FA = {
   },
   rules: {
     title: "قوانین",
+    tabActive: "قوانین مسیریابی",
+    tabMixin: "تقویت سراسری",
     providerTitle: "فراهم‌کننده‌های قاعده",
     providerUpdateTime: "آخرین به‌روزرسانی",
     ruleCount: "تعداد قواعد",
@@ -476,6 +478,18 @@ const FA = {
       "هر خط یک شیء JSON قانون sing-box. هنگام ذخیره اعتبارسنجی می‌شود: هر خروجی ارجاع‌شده بررسی می‌شود و بازنویسی با هر به‌روزرسانی خودکار اعمال می‌گردد.",
     overrideSaved: "بازنویسی ذخیره و اعمال شد",
     rename: "تغییر نام",
+    channelTitle: "کانال به‌روزرسانی",
+    dangerZone: "منطقه خطر",
+    advancedSettings: "تنظیمات پیشرفته و بازنویسی",
+    advancedDesc:
+      "نسخه‌های محلی را ویرایش کنید، قوانین را بازنویسی کنید یا بدون تغییر منبع، نسخه را برگردانید.",
+    sourceEditDesc:
+      "پیکربندی محلی YAML / JSON را مستقیماً مشاهده یا ویرایش کنید.",
+    overrideDesc: "قوانین پیشوند/پسوند و لغو DNS را به این نمایه تزریق کنید.",
+    rollbackDesc:
+      "در صورت خرابی به‌روزرسانی‌ها، نسخه کارآمد قبلی را بازیابی کنید.",
+    removeDesc:
+      "این پیکربندی را برای همیشه از حافظه محلی حذف کنید. ابتدا اتصالات فعال بسته خواهند شد.",
     removeConfirm: "این پیکربندی برای همیشه حذف شود؟",
     removeActive: "حذف پیکربندی فعال ابتدا اتصال پروکسی را قطع می‌کند.",
     typeXbond: "اشتراک Cloud",
@@ -667,6 +681,8 @@ const FA = {
     downloaded: "{{received}} دانلود شد",
   },
   account: {
+    applyingConfig: "در حال اعمال پیکربندی…",
+    actionFailed: "عملیات انجام نشد",
     phaseExchange: "در حال تأیید مجوز…",
     phaseFetch: "در حال دریافت اشتراک…",
     phaseSync: "در حال دریافت و بررسی پیکربندی…",
@@ -708,6 +724,18 @@ const FA = {
     syncSubscription: "به‌روزرسانی اشتراک",
     syncSuccess: "اشتراک از Cloud همگام شد",
     cloudDesc: "برای استفاده از اشتراک XBond وارد شوید.",
+    downloadProgress: "پیشرفت دانلود",
+    syncingProgressTitle: "در حال همگام‌سازی اشتراک Cloud…",
+    syncingProgressDesc: "در حال دانلود آخرین سرورها و قوانین مسیریابی",
+    downloadedBytes: "{{received}} دانلود شد",
+    downloadedTotal: "{{received}} / {{total}} دانلود شد",
+    useCloudCta: "استفاده از پیکربندی Cloud",
+    serviceStatus: "وضعیت سرویس",
+    serviceHealthy: "سالم",
+    quotaRemaining: "ترافیک باقیمانده",
+    quotaTotal: "کل ترافیک",
+    quotaUsed: "ترافیک مصرف‌شده",
+    protocol: "پروتکل",
     webModeAccountNote:
       "در حالت داشبورد تحت وب. حساب کاربری XBond Cloud از طریق برنامه دسکتاپ مدیریت می‌شود.",
   },

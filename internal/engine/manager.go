@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/metacubex/mihomo/common/observable"
+	"github.com/metacubex/mihomo/component/geodata"
 	"github.com/metacubex/mihomo/component/profile/cachefile"
 	"github.com/metacubex/mihomo/config"
 	C "github.com/metacubex/mihomo/constant"
@@ -383,6 +384,12 @@ func initCoreHome() error {
 	// The module's ldflags version stamp is absent when embedded; report the
 	// pinned core version the binary was actually built against.
 	C.Version = version.CoreVersion
+
+	geodata.SetMmdbUrl(defaultMmdbCDN)
+	geodata.SetGeoIpUrl(defaultGeoIpCDN)
+	geodata.SetGeoSiteUrl(defaultGeoSiteCDN)
+	geodata.SetASNUrl(defaultASNCDN)
+
 	return nil
 }
 

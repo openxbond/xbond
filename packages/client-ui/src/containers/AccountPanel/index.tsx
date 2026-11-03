@@ -1,24 +1,29 @@
-import { Button } from "@components";
+import { Button, Progress, QuotaRing, Stat } from "@components";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@components/ui/dialog";
 import { ResourceIcon } from "@containers/Config/ResourceIcon";
+import { cn } from "@lib/utils";
 import {
   useAccount,
   useLanguage,
   useLocalAPI,
+  useSubscriptionFetchProgress,
   useSubscriptions,
 } from "@stores";
+import { formatTraffic } from "@xbond/client/helper";
+import { subscriptionQuota } from "@xbond/client/localapi";
 import {
   AlertCircle,
   Check,
   ExternalLink,
   LoaderCircle,
   RefreshCw,
+  Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,12 +34,7 @@ export default function AccountPanel() {
   const { t: common } = useTranslation("common");
   const { lang } = useLanguage();
   const { hasDaemon, daemonState, refresh, isLocalTarget } = useLocalAPI();
-  const {
-    subscriptions,
-    activeId,
-    selectSub,
-    refresh: refreshSubs,
-  } = useSubscriptions();
+  const { activeId, operation, refresh: refreshSubs } = useSubscriptions();
   const {
     account,
     accountReady,
@@ -44,8 +44,14 @@ export default function AccountPanel() {
     logout,
     cancelLogin,
     resync,
+    cloudProfile,
+    activateCloud,
   } = useAccount();
-  const [pending, setPending] = useState(false);
+
+  const [pendingAction, setPendingAction] = useState<
+    "use" | "sync" | "account" | null
+  >(null);
+  const pending = pendingAction !== null;
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -53,11 +59,18 @@ export default function AccountPanel() {
   const signedIn = account?.status === "signed_in";
   const authorizing = account?.status === "pending";
   const phase = account?.phase || (authorizing ? "authorizing" : undefined);
-  const busy = pending || Boolean(phase);
+  const busy = pending || Boolean(phase) || Boolean(operation);
   const device = account?.method === "device";
-  const cloudProfile = subscriptions.find((item) => item.type === "xbond");
   const current =
     isLocalTarget && cloudProfile?.id === activeId && Boolean(cloudProfile);
+
+  const isDownloading =
+    Boolean(
+      phase &&
+      (phase === "fetching_subscription" || phase === "syncing_subscription"),
+    ) || pendingAction === "sync";
+  const fetchProgress = useSubscriptionFetchProgress(isDownloading);
+
   const phaseText = {
     authorizing: t("pending"),
     exchanging_token: t("phaseExchange"),
@@ -65,17 +78,60 @@ export default function AccountPanel() {
     syncing_subscription: t("phaseSync"),
     loading_account: t("phaseOverview"),
   };
+
   const step =
     phase === "authorizing" || phase === "exchanging_token"
       ? 0
       : phase === "loading_account"
         ? 2
         : 1;
-  const failure = error || account?.updateError;
 
-  async function action(work: () => Promise<unknown>, success = "") {
+  const displayProgress =
+    step === 0
+      ? 25
+      : phase === "exchanging_token"
+        ? 45
+        : phase === "fetching_subscription"
+          ? 60
+          : phase === "syncing_subscription"
+            ? fetchProgress.active && fetchProgress.total > 0
+              ? Math.min(
+                  95,
+                  Math.max(
+                    65,
+                    Math.round(
+                      65 + (fetchProgress.bytes / fetchProgress.total) * 30,
+                    ),
+                  ),
+                )
+              : fetchProgress.active && fetchProgress.bytes > 0
+                ? 80
+                : 72
+            : phase === "loading_account"
+              ? 95
+              : 100;
+
+  const syncPercent =
+    fetchProgress.active && fetchProgress.total > 0
+      ? Math.min(
+          100,
+          Math.round((fetchProgress.bytes / fetchProgress.total) * 100),
+        )
+      : fetchProgress.active && fetchProgress.bytes > 0
+        ? 75
+        : 40;
+
+  const quota = subscriptionQuota(cloudProfile ?? null);
+  const failure =
+    error || account?.updateError || cloudProfile?.lastErrorMessage;
+
+  async function action(
+    work: () => Promise<unknown>,
+    success = "",
+    kind: "use" | "sync" | "account" = "account",
+  ) {
     if (pending || daemonState !== "ready") return;
-    setPending(true);
+    setPendingAction(kind);
     setError("");
     setNotice("");
     try {
@@ -85,9 +141,10 @@ export default function AccountPanel() {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
+
   async function update() {
     const result = await resync();
     if (result.updateError) throw new Error(result.updateError);
@@ -95,11 +152,14 @@ export default function AccountPanel() {
 
   return (
     <div className="config-detail-stack" aria-busy={busy}>
+      {/* Top Header */}
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
-          <ResourceIcon kind="cloud" className="size-12" />
+          <ResourceIcon kind="cloud" className="size-12 shadow-xs" />
           <div className="min-w-0">
-            <h2 className="text-title font-semibold">XBond Cloud</h2>
+            <h2 className="text-title font-semibold tracking-tight text-foreground">
+              XBond Cloud
+            </h2>
             <p className="mt-1 break-words text-sm text-muted-foreground">
               {signedIn
                 ? account.name || account.email || t("signedIn")
@@ -108,10 +168,18 @@ export default function AccountPanel() {
           </div>
         </div>
         {signedIn && (
-          <span className="config-status">
-            <Check aria-hidden="true" className="me-1.5 size-3.5" />
-            {t("signedIn")}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {t("serviceHealthy")}
+            </span>
+            {current && (
+              <span className="config-status font-medium">
+                <Check aria-hidden="true" className="me-1 size-3.5" />
+                {c("activeLocal")}
+              </span>
+            )}
+          </div>
         )}
       </header>
 
@@ -142,59 +210,96 @@ export default function AccountPanel() {
           {common("loading")}
         </p>
       ) : authorizing || phase ? (
-        <section className="grid gap-5" aria-label={t("loginProgress")}>
-          <ol className="grid grid-cols-3 gap-3 border-y border-border py-5">
-            {[t("stepAuthorize"), t("stepSubscription"), t("stepReady")].map(
-              (label, index) => (
-                <li
-                  key={label}
-                  className="flex min-w-0 flex-col items-start gap-2 text-xs"
-                  aria-current={index === step ? "step" : undefined}
-                >
-                  <span
-                    className={
-                      index <= step
-                        ? "flex size-7 items-center justify-center rounded-full bg-brand-soft text-brand-text"
-                        : "flex size-7 items-center justify-center rounded-full bg-inset text-muted-foreground"
-                    }
-                  >
-                    {index < step ? (
-                      <Check aria-hidden="true" className="size-4" />
-                    ) : index === step ? (
-                      <LoaderCircle
-                        aria-hidden="true"
-                        className="size-4 motion-safe:animate-spin"
-                      />
-                    ) : (
+        /* Enhanced Onboarding & Login Progress Stepper */
+        <section
+          className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-6"
+          aria-label={t("loginProgress")}
+        >
+          {/* Connected Stepper */}
+          <div className="relative">
+            <div className="absolute left-8 right-8 top-4 -z-0 h-0.5 bg-inset -translate-y-1/2">
+              <div
+                className="h-full bg-brand transition-all duration-500 ease-out"
+                style={{
+                  width: step === 0 ? "0%" : step === 1 ? "50%" : "100%",
+                }}
+              />
+            </div>
+            <ol className="relative z-10 flex justify-between">
+              {[t("stepAuthorize"), t("stepSubscription"), t("stepReady")].map(
+                (label, index) => {
+                  const isPast = index < step;
+                  const isCurrent = index === step;
+                  return (
+                    <li
+                      key={label}
+                      className="flex flex-col items-center gap-2 text-center"
+                    >
                       <span
-                        aria-hidden="true"
-                        className="size-1.5 rounded-full bg-current"
-                      />
-                    )}
-                  </span>
-                  <span
-                    className={
-                      index === step
-                        ? "font-medium text-foreground"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    {label}
-                  </span>
-                </li>
-              ),
-            )}
-          </ol>
-          <div role="status" aria-live="polite" className="grid gap-2">
-            <h3 className="text-subtitle font-semibold">
-              {phase ? phaseText[phase] : common("loading")}
-            </h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {step === 0 ? t("authorizationHint") : t("syncHint")}
-            </p>
+                        className={cn(
+                          "flex size-8 items-center justify-center rounded-full text-xs font-semibold transition-all shadow-xs",
+                          isPast
+                            ? "bg-brand text-brand-foreground"
+                            : isCurrent
+                              ? "bg-brand text-brand-foreground ring-4 ring-brand/20"
+                              : "border border-border bg-surface-inset text-muted-foreground",
+                        )}
+                      >
+                        {isPast ? (
+                          <Check className="size-4" strokeWidth={2.5} />
+                        ) : isCurrent ? (
+                          <LoaderCircle className="size-4 animate-spin" />
+                        ) : (
+                          index + 1
+                        )}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-xs transition-colors",
+                          isCurrent
+                            ? "font-semibold text-foreground"
+                            : isPast
+                              ? "font-medium text-foreground"
+                              : "text-muted-foreground",
+                        )}
+                      >
+                        {label}
+                      </span>
+                    </li>
+                  );
+                },
+              )}
+            </ol>
           </div>
+
+          {/* Progress Bar & Real-time Bytes Status */}
+          <div className="space-y-3 rounded-xl border border-border/80 bg-surface-inset/60 p-4">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="flex items-center gap-2 font-medium text-foreground">
+                <LoaderCircle className="size-4 animate-spin text-brand" />
+                {phase ? phaseText[phase] : common("loading")}
+              </span>
+              <span className="font-mono text-xs font-medium text-muted-foreground">
+                {displayProgress}%
+              </span>
+            </div>
+
+            <Progress value={displayProgress} className="h-2.5 bg-inset" />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-muted-foreground">
+              <span>{step === 0 ? t("authorizationHint") : t("syncHint")}</span>
+              {fetchProgress.active && (
+                <span className="font-mono font-medium text-foreground">
+                  {fetchProgress.total > 0
+                    ? `${formatTraffic(fetchProgress.bytes)} / ${formatTraffic(fetchProgress.total)}`
+                    : formatTraffic(fetchProgress.bytes)}
+                </span>
+              )}
+            </div>
+          </div>
+
           {phase === "authorizing" && (
-            <>
+            <div className="space-y-4 pt-2">
               {account?.userCode && (
                 <div className="grid gap-2">
                   <span className="text-sm text-muted-foreground">
@@ -209,7 +314,7 @@ export default function AccountPanel() {
                 account?.verificationUriComplete ||
                 account?.verificationUri) && (
                 <a
-                  className="section-link inline-flex w-fit items-center gap-1.5"
+                  className="section-link inline-flex w-fit items-center gap-1.5 font-medium"
                   href={
                     account.authUrl ||
                     account.verificationUriComplete ||
@@ -243,75 +348,139 @@ export default function AccountPanel() {
                   {device ? t("browserLogin") : t("deviceLogin")}
                 </Button>
               </div>
-            </>
+            </div>
           )}
         </section>
       ) : signedIn ? (
+        /* Signed-In Cloud Dashboard */
         <>
-          <div className="grid gap-2">
+          {/* In-Flight Download & Sync Progress Bar */}
+          {pendingAction === "sync" && (
+            <div className="rounded-xl border border-brand/30 bg-brand-soft/40 p-4 space-y-2.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 font-medium text-foreground">
+                  <RefreshCw className="size-4 animate-spin text-brand" />
+                  {t("syncingProgressTitle")}
+                </span>
+                <span className="font-mono text-xs font-semibold text-brand">
+                  {fetchProgress.total > 0
+                    ? `${syncPercent}%`
+                    : fetchProgress.bytes > 0
+                      ? formatTraffic(fetchProgress.bytes)
+                      : ""}
+                </span>
+              </div>
+              <Progress value={syncPercent} className="h-2" />
+              <p className="text-xs text-muted-foreground">
+                {fetchProgress.total > 0
+                  ? t("downloadedTotal", {
+                      received: formatTraffic(fetchProgress.bytes),
+                      total: formatTraffic(fetchProgress.total),
+                    })
+                  : fetchProgress.bytes > 0
+                    ? t("downloadedBytes", {
+                        received: formatTraffic(fetchProgress.bytes),
+                      })
+                    : t("syncingProgressDesc")}
+              </p>
+            </div>
+          )}
+
+          {/* Cloud Action Center Card */}
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <Button
-                disabled={busy || current || !cloudProfile?.format}
+                disabled={busy || current}
                 variant={current ? "secondary" : "default"}
-                onClick={() => {
-                  if (cloudProfile)
-                    void action(() => selectSub(cloudProfile.id));
-                }}
+                size="default"
+                className="gap-2 font-medium"
+                onClick={() => void action(activateCloud, "", "use")}
               >
-                {current && <Check aria-hidden="true" className="size-4" />}
-                {current ? c("activeLocal") : c("use")}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => void action(update, c("updated"))}
-              >
-                {pending ? (
+                {pendingAction === "use" ? (
                   <LoaderCircle
                     aria-hidden="true"
                     className="size-4 motion-safe:animate-spin"
                   />
+                ) : current ? (
+                  <Check
+                    aria-hidden="true"
+                    className="size-4 text-emerald-500"
+                  />
                 ) : (
-                  <RefreshCw aria-hidden="true" className="size-4" />
+                  <Zap aria-hidden="true" className="size-4" />
                 )}
-                {pending
+                {pendingAction === "use"
+                  ? t("applyingConfig")
+                  : current
+                    ? c("activeLocal")
+                    : t("useCloudCta")}
+              </Button>
+
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void action(update, c("updated"), "sync")}
+                className="gap-2"
+              >
+                <RefreshCw
+                  aria-hidden="true"
+                  className={cn(
+                    "size-4",
+                    pendingAction === "sync" && "animate-spin",
+                  )}
+                />
+                {pendingAction === "sync"
                   ? t("phaseSync")
                   : failure
                     ? common("retry")
                     : t("syncSubscription")}
               </Button>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
+
               {account.consoleUrl && (
                 <a
-                  className="section-link inline-flex min-h-11 items-center gap-1.5 text-sm"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
                   href={account.consoleUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {t("openConsole")}
                   <ExternalLink aria-hidden="true" className="size-3.5" />
+                  {t("openConsole")}
                 </a>
               )}
+
               <Button
                 variant="ghost"
                 disabled={busy}
                 onClick={() => setConfirmLogout(true)}
+                className="text-muted-foreground hover:text-destructive"
               >
                 {t("logout")}
               </Button>
             </div>
           </div>
+
+          {!cloudProfile?.format && !failure && !pending && (
+            <p
+              role="status"
+              className="text-sm leading-relaxed text-muted-foreground"
+            >
+              {t("subscriptionNotReady")}
+            </p>
+          )}
+
           {failure && !pending && (
-            <div className="rounded-control bg-inset p-4" role="alert">
+            <div
+              className="rounded-xl border border-destructive/20 bg-destructive/5 p-4"
+              role="alert"
+            >
               <div className="flex items-start gap-3">
                 <AlertCircle
                   aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0 text-warning-text"
+                  className="mt-0.5 size-4 shrink-0 text-destructive"
                 />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    {t("subscriptionUpdateFailed")}
+                  <p className="text-sm font-medium text-destructive">
+                    {error ? t("actionFailed") : t("subscriptionUpdateFailed")}
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                     {cloudProfile?.format
@@ -330,54 +499,84 @@ export default function AccountPanel() {
               </details>
             </div>
           )}
-          <section className="grid gap-3 border-t border-border pt-5">
-            <h3 className="text-subtitle font-semibold">{t("title")}</h3>
-            {account.service ? (
-              <dl className="grid gap-3 text-sm">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
+
+          {/* Quota & Plan Overview Grid */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Quota Card */}
+            <div className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t("quotaRemaining")}
+              </h3>
+              {quota ? (
+                <div className="flex items-center gap-4">
+                  <QuotaRing percent={quota.remainingPercent} />
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <Stat label={t("quotaRemaining")}>
+                      {formatTraffic(quota.remaining)}
+                    </Stat>
+                    <span className="text-xs text-muted-foreground">
+                      {t("quotaUsed")}: {formatTraffic(quota.used)} /{" "}
+                      {formatTraffic(cloudProfile?.total ?? 0)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {c("unknownService")}
+                </p>
+              )}
+            </div>
+
+            {/* Service Details Card */}
+            <div className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t("servicePlan")}
+              </h3>
+              <dl className="grid gap-2.5 text-sm">
+                <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground">{t("servicePlan")}</dt>
-                  <dd className="font-medium">
-                    {account.service.enabled
+                  <dd className="font-semibold text-foreground">
+                    {account.service?.enabled
                       ? account.service.plan
                       : t("noService")}
                   </dd>
                 </div>
-                {account.service.servicePeriodEnd && (
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <dt className="text-muted-foreground">
-                      {t("serviceExpiry")}
-                    </dt>
-                    <dd>
-                      {new Date(
-                        account.service.servicePeriodEnd,
-                      ).toLocaleDateString(lang.replace("_", "-"))}
-                    </dd>
-                  </div>
-                )}
-                {account.service.quotaState === "blocked" && (
-                  <p className="text-warning-text">
-                    {t("serviceQuotaBlocked")}
-                  </p>
-                )}
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">
+                    {t("serviceExpiry")}
+                  </dt>
+                  <dd className="font-mono text-xs text-foreground">
+                    {account.service?.servicePeriodEnd
+                      ? new Date(
+                          account.service.servicePeriodEnd,
+                        ).toLocaleDateString(lang.replace("_", "-"))
+                      : "—"}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">{t("protocol")}</dt>
+                  <dd className="font-medium text-xs text-brand">
+                    {cloudProfile?.format === "clash"
+                      ? "Clash / mihomo"
+                      : cloudProfile?.format === "sing-box"
+                        ? "sing-box"
+                        : "VLESS / Trojan"}
+                  </dd>
+                </div>
               </dl>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {c("unknownService")}
-              </p>
-            )}
-            {account.overviewError && (
-              <p className="text-sm text-warning-text">
-                {t("overviewFailed", { error: account.overviewError })}
-              </p>
-            )}
-          </section>
+            </div>
+          </div>
+
           {account.announcements && account.announcements.length > 0 && (
             <section className="grid gap-4 border-t border-border pt-5">
               <h3 className="text-subtitle font-semibold">
                 {t("announcements")}
               </h3>
               {account.announcements.slice(0, 3).map((item) => (
-                <article key={item.id}>
+                <article
+                  key={item.id}
+                  className="rounded-xl border border-border bg-card p-4 shadow-xs"
+                >
                   <h4 className="text-sm font-medium leading-relaxed">
                     {item.title}
                   </h4>
@@ -392,7 +591,14 @@ export default function AccountPanel() {
           )}
         </>
       ) : (
-        <div className="grid justify-items-start gap-4">
+        /* Signed-Out Landing Card */
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
+          <div className="space-y-1">
+            <h3 className="text-base font-semibold text-foreground">
+              {t("loginCta")}
+            </h3>
+            <p className="text-sm text-muted-foreground">{t("cloudDesc")}</p>
+          </div>
           {account?.status === "error" && (
             <p className="config-error" role="alert">
               {account.errorCode === "session_expired"
@@ -400,11 +606,25 @@ export default function AccountPanel() {
                 : t("failed")}
             </p>
           )}
-          <Button disabled={busy} onClick={() => void action(() => login())}>
-            {t("loginCta")}
-          </Button>
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button
+              variant="brand"
+              disabled={busy}
+              onClick={() => void action(() => login())}
+            >
+              {t("loginCta")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => void action(() => login({ device: true }))}
+            >
+              {t("deviceLogin")}
+            </Button>
+          </div>
         </div>
       )}
+
       {!signedIn && error && (
         <p className="config-error" role="alert">
           {error}
@@ -415,6 +635,8 @@ export default function AccountPanel() {
           {notice}
         </p>
       )}
+
+      {/* Logout Confirmation Dialog */}
       <Dialog
         open={confirmLogout}
         onOpenChange={(open) => {

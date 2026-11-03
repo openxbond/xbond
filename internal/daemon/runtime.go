@@ -213,6 +213,31 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		}
 		selected, targetID = meta, meta.ID
 	}
+	// Choosing a source must not publish an unusable active ID just because
+	// the core is stopped. Running switches validate the derived config below.
+	if !run && selected != nil {
+		source, err := os.ReadFile(paths.SubSourcePath(targetID))
+		if err != nil {
+			return fmt.Errorf("configuration is not ready; update it before use: %w", err)
+		}
+		override, err := c.subs.Override(targetID)
+		if err != nil {
+			return fmt.Errorf("read local override: %w", err)
+		}
+		mixin, err := c.subs.GlobalMixin()
+		if err != nil {
+			return fmt.Errorf("read global mixin: %w", err)
+		}
+		if (!override.IsZero()) || (!mixin.IsZero()) {
+			source, err = engine.ApplyLayers(source, override, mixin)
+			if err != nil {
+				return &runtimeInputError{fmt.Errorf("apply layers: %w", err)}
+			}
+		}
+		if err := engine.Validate(source); err != nil {
+			return fmt.Errorf("configuration is not usable: %w", err)
+		}
+	}
 
 	var runtimeJSON []byte
 	prefsJSON, err := json.MarshalIndent(next, "", "  ")
@@ -247,10 +272,14 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		if err != nil {
 			return fmt.Errorf("read local override: %w", err)
 		}
-		if !override.IsZero() {
-			source, err = engine.ApplyOverride(source, override)
+		mixin, err := c.subs.GlobalMixin()
+		if err != nil {
+			return fmt.Errorf("read global mixin: %w", err)
+		}
+		if (!override.IsZero()) || (!mixin.IsZero()) {
+			source, err = engine.ApplyLayers(source, override, mixin)
 			if err != nil {
-				return &runtimeInputError{fmt.Errorf("apply local override: %w", err)}
+				return &runtimeInputError{fmt.Errorf("apply layers: %w", err)}
 			}
 		}
 		// The effective port follows the source unless the user fixed it

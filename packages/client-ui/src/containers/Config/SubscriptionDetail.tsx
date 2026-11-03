@@ -10,14 +10,28 @@ import {
 } from "@components/ui/dialog";
 import { ResourceIcon } from "@containers/Config/ResourceIcon";
 import { useAction } from "@lib/actions";
+import { cn } from "@lib/utils";
 import {
-  useLanguage,
   useAccount,
+  useLanguage,
   useLocalAPI,
   useSubscriptions,
 } from "@stores";
 import { formatTraffic } from "@xbond/client/helper";
 import { subscriptionQuota } from "@xbond/client/localapi";
+import {
+  AlertCircle,
+  Calendar,
+  Check,
+  Clock,
+  FileText,
+  Globe,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -39,6 +53,7 @@ export default function SubscriptionDetail({
   const {
     subscriptions,
     activeId,
+    operation,
     selectSub,
     updateSub,
     removeSub,
@@ -100,14 +115,10 @@ export default function SubscriptionDetail({
       setOverrideId(null);
       toast.success(t("overrideSaved"));
     } catch (error) {
-      // Conflicts (missing policies, core-gate failures) stay in the dialog
-      // so the text survives for editing.
       setOverrideError(error instanceof Error ? error.message : String(error));
     }
   }
 
-  // Channel "proxy" needs a URL first: the modal collects it, other
-  // channels persist immediately.
   function selectChannel(id: string, channel: "direct" | "self" | "proxy") {
     if (channel === "proxy") {
       setProxyChannelId(id);
@@ -161,7 +172,6 @@ export default function SubscriptionDetail({
       try {
         await localClient.editSubSource(editorId, editorContent);
       } catch (error) {
-        // Gate failures stay in the dialog so the text survives for editing.
         setEditorError(error instanceof Error ? error.message : String(error));
         throw error;
       }
@@ -180,261 +190,471 @@ export default function SubscriptionDetail({
     });
   }
 
+  const sub = subscriptions.find((item) => item.id === selectedId);
+
+  if (!sub) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        <p>{t("noSubs")}</p>
+      </div>
+    );
+  }
+
+  const quota = subscriptionQuota(sub);
+  const isActive = isLocalTarget && sub.id === activeId;
+  const isRemote =
+    sub.kind === "remote" ||
+    (!sub.kind && /^https?:/.test(sub.urlOrFile || ""));
+  const isLocal =
+    sub.kind === "local" ||
+    (!sub.kind && !/^https?:/.test(sub.urlOrFile || ""));
+  const isInline = sub.kind === "inline";
+  const isCloud = sub.kind === "cloud" || sub.type === "xbond";
+
   return (
-    <div className="w-full">
+    <div className="w-full space-y-6">
       <RequestStatus error={subError} retry={refreshSubs} />
-      {subscriptions.length > 0 ? (
-        <div className="grid">
-          {subscriptions
-            .filter((sub) => sub.id === selectedId)
-            .map((sub) => {
-              const quota = subscriptionQuota(sub);
-              const isActive = isLocalTarget && sub.id === activeId;
-              return (
-                <article className="config-detail-stack" key={sub.id}>
-                  <div className="mb-3.5 flex items-start justify-between gap-2.5">
-                    <div className="flex flex-col gap-1">
-                      <ResourceIcon
-                        kind={sub.format || "local"}
-                        className="size-14 mb-3"
-                      />
-                      <h3 className="m-0 text-title font-semibold text-foreground">
-                        {sub.name}
-                      </h3>
-                      <div className="flex items-center gap-1.5">
-                        <span className="rounded-[4px] bg-inset px-2 py-0.5 text-label font-medium text-muted-foreground">
-                          {sub.type === "xbond"
-                            ? t("typeXbond")
-                            : t("typeUniversal")}
-                        </span>
-                        {isActive && (
-                          <span className="config-status">
-                            {cfg("activeLocal")}
-                          </span>
-                        )}
-                        {sub.sourcePinned && (
-                          <span className="rounded-[4px] bg-brand px-2 py-0.5 text-label font-semibold text-warning">
-                            {t("sourcePinned")}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      disabled={pending || isActive || !sub.format}
-                      variant={isActive ? "secondary" : "default"}
-                      onClick={() =>
-                        void run(async () => {
-                          await selectSub(sub.id);
-                          await refresh();
-                          await refreshSubs();
-                        })
-                      }
-                    >
-                      {isActive ? cfg("activeLocal") : cfg("use")}
-                    </Button>
-                  </div>
 
-                  {sub.health && sub.health !== "ok" && (
-                    <div className="config-notice" role="alert">
-                      <p>
-                        {cfg(
-                          sub.lastHash || sub.lastUpdated
-                            ? "updateFailed"
-                            : "noCachedConfig",
-                        )}
-                      </p>
-                      {sub.lastErrorMessage && (
-                        <p className="mt-2 break-words text-sm text-muted-foreground">
-                          {sub.lastErrorMessage}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <div className="mb-3.5 flex flex-col gap-3.5 border-y border-border py-5">
-                    {quota ? (
-                      <div className="flex items-center gap-4">
-                        <QuotaRing percent={quota.remainingPercent} />
-                        <div className="flex min-w-0 flex-col gap-1.5">
-                          <Stat label={c("quota.remaining")}>
-                            {formatTraffic(quota.remaining)}
-                          </Stat>
-                          <Stat
-                            size="sm"
-                            label={`${c("used")} / ${c("quota.total")}`}
-                          >
-                            {formatTraffic(quota.used)} /{" "}
-                            {formatTraffic(sub.total)}
-                          </Stat>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="my-1.5 text-xs text-muted-foreground">
-                        {c("quota.unknown")}
-                      </p>
-                    )}
-
-                    <dl className="m-0 flex flex-col gap-1 text-label">
-                      {sub.expire > 0 && (
-                        <div className="flex justify-between gap-2">
-                          <dt className="text-muted-foreground">
-                            {c("expiry")}
-                          </dt>
-                          <dd className="m-0 font-mono tabular-nums text-foreground">
-                            {new Date(sub.expire * 1000).toLocaleDateString(
-                              lang.replace("_", "-"),
-                            )}
-                          </dd>
-                        </div>
-                      )}
-                      <div className="flex justify-between gap-2">
-                        <dt className="text-muted-foreground">
-                          {t("updated")}
-                        </dt>
-                        <dd className="m-0 font-mono tabular-nums text-foreground">
-                          {sub.lastUpdated
-                            ? new Date(sub.lastUpdated * 1000).toLocaleString(
-                                lang.replace("_", "-"),
-                              )
-                            : "—"}
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-
-                  {sub.type === "universal" &&
-                    /^https?:/.test(sub.urlOrFile || "") && (
-                      <UpdateFrequency
-                        value={sub.autoUpdate ? sub.updateIntervalHours : 0}
-                        disabled={pending || !localClient}
-                        onChange={(hours) =>
-                          void run(async () => {
-                            if (!localClient)
-                              throw new Error("LocalAPI not available");
-                            await localClient.setSubUpdateSchedule(
-                              sub.id,
-                              hours,
-                            );
-                            await refreshSubs();
-                            await refresh();
-                          })
-                        }
-                      />
-                    )}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      disabled={pending}
-                      onClick={() =>
-                        void run(async () => {
-                          if (sub.accountIssuer) {
-                            const result = await resync();
-                            if (result.updateError)
-                              throw new Error(result.updateError);
-                          } else {
-                            await updateSub(sub.id);
-                          }
-                          await refresh();
-                          await refreshSubs();
-                        })
-                      }
-                    >
-                      {t("updateBtn")}
-                    </Button>
-                    <details className="config-advanced">
-                      <summary>{cfg("advanced")}</summary>
-                      <div className="mt-4 flex flex-wrap gap-3">
-                        {sub.type === "xbond" ||
-                        /^https?:/.test(sub.urlOrFile || "") ? (
-                          <ButtonSelect<"direct" | "self" | "proxy">
-                            value={sub.updateChannel || "direct"}
-                            disabled={pending}
-                            options={[
-                              { label: t("channelDirect"), value: "direct" },
-                              { label: t("channelSelf"), value: "self" },
-                              { label: t("channelProxy"), value: "proxy" },
-                            ]}
-                            onSelect={(channel) =>
-                              selectChannel(sub.id, channel)
-                            }
-                          />
-                        ) : null}
-                        <Button
-                          disabled={pending}
-                          onClick={() => rollback(sub.id)}
-                        >
-                          {t("rollback")}
-                        </Button>
-                        {sub.sourcePinned && (
-                          <Button
-                            variant="warning"
-                            disabled={pending}
-                            onClick={() => resumeUpdates(sub.id)}
-                          >
-                            {t("resumeUpdates")}
-                          </Button>
-                        )}
-                        {sub.urlOrFile &&
-                          /^https?:\/\//i.test(sub.urlOrFile) && (
-                            <Button
-                              disabled={pending}
-                              onClick={() => setSourceURL(sub.urlOrFile || "")}
-                            >
-                              {cfg("editLink")}
-                            </Button>
-                          )}
-                        {sub.urlOrFile &&
-                          /^https?:\/\//i.test(sub.urlOrFile) && (
-                            <CopyButton
-                              value={sub.urlOrFile}
-                              label={c("copyLink")}
-                            />
-                          )}
-                        <Button
-                          disabled={pending}
-                          onClick={() => {
-                            setRenameId(sub.id);
-                            setRenameValue(sub.name);
-                          }}
-                        >
-                          {t("rename")}
-                        </Button>
-                        <Button
-                          disabled={pending}
-                          onClick={() => void openOverride(sub.id)}
-                        >
-                          {t("override")}
-                        </Button>
-                        <Button
-                          disabled={pending}
-                          onClick={() => void openSourceEditor(sub.id)}
-                        >
-                          {t("sourceEdit")}
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          disabled={pending}
-                          onClick={() => setRemoveId(sub.id)}
-                        >
-                          {t("remove")}
-                        </Button>
-                      </div>
-                    </details>
-                  </div>
-                </article>
-              );
-            })}
+      {/* 1. Header Banner & Identity */}
+      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-4">
+          <ResourceIcon
+            kind={sub.format || "local"}
+            className="size-12 shrink-0 rounded-2xl"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
+                {sub.name}
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-foreground"
+                title={t("rename")}
+                onClick={() => {
+                  setRenameId(sub.id);
+                  setRenameValue(sub.name);
+                }}
+              >
+                <Pencil className="size-3.5" />
+              </Button>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
+                {sub.format || "config"}
+              </span>
+              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {isCloud
+                  ? cfg("kindCloud")
+                  : isInline
+                    ? cfg("kindInline")
+                    : isLocal
+                      ? cfg("kindLocal")
+                      : cfg("kindRemote")}
+              </span>
+              {isActive && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-text">
+                  <Check className="size-3" />
+                  {cfg("activeLocal")}
+                </span>
+              )}
+              {sub.sourcePinned && (
+                <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  {t("sourcePinned")}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="p-8 text-center text-muted-foreground">
-          <p>{t("noSubs")}</p>
+
+        <div className="flex shrink-0 items-center gap-2.5">
+          {isActive ? (
+            <Button
+              variant="secondary"
+              disabled
+              className="pointer-events-none gap-1.5"
+            >
+              <Check className="size-4 text-emerald-500" />
+              {cfg("activeLocal")}
+            </Button>
+          ) : (
+            <Button
+              variant="brand"
+              disabled={pending || Boolean(operation)}
+              onClick={() =>
+                void run(async () => {
+                  await selectSub(sub.id);
+                  await refresh();
+                  await refreshSubs();
+                })
+              }
+            >
+              {cfg("use")}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Health alert if sync or core check failed */}
+      {sub.health && sub.health !== "ok" && (
+        <div
+          className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
+          role="alert"
+        >
+          <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold text-destructive">
+              {cfg(
+                sub.lastHash || sub.lastUpdated
+                  ? "updateFailed"
+                  : "noCachedConfig",
+              )}
+            </div>
+            {sub.lastErrorMessage && (
+              <p className="mt-1 break-words font-mono text-xs text-muted-foreground">
+                {sub.lastErrorMessage}
+              </p>
+            )}
+          </div>
         </div>
       )}
+
+      {/* Source pinned notice (user edited raw config locally) */}
+      {sub.sourcePinned && (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5 text-sm">
+            <AlertCircle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="text-amber-900 dark:text-amber-200">
+              {t("sourceEditHint")}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 gap-1.5"
+            disabled={pending || Boolean(operation)}
+            onClick={() => resumeUpdates(sub.id)}
+          >
+            <RefreshCw className="size-3.5" />
+            {t("resumeUpdates")}
+          </Button>
+        </div>
+      )}
+
+      {/* 2. Quota & Traffic Usage Card */}
+      <div className="rounded-card border bg-card p-5 shadow-elevation-card">
+        <h3 className="mb-4 text-sm font-semibold text-foreground">
+          {c("quota.title")}
+        </h3>
+        <div className="grid gap-5 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+          {quota ? (
+            <>
+              <QuotaRing percent={quota.remainingPercent} />
+              <div className="flex min-w-0 flex-col gap-2">
+                <Stat label={c("quota.remaining")}>
+                  {formatTraffic(quota.remaining)}
+                </Stat>
+                <Stat size="sm" label={`${c("used")} / ${c("quota.total")}`}>
+                  {formatTraffic(quota.used)} / {formatTraffic(sub.total)}
+                </Stat>
+              </div>
+            </>
+          ) : (
+            <div className="col-span-2 text-xs text-muted-foreground">
+              {c("quota.unknown")}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2.5 border-t border-border pt-4 text-xs sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6">
+            {sub.expire > 0 && (
+              <div className="flex items-center justify-between gap-4 sm:justify-start">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <Calendar className="size-3.5" />
+                  {c("expiry")}
+                </span>
+                <span className="font-mono font-medium text-foreground">
+                  {new Date(sub.expire * 1000).toLocaleDateString(
+                    lang.replace("_", "-"),
+                  )}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-4 sm:justify-start">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <Clock className="size-3.5" />
+                {t("updated")}
+              </span>
+              <span className="font-mono font-medium text-foreground">
+                {sub.lastUpdated
+                  ? new Date(sub.lastUpdated * 1000).toLocaleString(
+                      lang.replace("_", "-"),
+                    )
+                  : "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Subscription Source & Sync Card */}
+      <div className="rounded-card border bg-card p-5 shadow-elevation-card space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">
+          {isRemote
+            ? cfg("sourceLink")
+            : isLocal
+              ? cfg("sourceLocal")
+              : cfg("kindInline")}
+        </h3>
+
+        {isRemote && (
+          <>
+            {/* URL Display with Copy and Edit buttons */}
+            <div className="flex items-center gap-2 rounded-control border border-border bg-inset px-3 py-2">
+              <Globe className="size-4 shrink-0 text-muted-foreground" />
+              <span className="flex-1 select-all truncate font-mono text-xs text-foreground">
+                {sub.urlOrFile || "—"}
+              </span>
+              {sub.urlOrFile && (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <CopyButton value={sub.urlOrFile} label={c("copyLink")} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 px-2 text-xs"
+                    onClick={() => setSourceURL(sub.urlOrFile || "")}
+                  >
+                    <Pencil className="size-3.5" />
+                    {cfg("edit")}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Sync Frequency + Update Now */}
+            <div className="flex flex-col gap-4 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {sub.type === "universal" && (
+                  <UpdateFrequency
+                    inline
+                    value={sub.autoUpdate ? sub.updateIntervalHours : 0}
+                    disabled={pending || Boolean(operation) || !localClient}
+                    onChange={(hours) =>
+                      void run(async () => {
+                        if (!localClient)
+                          throw new Error("LocalAPI not available");
+                        await localClient.setSubUpdateSchedule(sub.id, hours);
+                        await refreshSubs();
+                        await refresh();
+                      })
+                    }
+                  />
+                )}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 self-start sm:self-auto"
+                disabled={pending || Boolean(operation)}
+                onClick={() =>
+                  void run(async () => {
+                    if (sub.accountIssuer) {
+                      const result = await resync();
+                      if (result.updateError)
+                        throw new Error(result.updateError);
+                    } else {
+                      await updateSub(sub.id);
+                    }
+                    await refresh();
+                    await refreshSubs();
+                  })
+                }
+              >
+                <RefreshCw
+                  className={cn(
+                    "size-3.5",
+                    (pending || operation) && "animate-spin",
+                  )}
+                />
+                {t("updateBtn")}
+              </Button>
+            </div>
+
+            {/* Update Channel Selector */}
+            <div className="flex flex-col gap-2 border-t border-border/60 pt-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-muted-foreground">{t("channelTitle")}</span>
+              <ButtonSelect<"direct" | "self" | "proxy">
+                value={sub.updateChannel || "direct"}
+                disabled={pending || Boolean(operation)}
+                options={[
+                  { label: t("channelDirect"), value: "direct" },
+                  { label: t("channelSelf"), value: "self" },
+                  { label: t("channelProxy"), value: "proxy" },
+                ]}
+                onSelect={(channel) => selectChannel(sub.id, channel)}
+              />
+            </div>
+          </>
+        )}
+
+        {isLocal && (
+          <>
+            <div className="flex items-center gap-2 rounded-control border border-border bg-inset px-3 py-2">
+              <span className="flex-1 select-all truncate font-mono text-xs text-foreground">
+                {sub.urlOrFile || "—"}
+              </span>
+            </div>
+            <div className="flex justify-end border-t border-border/60 pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={pending || Boolean(operation)}
+                onClick={() =>
+                  void run(async () => {
+                    await updateSub(sub.id);
+                    await refresh();
+                    await refreshSubs();
+                  })
+                }
+              >
+                <RefreshCw className="size-3.5" />
+                {cfg("reloadFile")}
+              </Button>
+            </div>
+          </>
+        )}
+
+        {isInline && (
+          <div className="flex items-center justify-between border-t border-border/60 pt-3">
+            <span className="text-xs text-muted-foreground">
+              {t("sourceEditHint")}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={pending || Boolean(operation)}
+              onClick={() => void openSourceEditor(sub.id)}
+            >
+              <FileText className="size-3.5" />
+              {cfg("editContent")}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Advanced Config & Rules Card */}
+      <div className="rounded-card border bg-card p-5 shadow-elevation-card space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            {t("advancedSettings")}
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("advancedDesc")}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {/* Source Editor */}
+          <div className="flex flex-col justify-between rounded-xl border border-border/70 bg-inset/40 p-4">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <FileText className="size-4 text-muted-foreground" />
+                {t("sourceEdit")}
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {t("sourceEditDesc")}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 w-full"
+              disabled={pending || Boolean(operation)}
+              onClick={() => void openSourceEditor(sub.id)}
+            >
+              {t("sourceEdit")}
+            </Button>
+          </div>
+
+          {/* Rule Override */}
+          <div className="flex flex-col justify-between rounded-xl border border-border/70 bg-inset/40 p-4">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <SlidersHorizontal className="size-4 text-muted-foreground" />
+                {t("override")}
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {t("overrideDesc")}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 w-full"
+              disabled={pending || Boolean(operation)}
+              onClick={() => void openOverride(sub.id)}
+            >
+              {t("override")}
+            </Button>
+          </div>
+
+          {/* Rollback */}
+          <div className="flex flex-col justify-between rounded-xl border border-border/70 bg-inset/40 p-4">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <RotateCcw className="size-4 text-muted-foreground" />
+                {t("rollback")}
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {t("rollbackDesc")}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 w-full"
+              disabled={pending || Boolean(operation)}
+              onClick={() => rollback(sub.id)}
+            >
+              {t("rollback")}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Danger Zone */}
+      <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
+            <Trash2 className="size-4" />
+            {t("dangerZone")}
+          </h3>
+          <p className="mt-1 max-w-md text-xs text-muted-foreground">
+            {t("removeDesc")}
+          </p>
+        </div>
+        <Button
+          variant="destructive"
+          size="sm"
+          className="shrink-0"
+          disabled={pending || Boolean(operation)}
+          onClick={() => setRemoveId(sub.id)}
+        >
+          {t("remove")}
+        </Button>
+      </div>
+
+      {/* Dialog: Edit Subscription URL */}
       <Dialog
         open={sourceURL !== null}
         onOpenChange={(open) => {
           if (!open && !pending) setSourceURL(null);
         }}
       >
-        <DialogContent closeLabel={tc("close")}>
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{cfg("editLink")}</DialogTitle>
           </DialogHeader>
@@ -449,13 +669,13 @@ export default function SubscriptionDetail({
           <DialogFooter>
             <Button
               variant="outline"
-              disabled={pending}
+              disabled={pending || Boolean(operation)}
               onClick={() => setSourceURL(null)}
             >
               {tc("cancel")}
             </Button>
             <Button
-              disabled={pending || !sourceURL?.trim()}
+              disabled={pending || Boolean(operation) || !sourceURL?.trim()}
               onClick={() =>
                 void run(async () => {
                   if (!localClient || !sourceURL)
@@ -471,6 +691,8 @@ export default function SubscriptionDetail({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: Rename Profile */}
       <Dialog
         open={renameId !== null}
         onOpenChange={(open) => {
@@ -481,7 +703,7 @@ export default function SubscriptionDetail({
           <DialogHeader>
             <DialogTitle>{t("rename")}</DialogTitle>
           </DialogHeader>
-          <label>
+          <label className="grid gap-2 text-sm">
             {t("namePlaceholder")}
             <Input
               value={renameValue}
@@ -491,7 +713,7 @@ export default function SubscriptionDetail({
           <DialogFooter>
             <Button
               variant="outline"
-              disabled={pending}
+              disabled={pending || Boolean(operation)}
               onClick={() => setRenameId(null)}
             >
               {tc("cancel")}
@@ -522,32 +744,36 @@ export default function SubscriptionDetail({
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Remove Profile Confirmation */}
       <Dialog
         open={removeId !== null}
         onOpenChange={(open) => {
           if (!open && !pending) setRemoveId(null);
         }}
       >
-        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>{t("remove")}</DialogTitle>
           </DialogHeader>
-          <div>
+          <div className="space-y-2 text-sm text-muted-foreground">
             <p>{t("removeConfirm")}</p>
             {removeId === activeId && status?.engine.running && (
-              <p className="mt-2 text-destructive">{t("removeActive")}</p>
+              <p className="font-medium text-destructive">
+                {t("removeActive")}
+              </p>
             )}
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              disabled={pending}
+              disabled={pending || Boolean(operation)}
               onClick={() => setRemoveId(null)}
             >
               {tc("cancel")}
             </Button>
             <Button
-              disabled={pending}
+              variant="destructive"
+              disabled={pending || Boolean(operation)}
               onClick={() =>
                 void run(async () => {
                   if (
@@ -568,62 +794,67 @@ export default function SubscriptionDetail({
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Source Editor (Full screen / Wide dialog) */}
       <Dialog
         open={editorId !== null}
         onOpenChange={(open) => {
           if (!open && !pending) setEditorId(null);
         }}
       >
-        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
+        <DialogContent
+          closeLabel={tc("close")}
+          className="sm:max-w-3xl max-h-[90vh] flex flex-col"
+        >
           <DialogHeader>
             <DialogTitle>{t("sourceEdit")}</DialogTitle>
           </DialogHeader>
-          <div className="[&_textarea]:min-h-80">
-            <div className="setting-label-col flex flex-col gap-1">
-              <p className="text-sm text-muted-foreground">
-                {t("sourceEditHint")}
+          <div className="flex-1 flex flex-col gap-2 min-h-0">
+            <p className="text-xs text-muted-foreground">
+              {t("sourceEditHint")}
+            </p>
+            <textarea
+              className="w-full flex-1 min-h-[420px] max-h-[60vh] resize-y rounded-md border border-border bg-inset p-3 font-mono text-xs leading-relaxed text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={editorContent}
+              onChange={(event) => setEditorContent(event.target.value)}
+              spellCheck={false}
+            />
+            {editorError && (
+              <p role="alert" className="text-xs text-destructive">
+                {editorError}
               </p>
-              <textarea
-                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-body leading-normal text-foreground"
-                rows={16}
-                value={editorContent}
-                onChange={(event) => setEditorContent(event.target.value)}
-                spellCheck={false}
-              />
-              {editorError && (
-                <p role="alert" className="text-sm text-destructive">
-                  {editorError}
-                </p>
-              )}
-            </div>
+            )}
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              disabled={pending}
+              disabled={pending || Boolean(operation)}
               onClick={() => setEditorId(null)}
             >
               {tc("cancel")}
             </Button>
-            <Button disabled={pending} onClick={() => saveSourceEditor()}>
+            <Button
+              disabled={pending || Boolean(operation)}
+              onClick={() => saveSourceEditor()}
+            >
               {tc("ok")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Proxy Channel Config */}
       <Dialog
         open={proxyChannelId !== null}
         onOpenChange={(open) => {
           if (!open && !pending) setProxyChannelId(null);
         }}
       >
-        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
+        <DialogContent closeLabel={tc("close")} className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>{t("channelProxy")}</DialogTitle>
           </DialogHeader>
-          <div>
-            <label>
+          <div className="space-y-3">
+            <label className="grid gap-2 text-sm">
               {t("channelProxyUrl")}
               <Input
                 value={proxyChannelUrl}
@@ -631,20 +862,22 @@ export default function SubscriptionDetail({
                 placeholder="http://127.0.0.1:7890"
               />
             </label>
-            <p className="mt-2 text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t("channelProxyNote")}
             </p>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              disabled={pending}
+              disabled={pending || Boolean(operation)}
               onClick={() => setProxyChannelId(null)}
             >
               {tc("cancel")}
             </Button>
             <Button
-              disabled={pending || !proxyChannelUrl.trim()}
+              disabled={
+                pending || Boolean(operation) || !proxyChannelUrl.trim()
+              }
               onClick={() => saveProxyChannel()}
             >
               {tc("ok")}
@@ -653,62 +886,72 @@ export default function SubscriptionDetail({
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Override Rules & DNS */}
       <Dialog
         open={overrideId !== null}
         onOpenChange={(open) => {
           if (!open && !pending) setOverrideId(null);
         }}
       >
-        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
+        <DialogContent
+          closeLabel={tc("close")}
+          className="sm:max-w-2xl max-h-[90vh] flex flex-col"
+        >
           <DialogHeader>
             <DialogTitle>{t("override")}</DialogTitle>
           </DialogHeader>
-          <div className="setting-label-col flex flex-col gap-1">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex-1 overflow-y-auto space-y-4 py-1 pr-1 text-xs">
+            <p className="text-muted-foreground">
               {t(
-                subscriptions.find((sub) => sub.id === overrideId)?.format ===
+                subscriptions.find((item) => item.id === overrideId)?.format ===
                   "sing-box"
                   ? "overrideHintSingBox"
                   : "overrideHintClash",
               )}
             </p>
-            <label>
-              {t("overridePrepend")}
+            <div className="space-y-1.5">
+              <label className="font-medium text-foreground">
+                {t("overridePrepend")}
+              </label>
               <textarea
-                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-body leading-normal text-foreground"
-                rows={4}
+                className="w-full resize-y rounded-md border border-border bg-inset p-2.5 font-mono text-xs leading-normal text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={3}
                 value={overridePrepend}
                 onChange={(event) => setOverridePrepend(event.target.value)}
                 placeholder={"DOMAIN-SUFFIX,corp.example,DIRECT"}
               />
-            </label>
-            <label>
-              {t("overrideAppend")}
+            </div>
+            <div className="space-y-1.5">
+              <label className="font-medium text-foreground">
+                {t("overrideAppend")}
+              </label>
               <textarea
-                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-body leading-normal text-foreground"
-                rows={4}
+                className="w-full resize-y rounded-md border border-border bg-inset p-2.5 font-mono text-xs leading-normal text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={3}
                 value={overrideAppend}
                 onChange={(event) => setOverrideAppend(event.target.value)}
                 placeholder={"DOMAIN-SUFFIX,ads.example,REJECT"}
               />
-            </label>
-            <label>
-              {t("overrideDns")}
+            </div>
+            <div className="space-y-1.5">
+              <label className="font-medium text-foreground">
+                {t("overrideDns")}
+              </label>
               <textarea
-                className="w-full resize-y rounded-sm border border-border bg-inset px-3 py-2.5 font-mono text-body leading-normal text-foreground"
-                rows={4}
+                className="w-full resize-y rounded-md border border-border bg-inset p-2.5 font-mono text-xs leading-normal text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={3}
                 value={overrideDns}
                 onChange={(event) => setOverrideDns(event.target.value)}
                 placeholder={
-                  subscriptions.find((sub) => sub.id === overrideId)?.format ===
-                  "sing-box"
+                  subscriptions.find((item) => item.id === overrideId)
+                    ?.format === "sing-box"
                     ? '{\n  "servers": [{ "tag": "dns-local", "address": "8.8.8.8" }]\n}'
                     : "nameserver:\n  - 8.8.8.8"
                 }
               />
-            </label>
+            </div>
             {overrideError && (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-destructive">
                 {overrideError}
               </p>
             )}
@@ -716,12 +959,15 @@ export default function SubscriptionDetail({
           <DialogFooter>
             <Button
               variant="outline"
-              disabled={pending}
+              disabled={pending || Boolean(operation)}
               onClick={() => setOverrideId(null)}
             >
               {tc("cancel")}
             </Button>
-            <Button disabled={pending} onClick={() => void saveOverride()}>
+            <Button
+              disabled={pending || Boolean(operation)}
+              onClick={() => void saveOverride()}
+            >
               {tc("ok")}
             </Button>
           </DialogFooter>

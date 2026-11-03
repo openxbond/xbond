@@ -74,6 +74,21 @@ func (m *Manager) loadStore() error {
 			name = strings.TrimSuffix(name, ".yaml")
 			store.Subscriptions[i].Name = name
 		}
+		if store.Subscriptions[i].Kind == "" {
+			if store.Subscriptions[i].Type == SubTypeXBond {
+				store.Subscriptions[i].Kind = KindCloud
+			} else if strings.HasPrefix(store.Subscriptions[i].SourceURL, "http://") || strings.HasPrefix(store.Subscriptions[i].SourceURL, "https://") {
+				store.Subscriptions[i].Kind = KindRemote
+			} else if strings.HasSuffix(store.Subscriptions[i].SourceURL, "pasted.source") {
+				store.Subscriptions[i].Kind = KindInline
+				store.Subscriptions[i].AutoUpdate = false
+				store.Subscriptions[i].UpdateIntervalHours = 0
+			} else {
+				store.Subscriptions[i].Kind = KindLocal
+				store.Subscriptions[i].AutoUpdate = false
+				store.Subscriptions[i].UpdateIntervalHours = 0
+			}
+		}
 	}
 	m.store = store
 	return nil
@@ -328,8 +343,9 @@ func (m *Manager) BindAccount(token, issuer, origin string, fallbacks []string, 
 		if name == "" {
 			name = "XBond Cloud"
 		}
-		existing = &SubscriptionMeta{ID: "account_" + hashString(issuer)[:12], Name: name, Type: SubTypeXBond, AutoUpdate: true, UpdateIntervalHours: 24, Health: HealthOK}
+		existing = &SubscriptionMeta{ID: "account_" + hashString(issuer)[:12], Name: name, Type: SubTypeXBond, Kind: KindCloud, AutoUpdate: true, UpdateIntervalHours: 24, Health: HealthOK}
 	}
+	existing.Kind = KindCloud
 	existing.Token = token
 	existing.AccountIssuer = issuer
 	existing.Origin = origin
@@ -363,12 +379,23 @@ func (m *Manager) AddUniversal(
 		name = fmt.Sprintf("Universal-%s", subID[4:8])
 	}
 
+	isURL := strings.HasPrefix(urlOrPath, "http://") || strings.HasPrefix(urlOrPath, "https://")
+	kind := KindLocal
+	autoUpdate := false
+	if isURL {
+		kind = KindRemote
+		autoUpdate = true
+	} else {
+		intervalHours = 0
+	}
+
 	meta := SubscriptionMeta{
 		ID:                  subID,
 		Name:                name,
 		Type:                SubTypeUniversal,
+		Kind:                kind,
 		SourceURL:           urlOrPath,
-		AutoUpdate:          true,
+		AutoUpdate:          autoUpdate,
 		UpdateIntervalHours: intervalHours,
 		Health:              HealthOK,
 		SavedSelections:     make(map[string]string),
@@ -378,8 +405,7 @@ func (m *Manager) AddUniversal(
 }
 
 // AddUniversalContent imports pasted configuration text. The content is
-// snapshotted into the subscription directory and re-read on every update,
-// giving paste the same lifecycle as a local file import.
+// snapshotted into the subscription directory as a static inline profile.
 func (m *Manager) AddUniversalContent(
 	content, name string,
 	intervalHours int,
@@ -387,9 +413,6 @@ func (m *Manager) AddUniversalContent(
 ) (*SubscriptionMeta, error) {
 	if strings.TrimSpace(content) == "" {
 		return nil, fmt.Errorf("content cannot be empty")
-	}
-	if intervalHours <= 0 {
-		intervalHours = 24
 	}
 
 	subID := fmt.Sprintf("uni_%s", hashString(content)[:12])
@@ -407,9 +430,10 @@ func (m *Manager) AddUniversalContent(
 		ID:                  subID,
 		Name:                name,
 		Type:                SubTypeUniversal,
+		Kind:                KindInline,
 		SourceURL:           sourcePath,
-		AutoUpdate:          true,
-		UpdateIntervalHours: intervalHours,
+		AutoUpdate:          false,
+		UpdateIntervalHours: 0,
 		Health:              HealthOK,
 		SavedSelections:     make(map[string]string),
 	}

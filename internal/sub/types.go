@@ -13,6 +13,15 @@ const (
 	SubTypeUniversal SubscriptionType = "universal"
 )
 
+type ProfileKind string
+
+const (
+	KindRemote ProfileKind = "remote" // Remote subscription URL
+	KindLocal  ProfileKind = "local"  // Local file on disk
+	KindInline ProfileKind = "inline" // Inline / pasted content
+	KindCloud  ProfileKind = "cloud"  // XBond Cloud account managed
+)
+
 type SubscriptionHealth string
 
 const (
@@ -49,6 +58,7 @@ type SubscriptionMeta struct {
 	// daemon derives and starts that core. Legacy records are backfilled at
 	// daemon start by MigrateLegacySources.
 	Format              engine.CoreFormat `json:"format,omitempty"`
+	Kind                ProfileKind       `json:"kind,omitempty"`
 	NameCustomized      bool              `json:"nameCustomized,omitempty"`
 	Type                SubscriptionType  `json:"type"`
 	AccountIssuer       string            `json:"accountIssuer,omitempty"`

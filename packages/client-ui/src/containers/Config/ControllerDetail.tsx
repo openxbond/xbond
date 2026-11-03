@@ -11,6 +11,7 @@ import {
   useControllers,
   useAPIInfo,
   useSelectController,
+  useConfigurationOperation,
   DAEMON_CONTROLLER_ID,
 } from "@stores";
 import {
@@ -39,6 +40,7 @@ export default function ControllerDetail({
   const [controllers, setControllers] = useControllers();
   const target = useAPIInfo();
   const select = useSelectController();
+  const { operation } = useConfigurationOperation();
   const [name, setName] = useState(controller?.name || "");
   const [url, setURL] = useState(controller?.url || "");
   const [secret, setSecret] = useState(controller?.secret || "");
@@ -132,15 +134,20 @@ export default function ControllerDetail({
         </div>
         {viewing && <span className="config-status">{c("viewing")}</span>}
       </div>
+      {viewing && (
+        <div className="rounded-xl border border-border bg-surface-inset p-3.5 text-xs text-muted-foreground leading-relaxed">
+          {c("externalModeNotice")}
+        </div>
+      )}
       {!editing && controller ? (
         <>
           <div className="flex flex-wrap gap-3">
             <Button
               variant="brand"
               onClick={() => select(controller.id)}
-              disabled={viewing}
+              disabled={viewing || Boolean(operation)}
             >
-              {c("viewController")}
+              {viewing ? c("activeLocal") : c("use")}
             </Button>
             <Button
               variant="outline"

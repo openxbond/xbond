@@ -269,6 +269,8 @@ const EN = {
   },
   rules: {
     title: "Rules",
+    tabActive: "Routing Rules",
+    tabMixin: "Global Mixin",
     providerTitle: "Rule providers",
     providerUpdateTime: "Last updated",
     ruleCount: "Rules",
@@ -478,6 +480,18 @@ const EN = {
       "One sing-box rule JSON object per line. Saved with validation: every referenced outbound is checked, and the override rides along on every update.",
     overrideSaved: "Override saved and applied",
     rename: "Rename",
+    channelTitle: "Update Channel",
+    dangerZone: "Danger Zone",
+    advancedSettings: "Advanced & Overrides",
+    advancedDesc:
+      "Inspect local copies, override routing rules, or rollback versions without altering the remote source.",
+    sourceEditDesc: "View or edit local YAML / JSON configuration directly.",
+    overrideDesc:
+      "Inject prepend / append routing rules and DNS overrides into this profile.",
+    rollbackDesc:
+      "Restore the previous working version if recent updates fail.",
+    removeDesc:
+      "Permanently delete this configuration from local storage. Active connections will be closed first.",
     removeConfirm: "Remove this configuration permanently?",
     removeActive:
       "Removing the active configuration disconnects the proxy first.",
@@ -673,6 +687,8 @@ const EN = {
     downloaded: "Downloaded {{received}}",
   },
   account: {
+    applyingConfig: "Applying configuration…",
+    actionFailed: "The operation could not be completed",
     phaseExchange: "Confirming authorization…",
     phaseFetch: "Fetching your subscription…",
     phaseSync: "Downloading and checking configuration…",
@@ -714,6 +730,18 @@ const EN = {
     syncSubscription: "Update subscription",
     syncSuccess: "Subscription synced from Cloud",
     cloudDesc: "Sign in to use your XBond subscription.",
+    downloadProgress: "Download progress",
+    syncingProgressTitle: "Syncing Cloud subscription…",
+    syncingProgressDesc: "Downloading latest nodes and routing rules",
+    downloadedBytes: "Downloaded {{received}}",
+    downloadedTotal: "Downloaded {{received}} / {{total}}",
+    useCloudCta: "Use Cloud profile",
+    serviceStatus: "Service status",
+    serviceHealthy: "Healthy",
+    quotaRemaining: "Remaining",
+    quotaTotal: "Total quota",
+    quotaUsed: "Used quota",
+    protocol: "Protocol",
     webModeAccountNote:
       "Running in pure Web dashboard mode. XBond Cloud account is managed via Desktop app.",
   },

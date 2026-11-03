@@ -10,10 +10,10 @@ import {
   useLocalAPI,
   useSubscriptions,
 } from "@stores";
-import { ArrowLeft, Plus, Search } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { ArrowLeft, Check, Plus, Search } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import ControllerDetail from "./ControllerDetail";
 import ImportConfig from "./ImportConfig";
@@ -24,8 +24,16 @@ export default function Config() {
   const { t } = useTranslation("configuration");
   const { t: accountT } = useTranslation("account");
   const { t: common } = useTranslation("common");
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const explicit = params.get("item");
+
+  useEffect(() => {
+    if (explicit === "mixin") {
+      navigate("/rules?tab=mixin", { replace: true });
+    }
+  }, [explicit, navigate]);
+
   const [search, setSearch] = useState("");
   const target = useAPIInfo();
   const [savedControllers] = useControllers();
@@ -40,8 +48,35 @@ export default function Config() {
     isLoading,
     error: subsError,
     refresh: refreshSubs,
+    selectSub,
   } = useSubscriptions();
-  const { account } = useAccount();
+  const { account, cloudProfile, activateCloud } = useAccount();
+  const [activating, setActivating] = useState<string | null>(null);
+
+  async function quickActivateSub(subId: string) {
+    if (activating) return;
+    setActivating(subId);
+    try {
+      await selectSub(subId);
+      await refresh();
+      await refreshSubs();
+    } finally {
+      setActivating(null);
+    }
+  }
+
+  async function quickActivateCloud() {
+    if (activating) return;
+    setActivating("cloud");
+    try {
+      await activateCloud();
+      await refresh();
+      await refreshSubs();
+    } finally {
+      setActivating(null);
+    }
+  }
+
   const controllers = savedControllers
     .filter((item) => item.id !== DAEMON_CONTROLLER_ID || !supported)
     .map((item) =>
@@ -100,23 +135,56 @@ export default function Config() {
     title: string,
     subtitle: string,
     kind: Parameters<typeof ResourceIcon>[0]["kind"],
+    options?: {
+      isActive?: boolean;
+      canActivate?: boolean;
+      onActivate?: () => void | Promise<void>;
+    },
   ) {
     return (
-      <button
+      <div
         key={id}
-        type="button"
-        className={cn("config-resource", selected === id && "is-selected")}
+        className={cn(
+          "config-resource group",
+          selected === id && "is-selected",
+        )}
         aria-current={selected === id ? "true" : undefined}
-        onClick={() => choose(id)}
       >
-        <ResourceIcon kind={kind} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{title}</span>
-          <span className="mt-1 block truncate text-xs text-muted-foreground">
-            {subtitle}
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-3 border-none bg-transparent p-0 text-start cursor-pointer outline-none"
+          onClick={() => choose(id)}
+        >
+          <ResourceIcon kind={kind} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-medium">{title}</span>
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+              {subtitle}
+            </span>
           </span>
-        </span>
-      </button>
+        </button>
+        {options?.isActive && (
+          <span className="shrink-0 text-xs font-medium text-brand inline-flex items-center gap-1">
+            <Check className="size-3.5" />
+            <span className="hidden sm:inline">{t("viewing")}</span>
+          </span>
+        )}
+        {!options?.isActive && options?.canActivate && options?.onActivate && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-6 shrink-0 px-2 text-xs transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+            disabled={activating !== null}
+            onClick={(e) => {
+              e.stopPropagation();
+              void options.onActivate!();
+            }}
+          >
+            {t("quickActivate")}
+          </Button>
+        )}
+      </div>
     );
   }
   function group(
@@ -144,20 +212,27 @@ export default function Config() {
       </section>
     );
   }
+  const isCloudActive =
+    isLocalTarget && Boolean(cloudProfile) && activeId === cloudProfile?.id;
+  const activeSub = subscriptions.find((item) => item.id === activeId);
+  const activeIconKind = isLocalTarget
+    ? isCloudActive
+      ? "cloud"
+      : activeSub?.format || "local"
+    : "controller";
+  const activeDisplayName = isLocalTarget
+    ? isCloudActive
+      ? "XBond Cloud"
+      : activeSub?.name || t("localService")
+    : target.name || target.hostname;
+
   return (
     <div className="page config-page">
       <Header title={t("title")}>
         <span className="hidden items-center gap-2 text-sm text-muted-foreground md:flex">
-          <ResourceIcon
-            kind={isLocalTarget ? "local" : "controller"}
-            className="size-8"
-          />
+          <ResourceIcon kind={activeIconKind} className="size-8" />
           <span>
-            {t("viewing")} ·{" "}
-            {isLocalTarget
-              ? subscriptions.find((item) => item.id === activeId)?.name ||
-                t("localService")
-              : target.name || target.hostname}
+            {t("viewing")} · {activeDisplayName}
           </span>
         </span>
       </Header>
@@ -197,12 +272,31 @@ export default function Config() {
                   ? common("loading")
                   : offline
                     ? t("serviceOffline")
-                    : account?.status === "signed_in"
-                      ? account.name || account.email || accountT("signedIn")
-                      : account?.status === "pending"
-                        ? accountT("pending")
-                        : accountT("loginCta"),
+                    : account?.phase
+                      ? t("working")
+                      : account?.status === "signed_in"
+                        ? cloudProfile?.format
+                          ? isLocalTarget && activeId === cloudProfile.id
+                            ? t("activeLocal")
+                            : t("ready")
+                          : account.updateError ||
+                              cloudProfile?.lastErrorMessage
+                            ? t("syncFailed")
+                            : t("notReady")
+                        : account?.status === "pending"
+                          ? accountT("pending")
+                          : accountT("loginCta"),
                 "cloud",
+                {
+                  isActive:
+                    isLocalTarget &&
+                    Boolean(cloudProfile) &&
+                    activeId === cloudProfile?.id,
+                  canActivate:
+                    account?.status === "signed_in" &&
+                    Boolean(cloudProfile?.format),
+                  onActivate: quickActivateCloud,
+                },
               ),
             )}
           {supported &&
@@ -214,8 +308,13 @@ export default function Config() {
                     resource(
                       `sub:${sub.id}`,
                       sub.name,
-                      `${sub.format || t("sourceLocal")} · ${sub.id === activeId ? t("activeLocal") : sub.type === "xbond" ? t("sourceCloud") : /^https?:/.test(sub.urlOrFile || "") ? t("sourceLink") : t("sourceLocal")}`,
+                      `${sub.format || t("sourceLocal")} · ${!sub.format ? (sub.lastErrorMessage ? t("syncFailed") : t("notReady")) : isLocalTarget && sub.id === activeId ? t("activeLocal") : t("ready")}`,
                       sub.format || "local",
+                      {
+                        isActive: isLocalTarget && sub.id === activeId,
+                        canActivate: Boolean(sub.format),
+                        onActivate: () => quickActivateSub(sub.id),
+                      },
                     ),
                   )
                 ) : connecting ? (

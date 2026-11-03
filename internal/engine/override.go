@@ -79,15 +79,12 @@ func applyClashOverride(source []byte, override *SubscriptionOverride) ([]byte, 
 	return derived, nil
 }
 
-// applyClashDNSOverride deep-merges the override's DNS mapping (Clash YAML)
-// into the source's dns section: nested maps merge recursively, scalars and
-// lists replace wholesale.
-func applyClashDNSOverride(raw map[string]any, override *SubscriptionOverride) error {
-	if strings.TrimSpace(override.DNS) == "" {
+func applyClashDNSText(raw map[string]any, dnsText string) error {
+	if strings.TrimSpace(dnsText) == "" {
 		return nil
 	}
 	var dns map[string]any
-	if err := yaml.Unmarshal([]byte(override.DNS), &dns); err != nil {
+	if err := yaml.Unmarshal([]byte(dnsText), &dns); err != nil {
 		return fmt.Errorf("override DNS is malformed: expected a YAML mapping: %w", err)
 	}
 	if len(dns) == 0 {
@@ -99,6 +96,13 @@ func applyClashDNSOverride(raw map[string]any, override *SubscriptionOverride) e
 	}
 	raw["dns"] = deepMergeMaps(source, dns)
 	return nil
+}
+
+// applyClashDNSOverride deep-merges the override's DNS mapping (Clash YAML)
+// into the source's dns section: nested maps merge recursively, scalars and
+// lists replace wholesale.
+func applyClashDNSOverride(raw map[string]any, override *SubscriptionOverride) error {
+	return applyClashDNSText(raw, override.DNS)
 }
 
 // deepMergeMaps merges the override mapping into base: nested maps merge
@@ -238,16 +242,12 @@ func applySingBoxOverride(source []byte, override *SubscriptionOverride) ([]byte
 	return derived, nil
 }
 
-// applySingBoxDNSOverride deep-merges the override's DNS object (JSON) into
-// the source's dns section, then checks the references DNS makes: a server's
-// detour must name an existing outbound, and a DNS rule's server must name
-// an existing DNS server tag.
-func applySingBoxDNSOverride(raw map[string]any, override *SubscriptionOverride, outboundTags map[string]bool) error {
-	if strings.TrimSpace(override.DNS) == "" {
+func applySingBoxDNSText(raw map[string]any, dnsText string, outboundTags map[string]bool) error {
+	if strings.TrimSpace(dnsText) == "" {
 		return nil
 	}
 	var dns map[string]any
-	if err := json.Unmarshal([]byte(override.DNS), &dns); err != nil {
+	if err := json.Unmarshal([]byte(dnsText), &dns); err != nil {
 		return fmt.Errorf("override DNS is malformed: expected a JSON object: %w", err)
 	}
 	if len(dns) == 0 {
@@ -263,6 +263,14 @@ func applySingBoxDNSOverride(raw map[string]any, override *SubscriptionOverride,
 	}
 	raw["dns"] = merged
 	return nil
+}
+
+// applySingBoxDNSOverride deep-merges the override's DNS object (JSON) into
+// the source's dns section, then checks the references DNS makes: a server's
+// detour must name an existing outbound, and a DNS rule's server must name
+// an existing DNS server tag.
+func applySingBoxDNSOverride(raw map[string]any, override *SubscriptionOverride, outboundTags map[string]bool) error {
+	return applySingBoxDNSText(raw, override.DNS, outboundTags)
 }
 
 func checkSingBoxDNSReferences(dns map[string]any, outboundTags map[string]bool) error {
