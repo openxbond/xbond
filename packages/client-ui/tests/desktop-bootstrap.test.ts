@@ -203,7 +203,7 @@ test("handleDesktopShortcut dispatches keyboard shortcuts properly", () => {
     handleDesktopShortcut({ metaKey: true, key: "1" }, navigate, closeWindow),
     true,
   );
-  assert.equal(navigatedTo, "/connect");
+  assert.equal(navigatedTo, "/");
 
   assert.equal(
     handleDesktopShortcut({ metaKey: true, key: "2" }, navigate, closeWindow),

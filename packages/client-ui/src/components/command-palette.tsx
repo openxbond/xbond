@@ -193,7 +193,7 @@ export function CommandPalette() {
         category: t("categories.navigation"),
         icon: Compass,
         title: nav("home") || "Home",
-        path: "/connect",
+        path: "/",
       },
       {
         id: "nav-proxies",

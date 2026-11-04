@@ -804,6 +804,22 @@ const KO = {
     resync: "구독 다시 가져오기",
     resyncFailed: "구독을 가져오지 못했습니다. 잠시 후 다시 시도하세요.",
     downloaded: "{{received}} 다운로드됨",
+    webModeBadge: "순수 웹 모드 · 외부 컨트롤러",
+    webModeTitle: "외부 컨트롤러 연결",
+    webModeDesc:
+      "로컬 데몬이 없는 순수 웹 모드로 실행 중입니다. 코어 컨트롤러 주소를 입력하여 노드, 규칙 및 트래픽을 관리하세요.",
+    connectAndSave: "연결 및 저장",
+    quickFillOrigin: "동일 출처 주소",
+    savedControllers: "저장된 컨트롤러",
+    switchController: "연결",
+    corsTip:
+      "코어가 실행 중이고 external-controller 설정에서 교차 출처(CORS) 접근이 허용되어 있는지 확인하세요.",
+    unauthorizedTip: "인증 실패: Secret 키를 확인하세요.",
+    secretPlaceholder: "선택 사항 (시크릿이 없으면 비워 둠)",
+    namePlaceholder: "예: 로컬 코어 / 라우터",
+    quickFill: "빠른 입력:",
+    collapse: "접기",
+    expand: "펼치기",
   },
   account: {
     applyingConfig: "설정을 적용하는 중…",

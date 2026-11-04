@@ -809,6 +809,22 @@ const FA = {
     resync: "دریافت دوباره اشتراک",
     resyncFailed: "دریافت اشتراک ناموفق بود. کمی بعد دوباره تلاش کنید.",
     downloaded: "{{received}} دانلود شد",
+    webModeBadge: "حالت وب خالص · کنترلر خارجی",
+    webModeTitle: "اتصال به کنترلر خارجی",
+    webModeDesc:
+      "در حالت وب خالص و بدون دیمن محلی در حال اجراست. نشانی کنترلر هسته خود را وارد کنید تا گره‌ها، قوانین و ترافیک را مدیریت کنید.",
+    connectAndSave: "اتصال و ذخیره",
+    quickFillOrigin: "همین آدرس (Same Origin)",
+    savedControllers: "کنترلرهای ذخیره‌شده",
+    switchController: "اتصال",
+    corsTip:
+      "بررسی کنید هسته در حال اجرا باشد و در پیکربندی external-controller دسترسی cross-origin (CORS) فعال باشد.",
+    unauthorizedTip: "احراز هویت ناموفق بود؛ لطفاً کلید Secret را بررسی کنید.",
+    secretPlaceholder: "اختیاری، در صورت نداشتن Secret خالی بگذارید",
+    namePlaceholder: "مثلاً: هسته محلی / روتر",
+    quickFill: "تکمیل سریع:",
+    collapse: "بستن",
+    expand: "گسترش",
   },
   account: {
     applyingConfig: "در حال اعمال پیکربندی…",

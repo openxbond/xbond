@@ -777,6 +777,22 @@ const CN = {
     resync: "重新获取订阅",
     resyncFailed: "获取订阅失败，请稍后重试。",
     downloaded: "已下载 {{received}}",
+    webModeBadge: "纯 Web 模式 · 外部控制器",
+    webModeTitle: "连接外部控制器",
+    webModeDesc:
+      "当前运行在纯 Web 模式（无后台守护进程）。输入你的核心控制器地址即可开始管理节点、规则与流量。",
+    connectAndSave: "连接并保存",
+    quickFillOrigin: "同源地址",
+    savedControllers: "已保存的控制器",
+    switchController: "连接",
+    corsTip:
+      "请检查核心是否已启动，且配置中 external-controller 允许跨域（CORS）访问。",
+    unauthorizedTip: "身份验证失败，请确认 Secret 密钥是否正确。",
+    secretPlaceholder: "可选，若核心未配置密钥可留空",
+    namePlaceholder: "例如：本地核心 / 软路由",
+    quickFill: "快捷填入：",
+    collapse: "收起",
+    expand: "展开",
   },
   account: {
     applyingConfig: "正在应用配置…",

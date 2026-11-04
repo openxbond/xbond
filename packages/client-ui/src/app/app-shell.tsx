@@ -32,7 +32,7 @@ import SideBar from "./navigation/app-navigation";
 
 // Mobile bottom navigation targets (4 core destinations)
 const mobileRoutes = [
-  { path: "/connect", name: "Connect" },
+  { path: "/", name: "Connect" },
   { path: "/proxies", name: "Proxies" },
   { path: "/activity", name: "Activity" },
   { path: "/config", name: "Config" },
@@ -54,7 +54,6 @@ export default function App() {
     contentRef.current?.scrollTo({ top: 0, behavior: "instant" });
   }, [location.pathname]);
 
-  const initialPage = "/connect";
   // Pages ask for controller management by clearing the identity flag; send
   // them to the matching detail instead of reviving the removed modal.
   useEffect(() => {
@@ -105,21 +104,20 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={layout}>
+        {/* 8 Distinct Dedicated Routes */}
+        <Route index element={<Connect />} />
         <Route
-          path="/"
+          path="/connect"
           element={
             <Navigate
               to={{
-                pathname: initialPage,
+                pathname: "/",
                 search: location.search,
               }}
               replace
             />
           }
         />
-
-        {/* 8 Distinct Dedicated Routes */}
-        <Route path="/connect" element={<Connect />} />
         <Route path="/proxies" element={<Proxies />} />
         <Route path="/config" element={<Config />} />
         <Route
@@ -146,7 +144,7 @@ export default function App() {
           element={
             <Navigate
               to={{
-                pathname: "/connect",
+                pathname: "/",
                 search: location.search,
               }}
               replace
@@ -158,7 +156,7 @@ export default function App() {
           element={
             <Navigate
               to={{
-                pathname: "/connect",
+                pathname: "/",
                 search: location.search,
               }}
               replace

@@ -41,10 +41,12 @@ import { useNodeSelection } from "@/features/proxies/use-node-selection";
 import { errorKind, useAction } from "@/hooks/use-action";
 import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
 import { cn } from "@/lib/utils";
+import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
 import { useAPIInfo, useClient, identityAtom } from "@/state/controller-target";
 import { useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
 
+import { ExternalControllerOnboarding } from "./external-controller-onboarding";
 import { NodePicker, latencyClass } from "./node-picker";
 import { OnboardingGuide } from "./onboarding-guide";
 import { TrafficChart, type TrafficSample } from "./traffic-chart";
@@ -419,7 +421,7 @@ export default function Connect() {
   const running = hasLocalAPI && (status?.engine.running ?? false);
   const sub = hasLocalAPI ? (status?.activeSub ?? null) : null;
   const quota = subscriptionQuota(sub);
-  const coreOpen = trafficState === "open";
+  const coreOpen = trafficState === "open" || Boolean(general.mode);
   const active = hasLocalAPI ? running : !isLocalTarget && coreOpen;
   const isSysproxy = hasLocalAPI
     ? (status?.preferences.systemProxy ??
@@ -611,6 +613,8 @@ export default function Connect() {
 
       {hasLocalAPI && !sub ? (
         <OnboardingGuide className="my-auto py-6" />
+      ) : !hasDaemonConfig() && !active ? (
+        <ExternalControllerOnboarding className="my-auto py-6" />
       ) : (
         <div className="grid w-full min-w-0 grid-cols-1 gap-4 [grid-template-areas:'control'_'aside'_'live'] @min-[46rem]/connect:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] @min-[46rem]/connect:[grid-template-areas:'control_aside'_'live_live']">
           <section
@@ -702,6 +706,14 @@ export default function Connect() {
                     </svg>
                   </span>
                 </button>
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-sm font-semibold text-foreground">
+                    {controller.name || "Controller"}
+                  </span>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {controller.url}
+                  </span>
+                </div>
               </div>
             )}
 

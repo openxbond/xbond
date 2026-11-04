@@ -820,6 +820,23 @@ const EN = {
     resync: "Fetch subscription again",
     resyncFailed: "Could not fetch the subscription. Retry in a moment.",
     downloaded: "Downloaded {{received}}",
+    webModeBadge: "Pure Web Mode · External Controller",
+    webModeTitle: "Connect External Controller",
+    webModeDesc:
+      "Running in pure Web mode without a local daemon. Enter your core controller address to manage nodes, rules, and traffic.",
+    connectAndSave: "Connect & Save",
+    quickFillOrigin: "Same Origin",
+    savedControllers: "Saved Controllers",
+    switchController: "Connect",
+    corsTip:
+      "Please check whether the core is running and external-controller allows cross-origin (CORS) access.",
+    unauthorizedTip:
+      "Authentication failed, please verify your controller secret.",
+    secretPlaceholder: "Optional, leave blank if no secret",
+    namePlaceholder: "e.g. Local Core / Router",
+    quickFill: "Quick fill:",
+    collapse: "Collapse",
+    expand: "Expand",
   },
   account: {
     applyingConfig: "Applying configuration…",

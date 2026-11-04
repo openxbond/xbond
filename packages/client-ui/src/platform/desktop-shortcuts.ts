@@ -47,7 +47,7 @@ export function handleDesktopShortcut(
   }
 
   const routes = [
-    "/connect",
+    "/",
     "/proxies",
     "/config",
     "/connections",

@@ -778,6 +778,22 @@ const HK = {
     resync: "重新取得訂閱",
     resyncFailed: "取得訂閱失敗，請稍後重試。",
     downloaded: "已下載 {{received}}",
+    webModeBadge: "純 Web 模式 · 外部控制器",
+    webModeTitle: "連接外部控制器",
+    webModeDesc:
+      "目前運行在純 Web 模式（無後台守護進程）。輸入你的核心控制器位址即可開始管理節點、規則與流量。",
+    connectAndSave: "連接並儲存",
+    quickFillOrigin: "同源位址",
+    savedControllers: "已儲存的控制器",
+    switchController: "連接",
+    corsTip:
+      "請檢查核心是否已啟動，且配置中 external-controller 允許跨域（CORS）存取。",
+    unauthorizedTip: "身份驗證失敗，請確認 Secret 金鑰是否正確。",
+    secretPlaceholder: "可選，若核心未配置金鑰可留空",
+    namePlaceholder: "例如：本機核心 / 軟路由",
+    quickFill: "快捷填入：",
+    collapse: "收起",
+    expand: "展開",
   },
   account: {
     applyingConfig: "正在套用配置…",

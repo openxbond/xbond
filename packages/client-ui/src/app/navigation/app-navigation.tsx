@@ -221,7 +221,9 @@ function NavLink({
   compact?: boolean;
 }) {
   const location = useLocation();
-  const isActive = location.pathname === item.path;
+  const isActive =
+    location.pathname === item.path ||
+    (item.path === "/" && location.pathname === "/connect");
   const { t } = useTranslation("sidebar");
   const { t: cfg } = useTranslation("configuration");
   const label = item.name === "Config" ? cfg("title") : t(navLabel(item.name));
@@ -256,7 +258,7 @@ export default function Sidebar(props: SidebarProps) {
   const { t: tPalette } = useTranslation("commandPalette");
   const location = useLocation();
   const desktopItems = [
-    { path: "/connect", name: "Connect" },
+    { path: "/", name: "Connect" },
     { path: "/proxies", name: "Proxies" },
     { path: "/config", name: "Config" },
     { path: "/connections", name: "Connections" },

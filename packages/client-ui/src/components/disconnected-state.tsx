@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useAPIInfo } from "@/state/controller-target";
+import { useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
 
 export interface DisconnectedStateProps {
@@ -21,10 +22,14 @@ export interface DisconnectedStateProps {
 }
 
 export function useIsServiceConnected() {
-  const { isLocalTarget, status, error } = useLocalAPI();
+  const { isLocalTarget, status } = useLocalAPI();
+  const { general, error: generalError } = useGeneral();
   const isLocal = isLocalTarget;
-  // If local, it is ONLY connected when the engine is actively running
-  const isConnected = isLocal ? Boolean(status?.engine.running) : !error;
+  // If local, it is ONLY connected when the engine is actively running.
+  // If remote, it is connected when general config is reachable without error.
+  const isConnected = isLocal
+    ? Boolean(status?.engine.running)
+    : Boolean(general.mode && !generalError);
   return {
     isLocal,
     isLoading: false,
@@ -106,7 +111,7 @@ export function DisconnectedState({
             )}
             {connecting ? tc("loading") : tconn("connect")}
           </Button>
-          <Button variant="outline" onClick={() => navigate("/connect")}>
+          <Button variant="outline" onClick={() => navigate("/")}>
             {tconn("goToConsole")}
             <ArrowRight className="ml-1.5 size-4" />
           </Button>
@@ -117,19 +122,25 @@ export function DisconnectedState({
     defaultTitle = tconn("remoteNote");
     defaultDescription = description ?? tconn("remoteDisconnectedDesc");
     defaultAction = (
-      <Button
-        variant="outline"
-        onClick={() =>
-          navigate(
-            target.id
-              ? `/config?item=controller:${target.id}`
-              : "/config?item=add-controller",
-          )
-        }
-      >
-        <Settings2 className="mr-1.5 size-4" />
-        {tconn("manageController")}
-      </Button>
+      <div className="flex flex-wrap items-center justify-center gap-2.5">
+        <Button onClick={() => navigate("/")}>
+          {tconn("goToConsole")}
+          <ArrowRight className="ml-1.5 size-4" />
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() =>
+            navigate(
+              target.id
+                ? `/config?item=controller:${target.id}`
+                : "/config?item=add-controller",
+            )
+          }
+        >
+          <Settings2 className="mr-1.5 size-4" />
+          {tconn("manageController")}
+        </Button>
+      </div>
     );
   }
 
