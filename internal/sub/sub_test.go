@@ -323,3 +323,40 @@ func TestCorruptStoreIsPreservedAndReported(t *testing.T) {
 		t.Fatal("preserved copy does not hold the corrupt bytes")
 	}
 }
+
+// sing-box 订阅原样存储：更新对比必须读 outbounds 原生结构，否则机场
+// 改名/删节点永远显示"无变化"。
+func TestComputeUpdateDiffSingBox(t *testing.T) {
+	oldSource := []byte(`{"outbounds":[
+		{"type":"selector","tag":"PROXY","outbounds":["HK-01","US-01"]},
+		{"type":"vless","tag":"HK-01","server":"1.2.3.4","server_port":443,"uuid":"fixture-only"},
+		{"type":"vless","tag":"US-01","server":"1.2.3.4","server_port":443,"uuid":"fixture-only"}
+	]}`)
+	newSource := []byte(`{"outbounds":[
+		{"type":"selector","tag":"PROXY","outbounds":["HK-01","SG-01"]},
+		{"type":"vless","tag":"HK-01","server":"1.2.3.4","server_port":443,"uuid":"fixture-only"},
+		{"type":"vless","tag":"SG-01","server":"1.2.3.4","server_port":443,"uuid":"fixture-only"}
+	]}`)
+
+	diff, err := ComputeUpdateDiff(oldSource, newSource)
+	if err != nil {
+		t.Fatalf("ComputeUpdateDiff failed: %v", err)
+	}
+	if len(diff.AddedNodes) != 1 || diff.AddedNodes[0] != "SG-01" {
+		t.Errorf("expected SG-01 added, got: %v", diff.AddedNodes)
+	}
+	if len(diff.RemovedNodes) != 1 || diff.RemovedNodes[0] != "US-01" {
+		t.Errorf("expected US-01 removed, got: %v", diff.RemovedNodes)
+	}
+	if !diff.ReloadRequired {
+		t.Error("a node change must require a reload")
+	}
+
+	same, err := ComputeUpdateDiff(newSource, newSource)
+	if err != nil {
+		t.Fatalf("ComputeUpdateDiff failed: %v", err)
+	}
+	if same.ReloadRequired || len(same.AddedNodes) != 0 || len(same.RemovedNodes) != 0 {
+		t.Errorf("identical sources must diff empty: %+v", same)
+	}
+}

@@ -841,6 +841,30 @@ func ComputeUpdateDiff(oldSource, newSource []byte) (*UpdateDiff, error) {
 }
 
 func extractOutbounds(source []byte) (nodes []string, groups []string, err error) {
+	// sing-box 订阅原样存储（DetectAndConvert 透传），diff 必须按其原生
+	// 结构读：outbounds 数组里 selector/urltest 是策略组，其余是节点。
+	var singBox struct {
+		Outbounds []struct {
+			Tag  string `json:"tag"`
+			Type string `json:"type"`
+		} `json:"outbounds"`
+	}
+	if err := json.Unmarshal(source, &singBox); err == nil && len(singBox.Outbounds) > 0 {
+		for _, outbound := range singBox.Outbounds {
+			if outbound.Tag == "" {
+				continue
+			}
+			if outbound.Type == "selector" || outbound.Type == "urltest" {
+				groups = append(groups, outbound.Tag)
+			} else {
+				nodes = append(nodes, outbound.Tag)
+			}
+		}
+		sort.Strings(nodes)
+		sort.Strings(groups)
+		return nodes, groups, nil
+	}
+
 	var raw struct {
 		Proxies []struct {
 			Name string `yaml:"name"`
