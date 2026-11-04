@@ -161,6 +161,14 @@ func applySingBoxLayers(source []byte, override *SubscriptionOverride, mixin *Gl
 
 	var prependRules []any
 	if mixin != nil && mixin.BypassLAN {
+		if !outboundTags["direct"] {
+			// sing-box 校验规则引用的出站时机在每条连接而非配置加载：缺
+			// "direct" 出站的订阅能通过 Validate，然后运行时每条私网连接
+			// 都报 "outbound not found"。补上缺失的保留出站。
+			items, _ := raw["outbounds"].([]any)
+			raw["outbounds"] = append(items, map[string]any{"type": "direct", "tag": "direct"})
+			outboundTags["direct"] = true
+		}
 		prependRules = append(prependRules, map[string]any{
 			"ip_is_private": true,
 			"outbound":      "direct",
