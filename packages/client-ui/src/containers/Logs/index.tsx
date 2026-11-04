@@ -11,19 +11,22 @@ import type { Log } from "@models/Log";
 import {
   useConfig,
   useGeneral,
-  useLogsStreamReader,
+  useLocalAPI,
+  useStreamReader,
   useStreamState,
 } from "@stores";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   List,
   type RowComponentProps,
   type ListImperativeAPI,
 } from "react-window";
+import useSWR from "swr";
 
 const levels = ["", "debug", "info", "warning", "error", "silent"];
+const logLimit = 1000;
 // Radix Select items reject empty strings, so the level "" (Default) is
 // carried by this sentinel and parsed back on change.
 const defaultLevel = "__default__";
@@ -63,10 +66,40 @@ export default function Logs() {
     set,
   } = useConfig();
   const { general } = useGeneral();
-  const reader = useLogsStreamReader();
-  const state = useStreamState(reader);
+  const level = logLevel || general.logLevel || "info";
+  const silent = level === "silent" || general.logLevel === "silent";
+  const {
+    daemonClient: client,
+    config,
+    daemonState,
+    isLocalTarget,
+  } = useLocalAPI();
+  const reader = useStreamReader<Log>(
+    isLocalTarget || silent ? null : `logs?level=${level}`,
+  );
+  const streamState = useStreamState(reader);
+  const logLevelForDaemon = level === "warning" ? "warn" : level;
+  const recent = useSWR(
+    isLocalTarget && client && config && !silent
+      ? ["/localapi/v0/logs", config.endpoint, config.token, logLevelForDaemon]
+      : null,
+    () => client?.getLogs(logLevelForDaemon, logLimit),
+    { refreshInterval: 1000, dedupingInterval: 500 },
+  );
+  const state = isLocalTarget
+    ? recent.error
+      ? "reconnecting"
+      : recent.data
+        ? "open"
+        : daemonState === "offline"
+          ? "closed"
+          : "connecting"
+    : streamState;
   const [logs, setLogs] = useState<Log[]>([]);
   const buffer = useRef<Log[]>([]);
+  const daemonCursor = useRef<{ client: typeof client; seq: number } | null>(
+    null,
+  );
   const [paused, setPaused] = useState(false);
   const pauseRef = useRef(false);
   const [search, setSearch] = useState("");
@@ -86,16 +119,38 @@ export default function Logs() {
       buffer.current = [
         ...buffer.current,
         ...entries.map((log) => ({ ...log, time: new Date() })),
-      ].slice(-1000);
+      ].slice(-logLimit);
       if (!pauseRef.current) setLogs(buffer.current);
     };
     reader.subscribe("data", onData);
     return () => reader.unsubscribe("data", onData);
   }, [reader]);
   useEffect(() => {
-    if (follow.current && filtered.length)
-      list.current?.scrollToRow({ index: filtered.length - 1, align: "end" });
-  }, [filtered]);
+    if (!client || !recent.data?.length) return;
+    const cursor = daemonCursor.current;
+    const entries =
+      cursor?.client === client
+        ? recent.data.filter((entry) => entry.seq > cursor.seq)
+        : recent.data;
+    const last = entries.at(-1);
+    if (!last) return;
+    // A cleared row stays cleared even when the next snapshot contains it.
+    daemonCursor.current = { client, seq: last.seq };
+    buffer.current = [
+      ...buffer.current,
+      ...entries.map(({ timestamp, level, message }) => ({
+        time: new Date(timestamp),
+        type: level,
+        payload: message,
+      })),
+    ].slice(-logLimit);
+    if (!pauseRef.current) setLogs(buffer.current);
+  }, [client, recent.data]);
+  const followLatest = useCallback(() => {
+    const element = list.current?.element;
+    if (follow.current && element) element.scrollTop = element.scrollHeight;
+  }, []);
+  useEffect(followLatest, [filtered, followLatest]);
   function togglePause() {
     pauseRef.current = !pauseRef.current;
     setPaused(pauseRef.current);
@@ -126,9 +181,7 @@ export default function Logs() {
     <div className="page logs-page">
       <Header title={t("title")}>
         <output className="text-sm text-muted-foreground">
-          {logLevel === "silent" || general.logLevel === "silent"
-            ? t("silent")
-            : r(state)}
+          {silent ? t("silent") : r(state)}
         </output>
       </Header>
       <div className="page-toolbar">
@@ -172,11 +225,7 @@ export default function Logs() {
           onClick={() => {
             follow.current = true;
             setFollowing(true);
-            if (filtered.length)
-              list.current?.scrollToRow({
-                index: filtered.length - 1,
-                align: "end",
-              });
+            followLatest();
           }}
         >
           {t("follow")}
@@ -203,19 +252,18 @@ export default function Logs() {
               <span className="w-[75px] shrink-0">{t("columns.level")}</span>
               <span>{t("columns.message")}</span>
             </div>
-            {/* CSS-only bounds: the box's height comes from flex layout
-                (basis 0), never from content, so the list can never grow to
-                render the whole buffer. No JS measurement in the loop. */}
-            <div className="log-list-box flex-1 overflow-hidden min-h-[320px]">
+            {/* Keep the list spacer out of the viewport's sizing. */}
+            <div className="log-list-box relative min-h-[320px] flex-1 overflow-hidden">
               <List
                 listRef={list}
                 rowCount={filtered.length}
                 rowHeight={34}
                 rowComponent={LogRow}
                 rowProps={{ logs: filtered }}
+                onResize={followLatest}
                 style={{
-                  height: "100%",
-                  width: "100%",
+                  position: "absolute",
+                  inset: 0,
                   overflow: "auto",
                 }}
                 onScroll={() => {

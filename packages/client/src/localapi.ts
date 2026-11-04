@@ -291,6 +291,13 @@ export interface LocalAPIConfig {
   token: string;
 }
 
+interface LocalAPILogEntry {
+  seq: number;
+  timestamp: string;
+  level: string;
+  message: string;
+}
+
 export class LocalAPIClient {
   private endpoint: string;
   private token: string;
@@ -340,6 +347,14 @@ export class LocalAPIClient {
       ...data,
       activeSub: data.activeSub ? normalizeSubscription(data.activeSub) : null,
     };
+  }
+
+  async getLogs(level: string, limit: number): Promise<LocalAPILogEntry[]> {
+    const query = new URLSearchParams({ level, limit: String(limit) });
+    const { logs } = await this.request<{ logs: LocalAPILogEntry[] }>(
+      `/localapi/v0/logs?${query}`,
+    );
+    return logs;
   }
 
   async up(options?: {

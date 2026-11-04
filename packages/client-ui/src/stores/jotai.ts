@@ -7,7 +7,6 @@ import {
 } from "@i18n";
 import { useWarpImmerSetter, type WritableDraft } from "@lib/jotai";
 import { isClashX, jsBridge } from "@lib/jsBridge";
-import { type Log } from "@models/Log";
 import { coreCapabilities } from "@xbond/client/capabilities";
 import { streamURL } from "@xbond/client/controller";
 import { partition } from "@xbond/client/helper";
@@ -337,18 +336,6 @@ export function useStreamState<T>(stream: StreamReader<T>) {
   const [state, setState] = useState<StreamState>("connecting");
   useEffect(() => stream.subscribeState(setState), [stream]);
   return state;
-}
-export function useLogsStreamReader() {
-  const { general } = useGeneral();
-  const {
-    data: { logLevel },
-  } = useConfig();
-  return useStreamReader<Log>(
-    logLevel === "silent" || general.logLevel === "silent"
-      ? null
-      : `logs?level=${logLevel || general.logLevel || "info"}`,
-    1000,
-  );
 }
 export function useConnectionStreamReader() {
   return useStreamReader<API.Snapshot>("connections");
