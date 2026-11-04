@@ -121,10 +121,10 @@ export function renderNodeTitle(name: string): ReactNode {
     const after = name.slice(matchEmoji.index + flagStr.length).trim();
 
     return (
-      <span className="inline-flex max-w-full min-w-0 items-center align-middle">
+      <span className="inline-flex w-full max-w-full min-w-0 items-center align-middle">
         {before && <span className="mr-1 shrink-0">{before} </span>}
         <CountryFlag code={countryCode} />
-        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
           {after || name}
         </span>
       </span>
@@ -136,9 +136,9 @@ export function renderNodeTitle(name: string): ReactNode {
   if (matchLeading) {
     const candidate = matchLeading[1].toLowerCase();
     return (
-      <span className="inline-flex max-w-full min-w-0 items-center align-middle">
+      <span className="inline-flex w-full max-w-full min-w-0 items-center align-middle">
         <CountryFlag code={candidate} />
-        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
           {matchLeading[2]}
         </span>
       </span>

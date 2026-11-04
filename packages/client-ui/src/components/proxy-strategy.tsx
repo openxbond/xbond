@@ -115,7 +115,7 @@ export function StrategyChoice({
     <li
       data-node={name}
       className={cn(
-        "node-grid-tile relative flex min-h-[42px] w-full list-none items-center justify-between gap-2 rounded-[9px] border bg-card p-0 transition-all duration-150 select-none focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring max-md:min-h-[46px] motion-reduce:transition-none",
+        "group node-grid-tile relative flex min-h-[42px] w-full list-none items-center justify-between gap-2 rounded-[9px] border bg-card p-0 transition-all duration-150 select-none focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring max-md:min-h-[46px] motion-reduce:transition-none",
         selected
           ? "border-brand bg-brand-soft shadow-xs"
           : disabled
@@ -140,7 +140,7 @@ export function StrategyChoice({
         <span
           title={name}
           className={cn(
-            "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-foreground",
+            "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-foreground",
             selected && "font-semibold text-brand-text",
           )}
         >

@@ -1,3 +1,5 @@
+import { compareDesc } from "@xbond/client/latency";
+import { ArrowUpDown, Zap } from "lucide-react";
 import { useMemo, useState, createContext, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -25,6 +27,7 @@ import { useLatency } from "./latency-context";
 import { useProxy, useProxyProviders, useProxyMapping } from "./proxy-data";
 import { Group } from "./proxy-group-panel";
 import { Provider } from "./proxy-provider-card";
+import { Proxy } from "./proxy-row";
 const SearchContext = createContext("");
 
 function ProxyGroups() {
@@ -141,6 +144,97 @@ function ProxyProviders() {
         </div>
       )}
     </>
+  );
+}
+
+function Proxies() {
+  const { proxies } = useProxy();
+  const mapping = useProxyMapping();
+  const { results, run, progress } = useLatency();
+  const { t } = useTranslation("proxies");
+  const search = useContext(SearchContext).toLowerCase();
+
+  const [sort, setSort] = useState<"default" | "latency" | "name">("default");
+
+  const testNames = useMemo(
+    () =>
+      [...mapping.values()]
+        .filter(
+          (proxy) =>
+            !("all" in proxy) &&
+            !["Direct", "Reject", "DNS"].includes(proxy.type) &&
+            (!search || proxy.name.toLowerCase().includes(search)),
+        )
+        .map((proxy) => proxy.name),
+    [mapping, search],
+  );
+
+  const sortedProxies = useMemo(() => {
+    const list = proxies.filter(
+      (p) => !search || p.name.toLowerCase().includes(search),
+    );
+    if (sort === "name") {
+      return list.slice().sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (sort === "latency") {
+      return list.slice().sort((a, b) => -1 * compareDesc(a, b, results));
+    }
+    return list;
+  }, [sort, proxies, results, search]);
+
+  if (!sortedProxies.length) return null;
+
+  const cycleSort = () => {
+    setSort((current) =>
+      current === "default"
+        ? "latency"
+        : current === "latency"
+          ? "name"
+          : "default",
+    );
+  };
+
+  const sortLabel =
+    sort === "latency"
+      ? t("sortLatency")
+      : sort === "name"
+        ? t("sortName")
+        : t("sortDefault");
+
+  return (
+    <div className="mt-8 flex flex-col">
+      <Header title={t("title")}>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={t("sortState", { mode: sortLabel })}
+          className="ml-2 text-muted-foreground hover:text-foreground"
+          onClick={cycleSort}
+        >
+          <ArrowUpDown className="mr-1.5 size-4" />
+          <span className="text-xs">{sortLabel}</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-2 text-brand-text hover:text-brand-text"
+          disabled={progress.running || !testNames.length}
+          onClick={() => {
+            void run(testNames);
+          }}
+        >
+          <Zap className="mr-1.5 size-4" />
+          <span className="text-xs">{t("speedTest")}</span>
+        </Button>
+      </Header>
+      <ul className="mt-5 mb-10 grid list-none grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4 p-0 max-md:grid-cols-1">
+        {sortedProxies.map((p) => (
+          <li key={p.name}>
+            <Proxy config={p} />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -357,6 +451,7 @@ function ProxyPage() {
         )}
         <ProxyGroups />
         <ProxyProviders />
+        <Proxies />
         {search &&
           ![...mapping.keys()].some((name) =>
             name.toLowerCase().includes(search.toLowerCase()),

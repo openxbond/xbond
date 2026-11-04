@@ -382,7 +382,7 @@ export function Group({
       {/* Multi-column High-Density Matrix of Node Tiles — desktop scrolls
           inside this grid so the group tools stay pinned above it. */}
       <ul
-        className="m-0 grid list-none content-start gap-2 overflow-y-auto p-0 pr-1 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] max-md:grid-cols-1 max-md:overflow-visible md:min-h-0 md:flex-1"
+        className="m-0 grid list-none content-start gap-2 overflow-y-auto p-0 pr-1 grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-md:grid-cols-1 max-md:overflow-visible md:min-h-0 md:flex-1"
         ref={gridRef}
       >
         {names.map((name) => {
@@ -439,8 +439,9 @@ export function Group({
                 type="button"
                 className={cn(
                   "inline-flex size-6 max-md:size-10 shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
-                  isPinned(name) &&
-                    "border-amber-500/40 text-amber-500 hover:text-amber-600 dark:text-amber-400",
+                  isPinned(name)
+                    ? "border-amber-500/40 text-amber-500 hover:text-amber-600 dark:text-amber-400"
+                    : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100",
                 )}
                 title={isPinned(name) ? t("unpin") : t("pin")}
                 aria-label={isPinned(name) ? t("unpin") : t("pin")}
@@ -468,7 +469,9 @@ export function Group({
                   type="button"
                   className={cn(
                     "inline-flex size-6 max-md:size-10 shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
-                    isTesting && "animate-pulse text-brand-text opacity-70",
+                    isTesting
+                      ? "animate-pulse text-brand-text opacity-70"
+                      : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100",
                   )}
                   title={t("testNode")}
                   aria-label={t("testNodeAria", { name })}
