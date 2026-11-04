@@ -71,7 +71,7 @@ export default function App() {
   const layout = (
     <div
       className={cn(
-        "h-[100dvh] min-h-0 overflow-hidden p-3 pl-[212px]",
+        "h-[100dvh] min-h-0 overflow-hidden p-3 pl-[228px]",
         "max-md:pt-[calc(var(--topbar-height)+env(safe-area-inset-top))] max-md:pr-0 max-md:pb-[calc(84px+env(safe-area-inset-bottom))] max-md:pl-0",
         !isClashX() &&
           "bg-[image:radial-gradient(ellipse_at_top_left,var(--surface-inset),transparent_65%)] bg-background",

@@ -285,7 +285,7 @@ export default function Sidebar(props: SidebarProps) {
 
       {/* 桌面玻璃浮島側欄 */}
       <nav
-        className="fixed inset-y-3 left-3 z-50 flex w-[188px] flex-col rounded-rail border border-[var(--glass-border)] bg-[var(--glass-bg)] text-sidebar-foreground shadow-elevation-card backdrop-blur-[var(--glass-blur)] select-none supports-[not_(backdrop-filter:blur(1px))]:bg-sidebar max-md:hidden"
+        className="fixed inset-y-3 left-3 z-50 flex w-[204px] flex-col rounded-rail border border-[var(--glass-border)] bg-[var(--glass-bg)] text-sidebar-foreground shadow-elevation-card backdrop-blur-[var(--glass-blur)] select-none supports-[not_(backdrop-filter:blur(1px))]:bg-sidebar max-md:hidden"
         aria-label={t("home")}
       >
         <div className="flex items-center gap-2.5 px-[18px] pt-5 pb-3.5">

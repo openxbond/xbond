@@ -1,13 +1,13 @@
 @layer components {
   .config-page {
+    container: config-page / inline-size;
     gap: 16px;
   }
   .config-workspace {
     display: grid;
     grid-template-columns: clamp(260px, 22vw, 300px) minmax(0, 1fr);
     height: calc(100dvh - 150px);
-    min-height: 480px;
-    max-height: calc(100dvh - 150px);
+    min-height: 0;
     border-radius: var(--radius-card, 24px);
     background: var(--card);
     box-shadow: var(--shadow-elevation-card);
@@ -102,6 +102,7 @@
     outline-offset: 1px;
   }
   .config-detail {
+    container: config-detail / inline-size;
     min-width: 0;
     height: 100%;
     overflow-y: auto;
@@ -109,6 +110,9 @@
     scrollbar-color: color-mix(in oklch, var(--border) 80%, transparent)
       transparent;
     padding: clamp(20px, 2.5vw, 36px);
+  }
+  .config-back {
+    display: none;
   }
   .config-detail-stack {
     display: flex;
@@ -197,10 +201,10 @@
   }
   .config-unified-trigger {
     display: flex;
-    min-height: 52px;
+    min-height: 48px;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: 8px;
+    padding: 7px 9px;
     border-radius: 12px;
     cursor: pointer;
     list-style: none;
@@ -305,7 +309,7 @@
     border-top: 1px solid var(--border);
     margin-block: 6px;
   }
-  @media (max-width: 767px) {
+  @container config-page (width < 50rem) {
     .config-workspace {
       display: block;
       height: auto;
@@ -331,6 +335,11 @@
     .config-workspace.has-selection .config-detail {
       display: block;
     }
+    .config-back {
+      display: block;
+    }
+  }
+  @media (max-width: 767px) {
     .config-detail input,
     .config-detail textarea {
       font-size: 16px;

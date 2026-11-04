@@ -67,6 +67,8 @@ export function ConfigMenu() {
     external.push({ ...target });
   }
 
+  const universalSubs = subscriptions.filter((item) => !isCloudSub(item));
+
   const select = useSelectController();
   const location = useLocation();
   const navigate = useNavigate();
@@ -85,13 +87,16 @@ export function ConfigMenu() {
 
   const activeSubtitle = local
     ? isCloudActive
-      ? account?.status === "signed_in"
-        ? account.name || account.email || t("cloud")
-        : t("cloud")
+      ? t("activeLocal")
       : activeSub?.format
         ? `${activeSub.format} · ${t("activeLocal")}`
         : t("activeLocal")
     : t("controllers");
+
+  const activeTooltip =
+    isCloudActive && (account?.name || account?.email)
+      ? `${activeName} (${account.name || account.email})`
+      : activeName;
 
   const triggerIconKind = local
     ? isCloudActive
@@ -123,13 +128,10 @@ export function ConfigMenu() {
         }
       }}
     >
-      <summary className="config-unified-trigger">
-        <ResourceIcon kind={triggerIconKind} className="size-8 shrink-0" />
+      <summary className="config-unified-trigger" title={activeTooltip}>
+        <ResourceIcon kind={triggerIconKind} className="size-7.5 shrink-0" />
         <span className="min-w-0 flex-1">
-          <span
-            className="block truncate text-sm font-semibold leading-tight text-foreground"
-            title={activeName}
-          >
+          <span className="block truncate text-sm font-semibold leading-tight text-foreground">
             {activeName}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">
@@ -143,51 +145,52 @@ export function ConfigMenu() {
       </summary>
 
       <div className="config-unified-panel">
-        {/* Section 1: Profiles Switcher */}
-        <p className="config-menu-heading">{t("profiles")}</p>
-
-        {/* XBond Cloud Option */}
+        {/* Target 1: XBond Cloud */}
         {supported && (
-          <button
-            className={cn("config-menu-item", isCloudActive && "is-active")}
-            type="button"
-            disabled={pending || Boolean(operation) || isCloudActive}
-            onClick={() => {
-              if (account?.status === "signed_in") {
-                void run(async () => {
-                  await activateCloud();
+          <div className="config-menu-section">
+            <p className="config-menu-heading">{t("cloud")}</p>
+            <button
+              className={cn("config-menu-item", isCloudActive && "is-active")}
+              type="button"
+              disabled={pending || Boolean(operation) || isCloudActive}
+              onClick={() => {
+                if (account?.status === "signed_in") {
+                  void run(async () => {
+                    await activateCloud();
+                    close();
+                  });
+                } else {
+                  // 未登入不是死路：帶用戶到配置頁的 Cloud 詳情登入。
                   close();
-                });
-              } else {
-                // 未登入不是死路：帶用戶到配置頁的 Cloud 詳情登入。
-                close();
-                navigate({ pathname: "/config", search: "?item=cloud" });
-              }
-            }}
-          >
-            <ResourceIcon kind="cloud" className="size-7 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">
-              <span className="font-medium text-foreground">XBond Cloud</span>
-              <small>
-                {account?.status === "signed_in"
-                  ? account.name || account.email || t("ready")
-                  : a("loginCta")}
-              </small>
-            </span>
-            {isCloudActive && (
-              <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
-                <Check className="size-3.5" />
-                {t("activeLocal")}
+                  navigate({ pathname: "/config", search: "?item=cloud" });
+                }
+              }}
+            >
+              <ResourceIcon kind="cloud" className="size-7 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">
+                <span className="font-medium text-foreground">XBond Cloud</span>
+                <small>
+                  {account?.status === "signed_in"
+                    ? account.name || account.email || t("ready")
+                    : a("loginCta")}
+                </small>
               </span>
-            )}
-          </button>
+              {isCloudActive && (
+                <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
+                  <Check className="size-3.5" />
+                  {t("activeLocal")}
+                </span>
+              )}
+            </button>
+          </div>
         )}
 
-        {/* Universal Profiles List */}
-        {supported &&
-          subscriptions
-            .filter((item) => !isCloudSub(item))
-            .map((item) => {
+        {/* Target 2: 订阅与本地配置 */}
+        {supported && universalSubs.length > 0 && (
+          <div className="config-menu-section">
+            <div className="config-menu-divider" />
+            <p className="config-menu-heading">{t("profiles")}</p>
+            {universalSubs.map((item) => {
               const isSubActive = local && activeId === item.id;
               return (
                 <button
@@ -232,36 +235,14 @@ export function ConfigMenu() {
                 </button>
               );
             })}
+          </div>
+        )}
 
-        {/* Section 2: External Controllers / Target Switching */}
+        {/* Target 3: 外部控制器 (ONLY external remote controllers; NEVER local daemon) */}
         {external.length > 0 && (
-          <>
+          <div className="config-menu-section">
             <div className="config-menu-divider" />
             <p className="config-menu-heading">{t("controllers")}</p>
-
-            {/* This Device */}
-            {supported && (
-              <button
-                className={cn("config-menu-item", local && "is-active")}
-                type="button"
-                disabled={local || Boolean(operation)}
-                onClick={() => {
-                  select(DAEMON_CONTROLLER_ID);
-                  close();
-                }}
-              >
-                <ResourceIcon kind="local" className="size-7 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">
-                  <span className="font-medium text-foreground">
-                    {t("localService")}
-                  </span>
-                  <small>{t("localScope")}</small>
-                </span>
-                {local && <Check className="size-3.5 shrink-0 text-brand" />}
-              </button>
-            )}
-
-            {/* Remote Controllers */}
             {external.map((item) => {
               const isCtrlActive =
                 !local && target.id === item.id && target.url === item.url;
@@ -287,12 +268,15 @@ export function ConfigMenu() {
                     <small>{new URL(item.url).host}</small>
                   </span>
                   {isCtrlActive && (
-                    <Check className="size-3.5 shrink-0 text-brand" />
+                    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
+                      <Check className="size-3.5" />
+                      {t("activeLocal")}
+                    </span>
                   )}
                 </button>
               );
             })}
-          </>
+          </div>
         )}
 
         {/* Footer Quick Links */}
