@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/openxbond/xbond/internal/account"
+	"github.com/openxbond/xbond/internal/daemon/service"
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/paths"
@@ -240,6 +241,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/doctor", s.authMiddleware(s.handleDoctor))
 	mux.HandleFunc("/localapi/v0/bugreport", s.authMiddleware(s.handleBugReport))
 	mux.HandleFunc("/localapi/v0/shutdown", s.authMiddleware(s.handleShutdown))
+	mux.HandleFunc("/localapi/v0/service/install", s.authMiddleware(s.handleServiceInstall))
 
 	// Web UI static files
 	mux.HandleFunc("/", s.handleWeb)
@@ -1119,6 +1121,26 @@ func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, response)
 	s.shutdownOnce.Do(func() { close(s.shutdownCh) })
+}
+
+func (s *Server) handleServiceInstall(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error": "method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	selfPath, err := service.SelfPath()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if err := service.Install(selfPath, service.ScopeSystem); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":      true,
+		"message": "service installation requested",
+	})
 }
 
 func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {

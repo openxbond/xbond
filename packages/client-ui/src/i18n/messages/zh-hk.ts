@@ -607,6 +607,18 @@ const HK = {
       allowLanDesc: "允許同一區域網絡內的其他裝置使用此代理",
       sysproxyDesc: "接管瀏覽器與標準 HTTP/SOCKS 流量",
       tunDesc: "接管整機所有應用的流量",
+      tunPrivilegeRequired: "需要系統服務與管理員權限",
+      tunPrivilegeHint: "虛擬網卡 (TUN) 需要系統特權服務接管整機流量",
+      installService: "提升權限並安裝服務",
+      installingService: "正在提升權限...",
+      serviceInstalled: "系統特權服務已就緒",
+      installServicePrompt:
+        "已請求提升權限，請在系統彈出的 UAC 提示視窗中允許繼續。",
+      installServiceSuccess: "系統特權服務安裝成功，TUN 虛擬網卡已就緒",
+      installServiceFailed: "安裝服務失敗：{{error}}",
+      privilegeDialogTitle: "需要安裝系統特權服務",
+      privilegeDialogDesc:
+        "虛擬網卡 (TUN) 需要以系統管理員特權運行的後台服務來建立虛擬網卡並接管整機流量。是否現在請求提升權限並安裝服務？",
       tunUnavailable: {
         not_elevated:
           "TUN 需要系統管理員權限——請以系統管理員身份重啟守護行程。",

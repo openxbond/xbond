@@ -197,6 +197,7 @@ export interface LocalAPICapabilities {
   tun: boolean;
   tunReasonCode?: "not_elevated" | "not_root" | "wintun_missing";
   tunReason?: string;
+  serviceInstalled?: boolean;
 }
 
 export interface LocalAPIStatusResponse {
@@ -712,5 +713,11 @@ export class LocalAPIClient {
 
   async getBugReport(): Promise<unknown> {
     return this.request("/localapi/v0/bugreport");
+  }
+
+  async installService(): Promise<{ ok: boolean; message?: string }> {
+    return this.request("/localapi/v0/service/install", {
+      method: "POST",
+    });
   }
 }

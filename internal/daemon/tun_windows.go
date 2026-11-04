@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	"github.com/openxbond/xbond/internal/daemon/service"
 	"github.com/openxbond/xbond/internal/platform/wintun"
 )
 
@@ -25,28 +26,32 @@ var (
 // needs an elevated token to open the wintun adapter, and the wintun driver
 // DLL must be findable — the executable's directory or System32.
 func tunCapability() TUNCapability {
+	svcInstalled := service.InstalledScope(service.ScopeSystem)
 	elevated, err := isElevated()
 	if err != nil {
 		return TUNCapability{
-			ReasonCode: "not_elevated",
-			Reason:     fmt.Sprintf("could not determine elevation: %v", err),
+			ServiceInstalled: svcInstalled,
+			ReasonCode:       "not_elevated",
+			Reason:           fmt.Sprintf("could not determine elevation: %v", err),
 		}
 	}
 	if !elevated {
 		return TUNCapability{
-			ReasonCode: "not_elevated",
-			Reason:     "TUN takeover requires administrator privileges; restart the daemon as Administrator",
+			ServiceInstalled: svcInstalled,
+			ReasonCode:       "not_elevated",
+			Reason:           "TUN takeover requires administrator privileges; restart the daemon as Administrator",
 		}
 	}
 	// The packaged DLL ships inside the binary: extract beside the
 	// executable before reporting it missing.
 	if !wintun.EnsureLocal() {
 		return TUNCapability{
-			ReasonCode: "wintun_missing",
-			Reason:     "wintun.dll could not be extracted next to the executable and was not found in System32",
+			ServiceInstalled: svcInstalled,
+			ReasonCode:       "wintun_missing",
+			Reason:           "wintun.dll could not be extracted next to the executable and was not found in System32",
 		}
 	}
-	return TUNCapability{Tun: true}
+	return TUNCapability{Tun: true, ServiceInstalled: svcInstalled}
 }
 
 func isElevated() (bool, error) {

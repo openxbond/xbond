@@ -606,6 +606,18 @@ const CN = {
       allowLanDesc: "允许同一局域网内的其他设备使用此代理",
       sysproxyDesc: "接管浏览器与标准 HTTP/SOCKS 流量",
       tunDesc: "接管整机所有应用的流量",
+      tunPrivilegeRequired: "需要系统服务与管理员权限",
+      tunPrivilegeHint: "虚拟网卡 (TUN) 需要系统特权服务接管整机流量",
+      installService: "提升权限并安装服务",
+      installingService: "正在提升权限...",
+      serviceInstalled: "系统特权服务已就绪",
+      installServicePrompt:
+        "已请求提升权限，请在系统弹出的 UAC 提示窗口中允许继续。",
+      installServiceSuccess: "系统特权服务安装成功，TUN 虚拟网卡已就绪",
+      installServiceFailed: "安装服务失败：{{error}}",
+      privilegeDialogTitle: "需要安装系统特权服务",
+      privilegeDialogDesc:
+        "虚拟网卡 (TUN) 需要以系统管理员特权运行的后台服务来创建虚拟网卡并接管整机流量。是否现在请求提升权限并安装服务？",
       tunUnavailable: {
         not_elevated: "TUN 需要管理员权限——请以管理员身份重启守护进程。",
         not_root: "TUN 需要 root 权限——请以 root 重启守护进程。",

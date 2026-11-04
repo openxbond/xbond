@@ -622,6 +622,20 @@ const KO = {
       allowLanDesc: "같은 LAN의 다른 기기가 이 프록시를 사용하도록 허용",
       sysproxyDesc: "브라우저와 표준 HTTP/SOCKS 트래픽을 인계합니다",
       tunDesc: "모든 애플리케이션의 트래픽을 인계합니다",
+      tunPrivilegeRequired: "시스템 서비스 및 관리자 권한 필요",
+      tunPrivilegeHint:
+        "가상 네트워크 카드(TUN)는 전체 시스템 트래픽을 처리하기 위해 권한 있는 서비스가 필요합니다",
+      installService: "권한 상승 및 서비스 설치",
+      installingService: "권한 상승 중...",
+      serviceInstalled: "시스템 서비스 준비 완료",
+      installServicePrompt:
+        "권한 상승이 요청되었습니다. 시스템 UAC 창에서 계속을 허용해 주세요.",
+      installServiceSuccess:
+        "시스템 서비스가 설치되었습니다. 가상 네트워크 카드(TUN)를 사용할 수 있습니다.",
+      installServiceFailed: "서비스 설치 실패: {{error}}",
+      privilegeDialogTitle: "권한 있는 시스템 서비스 필요",
+      privilegeDialogDesc:
+        "가상 네트워크 카드(TUN)는 가상 어댑터를 생성하고 전체 시스템 트래픽을 처리하기 위해 시스템 관리자 권한으로 실행되는 백그라운드 서비스가 필요합니다. 지금 권한을 상승하고 서비스를 설치하시겠습니까?",
       tunUnavailable: {
         not_elevated:
           "TUN에는 관리자 권한이 필요합니다 — 데몬을 관리자 권한으로 다시 시작하세요.",

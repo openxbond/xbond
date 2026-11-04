@@ -81,6 +81,13 @@ export function useLocalAPI() {
     [daemonClient],
   );
 
+  const installService = useCallback(async () => {
+    if (!daemonClient) throw new Error("LocalAPI not available");
+    const res = await daemonClient.installService();
+    await mutateStatus();
+    return res;
+  }, [daemonClient, mutateStatus]);
+
   return {
     hasLocalAPI,
     isLocalTarget,
@@ -97,5 +104,6 @@ export function useLocalAPI() {
     restart,
     setMode,
     selectNode,
+    installService,
   };
 }

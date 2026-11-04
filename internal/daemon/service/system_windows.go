@@ -11,6 +11,8 @@ import (
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
+
+	"github.com/openxbond/xbond/internal/platform/wintun"
 )
 
 // The machine-scoped daemon is a real Windows service (LocalSystem, delayed
@@ -86,6 +88,8 @@ func installSystem(exePath string) error {
 	if ok, err := isElevated(); err != nil || !ok {
 		return elevateForSystemAction(exePath, "system-install")
 	}
+	_ = wintun.EnsureLocal()
+
 	m, err := mgr.Connect()
 	if err != nil {
 		return fmt.Errorf("failed to connect to the service manager: %w", err)
@@ -93,8 +97,12 @@ func installSystem(exePath string) error {
 	defer m.Disconnect()
 
 	if existing, err := m.OpenService(systemServiceName); err == nil {
+		status, qerr := existing.Query()
 		existing.Close()
-		return fmt.Errorf("service %q already exists; uninstall it first", systemServiceName)
+		if qerr == nil && (status.State == svc.Running || status.State == svc.StartPending) {
+			return nil
+		}
+		return startSystemInstalled(m)
 	}
 	svc, err := m.CreateService(
 		systemServiceName,

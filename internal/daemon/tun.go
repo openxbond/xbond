@@ -12,4 +12,6 @@ type TUNCapability struct {
 	ReasonCode string `json:"tunReasonCode,omitempty"`
 	// Reason is the English detail for logs and doctor output.
 	Reason string `json:"tunReason,omitempty"`
+	// ServiceInstalled reports whether a system-level background service is registered.
+	ServiceInstalled bool `json:"serviceInstalled"`
 }

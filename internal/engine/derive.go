@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/config"
+	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/sagernet/sing-box"
 	_ "github.com/sagernet/sing-box/experimental/clashapi" // registers the clash API server

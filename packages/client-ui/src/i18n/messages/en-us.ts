@@ -633,6 +633,20 @@ const EN = {
       allowLanDesc: "Let other devices on the same LAN use this proxy",
       sysproxyDesc: "Takes over browser and standard HTTP/SOCKS traffic",
       tunDesc: "Takes over traffic from all applications",
+      tunPrivilegeRequired: "System Service & Elevation Required",
+      tunPrivilegeHint:
+        "Virtual NIC (TUN) requires a privileged service to capture system traffic",
+      installService: "Elevate & Install Service",
+      installingService: "Elevating...",
+      serviceInstalled: "Privileged service ready",
+      installServicePrompt:
+        "Elevation requested. Please approve the system UAC prompt to proceed.",
+      installServiceSuccess:
+        "System service installed successfully. Virtual NIC (TUN) is ready.",
+      installServiceFailed: "Failed to install service: {{error}}",
+      privilegeDialogTitle: "Privileged Service Required",
+      privilegeDialogDesc:
+        "Virtual NIC (TUN) requires a background service running with system administrator privileges to configure network adapters and capture whole-system traffic. Would you like to elevate privileges and install the service now?",
       tunUnavailable: {
         not_elevated:
           "TUN needs administrator privileges — restart the daemon as Administrator.",

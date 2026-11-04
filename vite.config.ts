@@ -77,6 +77,10 @@ export default defineConfig((env) => ({
     sourcemap: false,
     reportCompressedSize: false,
     rollupOptions: {
+      // react-router/jotai/sonner/lucide ship "use client" for RSC frameworks;
+      // every module here is client code, so Rolldown dropping the directive
+      // is harmless. https://rolldown.rs/in-depth/directives
+      checks: { moduleLevelDirective: false },
       output: {
         // keep the vendor bundle split for long-term caching
         manualChunks(id) {

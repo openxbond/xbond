@@ -11,12 +11,24 @@ import { atomWithStorage } from "jotai/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 import { CountryFlag } from "@/components/country-flag";
 import { nodeFlagCode, stripFlagEmoji } from "@/components/country-flag";
 import { SegmentedControl } from "@/components/segmented-control";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useProxy, useProxyMapping } from "@/features/proxies/proxy-data";
 import { useNodeSelection } from "@/features/proxies/use-node-selection";
@@ -290,6 +302,7 @@ export default function Connect() {
     down,
     setMode,
     refresh,
+    installService,
     config: localConfig,
     error: localError,
   } = useLocalAPI();
@@ -297,6 +310,43 @@ export default function Connect() {
   const setIdentity = useSetAtom(identityAtom);
   const [focus, setFocus] = useAtom(focusAtom);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [installingService, setInstallingService] = useState(false);
+  const [privilegeDialogOpen, setPrivilegeDialogOpen] = useState(false);
+
+  const handleInstallService = useCallback(async () => {
+    if (!installService) return;
+    setInstallingService(true);
+    try {
+      toast.info(st("takeover.installServicePrompt"));
+      const res = await installService();
+      if (!res?.ok) {
+        setInstallingService(false);
+        toast.error(
+          st("takeover.installServiceFailed", {
+            error: res?.message || "Failed",
+          }),
+        );
+        return;
+      }
+      let elapsed = 0;
+      const timer = setInterval(() => {
+        elapsed += 1000;
+        void refresh().then((updated) => {
+          if (updated?.capabilities?.tun || elapsed >= 15000) {
+            clearInterval(timer);
+            setInstallingService(false);
+            if (updated?.capabilities?.tun) {
+              toast.success(st("takeover.installServiceSuccess"));
+            }
+          }
+        });
+      }, 1000);
+    } catch (err: unknown) {
+      setInstallingService(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(st("takeover.installServiceFailed", { error: msg }));
+    }
+  }, [installService, refresh, st]);
 
   const available = general.mode.toLowerCase() === "global" ? [global] : groups;
   const focusKey = controllerIdentity(controller.id, controller.url);
@@ -963,23 +1013,63 @@ export default function Connect() {
                         {st("takeover.tunDesc")}
                       </span>
                     </div>
-                    <Switch
-                      checked={isTun}
-                      disabled={pending || status?.capabilities?.tun === false}
-                      onCheckedChange={(checked: boolean) =>
-                        void run(() => setMode({ tun: checked }), false)
-                      }
-                      aria-label={t("tun")}
-                    />
+                    <div
+                      className="inline-flex cursor-pointer"
+                      onClick={(e) => {
+                        if (status?.capabilities?.tun === false) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setPrivilegeDialogOpen(true);
+                        }
+                      }}
+                    >
+                      <Switch
+                        checked={isTun}
+                        disabled={
+                          pending ||
+                          installingService ||
+                          status?.capabilities?.tun === false
+                        }
+                        onCheckedChange={(checked: boolean) =>
+                          void run(() => setMode({ tun: checked }), false)
+                        }
+                        aria-label={t("tun")}
+                      />
+                    </div>
                   </div>
-                  {status?.capabilities?.tun === false &&
-                    status?.capabilities?.tunReasonCode && (
-                      <p className="px-1 text-xs text-warning-text leading-tight">
-                        {st(
-                          `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                  {status?.capabilities?.tun === false && (
+                    <div className="flex items-center justify-between gap-2.5 rounded-lg border border-warning/25 bg-warning/10 p-2 text-xs">
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="font-semibold text-warning-text leading-tight">
+                          {st("takeover.tunPrivilegeRequired")}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground leading-tight">
+                          {status?.capabilities?.tunReasonCode
+                            ? st(
+                                `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                              )
+                            : st("takeover.tunPrivilegeHint")}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 shrink-0 px-2.5 text-xs font-medium border-warning/30 hover:bg-warning/20 hover:text-warning-text"
+                        disabled={pending || installingService}
+                        onClick={() => void handleInstallService()}
+                      >
+                        {installingService ? (
+                          <>
+                            <Spinner className="mr-1.5 size-3" />
+                            {st("takeover.installingService")}
+                          </>
+                        ) : (
+                          st("takeover.installService")
                         )}
-                      </p>
-                    )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Inbound mixed port info */}
@@ -1290,6 +1380,33 @@ export default function Connect() {
           }}
         />
       )}
+
+      <AlertDialog
+        open={privilegeDialogOpen}
+        onOpenChange={setPrivilegeDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {st("takeover.privilegeDialogTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {st("takeover.privilegeDialogDesc")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setPrivilegeDialogOpen(false);
+                void handleInstallService();
+              }}
+            >
+              {st("takeover.installService")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
