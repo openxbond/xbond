@@ -1,4 +1,8 @@
 import { Button, ButtonSelect, Input } from "@components";
+import { Alert, AlertDescription } from "@components/ui/alert";
+import { Field, FieldGroup, FieldLabel } from "@components/ui/field";
+import { Spinner } from "@components/ui/spinner";
+import { Textarea } from "@components/ui/textarea";
 import { useLanguage, useLocalAPI, useSubscriptions } from "@stores";
 import { subscriptionLang } from "@xbond/client/localapi";
 import { useState } from "react";
@@ -81,91 +85,101 @@ export default function ImportConfig({
         aria-busy={pending}
         aria-label={c("addProfile")}
       >
-        <ButtonSelect<"url" | "file" | "paste">
-          value={mode}
-          options={[
-            { value: "url", label: t("modeUrl") },
-            { value: "file", label: t("modeFile") },
-            { value: "paste", label: t("modePaste") },
-          ]}
-          onSelect={(value) => {
-            setMode(value);
-            setError("");
-          }}
-          disabled={pending}
-        />
-        <label className="grid gap-2 text-sm">
-          {s("namePlaceholder")}
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+        <FieldGroup className="gap-5">
+          <ButtonSelect<"url" | "file" | "paste">
+            value={mode}
+            options={[
+              { value: "url", label: t("modeUrl") },
+              { value: "file", label: t("modeFile") },
+              { value: "paste", label: t("modePaste") },
+            ]}
+            onSelect={(value) => {
+              setMode(value);
+              setError("");
+            }}
             disabled={pending}
           />
-        </label>
-        {mode === "url" && (
-          <label className="grid gap-2 text-sm">
-            {t("urlPlaceholder")}
+          <Field className="gap-2" data-disabled={pending}>
+            <FieldLabel htmlFor="import-name">
+              {s("namePlaceholder")}
+            </FieldLabel>
             <Input
-              type="url"
-              required
-              value={url}
-              onChange={(e) => setURL(e.target.value)}
-              placeholder="https://"
+              id="import-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               disabled={pending}
             />
-          </label>
-        )}
-        {mode === "file" && (
-          <label className="grid gap-2 text-sm">
-            {t("chooseFile")}
-            <input
-              className="config-file"
-              type="file"
-              accept=".json,.yaml,.yml,.conf,.txt"
-              required
+          </Field>
+          {mode === "url" && (
+            <Field className="gap-2" data-disabled={pending}>
+              <FieldLabel htmlFor="import-url">
+                {t("urlPlaceholder")}
+              </FieldLabel>
+              <Input
+                id="import-url"
+                type="url"
+                required
+                value={url}
+                onChange={(e) => setURL(e.target.value)}
+                placeholder="https://"
+                disabled={pending}
+              />
+            </Field>
+          )}
+          {mode === "file" && (
+            <Field className="gap-2" data-disabled={pending}>
+              <FieldLabel htmlFor="import-file">{t("chooseFile")}</FieldLabel>
+              <Input
+                id="import-file"
+                type="file"
+                accept=".json,.yaml,.yml,.conf,.txt"
+                required
+                disabled={pending}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </Field>
+          )}
+          {mode === "url" && (
+            <UpdateFrequency
+              value={updateIntervalHours}
+              onChange={setUpdateIntervalHours}
               disabled={pending}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
-          </label>
-        )}
-        {mode === "url" && (
-          <UpdateFrequency
-            value={updateIntervalHours}
-            onChange={setUpdateIntervalHours}
-            disabled={pending}
-          />
-        )}
-        {mode === "paste" && (
-          <label className="grid gap-2 text-sm">
-            {t("modePaste")}
-            <textarea
-              className="config-textarea"
-              rows={12}
-              required
-              value={content}
-              disabled={pending}
-              onChange={(e) => setContent(e.target.value)}
-              spellCheck={false}
-            />
-          </label>
-        )}
-        {error && (
-          <p className="config-error" role="alert">
-            {error}
+          )}
+          {mode === "paste" && (
+            <Field className="gap-2" data-disabled={pending}>
+              <FieldLabel htmlFor="import-content">{t("modePaste")}</FieldLabel>
+              <Textarea
+                id="import-content"
+                className="font-mono"
+                rows={12}
+                required
+                value={content}
+                disabled={pending}
+                onChange={(e) => setContent(e.target.value)}
+                spellCheck={false}
+              />
+            </Field>
+          )}
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <div>
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={pending || !valid || !hasDaemon}
+            >
+              {pending && <Spinner data-icon="inline-start" />}
+              {pending ? t("importing") : t("import")}
+            </Button>
+          </div>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {c("configReady")}
           </p>
-        )}
-        <div>
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={pending || !valid || !hasDaemon}
-          >
-            {pending ? t("importing") : t("import")}
-          </Button>
-        </div>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {c("configReady")}
-        </p>
+        </FieldGroup>
       </form>
     </div>
   );

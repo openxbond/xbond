@@ -1,8 +1,16 @@
 import { CountryFlag } from "@components";
 import { nodeFlagCode, stripFlagEmoji } from "@components/CountryFlag";
+import { Button } from "@components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@components/ui/input-group";
 import { Sheet, SheetContent, SheetTitle } from "@components/ui/sheet";
 import { cn } from "@lib/utils";
 import type { Group, Proxy } from "@xbond/client/request";
+import { X } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -146,35 +154,36 @@ export function NodePicker({
                 </div>
               )}
             </div>
-            <button
+            <Button
               type="button"
-              className="inline-flex cursor-pointer items-center justify-center rounded-sm px-1.5 py-1 max-md:min-h-11 max-md:min-w-11 text-body font-semibold text-muted-foreground hover:text-foreground"
+              variant="ghost"
+              size="icon-sm"
               onClick={onClose}
               aria-label={tc("close")}
             >
-              ✕
-            </button>
+              <X aria-hidden="true" />
+            </Button>
           </header>
-
-          {/* 节点搜索栏 */}
-          <div className="relative">
-            <input
+          <InputGroup>
+            <InputGroupInput
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label={px("searchPlaceholder")}
               placeholder={px("searchPlaceholder")}
-              className="w-full rounded-[10px] border border-border bg-inset px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
             />
             {query && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-xs text-muted-foreground hover:text-foreground max-md:size-11"
-              >
-                ✕
-              </button>
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-sm"
+                  onClick={() => setQuery("")}
+                  aria-label={tc("clear")}
+                >
+                  <X aria-hidden="true" />
+                </InputGroupButton>
+              </InputGroupAddon>
             )}
-          </div>
+          </InputGroup>
 
           {/* 策略链链路提示 */}
           {chain.length > 2 && (

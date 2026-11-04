@@ -1,3 +1,4 @@
+import { Alert, AlertDescription } from "@components/ui/alert";
 import { Button } from "@components/ui/button";
 import { errorKind } from "@lib/actions";
 import { useTranslation } from "react-i18next";
@@ -13,18 +14,13 @@ export function RequestStatus({
   const { t: tc } = useTranslation("common");
   if (!error) return null;
   return (
-    <div
-      role="alert"
-      className="my-3 flex flex-wrap items-center gap-3 text-sm text-destructive"
-    >
-      <span>{t(errorKind(error))}</span>
-      <Button
-        onClick={() => {
-          void retry();
-        }}
-      >
-        {tc("retry")}
-      </Button>
-    </div>
+    <Alert variant="destructive" className="my-3">
+      <AlertDescription className="flex flex-wrap items-center gap-3">
+        <span>{t(errorKind(error))}</span>
+        <Button size="sm" variant="outline" onClick={() => void retry()}>
+          {tc("retry")}
+        </Button>
+      </AlertDescription>
+    </Alert>
   );
 }

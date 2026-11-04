@@ -7,23 +7,22 @@ import * as React from "react";
 // shadcn set. Brand carries the warm orange glow; the button stays a quiet
 // control otherwise (near-black primary, outlined secondary).
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/25 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive dark:focus-visible:ring-destructive/40",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/25",
         outline:
           "border border-input bg-card text-foreground hover:bg-accent hover:text-accent-foreground",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         brand:
-          "bg-foreground text-brand shadow-[0_2px_8px_oklch(0.66_0.18_52/28%)] hover:bg-foreground/90 hover:shadow-[0_4px_14px_oklch(0.66_0.18_52/38%)] dark:bg-brand dark:text-brand-foreground dark:hover:bg-brand-strong dark:shadow-[0_2px_8px_oklch(0.66_0.18_52/32%)] dark:hover:shadow-[0_4px_14px_oklch(0.66_0.18_52/45%)]",
+          "bg-brand-action text-brand-action-foreground shadow-brand-action hover:bg-brand-action-hover hover:shadow-brand-action-hover",
         success: "bg-success text-success-foreground hover:bg-success/90",
         warning: "bg-warning text-warning-foreground hover:bg-warning/90",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

@@ -1,5 +1,6 @@
 import { Header, Button } from "@components";
 import { RequestStatus } from "@components/RequestStatus";
+import { NativeSelect, NativeSelectOption } from "@components/ui/native-select";
 import {
   useConfig,
   useProxy,
@@ -58,17 +59,18 @@ function ProxyGroups() {
       </div>
       <label className="hidden max-md:mb-4 max-md:flex max-md:flex-col max-md:gap-2 max-md:text-body">
         {t("groups")}
-        <select
-          className="w-full min-h-11 rounded-control border border-border bg-card px-3.5 py-2.5 text-foreground shadow-elevation-card"
+        <NativeSelect
+          wrapperClassName="w-full"
+          className="min-h-11"
           value={selected.name}
           onChange={(event) => select(event.target.value)}
         >
           {list.map((group) => (
-            <option key={group.name} value={group.name}>
+            <NativeSelectOption key={group.name} value={group.name}>
               {group.name}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       <div className="grid grid-cols-[250px_minmax(0,1fr)] h-[calc(100vh-210px)] min-h-[460px] overflow-hidden rounded-card border border-border bg-card shadow-elevation-card max-md:flex max-md:flex-col max-md:h-auto">
         <StrategyDirectory

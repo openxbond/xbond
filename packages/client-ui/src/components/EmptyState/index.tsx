@@ -1,3 +1,11 @@
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@components/ui/empty";
 import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models";
 import type { ReactNode } from "react";
@@ -18,17 +26,19 @@ export function EmptyState({
   style,
 }: EmptyStateProps) {
   return (
-    <div
+    <Empty
       className={cn(
-        "flex flex-col items-center justify-center px-5 text-center text-body text-muted-foreground select-none",
+        "flex-none gap-2 p-0 px-5 select-none md:p-0 md:px-5",
         className,
       )}
       style={style}
     >
-      {icon}
-      <p>{message}</p>
-      {description && <p className="text-xs">{description}</p>}
-      {action}
-    </div>
+      {icon && <EmptyMedia>{icon}</EmptyMedia>}
+      <EmptyHeader>
+        <EmptyTitle>{message}</EmptyTitle>
+        {description && <EmptyDescription>{description}</EmptyDescription>}
+      </EmptyHeader>
+      {action && <EmptyContent>{action}</EmptyContent>}
+    </Empty>
   );
 }

@@ -1,3 +1,4 @@
+import { Badge } from "@components/ui/badge";
 import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models/BaseProps";
 
@@ -7,15 +8,13 @@ interface TagProps extends BaseComponentProps {
 
 export function Tag({ color, className, style, children, ...rest }: TagProps) {
   return (
-    <span
+    <Badge
+      variant="outline"
       {...rest}
-      className={cn(
-        "flex h-[22px] items-center justify-center rounded-full border border-border bg-inset px-2.5 text-center text-xs text-muted-foreground",
-        className,
-      )}
+      className={cn("bg-inset px-2.5 text-muted-foreground", className)}
       style={{ color, ...style }}
     >
       {children}
-    </span>
+    </Badge>
   );
 }

@@ -130,7 +130,7 @@ export default function AccountPanel() {
   }
 
   return (
-    <div className="w-full space-y-6" aria-busy={busy}>
+    <div className="flex flex-col w-full gap-6" aria-busy={busy}>
       {/* Top Header */}
       <div className="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4">
@@ -251,7 +251,7 @@ export default function AccountPanel() {
       ) : authorizing || phase ? (
         /* Enhanced Onboarding & Login Progress Stepper */
         <section
-          className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-6"
+          className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-xs gap-6"
           aria-label={t("loginProgress")}
         >
           {/* Connected Stepper */}
@@ -281,7 +281,7 @@ export default function AccountPanel() {
                             ? "bg-brand text-brand-foreground"
                             : isCurrent
                               ? "bg-brand text-brand-foreground ring-4 ring-brand/20"
-                              : "border border-border bg-surface-inset text-muted-foreground",
+                              : "border border-border bg-inset text-muted-foreground",
                         )}
                       >
                         {isPast ? (
@@ -312,7 +312,7 @@ export default function AccountPanel() {
           </div>
 
           {/* Progress Bar & Real-time Bytes Status */}
-          <div className="space-y-3 rounded-xl border border-border/80 bg-surface-inset/60 p-4">
+          <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-inset/60 p-4">
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="flex items-center gap-2 font-medium text-foreground">
                 <LoaderCircle className="size-4 animate-spin text-brand" />
@@ -342,7 +342,7 @@ export default function AccountPanel() {
           </div>
 
           {phase === "authorizing" && (
-            <div className="space-y-4 pt-2">
+            <div className="flex flex-col gap-4 pt-2">
               {account?.userCode && (
                 <div className="grid gap-2">
                   <span className="text-sm text-muted-foreground">
@@ -399,7 +399,7 @@ export default function AccountPanel() {
         <>
           {/* In-Flight Download & Sync Progress Bar */}
           {pendingAction === "sync" && (
-            <div className="rounded-xl border border-brand/30 bg-brand-soft/40 p-4 space-y-2.5">
+            <div className="flex flex-col rounded-xl border border-brand/30 bg-brand-soft/40 p-4 gap-2.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 font-medium text-foreground">
                   <RefreshCw className="size-4 animate-spin text-brand" />
@@ -559,7 +559,7 @@ export default function AccountPanel() {
 
           {/* Announcements Card */}
           {account.announcements && account.announcements.length > 0 && (
-            <div className="rounded-card border bg-card p-5 shadow-elevation-card space-y-3">
+            <div className="flex flex-col rounded-card border bg-card p-5 shadow-elevation-card gap-3">
               <h3 className="text-sm font-semibold text-foreground">
                 {t("announcements")}
               </h3>
@@ -604,8 +604,8 @@ export default function AccountPanel() {
         </>
       ) : (
         /* Signed-Out Landing Card */
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
-          <div className="space-y-1">
+        <div className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-xs gap-4">
+          <div className="flex flex-col gap-1">
             <h3 className="text-base font-semibold text-foreground">
               {t("loginCta")}
             </h3>

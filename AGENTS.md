@@ -9,7 +9,7 @@
 - `cmd/xbond/`：單一二進位的 CLI；`daemon` 子命令本機前景運行，`service` 子命令組註冊使用者級自啟。`internal/daemon/`：本機服務與 LocalAPI；`internal/daemon/service/`：平台託管（systemd --user／LaunchAgent／HKCU Run）。
 - `internal/engine/`：雙核心（mihomo v1.19.33 主核心跑 Clash YAML，sing-box v1.13.21 副核心跑 sing-box JSON，同一時間僅一個，引用包模式）；`internal/sub/`：訂閱與配置；`internal/platform/`：資料位置與系統代理；`internal/diag/`：診斷與脫敏。
 - `apps/dashboard/`：網頁入口及靜態資源；`apps/desktop/`：桌面入口與 `src-tauri/` 原生殼；`apps/mobile/android/`、`apps/mobile/ios/`：原生接入；`mobile/` 保留 gomobile 公開入口。
-- `packages/client/`：無 React 的控制器、配置及傳輸；`packages/client-ui/`：React 19、React Router、Jotai、Tailwind CSS v4 + shadcn/ui（組件在 `src/components/ui/`，經根目錄 `components.json` 以 `pnpm dlx shadcn@latest add <c>` 添加）共用畫面。
+- `packages/client/`：無 React 的控制器、配置及傳輸；`packages/client-ui/`：React 19、React Router、Jotai、Tailwind CSS v4 + shadcn/ui（組件在 `src/components/ui/`，由 `packages/client-ui/components.json` 管理，在根目錄執行 `pnpm ui:add <component>` 添加）共用畫面。
 - `scripts/`：移動端檢查、Web 產物封裝及發佈轉交。
 
 新增宿主、共享能力或跨倉庫契約時，讀 [用戶端體系](docs/architecture/client-system.md)。依賴方向為 apps → client-ui → client；跨 package 走已宣告的 exports，宿主啟動探測留在 client 外。執行 `pnpm check:architecture` 驗證方向與依賴宣告。
@@ -21,6 +21,8 @@
 先讀相關現有程式碼及測試，沿用既有接口與模組邊界。結構探索使用已安裝的 `codebase-memory` skill，檢查索引覆蓋；未覆蓋、過期或工具不可用時直接讀取來源，並說明限制。
 
 ## 開發與驗證
+
+- shadcn 更新現有原語前先跑 `pnpm ui:add <component> --dry-run` 和 `--diff`，合併既有的主題變體。新組件使用 `@lib/utils` 的 `cn()`，保留 XBond 自訂 Tailwind 字級的合併規則。
 
 - 安裝：`pnpm install --frozen-lockfile`；Node ≥ 24（`scripts/*.ts` 直接執行，不帶 `--experimental-strip-types`）。版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準。
 - Web：`pnpm dev`（預設 3000）；`pnpm check` 一次跑 typecheck、lint（含架構檢查）、format、test；交付前另跑 `pnpm build`；`pnpm test:watch` 進入 watch 迴圈。

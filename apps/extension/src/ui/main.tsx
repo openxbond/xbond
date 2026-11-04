@@ -1,7 +1,21 @@
 import "@fontsource-variable/inter";
 import "@xbond/client-ui/styles.css";
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
   Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Field,
+  FieldGroup,
+  FieldLabel,
+  Input,
+  NativeSelect,
+  NativeSelectOption,
   ButtonSelect,
   Switch,
   XBondIcon,
@@ -105,15 +119,13 @@ function Panel({
   action?: ReactNode;
 }) {
   return (
-    <section className="mb-5 min-w-0 rounded-[13px] border border-border p-[22px] max-[700px]:p-4">
-      <div className="mb-3.5 flex items-center justify-between gap-3 max-[700px]:items-start">
-        <h2 className="text-[17px] font-semibold max-[700px]:text-base">
-          {title}
-        </h2>
+    <Card className="mb-5 min-w-0 max-[700px]:p-4">
+      <CardHeader className="mb-3.5 flex items-center justify-between max-[700px]:items-start">
+        <CardTitle>{title}</CardTitle>
         {action}
-      </div>
-      {children}
-    </section>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }
 function Empty({ context }: { context: Context }) {
@@ -152,9 +164,9 @@ function Modes({
         >
           {t("mode")}
         </label>
-        <select
+        <NativeSelect
           id="ext-routing-mode"
-          className={cn(fieldClass, "text-[12px]")}
+          className={"text-[12px]"}
           value={model.mode}
           disabled={disabled}
           onChange={(event) => {
@@ -164,11 +176,11 @@ function Modes({
           }}
         >
           {options.map((option) => (
-            <option key={option.value} value={option.value}>
+            <NativeSelectOption key={option.value} value={option.value}>
               {option.label}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
       </>
     );
   return (
@@ -575,7 +587,7 @@ function Nodes({
           className={cn(
             "text-[12px] text-muted-foreground",
             popup
-              ? "mb-1 overflow-hidden text-ellipsis whitespace-nowrap leading-[1.5]"
+              ? "mb-1 truncate leading-[1.5]"
               : "border-b border-b-border pb-3.5",
           )}
         >
@@ -584,7 +596,7 @@ function Nodes({
           />
         </div>
         <div className={cn("flex gap-2.5", popup ? "mb-1 mt-[7px]" : "my-3.5")}>
-          <input
+          <Input
             aria-label={t("search")}
             type="search"
             placeholder={t("search")}
@@ -597,15 +609,17 @@ function Nodes({
             }
           />
           {!compact && (
-            <select
+            <NativeSelect
               aria-label={t("sort")}
               value={sort}
               onChange={(event) => setSort(event.target.value)}
               className={cn(fieldClass, "max-w-[110px] text-[12px]")}
             >
-              <option value="default">{t("source")}</option>
-              <option value="name">A → Z</option>
-            </select>
+              <NativeSelectOption value="default">
+                {t("source")}
+              </NativeSelectOption>
+              <NativeSelectOption value="name">A → Z</NativeSelectOption>
+            </NativeSelect>
           )}
         </div>
         <ul
@@ -626,7 +640,11 @@ function Nodes({
               onSelect={() => select(name)}
               detail={compact || global ? detail(name) : undefined}
             >
-              {!compact && <span className={badgeClass}>{detail(name)}</span>}
+              {!compact && (
+                <Badge variant="secondary" className={badgeClass}>
+                  {detail(name)}
+                </Badge>
+              )}
             </StrategyChoice>
           ))}
         </ul>
@@ -769,13 +787,17 @@ function Account({ context }: { context: Context }) {
         </Panel>
       </div>
       {model.config.error && (
-        <div className={cn(warningBox, "mb-[18px]")} role="alert">
-          <p>{t("updateFailed")}</p>
-          <details>
-            <summary>{t("details")}</summary>
-            <pre>{model.config.error}</pre>
-          </details>
-        </div>
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>{t("updateFailed")}</AlertTitle>
+          <AlertDescription>
+            <details className="min-w-0">
+              <summary>{t("details")}</summary>
+              <pre className="whitespace-pre-wrap wrap-anywhere">
+                {model.config.error}
+              </pre>
+            </details>
+          </AlertDescription>
+        </Alert>
       )}
     </>
   );
@@ -791,7 +813,7 @@ function RuleTable({ rules, t }: { rules: ExtensionSnapshot["rules"]; t: T }) {
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <input
+        <Input
           type="search"
           aria-label={t("search")}
           placeholder={t("search")}
@@ -966,20 +988,22 @@ function Rules({ context }: { context: Context }) {
               void save();
             }}
           >
-            <div className="grid grid-cols-3 gap-3.5 max-[1000px]:grid-cols-2 max-[700px]:grid-cols-1">
-              <label className="grid gap-[7px] text-[12px]">
-                {t("domain")}
-                <input
+            <FieldGroup className="grid grid-cols-3 gap-3.5 max-[1000px]:grid-cols-2 max-[700px]:grid-cols-1">
+              <Field className="gap-2">
+                <FieldLabel htmlFor="override-domain">{t("domain")}</FieldLabel>
+                <Input
+                  id="override-domain"
                   required
                   value={domain}
                   placeholder="docs.example.org"
                   onChange={(event) => setDomain(event.target.value)}
                   className={fieldClass}
                 />
-              </label>
-              <label className="grid gap-[7px] text-[12px]">
-                {t("match")}
-                <select
+              </Field>
+              <Field className="gap-2">
+                <FieldLabel htmlFor="override-match">{t("match")}</FieldLabel>
+                <NativeSelect
+                  id="override-match"
                   value={match}
                   onChange={(event) =>
                     setMatch(
@@ -988,25 +1012,30 @@ function Rules({ context }: { context: Context }) {
                   }
                   className={fieldClass}
                 >
-                  <option value="exact">{t("exact")}</option>
-                  <option value="suffix">{t("suffix")}</option>
-                </select>
-              </label>
-              <label className="grid gap-[7px] text-[12px]">
-                {t("target")}
-                <select
+                  <NativeSelectOption value="exact">
+                    {t("exact")}
+                  </NativeSelectOption>
+                  <NativeSelectOption value="suffix">
+                    {t("suffix")}
+                  </NativeSelectOption>
+                </NativeSelect>
+              </Field>
+              <Field className="gap-2">
+                <FieldLabel htmlFor="override-target">{t("target")}</FieldLabel>
+                <NativeSelect
+                  id="override-target"
                   value={target || targets[0]}
                   onChange={(event) => setTarget(event.target.value)}
                   className={fieldClass}
                 >
                   {targets.map((name) => (
-                    <option value={name} key={name}>
+                    <NativeSelectOption value={name} key={name}>
                       {name}
-                    </option>
+                    </NativeSelectOption>
                   ))}
-                </select>
-              </label>
-            </div>
+                </NativeSelect>
+              </Field>
+            </FieldGroup>
             <div className={actionsClass}>
               <Button
                 type="submit"
@@ -1017,6 +1046,7 @@ function Rules({ context }: { context: Context }) {
               </Button>
               {editing && (
                 <Button
+                  type="button"
                   onClick={() => {
                     setEditing(null);
                     setDomain("");
@@ -1037,7 +1067,7 @@ function Rules({ context }: { context: Context }) {
             void controller.act({ type: "predict-route", host });
           }}
         >
-          <input
+          <Input
             required
             value={host}
             aria-label={t("domain")}
@@ -1097,7 +1127,7 @@ function Requests({ context }: { context: Context }) {
         <p>{t("privacy")}</p>
       </Panel>
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <input
+        <Input
           type="search"
           placeholder={t("domain")}
           aria-label={t("domain")}
@@ -1105,18 +1135,18 @@ function Requests({ context }: { context: Context }) {
           onChange={(event) => setQuery(event.target.value)}
           className={cn(fieldClass, "max-w-[400px] flex-1")}
         />
-        <select
+        <NativeSelect
           aria-label={t("result")}
           value={result}
           onChange={(event) => setResult(event.target.value)}
           className={fieldClass}
         >
           {["all", "completed", "failed", "pending"].map((key) => (
-            <option value={key} key={key}>
+            <NativeSelectOption value={key} key={key}>
               {t(key as TextKey)}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
         <Button
           disabled={controller.pending}
           onClick={() => void controller.act({ type: "clear-requests" })}
@@ -1199,7 +1229,7 @@ function Logs({ context }: { context: Context }) {
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <input
+        <Input
           type="search"
           aria-label={t("search")}
           placeholder={t("search")}
@@ -1207,18 +1237,18 @@ function Logs({ context }: { context: Context }) {
           onChange={(event) => setQuery(event.target.value)}
           className={cn(fieldClass, "max-w-[400px] flex-1")}
         />
-        <select
+        <NativeSelect
           aria-label={t("level")}
           value={level}
           onChange={(event) => setLevel(event.target.value)}
           className={fieldClass}
         >
           {["all", "info", "warn", "error"].map((key) => (
-            <option value={key} key={key}>
+            <NativeSelectOption value={key} key={key}>
               {t(key as TextKey)}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
         <Button onClick={() => exportLog(events)}>{t("export")}</Button>
         <Button
           disabled={controller.pending}
@@ -1363,7 +1393,7 @@ function Settings({ context }: { context: Context }) {
     <Panel title={t("settings")}>
       <div className={settingRow}>
         <label htmlFor="theme">{t("theme")}</label>
-        <select
+        <NativeSelect
           id="theme"
           disabled={controller.pending}
           value={model.preferences.theme}
@@ -1375,15 +1405,15 @@ function Settings({ context }: { context: Context }) {
           className={cn(fieldClass, "min-w-[150px] max-[700px]:min-w-[120px]")}
         >
           {["system", "light", "dark"].map((value) => (
-            <option key={value} value={value}>
+            <NativeSelectOption key={value} value={value}>
               {t(value as TextKey)}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       <div className={settingRow}>
         <label htmlFor="language">{t("language")}</label>
-        <select
+        <NativeSelect
           id="language"
           disabled={controller.pending}
           value={model.preferences.language}
@@ -1401,13 +1431,15 @@ function Settings({ context }: { context: Context }) {
           }}
           className={cn(fieldClass, "min-w-[150px] max-[700px]:min-w-[120px]")}
         >
-          <option value="system">{t("system")}</option>
-          <option value="en_US">English</option>
-          <option value="zh_CN">简体中文</option>
-          <option value="zh_HK">繁體中文（香港）</option>
-          <option value="ko">한국어</option>
-          <option value="fa">فارسی</option>
-        </select>
+          <NativeSelectOption value="system">{t("system")}</NativeSelectOption>
+          <NativeSelectOption value="en_US">English</NativeSelectOption>
+          <NativeSelectOption value="zh_CN">简体中文</NativeSelectOption>
+          <NativeSelectOption value="zh_HK">
+            繁體中文（香港）
+          </NativeSelectOption>
+          <NativeSelectOption value="ko">한국어</NativeSelectOption>
+          <NativeSelectOption value="fa">فارسی</NativeSelectOption>
+        </NativeSelect>
       </div>
       {(["autoUpdate", "restore"] as const).map((key) => (
         <div className={settingRow} key={key}>

@@ -1,4 +1,5 @@
 import { Button, Switch } from "@components";
+import { Textarea } from "@components/ui/textarea";
 import { useGlobalMixin, useLocalAPI } from "@stores";
 import type { GlobalMixin } from "@xbond/client/localapi";
 import {
@@ -80,7 +81,10 @@ function GlobalMixinForm({
   }
 
   return (
-    <div className="w-full max-w-4xl space-y-6" aria-busy={saving || isLoading}>
+    <div
+      className="flex flex-col w-full max-w-4xl gap-6"
+      aria-busy={saving || isLoading}
+    >
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
         <div className="flex min-w-0 items-center gap-4">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-control bg-inset ring-1 ring-border">
@@ -109,7 +113,7 @@ function GlobalMixinForm({
       {/* Bypass LAN Toggle */}
       <section className="rounded-card border border-border bg-card p-5 shadow-elevation-card">
         <div className="flex items-center justify-between gap-4">
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <label
               htmlFor="mixin-bypass-lan"
               className="text-sm font-semibold leading-none cursor-pointer text-foreground"
@@ -133,7 +137,7 @@ function GlobalMixinForm({
       </section>
 
       {/* Prepend Rules */}
-      <section className="rounded-card border border-border bg-card p-5 shadow-elevation-card space-y-3">
+      <section className="flex flex-col rounded-card border border-border bg-card p-5 shadow-elevation-card gap-3">
         <div>
           <label
             htmlFor="mixin-rules-prepend"
@@ -145,9 +149,9 @@ function GlobalMixinForm({
             {t("rulesPrependHelp")}
           </p>
         </div>
-        <textarea
+        <Textarea
           id="mixin-rules-prepend"
-          className="config-textarea"
+          className="font-mono"
           rows={5}
           placeholder={
             "DOMAIN-SUFFIX,internal.corp,DIRECT\nIP-CIDR,192.168.1.0/24,DIRECT"
@@ -163,7 +167,7 @@ function GlobalMixinForm({
       </section>
 
       {/* Append Rules */}
-      <section className="rounded-card border border-border bg-card p-5 shadow-elevation-card space-y-3">
+      <section className="flex flex-col rounded-card border border-border bg-card p-5 shadow-elevation-card gap-3">
         <div>
           <label
             htmlFor="mixin-rules-append"
@@ -175,9 +179,9 @@ function GlobalMixinForm({
             {t("rulesAppendHelp")}
           </p>
         </div>
-        <textarea
+        <Textarea
           id="mixin-rules-append"
-          className="config-textarea"
+          className="font-mono"
           rows={5}
           placeholder={"DOMAIN-KEYWORD,blocked,PROXY\nMATCH,DIRECT"}
           value={rulesAppend}
@@ -191,7 +195,7 @@ function GlobalMixinForm({
       </section>
 
       {/* Custom DNS */}
-      <section className="rounded-card border border-border bg-card p-5 shadow-elevation-card space-y-3">
+      <section className="flex flex-col rounded-card border border-border bg-card p-5 shadow-elevation-card gap-3">
         <div>
           <label
             htmlFor="mixin-custom-dns"
@@ -203,9 +207,9 @@ function GlobalMixinForm({
             {t("customDnsHelp")}
           </p>
         </div>
-        <textarea
+        <Textarea
           id="mixin-custom-dns"
-          className="config-textarea font-mono"
+          className="font-mono"
           rows={5}
           placeholder={
             "nameserver:\n  - 223.5.5.5\n  - 119.29.29.29\nfallback:\n  - 8.8.8.8\n  - 1.1.1.1"

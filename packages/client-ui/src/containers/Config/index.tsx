@@ -1,4 +1,11 @@
-import { Button, Header, Input } from "@components";
+import { Button, Header } from "@components";
+import { Alert, AlertDescription } from "@components/ui/alert";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@components/ui/input-group";
+import { Skeleton } from "@components/ui/skeleton";
 import AccountPanel from "@containers/AccountPanel";
 import { errorKind } from "@lib/actions";
 import { hasDaemonConfig } from "@lib/localapi-bootstrap";
@@ -278,30 +285,29 @@ export default function Config() {
       </Header>
       <p className="text-sm text-muted-foreground">{t("description")}</p>
       {offline && (
-        <div className="config-notice" role="status">
-          <p>{t("serviceUnavailable")}</p>
-          <Button variant="outline" size="sm" onClick={() => void refresh()}>
-            {common("retry")}
-          </Button>
-        </div>
+        <Alert role="status">
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{t("serviceUnavailable")}</span>
+            <Button variant="outline" size="sm" onClick={() => void refresh()}>
+              {common("retry")}
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
       <div className={cn("config-workspace", explicit && "has-selection")}>
         <div className="config-resources">
-          <label htmlFor="config-search" className="relative mb-3.5 block">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute start-3 top-2.5 size-3.5 text-muted-foreground/70"
-            />
-            <Input
-              id="config-search"
-              className="h-8.5 rounded-xl border-border/70 bg-surface-inset/60 ps-8.5 text-xs placeholder:text-muted-foreground/70 focus-visible:bg-card focus-visible:ring-1 focus-visible:ring-brand/40 transition-colors"
+          <InputGroup className="mb-3.5">
+            <InputGroupInput
               type="search"
               aria-label={t("search")}
               placeholder={t("search")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-          </label>
+            <InputGroupAddon>
+              <Search aria-hidden="true" />
+            </InputGroupAddon>
+          </InputGroup>
           {supported &&
             group(
               t("cloud"),
@@ -364,9 +370,11 @@ export default function Config() {
                 ) : offline ? (
                   <p className="config-list-empty">{t("serviceOffline")}</p>
                 ) : isLoading ? (
-                  <p className="config-list-empty" role="status">
-                    {common("loading")}
-                  </p>
+                  <div className="flex flex-col gap-2 px-3 py-2" role="status">
+                    <span className="sr-only">{common("loading")}</span>
+                    <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
+                    <Skeleton className="h-3 w-1/3 motion-reduce:animate-none" />
+                  </div>
                 ) : subsError ? (
                   <div className="config-list-empty" role="alert">
                     <p>{t("serviceUnavailable")}</p>

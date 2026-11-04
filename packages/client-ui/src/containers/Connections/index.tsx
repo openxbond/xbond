@@ -1,12 +1,15 @@
 import { Header, Icon, Card, Button, Input, EmptyState } from "@components";
-import { Checkbox } from "@components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@components/ui/alert-dialog";
+import { Checkbox } from "@components/ui/checkbox";
 import { Sheet, SheetContent, SheetTitle } from "@components/ui/sheet";
 import { useAction } from "@lib/actions";
 import { fromNow } from "@lib/date";
@@ -120,6 +123,7 @@ export default function Connections() {
 
   // close all connections
   const { visible, show, hide } = useVisible();
+  const closeTrigger = useRef<HTMLButtonElement>(null);
   function handleCloseConnections() {
     void run(async () => {
       if (closeFiltered) {
@@ -528,7 +532,8 @@ export default function Connections() {
           size="icon"
           aria-label={t("closeAllTitle")}
           className="connections-filter ml-[15px] text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => {
+          onClick={(event) => {
+            closeTrigger.current = event.currentTarget;
             setCloseFiltered(false);
             show();
           }}
@@ -577,7 +582,8 @@ export default function Connections() {
               .getFilteredRowModel()
               .rows.some((row) => !row.original.completed)
           }
-          onClick={() => {
+          onClick={(event) => {
+            closeTrigger.current = event.currentTarget;
             setCloseFiltered(true);
             show();
           }}
@@ -672,35 +678,46 @@ export default function Connections() {
           )}
         </div>
       </Card>
-      <Dialog
+      <AlertDialog
         open={visible}
         onOpenChange={(open) => {
           if (!open && !pending) hide();
         }}
       >
-        <DialogContent closeLabel={tc("close")} className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>{t("closeAllTitle")}</DialogTitle>
-          </DialogHeader>
-          <div>
+        <AlertDialogContent
+          className="data-[size=default]:sm:max-w-[400px]"
+          onCloseAutoFocus={(event) => {
+            if (closeTrigger.current?.isConnected) {
+              event.preventDefault();
+              closeTrigger.current.focus();
+            }
+          }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("closeAllTitle")}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogDescription>
             {closeFiltered
               ? t("filteredConfirm", { count: targetCount })
               : t("closeAllMessage", { count: targetCount })}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" disabled={pending} onClick={hide}>
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>
               {tc("cancel")}
-            </Button>
-            <Button
+            </AlertDialogCancel>
+            <AlertDialogAction
               variant="destructive"
               disabled={pending}
-              onClick={handleCloseConnections}
+              onClick={(event) => {
+                event.preventDefault();
+                handleCloseConnections();
+              }}
             >
               {t("closeAllConfirm", { count: targetCount })}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Sheet
         open={drawerState.visible}
         onOpenChange={(open) => {

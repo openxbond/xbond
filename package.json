@@ -21,6 +21,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "ui:add": "pnpm dlx shadcn@latest add -c packages/client-ui",
     "dev:desktop": "vite --mode tauri --host 127.0.0.1 --port 1420",
     "build": "vite build",
     "build:desktop": "vite build --mode tauri",

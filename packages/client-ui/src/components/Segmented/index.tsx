@@ -1,4 +1,6 @@
+import { ToggleGroup, ToggleGroupItem } from "@components/ui/toggle-group";
 import { cn } from "@lib/utils";
+import { useId } from "react";
 
 export interface SegmentedOption<T extends string> {
   value: T;
@@ -29,13 +31,21 @@ export function Segmented<T extends string>({
   disabled,
   className,
 }: SegmentedProps<T>) {
+  const id = useId();
   return (
-    <div
+    <ToggleGroup
+      type="single"
+      spacing={0.5}
+      value={value ?? ""}
+      onValueChange={(next) => {
+        const option = options.find((item) => item.value === next);
+        if (!disabled && option && option.disabledReason === undefined)
+          onChange(option.value);
+      }}
       className={cn(
         "inline-flex gap-0.5 rounded-control border border-border/70 bg-inset p-[3px]",
         className,
       )}
-      role="group"
       aria-label={ariaLabel}
     >
       {options.map((option) => {
@@ -43,26 +53,21 @@ export function Segmented<T extends string>({
         // 禁用擋位保留焦點（aria-disabled），原因以 aria-describedby +
         // title 同步告知；disabled 按鈕不可聚焦，鍵盤與讀屏用戶會錯過原因。
         const reasonId = option.disabledReason
-          ? `${ariaLabel}-${option.value}-reason`
+          ? `${id}-${option.value}-reason`
           : undefined;
         return (
-          <button
+          <ToggleGroupItem
             type="button"
             key={option.value}
-            aria-pressed={value === option.value}
+            value={option.value}
             aria-disabled={isDisabled || undefined}
             aria-describedby={reasonId}
             className={cn(
               "min-w-0 max-md:flex max-md:min-h-11 max-md:items-center cursor-pointer rounded-[9px] px-4 py-[7px] text-body whitespace-nowrap transition-colors duration-150 motion-reduce:transition-none",
-              value === option.value
-                ? "bg-brand font-semibold text-brand-foreground shadow-brand"
-                : "bg-transparent text-foreground/72 hover:text-foreground",
+              "text-foreground/72 hover:text-foreground data-[state=on]:bg-brand data-[state=on]:font-semibold data-[state=on]:text-brand-foreground data-[state=on]:shadow-brand",
               isDisabled && "cursor-not-allowed",
             )}
             title={option.disabledReason}
-            onClick={() => {
-              if (!isDisabled) onChange(option.value);
-            }}
           >
             {option.label}
             {option.disabledReason && (
@@ -70,9 +75,9 @@ export function Segmented<T extends string>({
                 {option.disabledReason}
               </span>
             )}
-          </button>
+          </ToggleGroupItem>
         );
       })}
-    </div>
+    </ToggleGroup>
   );
 }

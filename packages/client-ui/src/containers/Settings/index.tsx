@@ -1,11 +1,24 @@
 import { Button, ButtonSelect, Header, Switch, XBondIcon } from "@components";
+import { Badge } from "@components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@components/ui/card";
+import { Field, FieldError } from "@components/ui/field";
+import { Input } from "@components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@components/ui/select";
+import { Separator } from "@components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@components/ui/toggle-group";
 import type { Lang } from "@i18n";
 import { useAction } from "@lib/actions";
 import { isClashX } from "@lib/jsBridge";
@@ -50,6 +63,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 type TerminalFormat = ProxyTerminalFormat;
+const takeoverModes = ["sysproxy", "tun", "port"] as const;
 
 interface SettingRowProps {
   title: string;
@@ -184,8 +198,8 @@ export default function Settings() {
 
       <div className="flex w-full flex-col gap-6">
         {/* Section 1: 常規偏好 (Preferences & General) */}
-        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
-          <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
+        <Card className="flex flex-col p-6">
+          <CardHeader className="flex items-center justify-between pb-4">
             <div className="flex items-center gap-3">
               <div className="flex size-9 items-center justify-center rounded-control bg-inset ring-1 ring-border">
                 <Sliders
@@ -194,17 +208,15 @@ export default function Settings() {
                 />
               </div>
               <div className="flex flex-col">
-                <h2 className="m-0 text-base font-semibold text-foreground">
-                  {t("preferences")}
-                </h2>
-                <span className="text-xs text-muted-foreground">
+                <CardTitle>{t("preferences")}</CardTitle>
+                <CardDescription className="text-xs">
                   {t("generalDesc")}
-                </span>
+                </CardDescription>
               </div>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1 divide-y divide-border/40 [&>*:not(:first-child)]:pt-3.5">
+          </CardHeader>
+          <Separator className="mb-5" />
+          <CardContent className="flex flex-col gap-1 divide-y divide-border/40 [&>*:not(:first-child)]:pt-3.5">
             {/* Theme */}
             <SettingRow title={t("theme")} description={t("themeDesc")}>
               <ButtonSelect<ThemePreference>
@@ -230,12 +242,14 @@ export default function Settings() {
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border border-border bg-popover shadow-elevation-raised">
-                  <SelectItem value="zh_HK">繁體中文 (香港)</SelectItem>
-                  <SelectItem value="zh_CN">简体中文</SelectItem>
-                  <SelectItem value="en_US">English</SelectItem>
-                  <SelectItem value="ko">한국어</SelectItem>
-                  <SelectItem value="fa">فارسی</SelectItem>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="zh_HK">繁體中文 (香港)</SelectItem>
+                    <SelectItem value="zh_CN">简体中文</SelectItem>
+                    <SelectItem value="en_US">English</SelectItem>
+                    <SelectItem value="ko">한국어</SelectItem>
+                    <SelectItem value="fa">فارسی</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </SettingRow>
@@ -259,9 +273,9 @@ export default function Settings() {
                   title={t("desktop.autostart")}
                   description={t("desktop.autostartDesc")}
                   badge={
-                    <span className="inline-flex items-center rounded-md border border-border bg-inset px-1.5 py-0.5 text-label font-medium text-muted-foreground uppercase tracking-wider">
+                    <Badge variant="outline" className="uppercase">
                       {t("desktop.hostDesktop")}
-                    </span>
+                    </Badge>
                   }
                 >
                   <Switch
@@ -277,27 +291,30 @@ export default function Settings() {
                   title={t("desktop.closeToTray")}
                   description={t("desktop.closeToTrayDesc")}
                   badge={
-                    <span className="inline-flex items-center rounded-md border border-border bg-inset px-1.5 py-0.5 text-label font-medium text-muted-foreground uppercase tracking-wider">
+                    <Badge variant="outline" className="uppercase">
                       {t("desktop.hostDesktop")}
-                    </span>
+                    </Badge>
                   }
                 >
                   <Switch
                     aria-label={t("desktop.closeToTray")}
                     checked={desktopPrefs.closeToTray}
                     onCheckedChange={(val) =>
-                      setDesktopPrefs((prev) => ({ ...prev, closeToTray: val }))
+                      setDesktopPrefs((prev) => ({
+                        ...prev,
+                        closeToTray: val,
+                      }))
                     }
                   />
                 </SettingRow>
               </>
             )}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
         {/* Section 2: 網絡與連接埠 (Network & Ports) */}
-        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
-          <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
+        <Card className="flex flex-col p-6">
+          <CardHeader className="flex items-center justify-between pb-4">
             <div className="flex items-center gap-3">
               <div className="flex size-9 items-center justify-center rounded-control bg-inset ring-1 ring-border">
                 <Network
@@ -306,42 +323,49 @@ export default function Settings() {
                 />
               </div>
               <div className="flex flex-col">
-                <h2 className="m-0 text-base font-semibold text-foreground">
-                  {t("network")}
-                </h2>
-                <span className="text-xs text-muted-foreground">
+                <CardTitle>{t("network")}</CardTitle>
+                <CardDescription className="text-xs">
                   {t("networkDesc")}
-                </span>
+                </CardDescription>
               </div>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1 divide-y divide-border/40 [&>*:not(:first-child)]:pt-3.5">
+          </CardHeader>
+          <Separator className="mb-5" />
+          <CardContent className="flex flex-col gap-1 divide-y divide-border/40 [&>*:not(:first-child)]:pt-3.5">
             {/* Mobile Takeover (when hasLocalAPI) */}
             {hasLocalAPI && (
               <div className="hidden max-md:flex flex-col gap-2.5 pb-2">
                 <strong className="text-body font-semibold text-foreground">
                   {t("takeover.title")}
                 </strong>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["sysproxy", "tun", "port"] as const).map((mode) => {
+                <ToggleGroup
+                  type="single"
+                  aria-label={t("takeover.title")}
+                  value={status?.preferences.takeoverMode ?? ""}
+                  spacing={2}
+                  disabled={pending}
+                  className="grid w-full grid-cols-3"
+                  onValueChange={(value) => {
+                    const mode = takeoverModes.find((item) => item === value);
+                    if (mode) void run(() => setMode({ mode }));
+                  }}
+                >
+                  {takeoverModes.map((mode) => {
                     const tunUnavailable =
                       mode === "tun" &&
                       !!status?.capabilities &&
                       !status.capabilities.tun;
                     return (
-                      <button
+                      <ToggleGroupItem
                         key={mode}
-                        type="button"
-                        className="flex flex-col items-start gap-1 rounded-control border border-border bg-inset p-3 text-left text-foreground transition-all duration-150 hover:border-brand/40 hover:bg-row-hover aria-pressed:border-brand/40 aria-pressed:bg-brand-soft motion-reduce:transition-none"
-                        aria-pressed={status?.preferences.takeoverMode === mode}
-                        disabled={pending || tunUnavailable}
+                        value={mode}
+                        className="h-full flex-col items-start justify-start gap-1 rounded-control border border-border bg-inset p-3 text-start whitespace-normal text-foreground hover:bg-row-hover data-[state=on]:border-brand/40 data-[state=on]:bg-brand-soft"
+                        disabled={tunUnavailable}
                         title={
                           tunUnavailable
                             ? status?.capabilities?.tunReason
                             : undefined
                         }
-                        onClick={() => void run(() => setMode({ mode }))}
                       >
                         <strong className="text-body font-semibold">
                           {c(mode)}
@@ -349,10 +373,10 @@ export default function Settings() {
                         <span className="text-label leading-[1.3] text-muted-foreground">
                           {t(`takeover.${mode}Desc` as const)}
                         </span>
-                      </button>
+                      </ToggleGroupItem>
                     );
                   })}
-                </div>
+                </ToggleGroup>
                 {!status?.capabilities?.tun &&
                   status?.capabilities?.tunReasonCode && (
                     <p className="mt-1 text-sm text-warning-text">
@@ -399,14 +423,17 @@ export default function Settings() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    className={cn(
-                      "h-9 w-28 rounded-control border bg-inset px-3 font-mono text-sm text-foreground transition-all outline-none",
-                      "border-border-strong focus:border-brand focus:ring-2 focus:ring-brand/20",
-                      portValidation &&
-                        "border-destructive focus:border-destructive focus:ring-destructive/20",
-                    )}
+                <Field
+                  orientation="horizontal"
+                  data-invalid={Boolean(portValidation)}
+                  className="w-auto gap-2"
+                >
+                  <Input
+                    className="w-28 font-mono"
+                    aria-invalid={Boolean(portValidation)}
+                    aria-describedby={
+                      portValidation ? "mixed-port-error" : undefined
+                    }
                     aria-label={t("takeover.mixedPort")}
                     type="number"
                     min="0"
@@ -437,13 +464,11 @@ export default function Settings() {
                   >
                     {tc("confirm")}
                   </Button>
-                </div>
+                </Field>
               </div>
 
               {portValidation && (
-                <p role="alert" className="text-xs text-destructive-text">
-                  {portValidation}
-                </p>
+                <FieldError id="mixed-port-error">{portValidation}</FieldError>
               )}
 
               {portFeedback && (
@@ -557,18 +582,18 @@ export default function Settings() {
               </div>
 
               {/* Code Surface */}
-              <div className="relative flex items-center justify-between rounded-xl border border-border bg-surface-inset p-3.5 shadow-inner">
+              <div className="relative flex items-center justify-between rounded-xl border border-border bg-inset p-3.5 shadow-inner">
                 <code className="block w-full select-all break-all font-mono text-xs text-foreground tracking-tight">
                   {terminalCommands[terminalFormat]}
                 </code>
               </div>
             </div>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
         {/* Section 3: 進階與核心 (Advanced & Core) */}
-        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
-          <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
+        <Card className="flex flex-col p-6">
+          <CardHeader className="flex items-center justify-between pb-4">
             <div className="flex items-center gap-3">
               <div className="flex size-9 items-center justify-center rounded-control bg-inset ring-1 ring-border">
                 <Cpu
@@ -577,17 +602,15 @@ export default function Settings() {
                 />
               </div>
               <div className="flex flex-col">
-                <h2 className="m-0 text-base font-semibold text-foreground">
-                  {t("advanced")}
-                </h2>
-                <span className="text-xs text-muted-foreground">
+                <CardTitle>{t("advanced")}</CardTitle>
+                <CardDescription className="text-xs">
                   {t("advancedDesc")}
-                </span>
+                </CardDescription>
               </div>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1 divide-y divide-border/40 [&>*:not(:first-child)]:pt-3.5">
+          </CardHeader>
+          <Separator className="mb-5" />
+          <CardContent className="flex flex-col gap-1 divide-y divide-border/40 [&>*:not(:first-child)]:pt-3.5">
             {/* Log Level */}
             <SettingRow
               title={t("about.logLevel")}
@@ -691,31 +714,31 @@ export default function Settings() {
                 </button>
               </div>
             </div>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
         {/* Section 4: 關於 (About System Sheet) */}
-        <section className="flex flex-col rounded-card border border-border bg-card p-6 shadow-elevation-card">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-5 border-b border-border">
+        <Card className="flex flex-col p-6">
+          <CardHeader className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3.5">
               <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-inset p-2.5 shadow-xs">
                 <XBondIcon className="size-7" />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <h2 className="m-0 text-base font-semibold text-foreground">
+                  <CardTitle>
                     XBond{" "}
                     {isDesktop
                       ? t("desktop.hostDesktop")
                       : t("desktop.hostClient")}
-                  </h2>
+                  </CardTitle>
                   <span className="rounded-md border border-border bg-inset px-1.5 py-0.5 font-mono text-label font-semibold text-foreground">
                     v{DASHBOARD_VERSION}
                   </span>
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <CardDescription className="text-xs">
                   {t("aboutDesc")}
-                </span>
+                </CardDescription>
               </div>
             </div>
 
@@ -740,10 +763,9 @@ export default function Settings() {
                     : t("core.localApiNone")}
               </span>
             </div>
-          </div>
-
-          {/* Precision Spec Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          </CardHeader>
+          <Separator className="mb-5" />
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex items-center justify-between rounded-xl border border-border/60 bg-inset/50 px-4 py-3">
               <span className="text-xs text-muted-foreground">
                 {t("about.appVersion")}
@@ -789,8 +811,8 @@ export default function Settings() {
                 <ExternalLink className="size-3" />
               </span>
             </a>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

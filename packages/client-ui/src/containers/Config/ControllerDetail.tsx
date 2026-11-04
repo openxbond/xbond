@@ -1,12 +1,23 @@
 import { Button, Input } from "@components";
 import { CopyButton } from "@components/CopyButton";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@components/ui/field";
 import { hasDaemonConfig } from "@lib/localapi-bootstrap";
 import { cn } from "@lib/utils";
 import {
@@ -31,7 +42,7 @@ import {
   Trash2,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ResourceIcon } from "./ResourceIcon";
@@ -60,6 +71,7 @@ export default function ControllerDetail({
   const [version, setVersion] = useState("");
   const [notice, setNotice] = useState("");
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const removeTrigger = useRef<HTMLButtonElement>(null);
   const [editing, setEditing] = useState(!controller);
 
   const viewing =
@@ -145,7 +157,7 @@ export default function ControllerDetail({
   })();
 
   return (
-    <div className="w-full space-y-6">
+    <div className="flex flex-col w-full gap-6">
       {/* 1. Unified Top Header */}
       <div className="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4">
@@ -259,7 +271,7 @@ export default function ControllerDetail({
 
       {/* External Mode Notice */}
       {viewing && (
-        <div className="rounded-xl border border-border bg-surface-inset p-3.5 text-xs text-muted-foreground leading-relaxed">
+        <div className="rounded-xl border border-border bg-inset p-3.5 text-xs text-muted-foreground leading-relaxed">
           {c("externalModeNotice")}
         </div>
       )}
@@ -268,11 +280,11 @@ export default function ControllerDetail({
       {controller ? (
         <>
           {/* 2. Connection Details Card */}
-          <div className="rounded-card border bg-card p-5 shadow-elevation-card space-y-4">
+          <div className="flex flex-col rounded-card border bg-card p-5 shadow-elevation-card gap-4">
             <h3 className="text-sm font-semibold text-foreground">
               {t("external.url")}
             </h3>
-            <div className="flex items-center gap-2 rounded-control border border-border/80 bg-surface-inset px-3 py-2">
+            <div className="flex items-center gap-2 rounded-control border border-border/80 bg-inset px-3 py-2">
               <Globe className="size-4 shrink-0 text-muted-foreground" />
               <span className="flex-1 select-all truncate font-mono text-xs text-foreground">
                 {controller.url}
@@ -295,7 +307,7 @@ export default function ControllerDetail({
             </div>
 
             <div className="grid gap-3 pt-2 text-xs sm:grid-cols-2">
-              <div className="flex items-center justify-between rounded-xl bg-surface-inset/70 px-3.5 py-2.5">
+              <div className="flex items-center justify-between rounded-xl bg-inset/70 px-3.5 py-2.5">
                 <span className="text-muted-foreground">
                   {t("about.coreVersion")}
                 </span>
@@ -303,7 +315,7 @@ export default function ControllerDetail({
                   {version || c("unverified")}
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-surface-inset/70 px-3.5 py-2.5">
+              <div className="flex items-center justify-between rounded-xl bg-inset/70 px-3.5 py-2.5">
                 <span className="text-muted-foreground">
                   {t("external.secret")}
                 </span>
@@ -330,6 +342,7 @@ export default function ControllerDetail({
                 variant="destructive"
                 size="sm"
                 className="shrink-0"
+                ref={removeTrigger}
                 onClick={() => setConfirmRemove(true)}
               >
                 {c("removeController")}
@@ -346,168 +359,195 @@ export default function ControllerDetail({
               <DialogHeader>
                 <DialogTitle>{c("edit")}</DialogTitle>
               </DialogHeader>
-              <form className="grid gap-4" onSubmit={save}>
-                <label className="grid gap-2 text-sm">
-                  {t("external.name")}
-                  <Input
-                    value={name}
-                    disabled={pending}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </label>
-                <label className="grid gap-2 text-sm">
-                  {t("external.url")}
-                  <Input
-                    value={url}
-                    required
-                    placeholder="http://127.0.0.1:9090"
-                    disabled={pending}
-                    onChange={(e) => {
-                      setURL(e.target.value);
-                      setVersion("");
-                      setNotice("");
-                      setError("");
-                    }}
-                  />
-                </label>
-                <label className="grid gap-2 text-sm">
-                  {t("external.secret")}
-                  <Input
-                    type="password"
-                    autoComplete="off"
-                    value={secret}
-                    disabled={pending}
-                    onChange={(e) => {
-                      setSecret(e.target.value);
-                      setVersion("");
-                      setNotice("");
-                      setError("");
-                    }}
-                  />
-                </label>
-                {/* 儲存與測試的錯誤留在對話框內，否則會被遮罩擋住。 */}
-                {error && (
-                  <div
-                    role="alert"
-                    className="flex items-center gap-2 rounded-control border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-text"
-                  >
-                    <AlertCircle className="size-4 shrink-0" />
-                    <span>{error}</span>
-                  </div>
-                )}
-                <DialogFooter className="mt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={pending}
-                    onClick={() => setEditing(false)}
-                  >
-                    {common("cancel")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={pending || !url.trim()}
-                    onClick={() => void test()}
-                  >
-                    {pending ? common("loading") : t("external.test")}
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="brand"
-                    disabled={pending || !url.trim()}
-                  >
-                    {c("save")}
-                  </Button>
-                </DialogFooter>
+              <form onSubmit={save}>
+                <FieldGroup className="gap-4">
+                  <Field className="gap-2" data-disabled={pending}>
+                    <FieldLabel htmlFor="edit-controller-name">
+                      {t("external.name")}
+                    </FieldLabel>
+                    <Input
+                      id="edit-controller-name"
+                      value={name}
+                      disabled={pending}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </Field>
+                  <Field className="gap-2" data-disabled={pending}>
+                    <FieldLabel htmlFor="edit-controller-url">
+                      {t("external.url")}
+                    </FieldLabel>
+                    <Input
+                      id="edit-controller-url"
+                      value={url}
+                      required
+                      placeholder="http://127.0.0.1:9090"
+                      disabled={pending}
+                      onChange={(e) => {
+                        setURL(e.target.value);
+                        setVersion("");
+                        setNotice("");
+                        setError("");
+                      }}
+                    />
+                  </Field>
+                  <Field className="gap-2" data-disabled={pending}>
+                    <FieldLabel htmlFor="edit-controller-secret">
+                      {t("external.secret")}
+                    </FieldLabel>
+                    <Input
+                      id="edit-controller-secret"
+                      type="password"
+                      autoComplete="off"
+                      value={secret}
+                      disabled={pending}
+                      onChange={(e) => {
+                        setSecret(e.target.value);
+                        setVersion("");
+                        setNotice("");
+                        setError("");
+                      }}
+                    />
+                  </Field>
+                  {/* 儲存與測試的錯誤留在對話框內，否則會被遮罩擋住。 */}
+                  {error && (
+                    <div
+                      role="alert"
+                      className="flex items-center gap-2 rounded-control border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-text"
+                    >
+                      <AlertCircle className="size-4 shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+                  <DialogFooter className="mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => setEditing(false)}
+                    >
+                      {common("cancel")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={pending || !url.trim()}
+                      onClick={() => void test()}
+                    >
+                      {pending ? common("loading") : t("external.test")}
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="brand"
+                      disabled={pending || !url.trim()}
+                    >
+                      {c("save")}
+                    </Button>
+                  </DialogFooter>
+                </FieldGroup>
               </form>
             </DialogContent>
           </Dialog>
         </>
       ) : (
         /* Add New Controller Screen */
-        <div className="rounded-card border bg-card p-6 shadow-elevation-card space-y-5 max-w-2xl">
-          <form className="grid gap-5" onSubmit={save}>
-            <label className="grid gap-2 text-sm">
-              {t("external.name")}
-              <Input
-                value={name}
-                disabled={pending}
-                placeholder="My Remote Core"
-                onChange={(event) => setName(event.target.value)}
-              />
-            </label>
-            <label className="grid gap-2 text-sm">
-              {t("external.url")}
-              <Input
-                value={url}
-                required
-                placeholder="http://127.0.0.1:9090"
-                disabled={pending}
-                onChange={(event) => {
-                  setURL(event.target.value);
-                  setVersion("");
-                  setNotice("");
-                }}
-              />
-            </label>
-            <label className="grid gap-2 text-sm">
-              {t("external.secret")}
-              <Input
-                type="password"
-                autoComplete="off"
-                value={secret}
-                disabled={pending}
-                onChange={(event) => {
-                  setSecret(event.target.value);
-                  setVersion("");
-                  setNotice("");
-                }}
-              />
-            </label>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button
-                type="submit"
-                variant="brand"
-                disabled={pending || !url.trim()}
-              >
-                {c("save")}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={pending || !url.trim()}
-                onClick={() => void test()}
-              >
-                {pending ? common("loading") : t("external.test")}
-              </Button>
-            </div>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {t("external.note")}
-            </p>
+        <div className="flex flex-col rounded-card border bg-card p-6 shadow-elevation-card gap-5 max-w-2xl">
+          <form onSubmit={save}>
+            <FieldGroup className="gap-5">
+              <Field className="gap-2" data-disabled={pending}>
+                <FieldLabel htmlFor="new-controller-name">
+                  {t("external.name")}
+                </FieldLabel>
+                <Input
+                  id="new-controller-name"
+                  value={name}
+                  disabled={pending}
+                  placeholder="My Remote Core"
+                  onChange={(event) => setName(event.target.value)}
+                />
+              </Field>
+              <Field className="gap-2" data-disabled={pending}>
+                <FieldLabel htmlFor="new-controller-url">
+                  {t("external.url")}
+                </FieldLabel>
+                <Input
+                  id="new-controller-url"
+                  value={url}
+                  required
+                  placeholder="http://127.0.0.1:9090"
+                  disabled={pending}
+                  onChange={(event) => {
+                    setURL(event.target.value);
+                    setVersion("");
+                    setNotice("");
+                  }}
+                />
+              </Field>
+              <Field className="gap-2" data-disabled={pending}>
+                <FieldLabel htmlFor="new-controller-secret">
+                  {t("external.secret")}
+                </FieldLabel>
+                <Input
+                  id="new-controller-secret"
+                  type="password"
+                  autoComplete="off"
+                  value={secret}
+                  disabled={pending}
+                  onChange={(event) => {
+                    setSecret(event.target.value);
+                    setVersion("");
+                    setNotice("");
+                  }}
+                />
+              </Field>
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Button
+                  type="submit"
+                  variant="brand"
+                  disabled={pending || !url.trim()}
+                >
+                  {c("save")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending || !url.trim()}
+                  onClick={() => void test()}
+                >
+                  {pending ? common("loading") : t("external.test")}
+                </Button>
+              </div>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {t("external.note")}
+              </p>
+            </FieldGroup>
           </form>
         </div>
       )}
 
       {/* Confirmation Dialog: Remove Controller */}
-      <Dialog open={confirmRemove} onOpenChange={setConfirmRemove}>
-        <DialogContent closeLabel={common("close")}>
-          <DialogHeader>
-            <DialogTitle>{c("removeController")}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
+      <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            if (removeTrigger.current?.isConnected) {
+              event.preventDefault();
+              removeTrigger.current.focus();
+            }
+          }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>{c("removeController")}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogDescription>
             {c("controllerRemoveConfirm")}
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmRemove(false)}>
-              {common("cancel")}
-            </Button>
-            <Button variant="destructive" onClick={remove}>
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{common("cancel")}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={remove}>
               {c("removeController")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

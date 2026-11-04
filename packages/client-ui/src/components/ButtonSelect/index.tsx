@@ -29,6 +29,7 @@ export function ButtonSelect<T = string>(props: ButtonSelectProps<T>) {
   return (
     <ToggleGroup
       type="single"
+      spacing={0.5}
       value={String(value)}
       onValueChange={(next) => {
         if (next) onSelect?.(next as T);

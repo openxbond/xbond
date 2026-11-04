@@ -2,6 +2,7 @@ import { Card, Header, Button, Input, EmptyState } from "@components";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -198,14 +199,16 @@ export default function Logs() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {levels.map((level) => (
-                <SelectItem
-                  key={level}
-                  value={level === "" ? defaultLevel : level}
-                >
-                  {level === "silent" ? t("silent") : level || "Default"}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {levels.map((level) => (
+                  <SelectItem
+                    key={level}
+                    value={level === "" ? defaultLevel : level}
+                  >
+                    {level === "silent" ? t("silent") : level || "Default"}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </label>

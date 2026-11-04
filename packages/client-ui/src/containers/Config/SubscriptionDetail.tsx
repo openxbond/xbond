@@ -2,12 +2,24 @@ import { Button, ButtonSelect, Input, QuotaRing, Stat } from "@components";
 import { CopyButton } from "@components/CopyButton";
 import { RequestStatus } from "@components/RequestStatus";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@components/ui/dialog";
+import { Field, FieldLabel } from "@components/ui/field";
+import { Textarea } from "@components/ui/textarea";
 import { ResourceIcon } from "@containers/Config/ResourceIcon";
 import { useAction } from "@lib/actions";
 import { cn } from "@lib/utils";
@@ -36,7 +48,7 @@ import {
   Trash2,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -68,6 +80,7 @@ export default function SubscriptionDetail({
 
   const { run, pending } = useAction();
   const [removeId, setRemoveId] = useState<string | null>(null);
+  const removeTrigger = useRef<HTMLButtonElement>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [overrideId, setOverrideId] = useState<string | null>(null);
@@ -217,7 +230,7 @@ export default function SubscriptionDetail({
   const isCloud = sub.kind === "cloud" || sub.type === "xbond";
 
   return (
-    <div className="w-full space-y-6">
+    <div className="flex flex-col w-full gap-6">
       <RequestStatus error={subError} retry={refreshSubs} />
 
       {/* 1. Header Banner & Identity */}
@@ -452,7 +465,7 @@ export default function SubscriptionDetail({
       </div>
 
       {/* 3. Subscription Source & Sync Card */}
-      <div className="rounded-card border bg-card p-5 shadow-elevation-card space-y-4">
+      <div className="flex flex-col rounded-card border bg-card p-5 shadow-elevation-card gap-4">
         <h3 className="text-sm font-semibold text-foreground">
           {isRemote
             ? cfg("sourceLink")
@@ -464,7 +477,7 @@ export default function SubscriptionDetail({
         {isRemote && (
           <>
             {/* URL Display with Copy and Edit buttons */}
-            <div className="flex items-center gap-2 rounded-control border border-border/80 bg-surface-inset px-3 py-2">
+            <div className="flex items-center gap-2 rounded-control border border-border/80 bg-inset px-3 py-2">
               <Globe className="size-4 shrink-0 text-muted-foreground" />
               <span className="flex-1 select-all truncate font-mono text-xs text-foreground">
                 {sub.urlOrFile || "—"}
@@ -550,7 +563,7 @@ export default function SubscriptionDetail({
       </div>
 
       {/* 4. Advanced Config & Rules Card */}
-      <div className="rounded-card border bg-card p-5 shadow-elevation-card space-y-4">
+      <div className="flex flex-col rounded-card border bg-card p-5 shadow-elevation-card gap-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">
             {t("advancedSettings")}
@@ -562,7 +575,7 @@ export default function SubscriptionDetail({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {/* Source Editor */}
-          <div className="flex flex-col justify-between rounded-xl bg-surface-inset/60 p-4 transition-colors hover:bg-surface-inset">
+          <div className="flex flex-col justify-between rounded-xl bg-inset/60 p-4 transition-colors hover:bg-inset">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground shadow-2xs">
@@ -586,7 +599,7 @@ export default function SubscriptionDetail({
           </div>
 
           {/* Rule Override */}
-          <div className="flex flex-col justify-between rounded-xl bg-surface-inset/60 p-4 transition-colors hover:bg-surface-inset">
+          <div className="flex flex-col justify-between rounded-xl bg-inset/60 p-4 transition-colors hover:bg-inset">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground shadow-2xs">
@@ -610,7 +623,7 @@ export default function SubscriptionDetail({
           </div>
 
           {/* Rollback */}
-          <div className="flex flex-col justify-between rounded-xl bg-surface-inset/60 p-4 transition-colors hover:bg-surface-inset">
+          <div className="flex flex-col justify-between rounded-xl bg-inset/60 p-4 transition-colors hover:bg-inset">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground shadow-2xs">
@@ -651,6 +664,7 @@ export default function SubscriptionDetail({
           size="sm"
           className="shrink-0"
           disabled={pending || Boolean(operation)}
+          ref={removeTrigger}
           onClick={() => setRemoveId(sub.id)}
         >
           {t("remove")}
@@ -668,14 +682,17 @@ export default function SubscriptionDetail({
           <DialogHeader>
             <DialogTitle>{cfg("editLink")}</DialogTitle>
           </DialogHeader>
-          <label className="grid gap-2 text-sm">
-            {cfg("sourceLink")}
+          <Field className="gap-2">
+            <FieldLabel htmlFor="subscription-edit-link">
+              {cfg("sourceLink")}
+            </FieldLabel>
             <Input
+              id="subscription-edit-link"
               type="url"
               value={sourceURL || ""}
               onChange={(event) => setSourceURL(event.target.value)}
             />
-          </label>
+          </Field>
           <DialogFooter>
             <Button
               variant="outline"
@@ -713,13 +730,16 @@ export default function SubscriptionDetail({
           <DialogHeader>
             <DialogTitle>{t("rename")}</DialogTitle>
           </DialogHeader>
-          <label className="grid gap-2 text-sm">
-            {t("namePlaceholder")}
+          <Field className="gap-2">
+            <FieldLabel htmlFor="subscription-rename">
+              {t("namePlaceholder")}
+            </FieldLabel>
             <Input
+              id="subscription-rename"
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
             />
-          </label>
+          </Field>
           <DialogFooter>
             <Button
               variant="outline"
@@ -755,36 +775,43 @@ export default function SubscriptionDetail({
       </Dialog>
 
       {/* Dialog: Remove Profile Confirmation */}
-      <Dialog
+      <AlertDialog
         open={removeId !== null}
         onOpenChange={(open) => {
           if (!open && !pending) setRemoveId(null);
         }}
       >
-        <DialogContent closeLabel={tc("close")} className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>{t("remove")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p>{t("removeConfirm")}</p>
-            {removeId === activeId && status?.engine.running && (
-              <p className="font-medium text-destructive">
-                {t("removeActive")}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              disabled={pending || Boolean(operation)}
-              onClick={() => setRemoveId(null)}
-            >
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            if (removeTrigger.current?.isConnected) {
+              event.preventDefault();
+              removeTrigger.current.focus();
+            }
+          }}
+          className="data-[size=default]:sm:max-w-[420px]"
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("remove")}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogDescription asChild>
+            <div className="flex flex-col gap-2">
+              <p>{t("removeConfirm")}</p>
+              {removeId === activeId && status?.engine.running && (
+                <p className="font-medium text-destructive">
+                  {t("removeActive")}
+                </p>
+              )}
+            </div>
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending || Boolean(operation)}>
               {tc("cancel")}
-            </Button>
-            <Button
+            </AlertDialogCancel>
+            <AlertDialogAction
               variant="destructive"
               disabled={pending || Boolean(operation)}
-              onClick={() =>
+              onClick={(event) => {
+                event.preventDefault();
                 void run(async () => {
                   if (
                     removeId === activeId &&
@@ -795,14 +822,14 @@ export default function SubscriptionDetail({
                   if (removeId) await removeSub(removeId);
                   await refresh();
                   setRemoveId(null);
-                }, false)
-              }
+                }, false);
+              }}
             >
               {tc("ok")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialog: Source Editor (Full screen / Wide dialog) */}
       <Dialog
@@ -822,8 +849,8 @@ export default function SubscriptionDetail({
             <p className="text-xs text-muted-foreground">
               {t("sourceEditHint")}
             </p>
-            <textarea
-              className="w-full flex-1 min-h-[420px] max-h-[60vh] resize-y rounded-md border border-border bg-inset p-3 font-mono text-xs leading-relaxed text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            <Textarea
+              className="flex-1 min-h-[420px] max-h-[60vh] resize-y p-3 font-mono text-xs leading-relaxed"
               value={editorContent}
               onChange={(event) => setEditorContent(event.target.value)}
               spellCheck={false}
@@ -863,15 +890,18 @@ export default function SubscriptionDetail({
           <DialogHeader>
             <DialogTitle>{t("channelProxy")}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <label className="grid gap-2 text-sm">
-              {t("channelProxyUrl")}
+          <div className="flex flex-col gap-3">
+            <Field className="gap-2">
+              <FieldLabel htmlFor="subscription-proxy-url">
+                {t("channelProxyUrl")}
+              </FieldLabel>
               <Input
+                id="subscription-proxy-url"
                 value={proxyChannelUrl}
                 onChange={(e) => setProxyChannelUrl(e.target.value)}
                 placeholder="http://127.0.0.1:7890"
               />
-            </label>
+            </Field>
             <p className="text-xs text-muted-foreground">
               {t("channelProxyNote")}
             </p>
@@ -910,7 +940,7 @@ export default function SubscriptionDetail({
           <DialogHeader>
             <DialogTitle>{t("override")}</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-4 py-1 pr-1 text-xs">
+          <div className="flex flex-col flex-1 overflow-y-auto gap-4 py-1 pr-1 text-xs">
             <p className="text-muted-foreground">
               {t(
                 subscriptions.find((item) => item.id === overrideId)?.format ===
@@ -919,36 +949,39 @@ export default function SubscriptionDetail({
                   : "overrideHintClash",
               )}
             </p>
-            <div className="space-y-1.5">
-              <label className="font-medium text-foreground">
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor="subscription-override-prepend">
                 {t("overridePrepend")}
-              </label>
-              <textarea
-                className="w-full resize-y rounded-md border border-border bg-inset p-2.5 font-mono text-xs leading-normal text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              </FieldLabel>
+              <Textarea
+                id="subscription-override-prepend"
+                className="resize-y p-2.5 font-mono text-xs leading-normal"
                 rows={3}
                 value={overridePrepend}
                 onChange={(event) => setOverridePrepend(event.target.value)}
                 placeholder={"DOMAIN-SUFFIX,corp.example,DIRECT"}
               />
-            </div>
-            <div className="space-y-1.5">
-              <label className="font-medium text-foreground">
+            </Field>
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor="subscription-override-append">
                 {t("overrideAppend")}
-              </label>
-              <textarea
-                className="w-full resize-y rounded-md border border-border bg-inset p-2.5 font-mono text-xs leading-normal text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              </FieldLabel>
+              <Textarea
+                id="subscription-override-append"
+                className="resize-y p-2.5 font-mono text-xs leading-normal"
                 rows={3}
                 value={overrideAppend}
                 onChange={(event) => setOverrideAppend(event.target.value)}
                 placeholder={"DOMAIN-SUFFIX,ads.example,REJECT"}
               />
-            </div>
-            <div className="space-y-1.5">
-              <label className="font-medium text-foreground">
+            </Field>
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor="subscription-override-dns">
                 {t("overrideDns")}
-              </label>
-              <textarea
-                className="w-full resize-y rounded-md border border-border bg-inset p-2.5 font-mono text-xs leading-normal text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              </FieldLabel>
+              <Textarea
+                id="subscription-override-dns"
+                className="resize-y p-2.5 font-mono text-xs leading-normal"
                 rows={3}
                 value={overrideDns}
                 onChange={(event) => setOverrideDns(event.target.value)}
@@ -959,7 +992,7 @@ export default function SubscriptionDetail({
                     : "nameserver:\n  - 8.8.8.8"
                 }
               />
-            </div>
+            </Field>
             {overrideError && (
               <p role="alert" className="text-destructive">
                 {overrideError}

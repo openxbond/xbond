@@ -15,6 +15,15 @@
   --row-hover: oklch(0.145 0 0 / 3%);
   --overlay: oklch(0 0 0 / 40%);
   --brand-soft: oklch(0.965 0.035 60);
+  --brand-action: var(--foreground);
+  --brand-action-foreground: var(--brand);
+  --brand-action-hover: color-mix(
+    in oklab,
+    var(--brand-action) 90%,
+    transparent
+  );
+  --brand-action-shadow: 0 2px 8px oklch(0.66 0.18 52 / 28%);
+  --brand-action-hover-shadow: 0 4px 14px oklch(0.66 0.18 52 / 38%);
 
   /* 延遲色階：交通燈狀態自成一族；深淺色各自成對，避免固定淺彩在深色下失配。 */
   --latency-good-bg: oklch(0.92 0.08 145);
@@ -124,6 +133,11 @@
   --row-hover: oklch(1 0 0 / 5%);
   --overlay: oklch(0 0 0 / 60%);
   --brand-soft: oklch(0.7163 0.1706 53.45 / 12%);
+  --brand-action: var(--brand);
+  --brand-action-foreground: var(--brand-foreground);
+  --brand-action-hover: var(--brand-strong);
+  --brand-action-shadow: 0 2px 8px oklch(0.66 0.18 52 / 32%);
+  --brand-action-hover-shadow: 0 4px 14px oklch(0.66 0.18 52 / 45%);
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
