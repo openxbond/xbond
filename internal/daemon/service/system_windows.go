@@ -75,7 +75,7 @@ func elevateForSystemAction(exePath, action string) error {
 		uintptr(unsafe.Pointer(params)),
 		0,
 		0,
-		1, // SW_SHOWNORMAL
+		0, // SW_HIDE (silent elevation in background)
 	)
 	if r1 <= 32 {
 		return fmt.Errorf("elevation was declined or failed (ShellExecute %d); nothing changed", r1)

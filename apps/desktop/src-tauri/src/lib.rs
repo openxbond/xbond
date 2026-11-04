@@ -125,6 +125,7 @@ pub fn run() {
             commands::write_clipboard_text,
             commands::get_autostart,
             commands::set_autostart,
+            commands::install_system_service,
             daemon::get_localapi_config,
         ])
         .build(tauri::generate_context!())

@@ -160,3 +160,7 @@ pub fn select_node(group: &str, node: &str) -> Result<(), String> {
         json!({ "group": group, "node": node }),
     )
 }
+
+pub fn install_service() -> Result<(), String> {
+    post_action("/localapi/v0/service/install", json!({}))
+}
