@@ -40,17 +40,11 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .manage(updater::UpdateState::default())
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
-                    // Global reveal/hide hotkey: works while the window is
-                    // hidden and the webview idle.
-                    if event.state() == ShortcutState::Pressed {
-                        tray::toggle_main_window(app);
-                    }
-                })
-                .build(),
-        )
+        // Global reveal/hide hotkey is registered in setup via on_shortcut.
+        // The plugin dispatches every event to BOTH the builder handler and
+        // the shortcut's own handler, so a with_handler here would toggle
+        // twice per press: show, then immediately re-show, never hide.
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             app.manage(commands::ShellState::default());
             if daemon::packaged() {
