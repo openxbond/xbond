@@ -15,6 +15,7 @@ import (
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
+	"github.com/openxbond/xbond/internal/platform/httplocal"
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/sub"
 )
@@ -87,7 +88,7 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 	// extracted, and index is read per request.
 	mux.HandleFunc("/", s.handleWeb)
 
-	s.server = &http.Server{Handler: mux}
+	s.server = &http.Server{Handler: httplocal.Guard(mux)}
 	go func() {
 		if err := s.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			svc.listener.OnLog("error", "local API server failed: "+err.Error())

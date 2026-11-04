@@ -22,6 +22,7 @@ import (
 	"github.com/openxbond/xbond/internal/daemon/service"
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
+	"github.com/openxbond/xbond/internal/platform/httplocal"
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/platform/sysproxy"
 	"github.com/openxbond/xbond/internal/sub"
@@ -144,7 +145,7 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	s.registerRoutes(mux)
 
 	s.httpServer = &http.Server{
-		Handler: mux,
+		Handler: httplocal.Guard(mux),
 	}
 
 	if systemScope {

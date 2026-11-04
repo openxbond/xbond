@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/openxbond/xbond/internal/engine"
+	"github.com/openxbond/xbond/internal/platform/httplocal"
 	"github.com/openxbond/xbond/internal/sub"
 )
 
@@ -114,5 +116,70 @@ func TestLocalAPIServerAndClient(t *testing.T) {
 
 	if !strings.Contains(html, `<meta name="external-controller"`) {
 		t.Errorf("expected meta external-controller injected into html, got:\n%s", html)
+	}
+}
+
+// LocalAPI 的唯一守门逻辑此前零测试：无 token/错 token 必须一律 401，任何
+// refactor 反转检查时 CI 都要红（审计 #18 + 安全第一条的配套）。
+func TestAuthMiddlewareRejectsMissingAndWrongTokens(t *testing.T) {
+	s := &Server{token: "middleware-test-token"}
+	handler := s.authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	for name, tc := range map[string]struct {
+		token  string
+		status int
+	}{
+		"missing token":   {token: "", status: http.StatusUnauthorized},
+		"wrong token":     {token: "wrong", status: http.StatusUnauthorized},
+		"correct token":   {token: "middleware-test-token", status: http.StatusOK},
+		"prefix of token": {token: "middleware-test", status: http.StatusUnauthorized},
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/localapi/v0/status", nil)
+		if tc.token != "" {
+			req.Header.Set("X-XBond-Token", tc.token)
+		}
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != tc.status {
+			t.Errorf("%s: got %d, want %d", name, rec.Code, tc.status)
+		}
+	}
+}
+
+// Host 守卫：rebinding 页面把自家域名解析到 127.0.0.1 后，浏览器发出的
+// Host 是攻击者域名——必须一律拒绝；三种 loopback 名（含 IPv6 字面量）
+// 是完整白名单。
+func TestLoopbackHostGuard(t *testing.T) {
+	srv := httptest.NewServer(httplocal.Guard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})))
+	defer srv.Close()
+
+	for name, tc := range map[string]struct {
+		host   string
+		status int
+	}{
+		"loopback IPv4":  {host: "127.0.0.1", status: http.StatusOK},
+		"loopback name":  {host: "localhost", status: http.StatusOK},
+		"loopback IPv6":  {host: "[::1]", status: http.StatusOK},
+		"rebound domain": {host: "evil.example", status: http.StatusForbidden},
+		"suffix spoof":   {host: "127.0.0.1.evil.example", status: http.StatusForbidden},
+		"lookup-alike":   {host: "127.0.0.2", status: http.StatusForbidden},
+	} {
+		req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Host = tc.host
+		resp, err := srv.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != tc.status {
+			t.Errorf("%s: got %d, want %d", name, resp.StatusCode, tc.status)
+		}
 	}
 }
