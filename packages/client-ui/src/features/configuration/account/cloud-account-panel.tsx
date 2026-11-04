@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { isDesktopApp } from "@/platform/local-api-bootstrap";
+import { openExternalUrl } from "@/platform/open-external";
 import { useLocalAPI } from "@/state/local-runtime";
 import { useLanguage } from "@/state/user-preferences";
 
@@ -127,6 +129,20 @@ export default function AccountPanel() {
     } finally {
       setPendingAction(null);
     }
+  }
+
+  // Desktop's webview has no target="_blank" handling: hand the URL to the
+  // shell command (system browser) instead. Browser hosts keep the native
+  // anchor behavior.
+  function openExternal(
+    event: { preventDefault(): void },
+    url?: string | null,
+  ) {
+    if (!url || !isDesktopApp()) return;
+    event.preventDefault();
+    openExternalUrl(url).catch((err: unknown) =>
+      setError(err instanceof Error ? err.message : String(err)),
+    );
   }
 
   async function update() {
@@ -370,6 +386,14 @@ export default function AccountPanel() {
                   }
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(event) =>
+                    openExternal(
+                      event,
+                      account?.authUrl ||
+                        account?.verificationUriComplete ||
+                        account?.verificationUri,
+                    )
+                  }
                 >
                   {t("openAuthPage")}
                   <ExternalLink aria-hidden="true" className="size-3.5" />
@@ -489,6 +513,7 @@ export default function AccountPanel() {
                   href={account.consoleUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(event) => openExternal(event, account.consoleUrl)}
                 >
                   <ExternalLink aria-hidden="true" className="size-3" />
                   {t("openConsole")}

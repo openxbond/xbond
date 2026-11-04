@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_clipboard_manager::ClipboardExt as _;
+use tauri_plugin_opener::OpenerExt as _;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DesktopInfo {
@@ -162,6 +163,21 @@ pub fn read_clipboard_text(app: AppHandle) -> Option<String> {
 #[tauri::command]
 pub fn write_clipboard_text(app: AppHandle, text: String) -> Result<(), String> {
     app.clipboard().write_text(text).map_err(|e| e.to_string())
+}
+
+/// Opens a link in the user's default browser. The webview has no
+/// `target="_blank"` handling, so external links (Cloud console, OAuth page)
+/// go through this command; only http(s) is accepted — never arbitrary
+/// schemes.
+#[tauri::command]
+pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
+    let lower = url.to_ascii_lowercase();
+    if !lower.starts_with("https://") && !lower.starts_with("http://") {
+        return Err("only http(s) URLs can be opened".into());
+    }
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

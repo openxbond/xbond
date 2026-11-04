@@ -85,7 +85,7 @@ type TauriInternals = {
 /**
  * Raw Tauri IPC for the shell's custom commands; null outside the desktop
  * shell or when the bridge is unavailable. The desktop-facing platform code
- * (this module and desktop-shell.ts) is the only consumer.
+ * (this module, desktop-shell.ts and open-external.ts) is the only consumer.
  */
 export function invokeDesktop(): TauriInternals["invoke"] | null {
   if (typeof window === "undefined") return null;

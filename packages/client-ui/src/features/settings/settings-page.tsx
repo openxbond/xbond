@@ -47,6 +47,7 @@ import type { Lang } from "@/i18n/instance";
 import { cn } from "@/lib/utils";
 import { isClashX } from "@/platform/clashx-bridge";
 import { invokeDesktop, isDesktopApp } from "@/platform/local-api-bootstrap";
+import { openExternalUrl } from "@/platform/open-external";
 import { useAPIInfo, useClient } from "@/state/controller-target";
 import { useCapabilities, useGeneral, useVersion } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
@@ -790,6 +791,13 @@ export default function Settings() {
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center justify-between rounded-xl border border-border/60 bg-inset/50 px-4 py-3 transition-colors hover:border-brand/40 hover:bg-row-hover/60"
+              onClick={(event) => {
+                if (!isDesktopApp()) return;
+                event.preventDefault();
+                openExternalUrl("https://github.com/openxbond/xbond").catch(
+                  (err: unknown) => toast.error(String(err)),
+                );
+              }}
             >
               <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground">
                 {t("about.openSource")}

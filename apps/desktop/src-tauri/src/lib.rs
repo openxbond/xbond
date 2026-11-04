@@ -37,6 +37,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -139,6 +140,7 @@ pub fn run() {
             commands::take_pending_import,
             commands::read_clipboard_text,
             commands::write_clipboard_text,
+            commands::open_external_url,
             commands::get_autostart,
             commands::set_autostart,
             daemon::get_localapi_config,
