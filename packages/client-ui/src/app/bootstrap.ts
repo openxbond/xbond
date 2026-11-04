@@ -1,6 +1,7 @@
 // Self-hosted Inter — no third-party font CDN; bundled and cached by Vite.
 import "@fontsource-variable/inter";
 import { isClashX, setupJsBridge } from "@/platform/clashx-bridge";
+import { initDesktopShellDom } from "@/platform/desktop-shell";
 
 import renderApp from "./mount-app";
 
@@ -11,5 +12,6 @@ import renderApp from "./mount-app";
 if (isClashX()) {
   setupJsBridge(() => renderApp());
 } else {
+  initDesktopShellDom();
   renderApp();
 }

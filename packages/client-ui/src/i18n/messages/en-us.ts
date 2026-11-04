@@ -752,6 +752,9 @@ const EN = {
     urlPlaceholder: "Subscription or config URL",
     invalidUrl:
       "Enter a subscription URL that starts with http:// or https://.",
+    importHandoffClipboard: "Clipboard contains an importable configuration",
+    importHandoffDeepLink: "Configuration import link received",
+    importHandoffOpen: "Import now",
     addedUpdateFailed: "Subscription added, but the first update failed.",
     pastePlaceholder: "Paste a sing-box / Clash configuration",
     chooseFile: "Choose a file",

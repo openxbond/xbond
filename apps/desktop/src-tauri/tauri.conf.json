@@ -18,7 +18,8 @@
         "height": 780,
         "minWidth": 840,
         "minHeight": 580,
-        "center": true
+        "center": true,
+        "visible": false
       }
     ],
     "security": {
@@ -32,6 +33,13 @@
         "object-src": "'none'",
         "base-uri": "'self'",
         "frame-src": "'none'"
+      }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["xbond", "clash"]
       }
     }
   },

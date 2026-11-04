@@ -371,3 +371,22 @@
     transform: rotate(360deg);
   }
 }
+
+/* Desktop shell removes browser residue (Tauri only — the class is added by
+   initDesktopShellDom): no native right-click menu outside inputs, no
+   accidental selection on chrome, no file-drop navigation. Inputs, editable
+   hosts and technical strings stay selectable (DESIGN.md: 網址與技術字串保留
+   完整查看或複製方式). */
+html.desktop-shell {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.desktop-shell input,
+html.desktop-shell textarea,
+html.desktop-shell [contenteditable="true"],
+html.desktop-shell code,
+html.desktop-shell pre {
+  user-select: text;
+  -webkit-user-select: text;
+}

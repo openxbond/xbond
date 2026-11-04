@@ -78,22 +78,36 @@ export function hasDaemonConfig(): boolean {
   return Boolean(detectLocalAPIConfig() || isDesktopApp());
 }
 
+type TauriInternals = {
+  invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+};
+
+/**
+ * Raw Tauri IPC for the shell's custom commands; null outside the desktop
+ * shell or when the bridge is unavailable. The desktop-facing platform code
+ * (this module and desktop-shell.ts) is the only consumer.
+ */
+export function invokeDesktop(): TauriInternals["invoke"] | null {
+  if (typeof window === "undefined") return null;
+  const internals = (
+    window as unknown as { __TAURI_INTERNALS__?: TauriInternals }
+  ).__TAURI_INTERNALS__;
+  return internals?.invoke ?? null;
+}
+
 /**
  * Resolves LocalAPI configuration from Tauri desktop IPC if running in desktop mode.
  */
 export async function resolveDesktopLocalAPIConfig(): Promise<LocalAPIConfig | null> {
   if (!isDesktopApp()) return null;
   try {
-    const tauri = window as unknown as {
-      __TAURI_INTERNALS__?: {
-        invoke: (
-          cmd: string,
-        ) => Promise<{ addr: string; token: string; is_running: boolean }>;
-      };
-    };
-    const invoke = tauri.__TAURI_INTERNALS__?.invoke;
+    const invoke = invokeDesktop();
     if (invoke) {
-      const cfg = await invoke("get_localapi_config");
+      const cfg = (await invoke("get_localapi_config")) as {
+        addr: string;
+        token: string;
+        is_running: boolean;
+      } | null;
       if (cfg && cfg.token) {
         const endpoint = cfg.addr.startsWith("http")
           ? cfg.addr

@@ -12,7 +12,7 @@ import {
   Sliders,
   Terminal,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -46,7 +46,7 @@ import { useAction } from "@/hooks/use-action";
 import type { Lang } from "@/i18n/instance";
 import { cn } from "@/lib/utils";
 import { isClashX } from "@/platform/clashx-bridge";
-import { isDesktopApp } from "@/platform/local-api-bootstrap";
+import { invokeDesktop, isDesktopApp } from "@/platform/local-api-bootstrap";
 import { useAPIInfo, useClient } from "@/state/controller-target";
 import { useCapabilities, useGeneral, useVersion } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
@@ -142,6 +142,46 @@ export default function Settings() {
     version.premium,
     version.meta,
   );
+
+  // Desktop host capabilities are real OS state, not just localStorage: the
+  // shell's answer wins on mount, and toggles push down to the OS.
+  useEffect(() => {
+    const invoke = invokeDesktop();
+    if (!isDesktop || !invoke) return;
+    void invoke("get_autostart").then((enabled) => {
+      if (typeof enabled === "boolean")
+        setDesktopPrefs((prev) =>
+          prev.autostart === enabled ? prev : { ...prev, autostart: enabled },
+        );
+    });
+    void invoke("get_close_to_tray").then((value) => {
+      if (typeof value === "boolean")
+        setDesktopPrefs((prev) =>
+          prev.closeToTray === value ? prev : { ...prev, closeToTray: value },
+        );
+    });
+  }, [isDesktop, setDesktopPrefs]);
+
+  async function toggleAutostart(enable: boolean) {
+    const invoke = invokeDesktop();
+    if (!invoke) return;
+    setDesktopPrefs((prev) => ({ ...prev, autostart: enable }));
+    try {
+      const enabled = await invoke("set_autostart", { enable });
+      if (typeof enabled === "boolean" && enabled !== enable)
+        setDesktopPrefs((prev) => ({ ...prev, autostart: enabled }));
+    } catch (err) {
+      // Registration can genuinely fail (policy-blocked run keys): revert
+      // and surface it instead of showing a switch that lies.
+      setDesktopPrefs((prev) => ({ ...prev, autostart: !enable }));
+      toast.error(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  function toggleCloseToTray(value: boolean) {
+    setDesktopPrefs((prev) => ({ ...prev, closeToTray: value }));
+    void invokeDesktop()?.("set_close_to_tray", { value });
+  }
 
   const currentPort =
     port || String(status?.preferences.mixedPort ?? general.mixedPort ?? "");
@@ -283,9 +323,7 @@ export default function Settings() {
                   <Switch
                     aria-label={t("desktop.autostart")}
                     checked={desktopPrefs.autostart}
-                    onCheckedChange={(val) =>
-                      setDesktopPrefs((prev) => ({ ...prev, autostart: val }))
-                    }
+                    onCheckedChange={(val) => void toggleAutostart(val)}
                   />
                 </SettingRow>
 
@@ -301,12 +339,7 @@ export default function Settings() {
                   <Switch
                     aria-label={t("desktop.closeToTray")}
                     checked={desktopPrefs.closeToTray}
-                    onCheckedChange={(val) =>
-                      setDesktopPrefs((prev) => ({
-                        ...prev,
-                        closeToTray: val,
-                      }))
-                    }
+                    onCheckedChange={toggleCloseToTray}
                   />
                 </SettingRow>
               </>

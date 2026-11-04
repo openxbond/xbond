@@ -1,6 +1,7 @@
 import { subscriptionLang } from "@xbond/client/localapi";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -27,9 +28,31 @@ export default function ImportConfig({
   const { lang } = useLanguage();
   const { addSub } = useSubscriptions();
   const { hasDaemon, refresh } = useLocalAPI();
-  const [mode, setMode] = useState<"url" | "file" | "paste">("url");
-  const [url, setURL] = useState("");
-  const [content, setContent] = useState("");
+  // Deep-link and clipboard hand-offs land here with ?url= (subscription URL)
+  // or ?paste= (share link / config text) already set; initializers only, so
+  // editing afterwards is free.
+  const [searchParams, setParams] = useSearchParams();
+  const handedUrl = searchParams.get("url") ?? "";
+  const handedPaste = searchParams.get("paste") ?? "";
+  const [mode, setMode] = useState<"url" | "file" | "paste">(
+    handedPaste ? "paste" : "url",
+  );
+  const [url, setURL] = useState(handedUrl);
+  const [content, setContent] = useState(handedPaste);
+  // Consume the hand-off params so re-opening the import form later starts
+  // empty instead of resurrecting the handed-over value.
+  useEffect(() => {
+    if (!handedUrl && !handedPaste) return;
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        next.delete("url");
+        next.delete("paste");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [handedUrl, handedPaste, setParams]);
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [updateIntervalHours, setUpdateIntervalHours] = useState(24);

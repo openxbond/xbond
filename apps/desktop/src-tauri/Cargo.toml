@@ -16,5 +16,14 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-single-instance = "2.5.4"
+tauri-plugin-autostart = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-window-state = "2"
+# Tray-local LocalAPI client: loopback plain HTTP only, no TLS stack.
+ureq = { version = "2", default-features = false, features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# preserve_order keeps the core's proxy-group order (config order) in tray menus.
+serde_json = { version = "1.0", features = ["preserve_order"] }

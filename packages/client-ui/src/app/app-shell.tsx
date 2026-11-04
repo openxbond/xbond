@@ -21,6 +21,7 @@ import Rules from "@/features/rules/rules-page";
 import Settings from "@/features/settings/settings-page";
 import { cn } from "@/lib/utils";
 import { isClashX } from "@/platform/clashx-bridge";
+import { useDesktopShell } from "@/platform/desktop-shell";
 import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
 import { identityAtom, useAPIInfo } from "@/state/controller-target";
 import { useLocalAPI } from "@/state/local-runtime";
@@ -38,6 +39,8 @@ const mobileRoutes = [
 
 export default function App() {
   useTheme();
+  // Desktop shell: anti-flash reveal, deep-link drain, clipboard sniffing.
+  useDesktopShell();
 
   const { status } = useLocalAPI();
   const [identity, setIdentity] = useAtom(identityAtom);
