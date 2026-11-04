@@ -340,6 +340,29 @@ func (m *Manager) AddXBond(
 	return m.upsertAndInit(meta, activate)
 }
 
+// RetokenXBond swaps the XBond subscription's credential in place: the
+// identity, selections, overrides and schedule survive a server-side token
+// rotation, which is exactly when the old token can no longer fetch. The
+// first XBond source is updated, mirroring bindLink's existing-source pick.
+func (m *Manager) RetokenXBond(newToken string) (*SubscriptionMeta, error) {
+	if !strings.HasPrefix(newToken, "sub-") {
+		return nil, fmt.Errorf("xbond token must start with 'sub-'")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.store.Subscriptions {
+		if m.store.Subscriptions[i].Type == SubTypeXBond {
+			m.store.Subscriptions[i].Token = newToken
+			m.store.Subscriptions[i].Health = HealthOK
+			m.store.Subscriptions[i].LastErrorMessage = ""
+			m.saveStoreLocked()
+			meta := m.store.Subscriptions[i]
+			return &meta, nil
+		}
+	}
+	return nil, errors.New("no XBond subscription to retoken")
+}
+
 // BindAccount keeps an account source's identity across credential rotation.
 // A manually imported source is adopted only when its token matches the
 // authenticated account; unrelated sources and their overrides stay intact.

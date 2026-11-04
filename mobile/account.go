@@ -291,8 +291,14 @@ func (a *mobileAccount) bindLink(link *clientapi.SubscriptionLink) (*sub.Subscri
 	var meta *sub.SubscriptionMeta
 	updateError := ""
 	if existing != "" {
-		res, err := a.svc.subMgr.Update(existing, true, "")
-		if err != nil {
+		// Token rotation is the exact scenario this recovery path exists
+		// for: the server rotated the credential, so persist the fresh
+		// token BEFORE updating — updating with the stored old token fails
+		// with the same 401 it was recovering from, and the rotation
+		// recovery dies exactly when it is needed.
+		if _, err := a.svc.subMgr.RetokenXBond(link.SubscriptionToken); err != nil {
+			updateError = err.Error()
+		} else if res, err := a.svc.subMgr.Update(existing, true, ""); err != nil {
 			updateError = err.Error()
 		} else if res != nil && res.Meta != nil {
 			meta = res.Meta

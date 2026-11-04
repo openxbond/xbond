@@ -387,3 +387,39 @@ func TestShareLinkCredentialIsDecoded(t *testing.T) {
 		t.Fatalf("credential was not percent-decoded: %v", got)
 	}
 }
+
+// 服务端轮换 token 后旧 token 已无法拉取：RetokenXBond 必须原位换凭据
+// （身份、节点选择、覆盖都不丢），而不是像 AddXBond 那样按 token 派生新 ID。
+func TestRetokenXBondSwapsCredentialInPlace(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	m, err := NewManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.AddXBond("sub-"+strings.Repeat("old", 12), "", nil, "", "zh-HK", "XBond", 24, true); err != nil {
+		t.Fatal(err)
+	}
+	list := m.List()
+	if len(list) != 1 {
+		t.Fatalf("expected one subscription, got %d", len(list))
+	}
+	id := list[0].ID
+
+	meta, err := m.RetokenXBond("sub-" + strings.Repeat("new", 12))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.ID != id {
+		t.Fatalf("identity must survive rotation: %s -> %s", id, meta.ID)
+	}
+	if meta.Token != "sub-"+strings.Repeat("new", 12) {
+		t.Fatalf("credential not swapped: %q", meta.Token)
+	}
+	if reloaded := m.List(); reloaded[0].Token != meta.Token || reloaded[0].ID != id {
+		t.Fatalf("retoken not persisted: %+v", reloaded[0])
+	}
+
+	if _, err := m.RetokenXBond("not-a-token"); err == nil {
+		t.Fatal("non sub- token must be rejected")
+	}
+}
