@@ -15,6 +15,7 @@ import (
 	"github.com/openxbond/xbond/internal/daemon"
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/i18n"
+	"github.com/openxbond/xbond/internal/platform/browser"
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/sub"
 	"github.com/spf13/cobra"
@@ -189,7 +190,7 @@ func runAccountLogin(
 			NoBrowser:    noBrowser || isDockerEnvironment(),
 			CallbackHTML: i18n.RenderCallbackHTML,
 			OpenBrowser: func(target string) error {
-				if err := openBrowser(target); err != nil {
+				if err := browser.Open(target); err != nil {
 					fmt.Fprintln(os.Stderr, t("pkce.browser_open_failed", i18n.P{"err": err}))
 					return err
 				}

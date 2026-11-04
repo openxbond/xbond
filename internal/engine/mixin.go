@@ -65,11 +65,6 @@ func ApplyLayers(source []byte, override *SubscriptionOverride, mixin *GlobalMix
 	}
 }
 
-// ApplyGlobalMixin splices only the global mixin into the source.
-func ApplyGlobalMixin(source []byte, mixin *GlobalMixin) ([]byte, error) {
-	return ApplyLayers(source, nil, mixin)
-}
-
 func applyClashLayers(source []byte, override *SubscriptionOverride, mixin *GlobalMixin) ([]byte, error) {
 	raw, err := decodeYAMLMap(source)
 	if err != nil {

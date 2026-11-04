@@ -4,10 +4,7 @@ package daemon
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"syscall"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
 
@@ -16,10 +13,8 @@ import (
 )
 
 var (
-	shell32                 = windows.NewLazySystemDLL("shell32.dll")
-	procIsUserAnAdmin       = shell32.NewProc("IsUserAnAdmin")
-	kernel32                = windows.NewLazySystemDLL("kernel32.dll")
-	procGetSystemDirectoryW = kernel32.NewProc("GetSystemDirectoryW")
+	shell32           = windows.NewLazySystemDLL("shell32.dll")
+	procIsUserAnAdmin = shell32.NewProc("IsUserAnAdmin")
 )
 
 // serviceSystemInstalled indirection exists for tests: the delegation paths
@@ -107,22 +102,4 @@ func isElevated() (bool, error) {
 	default:
 		return false, syscall.EINVAL
 	}
-}
-
-func wintunDLLPresent() bool {
-	exe, err := os.Executable()
-	if err == nil {
-		if _, err := os.Stat(filepath.Join(filepath.Dir(exe), "wintun.dll")); err == nil {
-			return true
-		}
-	}
-	// GetSystemDirectoryW avoids trusting a redirected SYSWOW64 view.
-	buf := make([]uint16, syscall.MAX_PATH)
-	n, _, _ := procGetSystemDirectoryW.Call(uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
-	if n == 0 || int(n) > len(buf) {
-		return false
-	}
-	system32 := windows.UTF16ToString(buf[:n])
-	_, err = os.Stat(filepath.Join(system32, "wintun.dll"))
-	return err == nil
 }

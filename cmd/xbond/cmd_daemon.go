@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/openxbond/xbond/internal/daemon"
 	"github.com/openxbond/xbond/internal/daemon/service"
+	"github.com/openxbond/xbond/internal/platform/browser"
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/version"
 	"github.com/spf13/cobra"
@@ -397,7 +396,7 @@ var webCmd = &cobra.Command{
 		fmt.Printf("Internal Clash API: http://127.0.0.1:%d (secret configured)\n", st.Preferences.ClashPort)
 
 		if !webNoOpen {
-			openBrowser(fmt.Sprintf("http://%s/", client.Addr()))
+			browser.Open(fmt.Sprintf("http://%s/", client.Addr()))
 		}
 		return nil
 	},
@@ -451,17 +450,4 @@ func waitDaemonExit(timeout time.Duration) error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-}
-
-func openBrowser(targetURL string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", targetURL)
-	case "darwin":
-		cmd = exec.Command("open", targetURL)
-	default:
-		cmd = exec.Command("xdg-open", targetURL)
-	}
-	return cmd.Start()
 }

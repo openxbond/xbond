@@ -361,7 +361,6 @@ func applyClashGeneral(
 	delete(raw, "external-ui")
 	mergeProfile(raw)
 	applyGeoXMirrors(raw)
-	applyGeoXMirrors(raw)
 }
 
 func mergeProfile(raw map[string]any) {

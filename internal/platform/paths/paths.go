@@ -109,10 +109,6 @@ func LocalAPIAddrPath() string {
 	return filepath.Join(DataDir(), "localapi.addr")
 }
 
-func DaemonLogPath() string {
-	return filepath.Join(DataDir(), "daemon.log")
-}
-
 // DelegationGrantPath holds the SID (Windows) or uid (macOS) of the user
 // account allowed to delegate TUN takeover to the machine-scoped daemon. The
 // elevated installer writes it; the privileged transport reads it to decide
