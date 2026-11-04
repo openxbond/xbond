@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils";
 
 import { ConfigMenu } from "./configuration-menu";
 
+const IS_MACOS =
+  typeof navigator !== "undefined" && /Macintosh/i.test(navigator.userAgent);
+
 /** Route display names map to sidebar message keys (desktop 8 + mobile 4). */
 function navLabel(name: string) {
   const keys = {
@@ -250,6 +253,7 @@ function NavLink({
 export default function Sidebar(props: SidebarProps) {
   const { routes } = props;
   const { t } = useTranslation("sidebar");
+  const { t: tPalette } = useTranslation("commandPalette");
   const location = useLocation();
   const desktopItems = [
     { path: "/connect", name: "Connect" },
@@ -288,7 +292,10 @@ export default function Sidebar(props: SidebarProps) {
         className="fixed inset-y-3 left-3 z-50 flex w-[204px] flex-col rounded-rail border border-[var(--glass-border)] bg-[var(--glass-bg)] text-sidebar-foreground shadow-elevation-card backdrop-blur-[var(--glass-blur)] select-none supports-[not_(backdrop-filter:blur(1px))]:bg-sidebar max-md:hidden"
         aria-label={t("home")}
       >
-        <div className="flex items-center gap-2.5 px-[18px] pt-5 pb-3.5">
+        <div
+          data-tauri-drag-region="deep"
+          className="flex items-center gap-2.5 px-[18px] pt-5 pb-3.5"
+        >
           <XBondIcon className="size-7 shrink-0" />
           <span className="text-title font-bold tracking-[-0.02em] text-foreground">
             XBond
@@ -301,14 +308,14 @@ export default function Sidebar(props: SidebarProps) {
             window.dispatchEvent(new CustomEvent("open-command-palette"))
           }
           className="mx-2.5 mb-2 flex cursor-pointer items-center justify-between rounded-control border border-border/70 bg-surface-inset/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-inset hover:text-foreground"
-          aria-label="快速搜尋"
+          aria-label={tPalette("searchButton")}
         >
           <span className="flex items-center gap-1.5">
             <Search className="size-3.5" />
-            <span>快速搜尋…</span>
+            <span>{tPalette("searchButton")}</span>
           </span>
           <kbd className="rounded border border-border/80 bg-card px-1 text-[10px] font-mono">
-            ⌘K
+            {IS_MACOS ? "⌘K" : "Ctrl K"}
           </kbd>
         </button>
 

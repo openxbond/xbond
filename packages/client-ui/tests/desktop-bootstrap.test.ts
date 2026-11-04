@@ -141,6 +141,37 @@ test("Desktop system service settings keys exist across all 5 locale dictionarie
   }
 });
 
+test("Command palette localization keys exist across all 5 locale dictionaries", () => {
+  const dicts = [HK, CN, EN, KO, FA];
+  for (const dict of dicts) {
+    assert.ok(dict.commandPalette.title);
+    assert.ok(dict.commandPalette.searchPlaceholder);
+    assert.ok(dict.commandPalette.searchButton);
+    assert.ok(dict.commandPalette.emptyTitle);
+    assert.ok(dict.commandPalette.emptyDesc);
+    assert.ok(dict.commandPalette.categories.actions);
+    assert.ok(dict.commandPalette.categories.navigation);
+    assert.ok(dict.commandPalette.categories.nodes);
+    assert.ok(dict.commandPalette.categories.pinned);
+    assert.ok(dict.commandPalette.actions.connect);
+    assert.ok(dict.commandPalette.actions.disconnect);
+    assert.ok(dict.commandPalette.actions.restart);
+    assert.ok(dict.commandPalette.actions.ruleMode);
+    assert.ok(dict.commandPalette.actions.globalMode);
+    assert.ok(dict.commandPalette.actions.directMode);
+    assert.ok(dict.commandPalette.actions.copyEnv);
+    assert.ok(dict.commandPalette.toasts.connected);
+    assert.ok(dict.commandPalette.toasts.disconnected);
+    assert.ok(dict.commandPalette.toasts.restarted);
+    assert.ok(dict.commandPalette.toasts.switchedMode);
+    assert.ok(dict.commandPalette.toasts.envCopied);
+    assert.ok(dict.commandPalette.toasts.nodeSwitched);
+    assert.ok(dict.commandPalette.footer.navigate);
+    assert.ok(dict.commandPalette.footer.select);
+    assert.ok(dict.commandPalette.footer.close);
+  }
+});
+
 test("handleDesktopShortcut dispatches keyboard shortcuts properly", () => {
   let navigatedTo = "";
   let windowClosed = false;

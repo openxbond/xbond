@@ -41,6 +41,12 @@ const HK = {
       direct: "直連",
     },
   },
+  titlebar: {
+    minimize: "最小化",
+    maximize: "最大化",
+    restore: "還原",
+    close: "關閉",
+  },
   sidebar: {
     home: "首頁",
     connect: "連線",
@@ -639,10 +645,12 @@ const HK = {
         "虛擬網卡 (TUN) 需要以系統管理員特權運行的後台服務來建立虛擬網卡並接管整機流量。是否現在請求提升權限並安裝服務？",
       tunUnavailable: {
         not_elevated:
-          "TUN 需要系統管理員權限——請以系統管理員身份重啟守護行程。",
-        not_root: "TUN 需要 root 權限——請以 root 重啟守護行程。",
+          "TUN 需要特權服務——按提示安裝，或以系統管理員身份重啟守護行程。",
+        not_root: "TUN 需要 root 權限——安裝系統服務，或以 root 重啟守護行程。",
         wintun_missing:
           "未在守護行程旁或 System32 找到 wintun.dll；放置後即可啟用 TUN。",
+        service_unreachable:
+          "特權服務已安裝但無回應——按提示重新安裝，或檢查系統服務狀態。",
       },
       tunPrivilegeNotice:
         "TUN 接管需要系統管理員權限：Windows 以系統管理員身份執行，macOS/Linux 需要 root/sudo。",
@@ -812,6 +820,51 @@ const HK = {
     protocol: "協議類型",
     webModeAccountNote:
       "目前處於純 Web 控制端模式。XBond Cloud 帳號在桌面用戶端中集中託管。",
+  },
+  commandPalette: {
+    title: "命令面板",
+    searchPlaceholder: "搜尋命令、節點或前往頁面…",
+    searchButton: "快速搜尋…",
+    emptyTitle: "未找到相符結果",
+    emptyDesc: "請嘗試其他搜尋關鍵字",
+    categories: {
+      actions: "快捷操作",
+      navigation: "頁面導覽",
+      nodes: "節點清單",
+      pinned: "已釘選節點",
+    },
+    actions: {
+      connect: "建立連線",
+      disconnect: "中斷連線",
+      connectDesc: "啟動核心並接管網絡流量",
+      disconnectDesc: "中斷當前代理連線",
+      restart: "重啟核心",
+      restartDesc: "重新載入核心配置並恢復連線",
+      ruleMode: "切換為規則分流模式",
+      ruleModeDesc: "按分流規則自動選路",
+      globalMode: "切換為全局代理模式",
+      globalModeDesc: "所有出站流量皆經由選定節點代理",
+      directMode: "切換為直連模式",
+      directModeDesc: "繞過代理，直接連線目標伺服器",
+      copyEnv: "複製終端代理命令",
+      copyEnvDesc: "快速配置 HTTP / HTTPS 代理環境變數",
+    },
+    toasts: {
+      connected: "已建立連線",
+      disconnected: "已中断連線",
+      restarted: "核心已重啟",
+      switchedMode: "已切換為 {{mode}} 模式",
+      envCopied: "代理命令已複製到剪貼簿",
+      nodeSwitched: "已切換至 {{node}}",
+    },
+    navSubtitle: "前往 {{title}} 頁面",
+    nodeCurrent: "目前選中",
+    nodeSelect: "點擊切換為此節點",
+    footer: {
+      navigate: "導航",
+      select: "確認",
+      close: "關閉",
+    },
   },
 } as const;
 

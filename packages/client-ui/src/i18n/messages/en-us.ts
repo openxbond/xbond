@@ -42,6 +42,12 @@ const EN = {
       direct: "Direct",
     },
   },
+  titlebar: {
+    minimize: "Minimize",
+    maximize: "Maximize",
+    restore: "Restore",
+    close: "Close",
+  },
   sidebar: {
     home: "Home",
     connect: "Connect",
@@ -669,10 +675,13 @@ const EN = {
         "Virtual NIC (TUN) requires a background service running with system administrator privileges to configure network adapters and capture whole-system traffic. Would you like to elevate privileges and install the service now?",
       tunUnavailable: {
         not_elevated:
-          "TUN needs administrator privileges — restart the daemon as Administrator.",
-        not_root: "TUN needs root privileges — restart the daemon as root.",
+          "TUN needs the privileged service — install it from the prompt, or restart the daemon as Administrator.",
+        not_root:
+          "TUN needs root privileges — install the system service, or restart the daemon as root.",
         wintun_missing:
           "wintun.dll was not found next to the daemon or in System32; place it there to enable TUN.",
+        service_unreachable:
+          "The privileged service is installed but not responding — reinstall it from the prompt, or check the system services.",
       },
       tunPrivilegeNotice:
         "TUN takeover requires administrator privileges (run as Administrator on Windows, root/sudo on macOS/Linux).",
@@ -853,6 +862,51 @@ const EN = {
     protocol: "Protocol",
     webModeAccountNote:
       "Running in pure Web dashboard mode. XBond Cloud account is managed via Desktop app.",
+  },
+  commandPalette: {
+    title: "Command Palette",
+    searchPlaceholder: "Search commands, proxies, or jump to page…",
+    searchButton: "Quick search…",
+    emptyTitle: "No matching results",
+    emptyDesc: "Try searching with a different keyword",
+    categories: {
+      actions: "Actions",
+      navigation: "Navigation",
+      nodes: "Proxies",
+      pinned: "Pinned Proxies",
+    },
+    actions: {
+      connect: "Connect",
+      disconnect: "Disconnect",
+      connectDesc: "Start core engine and route network traffic",
+      disconnectDesc: "Disconnect current active proxy connection",
+      restart: "Restart Core",
+      restartDesc: "Reload core configuration and resume connection",
+      ruleMode: "Switch to Rule Mode",
+      ruleModeDesc: "Route traffic automatically based on rules",
+      globalMode: "Switch to Global Mode",
+      globalModeDesc: "Proxy all outbound traffic through selected node",
+      directMode: "Switch to Direct Mode",
+      directModeDesc: "Bypass proxy and connect directly to target servers",
+      copyEnv: "Copy Terminal Proxy Command",
+      copyEnvDesc: "Export HTTP and HTTPS proxy environment variables",
+    },
+    toasts: {
+      connected: "Connection established",
+      disconnected: "Connection terminated",
+      restarted: "Core restarted successfully",
+      switchedMode: "Switched to {{mode}} mode",
+      envCopied: "Proxy commands copied to clipboard",
+      nodeSwitched: "Switched to {{node}}",
+    },
+    navSubtitle: "Navigate to {{title}} page",
+    nodeCurrent: "Active",
+    nodeSelect: "Click to switch to this node",
+    footer: {
+      navigate: "Navigate",
+      select: "Select",
+      close: "Close",
+    },
   },
 } as const;
 

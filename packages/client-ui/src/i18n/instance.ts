@@ -75,6 +75,7 @@ declare module "i18next" {
   interface CustomTypeOptions {
     resources: {
       common: typeof en_US.common;
+      titlebar: typeof en_US.titlebar;
       sidebar: typeof en_US.sidebar;
       overview: typeof en_US.overview;
       connect: typeof en_US.connect;
@@ -89,6 +90,7 @@ declare module "i18next" {
       onboarding: typeof en_US.onboarding;
       account: typeof en_US.account;
       configuration: typeof en_US.configuration;
+      commandPalette: typeof en_US.commandPalette;
     };
   }
 }

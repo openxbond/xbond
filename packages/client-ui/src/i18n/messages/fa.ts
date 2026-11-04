@@ -42,6 +42,12 @@ const FA = {
       direct: "مستقیم",
     },
   },
+  titlebar: {
+    minimize: "کوچک کردن",
+    maximize: "بیشینه کردن",
+    restore: "بازگردانی",
+    close: "بستن",
+  },
   sidebar: {
     home: "خانه",
     connect: "اتصال",
@@ -660,11 +666,13 @@ const FA = {
         "کارت شبکه مجازی (TUN) برای ایجاد آداپتور و هدایت کل ترافیک سیستم به سرویس پس‌زمینه با دسترسی مدیر نیاز دارد. آیا می‌خواهید اکنون دسترسی را ارتقا داده و سرویس را نصب کنید؟",
       tunUnavailable: {
         not_elevated:
-          "TUN به دسترسی مدیر نیاز دارد — دیمون را به‌عنوان Administrator دوباره راه‌اندازی کنید.",
+          "TUN به سرویس ممتاز نیاز دارد — طبق راهنما نصب کنید یا دیمون را به‌عنوان Administrator دوباره راه‌اندازی کنید.",
         not_root:
-          "TUN به دسترسی root نیاز دارد — دیمون را به‌عنوان root دوباره راه‌اندازی کنید.",
+          "TUN به دسترسی root نیاز دارد — سرویس سیستمی را نصب کنید یا دیمون را به‌عنوان root دوباره راه‌اندازی کنید.",
         wintun_missing:
           "wintun.dll کنار دیمون یا در System32 پیدا نشد؛ با قرار دادن آن TUN فعال می‌شود.",
+        service_unreachable:
+          "سرویس ممتاز نصب شده اما پاسخ نمی‌دهد — طبق راهنما دوباره نصب کنید یا خدمات سیستم را بررسی کنید.",
       },
       tunPrivilegeNotice:
         "هدایت TUN به دسترسی مدیر نیاز دارد (ویندوز: اجرا به‌عنوان Administrator؛ macOS/Linux: root/sudo).",
@@ -843,6 +851,51 @@ const FA = {
     protocol: "پروتکل",
     webModeAccountNote:
       "در حالت داشبورد تحت وب. حساب کاربری XBond Cloud از طریق برنامه دسکتاپ مدیریت می‌شود.",
+  },
+  commandPalette: {
+    title: "پالت دستورات",
+    searchPlaceholder: "جستجوی دستورات، گره‌ها یا رفتن به صفحه…",
+    searchButton: "جستجوی سریع…",
+    emptyTitle: "هیچ نتیجه‌ای یافت نشد",
+    emptyDesc: "لطفاً با عبارت دیگری جستجو کنید",
+    categories: {
+      actions: "عملیات‌های سریع",
+      navigation: "پیمایش صفحات",
+      nodes: "گره‌ها",
+      pinned: "گره‌های سنجاق‌شده",
+    },
+    actions: {
+      connect: "اتصال",
+      disconnect: "قطع اتصال",
+      connectDesc: "راه‌اندازی موتور و کنترل ترافیک شبکه",
+      disconnectDesc: "قطع اتصال پروکسی فعال",
+      restart: "راه‌اندازی مجدد هسته",
+      restartDesc: "بارگذاری مجدد تنظیمات و بازیابی اتصال",
+      ruleMode: "تغییر به حالت مبتنی بر قانون",
+      ruleModeDesc: "مسیریابی خودکار بر اساس قوانین",
+      globalMode: "تغییر به حالت سراسری",
+      globalModeDesc: "هدایت تمام ترافیک از طریق گره انتخاب‌شده",
+      directMode: "تغییر به حالت مستقیم",
+      directModeDesc: "دور زدن پروکسی و اتصال مستقیم به سرورها",
+      copyEnv: "کپی دستورات پروکسی ترمینال",
+      copyEnvDesc: "تنظیم سریع متغیرهای محیطی پروکسی HTTP / HTTPS",
+    },
+    toasts: {
+      connected: "اتصال برقرار شد",
+      disconnected: "اتصال قطع شد",
+      restarted: "هسته مجدداً راه‌اندازی شد",
+      switchedMode: "به حالت {{mode}} تغییر یافت",
+      envCopied: "دستورات پروکسی در کلیپ‌بورد کپی شد",
+      nodeSwitched: "به گره {{node}} تغییر یافت",
+    },
+    navSubtitle: "رفتن به صفحه {{title}}",
+    nodeCurrent: "فعال",
+    nodeSelect: "کلیک برای تغییر به این گره",
+    footer: {
+      navigate: "پیمایش",
+      select: "انتخاب",
+      close: "بستن",
+    },
   },
 } as const;
 

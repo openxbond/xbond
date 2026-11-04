@@ -42,6 +42,12 @@ const KO = {
       direct: "직접",
     },
   },
+  titlebar: {
+    minimize: "최소화",
+    maximize: "최대화",
+    restore: "복원",
+    close: "닫기",
+  },
   sidebar: {
     home: "홈",
     connect: "연결",
@@ -657,11 +663,13 @@ const KO = {
         "가상 네트워크 카드(TUN)는 가상 어댑터를 생성하고 전체 시스템 트래픽을 처리하기 위해 시스템 관리자 권한으로 실행되는 백그라운드 서비스가 필요합니다. 지금 권한을 상승하고 서비스를 설치하시겠습니까?",
       tunUnavailable: {
         not_elevated:
-          "TUN에는 관리자 권한이 필요합니다 — 데몬을 관리자 권한으로 다시 시작하세요.",
+          "TUN에는 특권 서비스가 필요합니다 — 안내에 따라 설치하거나 데몬을 관리자 권한으로 다시 시작하세요.",
         not_root:
-          "TUN에는 root 권한이 필요합니다 — 데몬을 root로 다시 시작하세요.",
+          "TUN에는 root 권한이 필요합니다 — 시스템 서비스를 설치하거나 데몬을 root로 다시 시작하세요.",
         wintun_missing:
           "데몬 옆 또는 System32에서 wintun.dll을 찾을 수 없습니다; 배치하면 TUN을 사용할 수 있습니다.",
+        service_unreachable:
+          "특권 서비스가 설치되었지만 응답하지 않습니다 — 안내에 따라 다시 설치하거나 시스템 서비스를 확인하세요.",
       },
       tunPrivilegeNotice:
         "TUN 인계에는 관리자 권한이 필요합니다 (Windows는 관리자 권한으로 실행, macOS/Linux는 root/sudo).",
@@ -838,6 +846,51 @@ const KO = {
     protocol: "프로토콜",
     webModeAccountNote:
       "순수 웹 대시보드 모드입니다. XBond Cloud 계정과 시스템 프록시는 데스크톱 앱에서 관리됩니다.",
+  },
+  commandPalette: {
+    title: "명령 팔레트",
+    searchPlaceholder: "명령, 프록시 노드 검색 또는 페이지 이동…",
+    searchButton: "빠른 검색…",
+    emptyTitle: "일치하는 결과가 없습니다",
+    emptyDesc: "다른 검색어로 시도해 보세요",
+    categories: {
+      actions: "빠른 작업",
+      navigation: "내비게이션",
+      nodes: "프록시 노드",
+      pinned: "고정된 노드",
+    },
+    actions: {
+      connect: "연결",
+      disconnect: "연결 끊기",
+      connectDesc: "코어 엔진 시작 및 네트워크 트래픽 인계",
+      disconnectDesc: "활성 프록시 연결 끊기",
+      restart: "코어 재시작",
+      restartDesc: "코어 구성을 다시 로드하고 연결 복원",
+      ruleMode: "규칙 모드로 전환",
+      ruleModeDesc: "규칙에 따라 트래픽 자동 분류",
+      globalMode: "글로벌 모드로 전환",
+      globalModeDesc: "모든 트래픽을 선택한 노드로 프록시",
+      directMode: "다이렉트 모드로 전환",
+      directModeDesc: "프록시 우회 및 서버 직접 연결",
+      copyEnv: "터미널 프록시 명령 복사",
+      copyEnvDesc: "HTTP 및 HTTPS 프록시 환경 변수 내보내기",
+    },
+    toasts: {
+      connected: "연결되었습니다",
+      disconnected: "연결이 끊어졌습니다",
+      restarted: "코어가 재시작되었습니다",
+      switchedMode: "{{mode}} 모드로 전환되었습니다",
+      envCopied: "프록시 명령이 클립보드에 복사되었습니다",
+      nodeSwitched: "{{node}} 노드로 전환되었습니다",
+    },
+    navSubtitle: "{{title}} 페이지로 이동",
+    nodeCurrent: "현재 선택됨",
+    nodeSelect: "이 노드로 전환하려면 클릭",
+    footer: {
+      navigate: "이동",
+      select: "선택",
+      close: "닫기",
+    },
   },
 } as const;
 

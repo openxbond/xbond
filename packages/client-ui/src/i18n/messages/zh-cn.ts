@@ -41,6 +41,12 @@ const CN = {
       direct: "直连",
     },
   },
+  titlebar: {
+    minimize: "最小化",
+    maximize: "最大化",
+    restore: "还原",
+    close: "关闭",
+  },
   sidebar: {
     home: "首页",
     connect: "连接",
@@ -637,10 +643,13 @@ const CN = {
       privilegeDialogDesc:
         "虚拟网卡 (TUN) 需要以系统管理员特权运行的后台服务来创建虚拟网卡并接管整机流量。是否现在请求提升权限并安装服务？",
       tunUnavailable: {
-        not_elevated: "TUN 需要管理员权限——请以管理员身份重启守护进程。",
-        not_root: "TUN 需要 root 权限——请以 root 重启守护进程。",
+        not_elevated:
+          "TUN 需要特权服务——按提示安装，或以管理员身份重启守护进程。",
+        not_root: "TUN 需要 root 权限——安装系统服务，或以 root 重启守护进程。",
         wintun_missing:
           "未在守护进程旁或 System32 找到 wintun.dll；放置后即可启用 TUN。",
+        service_unreachable:
+          "特权服务已安装但无响应——按提示重新安装，或检查系统服务状态。",
       },
       tunPrivilegeNotice:
         "TUN 接管需要管理员权限：Windows 以管理员身份运行，macOS/Linux 需要 root/sudo。",
@@ -810,6 +819,51 @@ const CN = {
     protocol: "协议类型",
     webModeAccountNote:
       "当前处于纯 Web 控制端模式。XBond Cloud 账号在桌面客户端中集中托管。",
+  },
+  commandPalette: {
+    title: "命令面板",
+    searchPlaceholder: "搜索命令、节点或前往页面…",
+    searchButton: "快速搜索…",
+    emptyTitle: "未找到匹配结果",
+    emptyDesc: "请尝试其他搜索关键词",
+    categories: {
+      actions: "快捷操作",
+      navigation: "页面导航",
+      nodes: "节点列表",
+      pinned: "已置顶节点",
+    },
+    actions: {
+      connect: "建立连接",
+      disconnect: "断开连接",
+      connectDesc: "启动内核并接管网络流量",
+      disconnectDesc: "断开当前代理连接",
+      restart: "重启内核",
+      restartDesc: "重新加载内核配置并恢复连接",
+      ruleMode: "切换为规则分流模式",
+      ruleModeDesc: "按分流规则自动选路",
+      globalMode: "切换为全局代理模式",
+      globalModeDesc: "所有出站流量均经由选定节点代理",
+      directMode: "切换为直连模式",
+      directModeDesc: "绕过代理，直接连接目标服务器",
+      copyEnv: "复制终端代理命令",
+      copyEnvDesc: "快速配置 HTTP / HTTPS 代理环境变量",
+    },
+    toasts: {
+      connected: "已建立连接",
+      disconnected: "已断开连接",
+      restarted: "内核已重启",
+      switchedMode: "已切换为 {{mode}} 模式",
+      envCopied: "代理命令已复制到剪贴板",
+      nodeSwitched: "已切换至 {{node}}",
+    },
+    navSubtitle: "前往 {{title}} 页面",
+    nodeCurrent: "当前选中",
+    nodeSelect: "点击切换为此节点",
+    footer: {
+      navigate: "导航",
+      select: "确认",
+      close: "关闭",
+    },
   },
 } as const;
 
