@@ -487,7 +487,7 @@ func (s *apiServer) handleSubUpdate(w http.ResponseWriter, r *http.Request) {
 		results := make([]sub.UpdateResult, 0)
 		failures := make([]sub.UpdateFailure, 0)
 		for _, item := range s.svc.subMgr.List() {
-			res, err := s.svc.subMgr.Update(item.ID, req.Force, "")
+			res, err := s.svc.runtime.update(item.ID, req.Force)
 			if err != nil {
 				failures = append(failures, sub.UpdateFailure{ID: item.ID, Name: item.Name, Error: err.Error()})
 				continue
@@ -499,7 +499,7 @@ func (s *apiServer) handleSubUpdate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "results": results, "failures": failures})
 		return
 	}
-	res, err := s.svc.subMgr.Update(req.ID, req.Force, "")
+	res, err := s.svc.runtime.update(req.ID, req.Force)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return

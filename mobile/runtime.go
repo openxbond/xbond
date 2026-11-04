@@ -155,6 +155,70 @@ func (c *mobileRuntime) appliedSubID() string {
 	return c.appliedSub
 }
 
+// update refreshes a subscription under the same contract as the daemon's
+// updateLocked: resolve the subscription's update channel, unpin an edited
+// source on a manual update, and hot-apply when content changed on the
+// active subscription while the tunnel runs — the shared web UI drives this
+// endpoint on every host and expects one set of semantics.
+func (c *mobileRuntime) update(id string, force bool) (*sub.UpdateResult, error) {
+	if id == "" {
+		id = c.subs.ActiveID()
+	}
+	if id == "" {
+		return nil, errors.New("no subscription to update")
+	}
+	proxyURL, err := resolveMobileUpdateProxy(c.subs, id)
+	if err != nil {
+		return nil, err
+	}
+	result, err := c.subs.Update(id, force, proxyURL)
+	if err != nil {
+		if proxyURL != "" {
+			return nil, fmt.Errorf("%w (the update channel used the stored proxy; fix it or switch the subscription's update channel to direct)", err)
+		}
+		return nil, err
+	}
+	// A manual update is an explicit ask for fresh content: it removes the
+	// pin an edited source carries.
+	if result.Meta != nil && result.Meta.SourcePinned {
+		if _, pinErr := c.subs.SetSourcePinned(id, false); pinErr != nil {
+			return result, pinErr
+		}
+		result.Meta.SourcePinned = false
+	}
+	// "Update succeeded" must mean "the running core now serves the new
+	// nodes" — hot-apply when content changed on the active subscription,
+	// mirroring the daemon's updateLocked.
+	if result.Meta.ID == c.subs.ActiveID() && result.ContentChanged && c.svc.IsRunning() && c.tunFd > 0 {
+		if err := c.apply(c.tunFd); err != nil {
+			return result, err
+		}
+	}
+	return result, nil
+}
+
+// resolveMobileUpdateProxy turns the subscription's update channel into a
+// fetch proxy. Mobile runs no mixed port of its own, so the "self" channel
+// is an explicit error — never a silent direct fetch.
+func resolveMobileUpdateProxy(subs *sub.Manager, id string) (string, error) {
+	meta, err := subs.Get(id)
+	if err != nil {
+		return "", err
+	}
+	switch meta.UpdateChannel {
+	case "", "direct":
+		return "", nil
+	case "proxy":
+		if meta.UpdateProxy == "" {
+			return "", errors.New("update channel is set to a specific proxy but no proxy URL is saved; set it or switch back to direct")
+		}
+		return meta.UpdateProxy, nil
+	case "self":
+		return "", errors.New("the self update channel rides the core's mixed port, which mobile does not run; switch the update channel to direct or proxy")
+	}
+	return "", fmt.Errorf("unknown update channel %q", meta.UpdateChannel)
+}
+
 func (c *mobileRuntime) endpoint() (int, string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
