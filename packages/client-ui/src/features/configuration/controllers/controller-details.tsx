@@ -66,7 +66,10 @@ export default function ControllerDetail({
   const select = useSelectController();
   const { operation } = useConfigurationOperation();
   const [name, setName] = useState(controller?.name || "");
-  const [url, setURL] = useState(controller?.url || "");
+  // 純 web 部署下頁面與核心同源，直接預填當前位址，省去查找位址與埠的步驟。
+  const [url, setURL] = useState(
+    controller?.url || (hasDaemonConfig() ? "" : window.location.origin),
+  );
   const [secret, setSecret] = useState(controller?.secret || "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
