@@ -268,12 +268,20 @@ var BYPASS = ${jsLiteral(bypassObject)};
 `;
 }
 
-/** 生成全局模式 PAC：主选择组的叶子接管一切流量；控制通道直连。 */
+/** 全局模式例外：站点例外在全局模式下同样生效——先查例外，再落主出口。 */
+export type GlobalPacException = {
+  domain: string;
+  match: "exact" | "suffix";
+  action: string;
+};
+
+/** 生成全局模式 PAC：站点例外先到先得，其余全部落主出口；控制通道直连。 */
 export function generateGlobalPacSource(
   config: ExtensionConfig,
   selection: Selection,
   bypassHosts: string[] = [],
   target?: string,
+  exceptions: GlobalPacException[] = [],
 ): string {
   const primary = leafToProxyString(
     target
@@ -282,10 +290,29 @@ export function generateGlobalPacSource(
   );
   const bypassObject: Record<string, true> = {};
   for (const host of bypassHosts) bypassObject[host.toLowerCase()] = true;
+  const exactObject: Record<string, string> = {};
+  const suffixObject: Record<string, string> = {};
+  // 先到先得：同键重复时保留先出现的例外，后出现的同名条目不覆盖。
+  for (const exception of exceptions) {
+    const map = exception.match === "exact" ? exactObject : suffixObject;
+    if (map[exception.domain] === undefined)
+      map[exception.domain] = exception.action;
+  }
   return `// XBond PAC (global)
 var BYPASS = ${jsLiteral(bypassObject)};
+var EXACT = ${jsLiteral(exactObject)};
+var SUFFIX = ${jsLiteral(suffixObject)};
 function FindProxyForURL(url, host) {
-  if (BYPASS[(host || "").toLowerCase()]) return "DIRECT";
+  var h = (host || "").toLowerCase();
+  if (BYPASS[h]) return "DIRECT";
+  if (EXACT[h]) return EXACT[h];
+  if (SUFFIX[h]) return SUFFIX[h];
+  var dot = h.indexOf(".");
+  while (dot !== -1) {
+    var suffixHit = SUFFIX[h.slice(dot + 1)];
+    if (suffixHit) return suffixHit;
+    dot = h.indexOf(".", dot + 1);
+  }
   return ${jsLiteral(primary)};
 }
 `;
@@ -315,7 +342,8 @@ export function assertPacContainsNoCredentials(
 /** pacScript.data 只接受 ASCII（Chromium 会 decodeURIComponent 后再解析）：
  * 模板与数据均已保持 ASCII，这里对任何残留做百分号编码兜底。 */
 export function toPacPayload(source: string): string {
-  return /[^ -]/.test(source) ? encodeURIComponent(source) : source;
+  // eslint-disable-next-line no-control-regex
+  return /[^\x00-\x7f]/.test(source) ? encodeURIComponent(source) : source;
 }
 
 export { DIRECT };

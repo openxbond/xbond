@@ -10,7 +10,11 @@ import {
   generatePacSource,
   toPacPayload,
 } from "../shared/pac.ts";
-import { withOverrides, type WebsiteOverride } from "../shared/routing.ts";
+import {
+  withOverrides,
+  globalExceptions,
+  type WebsiteOverride,
+} from "../shared/routing.ts";
 import type { Selection } from "../shared/workspace.ts";
 import type { RoutingMode } from "./store.ts";
 
@@ -47,7 +51,13 @@ export function expectedProxyValue({
   const bypassHosts = hostOf(controlOrigin);
   const pacSource =
     mode === "global"
-      ? generateGlobalPacSource(config, selection, bypassHosts, globalTarget)
+      ? generateGlobalPacSource(
+          config,
+          selection,
+          bypassHosts,
+          globalTarget,
+          globalExceptions(config, overrides, selection),
+        )
       : generatePacSource(
           withOverrides(config, overrides),
           selection,

@@ -4,10 +4,13 @@ import { runInNewContext } from "node:vm";
 
 import type { ExtensionConfig } from "../src/shared/extension-config.ts";
 import { generatePacSource } from "../src/shared/pac.ts";
+import { generateGlobalPacSource } from "../src/shared/pac.ts";
 import {
+  globalExceptions,
   withOverrides,
   normalizeDomain,
   predictRoute,
+  predictGlobalRoute,
 } from "../src/shared/routing.ts";
 
 const config: ExtensionConfig = {
@@ -100,4 +103,76 @@ test("disabled exceptions stay editable but do not override cloud rules", () => 
     },
   ]);
   assert.equal(predictRoute(compiled, {}, "example.org").path.at(-1), "Tokyo");
+});
+
+test("global mode honours website exceptions and the PAC agrees with prediction", () => {
+  const overrides = [
+    {
+      id: "all",
+      domain: "example.org",
+      match: "suffix" as const,
+      target: "REJECT",
+      enabled: true,
+    },
+    {
+      id: "docs",
+      domain: "docs.example.org",
+      match: "suffix" as const,
+      target: "DIRECT",
+      enabled: true,
+    },
+    {
+      id: "exact",
+      domain: "api.docs.example.org",
+      match: "exact" as const,
+      target: "Tokyo",
+      enabled: true,
+    },
+  ];
+  const pac = generateGlobalPacSource(
+    config,
+    {},
+    [],
+    undefined,
+    globalExceptions(config, overrides, {}),
+  );
+  for (const [host, target] of [
+    ["www.example.org", "REJECT"],
+    ["docs.example.org", "DIRECT"],
+    ["api.docs.example.org", "Tokyo"],
+    ["other.example.net", "Tokyo"], // miss → primary exit (Default group)
+  ]) {
+    const prediction = predictGlobalRoute(
+      config,
+      {},
+      overrides,
+      undefined,
+      host,
+    );
+    assert.equal(prediction.path.at(-1), target);
+    const actual = runInNewContext(
+      pac + `;FindProxyForURL("https://${host}/", "${host}")`,
+      {},
+    );
+    assert.equal(actual, prediction.action);
+  }
+});
+
+test("disabled exceptions do not apply in global mode either", () => {
+  const prediction = predictGlobalRoute(
+    config,
+    {},
+    [
+      {
+        id: "off",
+        domain: "example.org",
+        match: "exact",
+        target: "REJECT",
+        enabled: false,
+      },
+    ],
+    undefined,
+    "example.org",
+  );
+  assert.equal(prediction.path.at(-1), "Tokyo");
 });

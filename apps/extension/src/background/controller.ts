@@ -15,6 +15,7 @@ import {
   selectionPath,
   withOverrides,
   predictRoute,
+  predictGlobalRoute,
 } from "../shared/routing.ts";
 import { resolveLeaf } from "../shared/workspace.ts";
 import { createAccount } from "./account.ts";
@@ -384,11 +385,23 @@ async function dispatch(command: ExtensionCommand): Promise<void> {
       const config = await cache();
       if (!config || !(await store.loadTokens()))
         throw new Error("No active configuration");
-      const { action: _action, ...result } = predictRoute(
-        withOverrides(config, await store.loadOverrides()),
-        await store.loadSelection(),
-        command.host,
-      );
+      const mode = await store.loadMode();
+      const selection = await store.loadSelection();
+      const overrides = await store.loadOverrides();
+      const { action: _action, ...result } =
+        mode === "global"
+          ? predictGlobalRoute(
+              config,
+              selection,
+              overrides,
+              (await store.loadGlobalExit()) || undefined,
+              command.host,
+            )
+          : predictRoute(
+              withOverrides(config, overrides),
+              selection,
+              command.host,
+            );
       prediction = result;
       return;
     }

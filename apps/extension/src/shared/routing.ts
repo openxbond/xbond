@@ -1,5 +1,5 @@
 import type { ExtensionConfig } from "./extension-config.ts";
-import { compileEntries } from "./pac.ts";
+import { compileEntries, type GlobalPacException } from "./pac.ts";
 import { leafToProxyString, resolveLeaf, type Selection } from "./workspace.ts";
 
 export interface WebsiteOverride {
@@ -52,6 +52,31 @@ export function withOverrides(
     rules.push({ kind: "ruleset", id, target: override.target });
   }
   return { ...config, rules: [...rules, ...config.rules], ruleSets };
+}
+
+/**
+ * 全局模式的例外索引：enabled 的站点例外在全局模式下同样生效（先到先得，
+ * 再落主出口）。目标解析与 withOverrides 一致：先校验目标有效（忽略当前
+ * 节点选择），动作再按当前选择渲染成代理串。
+ */
+export function globalExceptions(
+  config: ExtensionConfig,
+  overrides: WebsiteOverride[],
+  selection: Selection,
+): GlobalPacException[] {
+  const exceptions: GlobalPacException[] = [];
+  for (const override of overrides) {
+    if (!override.enabled) continue;
+    resolveLeaf(config, {}, override.target); // 同 withOverrides：无效目标在生成期报错
+    exceptions.push({
+      domain: normalizeDomain(override.domain),
+      match: override.match,
+      action: leafToProxyString(
+        resolveLeaf(config, selection, override.target),
+      ),
+    });
+  }
+  return exceptions;
 }
 
 function ipv4(value: string): number | null {
@@ -108,6 +133,54 @@ export function predictRoute(
     action: leafToProxyString(leaf),
     condition: entry?.kind ?? "final",
     dnsLimited: !entry && ipv4(host) === null,
+  };
+}
+
+/**
+ * 全局模式预测：例外先到先得（exact 优先于 suffix，同 match 时更长域名
+ * 更具体），未命中落主出口。判定顺序与 generateGlobalPacSource 的 PAC
+ * 查找一致（EXACT → SUFFIX 全域 → 后缀逐级上溯），预测不与执行脱节。
+ */
+export function predictGlobalRoute(
+  config: ExtensionConfig,
+  selection: Selection,
+  overrides: WebsiteOverride[],
+  globalTarget: string | undefined,
+  input: string,
+) {
+  const host = normalizeDomain(input);
+  const enabled = overrides.filter((override) => override.enabled);
+  const exact = enabled.find(
+    (override) =>
+      override.match === "exact" && normalizeDomain(override.domain) === host,
+  );
+  const override =
+    exact ??
+    enabled
+      .filter(
+        (candidate) =>
+          candidate.match === "suffix" &&
+          (host === normalizeDomain(candidate.domain) ||
+            host.endsWith(`.${normalizeDomain(candidate.domain)}`)),
+      )
+      .sort((a, b) => b.domain.length - a.domain.length)[0];
+  const target = override
+    ? override.target
+    : globalTarget ||
+      (config.groups.find((group) => group.type === "select")?.name ??
+        config.final);
+  return {
+    host,
+    source: override ? ("rule" as const) : ("final" as const),
+    target,
+    path: selectionPath(config, selection, target),
+    action: leafToProxyString(resolveLeaf(config, selection, target)),
+    condition: override
+      ? override.match === "exact"
+        ? "domain"
+        : "domain-suffix"
+      : "final",
+    dnsLimited: false,
   };
 }
 export function selectionPath(
