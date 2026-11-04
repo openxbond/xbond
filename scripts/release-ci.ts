@@ -67,13 +67,10 @@ if (command === "preflight") {
   const commit = git("rev-parse", "HEAD");
   const run = process.env.GITHUB_RUN_ID;
   const digest = process.env.IMAGE_DIGEST ?? "";
+  // An iOS-less rehearsal (deferred Apple credentials) assembles with an
+  // empty digest; verify-evidence still refuses it at publish time.
   const iosSHA256 = process.env.IOS_SHA256 ?? "";
-  if (
-    !run ||
-    !/^\d+$/.test(run) ||
-    !/^sha256:[a-f0-9]{64}$/.test(digest) ||
-    !/^[a-f0-9]{64}$/.test(iosSHA256)
-  )
+  if (!run || !/^\d+$/.test(run) || !/^sha256:[a-f0-9]{64}$/.test(digest))
     throw new Error("Missing candidate evidence");
   fs.writeFileSync(
     path.join(argument, "release-evidence.json"),

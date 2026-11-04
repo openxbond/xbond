@@ -220,6 +220,10 @@ jobs:
 
   ios:
     needs: preflight
+    # Tag pushes must build iOS; a manual rehearsal may run before the Apple
+    # Developer credentials exist, in which case the job is skipped and the
+    # candidate assembles without iOS evidence (publish still requires it).
+    if: github.event_name == 'push' || vars.APPLE_TEAM_ID != ''
     runs-on: macos-15
     timeout-minutes: 65
     environment: release-ios-signing
@@ -325,6 +329,11 @@ jobs:
 
   assemble:
     needs: [preflight, core, desktop, android, image, ios]
+    if: >-
+      needs.preflight.result == 'success' && needs.core.result == 'success' &&
+      needs.desktop.result == 'success' && needs.android.result == 'success' &&
+      needs.image.result == 'success' &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: release-manifest-signing
