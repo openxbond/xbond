@@ -75,6 +75,15 @@ const EN = {
     connected: "Proxy running",
     stopped: "Not connected",
     coreReachable: "Core reachable",
+    portConflictTitle: "Port Conflict",
+    portConflictDesc:
+      "The default port is already in use by another application.",
+    switchPortAndRetry: "Switch to port 7891 and retry",
+    tunDeniedTitle: "TUN Privilege Required",
+    tunDeniedDesc:
+      "TUN virtual network adapter requires administrator privileges or installing the background helper service.",
+    fallbackSysproxy: "Fallback to System Proxy",
+    connectFailed: "Connection Failed",
     quotaUnavailable: "Quota unavailable from this controller",
     port: "Port",
     sysproxy: "System proxy",

@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { CountryFlag } from "@/components/country-flag";
 import { nodeFlagCode, stripFlagEmoji } from "@/components/country-flag";
 import { SegmentedControl } from "@/components/segmented-control";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -312,6 +313,54 @@ export default function Connect() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [installingService, setInstallingService] = useState(false);
   const [privilegeDialogOpen, setPrivilegeDialogOpen] = useState(false);
+  const [connectError, setConnectError] = useState<{
+    kind: "port_conflict" | "tun_denied" | "generic";
+    message: string;
+  } | null>(null);
+
+  // Sleep/wake recovery: re-synchronize when device wakes or network reconnects
+  useEffect(() => {
+    const handleWakeSync = () => {
+      void refresh();
+    };
+    window.addEventListener("online", handleWakeSync);
+    window.addEventListener("focus", handleWakeSync);
+    return () => {
+      window.removeEventListener("online", handleWakeSync);
+      window.removeEventListener("focus", handleWakeSync);
+    };
+  }, [refresh]);
+
+  const handleToggleConnection = async () => {
+    setConnectError(null);
+    if (running) {
+      await run(() => down(), false);
+    } else {
+      let caught: unknown = null;
+      const ok = await run(async () => {
+        try {
+          await up();
+        } catch (err) {
+          caught = err;
+          throw err;
+        }
+      }, false);
+      if (!ok && caught) {
+        const resMsg =
+          (caught as { response?: { data?: { error?: string } } })?.response
+            ?.data?.error ||
+          (caught as Error)?.message ||
+          String(caught);
+        if (/already in use|bind|port/i.test(resMsg)) {
+          setConnectError({ kind: "port_conflict", message: resMsg });
+        } else if (/tun|privilege|admin|permission/i.test(resMsg)) {
+          setConnectError({ kind: "tun_denied", message: resMsg });
+        } else {
+          setConnectError({ kind: "generic", message: resMsg });
+        }
+      }
+    }
+  };
 
   const handleInstallService = useCallback(async () => {
     if (!installService) return;
@@ -569,7 +618,7 @@ export default function Connect() {
                 disabled={pending || (!running && !sub)}
                 aria-pressed={active}
                 aria-label={`${stateWord} — ${running ? t("disconnect") : t("connect")}`}
-                onClick={() => void run(() => (running ? down() : up()), false)}
+                onClick={() => void handleToggleConnection()}
               >
                 <span
                   aria-hidden="true"
@@ -660,6 +709,90 @@ export default function Connect() {
               >
                 {uptimeClock}
               </p>
+            )}
+
+            {connectError && (
+              <div className="w-full mt-2 text-left">
+                <Alert
+                  variant="destructive"
+                  className="rounded-control border-destructive/30 bg-destructive/5 text-destructive p-3"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <span className="size-2 rounded-full bg-destructive mt-1.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <AlertTitle className="text-xs font-semibold text-destructive">
+                        {connectError.kind === "port_conflict"
+                          ? t("portConflictTitle")
+                          : connectError.kind === "tun_denied"
+                            ? t("tunDeniedTitle")
+                            : t("connectFailed")}
+                      </AlertTitle>
+                      <AlertDescription className="text-xs text-muted-foreground mt-1 flex flex-col gap-2">
+                        <span>
+                          {connectError.kind === "port_conflict"
+                            ? t("portConflictDesc")
+                            : connectError.kind === "tun_denied"
+                              ? t("tunDeniedDesc")
+                              : connectError.message}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          {connectError.kind === "port_conflict" && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 px-2.5 text-xs font-medium cursor-pointer"
+                              onClick={async () => {
+                                setConnectError(null);
+                                await run(() => up({ port: 7891 }), false);
+                              }}
+                            >
+                              {t("switchPortAndRetry")}
+                            </Button>
+                          )}
+                          {connectError.kind === "tun_denied" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-7 px-2.5 text-xs font-medium cursor-pointer"
+                                onClick={async () => {
+                                  setConnectError(null);
+                                  await setMode({
+                                    systemProxy: true,
+                                    tun: false,
+                                  });
+                                  await run(() => up(), false);
+                                }}
+                              >
+                                {t("fallbackSysproxy")}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2.5 text-xs font-medium cursor-pointer"
+                                onClick={() => {
+                                  setConnectError(null);
+                                  setPrivilegeDialogOpen(true);
+                                }}
+                              >
+                                {st("takeover.installService")}
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs ml-auto cursor-pointer"
+                            onClick={() => setConnectError(null)}
+                          >
+                            {tc("cancel")}
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </div>
+                  </div>
+                </Alert>
+              </div>
             )}
 
             <ul className="mt-3.5 grid self-stretch list-none grid-cols-3 border-t border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] pt-[18px]">
