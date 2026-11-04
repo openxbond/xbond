@@ -127,6 +127,17 @@ export function migrateControllers(
       const url = normalizeControllerURL(
         item.url ?? `http://${hostname}:${item.port ?? 9090}`,
       );
+      const isFallbackDuplicate =
+        (item.name === fallback.name ||
+          item.id === fallback.id ||
+          item.id === "default") &&
+        (url === fallback.url ||
+          url === "http://127.0.0.1:9090" ||
+          url === "http://localhost:9090") &&
+        !item.secret;
+      if (isFallbackDuplicate && value.length > 1) {
+        continue;
+      }
       const id =
         typeof item.id === "string" &&
         item.id !== fallback.id &&

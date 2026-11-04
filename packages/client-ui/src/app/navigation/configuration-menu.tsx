@@ -28,12 +28,17 @@ export function ConfigMenu() {
   const { run, pending } = useAction();
   const [controllers] = useControllers();
 
-  const isDaemonController = (item?: { id?: string; url?: string } | null) =>
+  const isDaemonController = (
+    item?: { id?: string; url?: string; name?: string } | null,
+  ) =>
     Boolean(
       item &&
       (item.id === DAEMON_CONTROLLER_ID ||
         item.id === "default" ||
-        (target.targetKind === "daemon" && item.id === target.id)),
+        (target.targetKind === "daemon" && item.id === target.id) ||
+        (item.name === "XBond" &&
+          (item.url === "http://127.0.0.1:9090" ||
+            item.url === "http://localhost:9090"))),
     );
 
   const isCloudSub = (

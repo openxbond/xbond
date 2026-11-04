@@ -103,12 +103,22 @@ export default function ControllerDetail({
     setError("");
     try {
       const item = values();
+      const cleanControllers = controllers.filter(
+        (c) =>
+          c.id !== "default" &&
+          c.id !== DAEMON_CONTROLLER_ID &&
+          !(
+            c.name === "XBond" &&
+            (c.url === "http://127.0.0.1:9090" ||
+              c.url === "http://localhost:9090")
+          ),
+      );
       setControllers(
-        controllers.some((existing) => existing.id === item.id)
-          ? controllers.map((existing) =>
+        cleanControllers.some((existing) => existing.id === item.id)
+          ? cleanControllers.map((existing) =>
               existing.id === item.id ? item : existing,
             )
-          : [...controllers, item],
+          : [...cleanControllers, item],
       );
       setEditing(false);
       setNotice(c("saved"));

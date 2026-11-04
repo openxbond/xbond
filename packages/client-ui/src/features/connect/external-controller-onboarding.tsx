@@ -17,7 +17,11 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { useControllers, useSelectController } from "@/state/controller-target";
+import {
+  useControllers,
+  useSelectController,
+  DAEMON_CONTROLLER_ID,
+} from "@/state/controller-target";
 
 interface ExternalControllerOnboardingProps {
   className?: string;
@@ -46,7 +50,14 @@ export function ExternalControllerOnboarding({
 
   // Saved external controllers (excluding daemon default if empty)
   const savedList = controllers.filter(
-    (item) => item.id !== "default" || item.url !== "http://127.0.0.1:9090",
+    (item) =>
+      item.id !== "default" &&
+      item.id !== DAEMON_CONTROLLER_ID &&
+      !(
+        item.name === "XBond" &&
+        (item.url === "http://127.0.0.1:9090" ||
+          item.url === "http://localhost:9090")
+      ),
   );
 
   async function handleConnect(e?: React.FormEvent) {
@@ -70,13 +81,23 @@ export function ExternalControllerOnboarding({
 
       const resolvedName = name.trim() || new URL(normalized).host || "Core";
 
-      // Check if this URL already exists in saved controllers
-      const existing = controllers.find((item) => item.url === normalized);
+      // Filter out any fallback / default controller before saving
+      const cleanControllers = controllers.filter(
+        (item) =>
+          item.id !== "default" &&
+          item.id !== DAEMON_CONTROLLER_ID &&
+          !(
+            item.name === "XBond" &&
+            (item.url === "http://127.0.0.1:9090" ||
+              item.url === "http://localhost:9090")
+          ),
+      );
+      const existing = cleanControllers.find((item) => item.url === normalized);
       let targetId = existing?.id;
 
       if (existing) {
         setControllers(
-          controllers.map((item) =>
+          cleanControllers.map((item) =>
             item.id === existing.id
               ? { ...item, name: resolvedName, secret: secret.trim() }
               : item,
@@ -90,7 +111,7 @@ export function ExternalControllerOnboarding({
           url: normalized,
           secret: secret.trim(),
         };
-        setControllers([...controllers, newController]);
+        setControllers([...cleanControllers, newController]);
       }
 
       if (targetId) {

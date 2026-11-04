@@ -83,6 +83,14 @@ test("persisted records cannot claim the built-in controller id", () => {
   assert.equal(hosts[0].secret, "x");
   assert.notEqual(hosts[0].id, hosts[1].id);
 });
+test("fallback controller is not duplicated when user adds a controller", () => {
+  const hosts = migrateControllers(
+    [fallback, { hostname: "192.168.10.1", port: 19090, secret: "" }],
+    fallback,
+  );
+  assert.equal(hosts.length, 1);
+  assert.equal(hosts[0].url, "http://192.168.10.1:19090");
+});
 test("HTTPS launch parameters and reverse proxy paths survive REST/WS URL construction", () => {
   const controller = controllerFromQuery(
     "?protocol=https:&host=example.com&port=9443&secret=a%26b",
