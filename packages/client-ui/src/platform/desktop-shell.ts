@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { invokeDesktop, isDesktopApp } from "@/platform/local-api-bootstrap";
+import { useLanguage } from "@/state/user-preferences";
 
 /**
  * Desktop-shell integration for the webview side: removes browser residue
@@ -86,6 +87,13 @@ function rememberPrompted(value: string): boolean {
 export function useDesktopShell(): void {
   const navigate = useNavigate();
   const { t } = useTranslation("onboarding");
+  const { lang } = useLanguage();
+
+  useEffect(() => {
+    const invoke = invokeDesktop();
+    if (!invoke) return;
+    void invoke("set_tray_language", { lang }).catch(() => {});
+  }, [lang]);
 
   useEffect(() => {
     const invoke = invokeDesktop();

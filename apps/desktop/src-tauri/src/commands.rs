@@ -43,11 +43,19 @@ pub(crate) fn mark_main_window_shown() {
 pub struct ShellState {
     close_to_tray: Mutex<bool>,
     pending_import: Mutex<Option<String>>,
+    language: Mutex<String>,
 }
 
 impl ShellState {
     pub fn close_to_tray(&self) -> bool {
         *self.close_to_tray.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    pub fn language(&self) -> String {
+        self.language
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 
@@ -62,6 +70,17 @@ pub fn set_close_to_tray(state: State<'_, ShellState>, value: bool) {
         .close_to_tray
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = value;
+}
+
+#[tauri::command]
+pub fn get_tray_language(state: State<'_, ShellState>) -> String {
+    state.language()
+}
+
+#[tauri::command]
+pub fn set_tray_language(app: AppHandle, state: State<'_, ShellState>, lang: String) {
+    *state.language.lock().unwrap_or_else(|e| e.into_inner()) = lang.clone();
+    crate::tray::update_language(&app, &lang);
 }
 
 #[tauri::command]

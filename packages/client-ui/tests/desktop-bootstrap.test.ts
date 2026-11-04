@@ -5,6 +5,7 @@ import EN from "../src/i18n/messages/en-us.ts";
 import CN from "../src/i18n/messages/zh-cn.ts";
 import HK from "../src/i18n/messages/zh-hk.ts";
 import {
+  invokeDesktop,
   isDesktopApp,
   resolveDesktopLocalAPIConfig,
 } from "../src/platform/local-api-bootstrap.ts";
@@ -91,4 +92,31 @@ test("Proxy pin and sort keys exist across locale dictionaries", () => {
   assert.equal(HK.proxies.pinned, "已釘選");
   assert.equal(CN.proxies.pinned, "已置顶");
   assert.equal(EN.proxies.pinned, "Pinned");
+});
+
+test("Desktop shell syncs language preference to desktop runtime", async () => {
+  let invokedCommand = "";
+  let invokedArgs: unknown = null;
+
+  // @ts-expect-error Mock global window
+  globalThis.window = {
+    __TAURI_INTERNALS__: {
+      invoke: async (cmd: string, args: unknown) => {
+        invokedCommand = cmd;
+        invokedArgs = args;
+        return null;
+      },
+    },
+  } as unknown as Window & typeof globalThis;
+
+  const invoke = invokeDesktop();
+  assert.ok(invoke);
+  await invoke("set_tray_language", { lang: "zh_CN" });
+
+  assert.equal(invokedCommand, "set_tray_language");
+  assert.deepEqual(invokedArgs, { lang: "zh_CN" });
+
+  // Clean up
+  // @ts-expect-error Restore
+  delete globalThis.window;
 });

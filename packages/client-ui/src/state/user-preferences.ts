@@ -14,6 +14,7 @@ import {
   getDefaultLanguage,
   setAppLanguage,
 } from "@/i18n/instance";
+import { invokeDesktop } from "@/platform/local-api-bootstrap";
 
 export const languageAtom = atomWithStorage<Lang | undefined>(
   LANG_STORAGE_KEY,
@@ -87,6 +88,10 @@ export function useLanguage() {
 
   useEffect(() => {
     setAppLanguage(lang);
+    const invoke = invokeDesktop();
+    if (invoke) {
+      void invoke("set_tray_language", { lang }).catch(() => {});
+    }
   }, [lang]);
 
   return { lang, locales, setLang };

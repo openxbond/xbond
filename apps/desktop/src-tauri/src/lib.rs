@@ -120,6 +120,8 @@ pub fn run() {
             commands::show_main_window,
             commands::get_close_to_tray,
             commands::set_close_to_tray,
+            commands::get_tray_language,
+            commands::set_tray_language,
             commands::take_pending_import,
             commands::read_clipboard_text,
             commands::write_clipboard_text,
