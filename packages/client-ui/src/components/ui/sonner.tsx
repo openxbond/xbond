@@ -1,4 +1,3 @@
-import { themeAtom } from "@stores";
 import { useAtomValue } from "jotai";
 import {
   CircleCheckIcon,
@@ -8,6 +7,8 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
+
+import { themeAtom } from "@/state/user-preferences";
 
 // Theme preference lives in the client-ui jotai store (atomWithStorage +
 // applyTheme on <html>); sonner follows it directly instead of pulling in

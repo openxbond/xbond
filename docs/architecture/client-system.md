@@ -39,6 +39,12 @@ flowchart TD
 
 Go 保持一個 module；internal 由編譯器限制外部導入，mobile 是公開導入位置。JS 使用 pnpm workspace；每個 package 宣告自己直接使用的依賴，跨 package 導入走具名 exports。宿主可以直接使用 client，無須為重用非視覺能力而載入 client-ui。原始碼位置直接遷移，舊目錄與舊產物佈局不設轉發或回退。
 
+## 共用介面目錄
+
+`packages/client-ui/src/app/` 裝配 React 根節點、路由和導覽。`features/` 按操作領域放置頁面、局部組件和資料 hooks。控制器、守護進程和使用者偏好等跨頁面狀態放在 `state/`，宿主探測及橋接放在 `platform/`。
+
+`components/ui/` 由 shadcn CLI 管理，其他跨功能組件放在 `components/`。共用 React hooks 放在 `hooks/`，語系資源放在 `i18n/messages/`，Tailwind 入口是 `styles/app.css`。檔名使用短橫線。功能內可用相對路徑，跨目錄可用 `@/`，宿主透過 `@xbond/client-ui` 的具名 package exports 導入。
+
 ## Module 深度與依賴門禁
 
 client 的 interface 包含控制器身份、操作結果及資料語義；HTTP、WebSocket、LocalAPI 是已有的 adapter。將傳輸與正規化收在同一 module，讓畫面與測試從同一 seam 使用它；depth 來自呼叫者不再需要重寫協定知識，locality 讓修正集中，leverage 由現有桌面與網頁共同取得。

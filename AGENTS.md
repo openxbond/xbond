@@ -22,7 +22,7 @@
 
 ## 開發與驗證
 
-- shadcn 更新現有原語前先跑 `pnpm ui:add <component> --dry-run` 和 `--diff`，合併既有的主題變體。新組件使用 `@lib/utils` 的 `cn()`，保留 XBond 自訂 Tailwind 字級的合併規則。
+- shadcn 更新現有原語前先跑 `pnpm ui:add <component> --dry-run` 和 `--diff`，合併既有的主題變體。新組件使用 `@/lib/utils` 的 `cn()`，保留 XBond 自訂 Tailwind 字級的合併規則。
 
 - 安裝：`pnpm install --frozen-lockfile`；Node ≥ 24（`scripts/*.ts` 直接執行，不帶 `--experimental-strip-types`）。版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準。
 - Web：`pnpm dev`（預設 3000）；`pnpm check` 一次跑 typecheck、lint（含架構檢查）、format、test；交付前另跑 `pnpm build`；`pnpm test:watch` 進入 watch 迴圈。

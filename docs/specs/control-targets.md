@@ -2,7 +2,7 @@
 
 ## 範圍與入口
 
-本規格定義共享 Web／桌面介面如何選擇有效控制目標、授予本機操作能力，以及在本機未有配置時接入遠端。來源入口為 `packages/client/src/controller.ts`、`packages/client-ui/src/stores/request.ts`、`stores/localapi.ts`、`containers/App.tsx` 及 `containers/Onboarding/`。現有核心能力與頁面資料見 [介面規格](./client-ui-architecture.md)，宿主與傳輸歸屬見 [用戶端體系](../architecture/client-system.md)。
+本規格定義共享 Web／桌面介面如何選擇有效控制目標、授予本機操作能力，以及在本機未有配置時接入遠端。來源入口為 `packages/client/src/controller.ts`、`packages/client-ui/src/state/controller-target.ts`、`state/local-runtime.ts`、`app/app-shell.tsx` 及 `features/configuration/`。現有核心能力與頁面資料見 [介面規格](./client-ui-architecture.md)，宿主與傳輸歸屬見 [用戶端體系](../architecture/client-system.md)。
 
 ## 行為契約
 

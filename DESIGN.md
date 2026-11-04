@@ -161,7 +161,7 @@ B 方案保留為內容分組與操作效率的參考；上述圖片及規則是
 
 品牌橙沿用現有標誌；中性灰畫布、潔淨白色工作面及石墨深色表面承擔主要閱讀。色值以頁首令牌為準，不因加入玻璃而重建另一套品牌配色。
 
-樣式實現層是 Tailwind CSS v4 + shadcn/ui：令牌單一來源在 `packages/client-ui/src/styles/tokens.css`，工具類經 `styles/index.css` 的 `@theme inline` 映射生成，組件原語在 `packages/client-ui/src/components/ui/`。狀態與表面只走語義令牌工具類（`bg-card`、`text-success-text` 等），一律不寫原始色板類（`bg-emerald-500` 之類），深淺色因此保持同構。
+樣式實現層是 Tailwind CSS v4 + shadcn/ui：令牌單一來源在 `packages/client-ui/src/styles/tokens.css`，工具類經 `styles/app.css` 的 `@theme inline` 映射生成，組件原語在 `packages/client-ui/src/components/ui/`。狀態與表面只走語義令牌工具類（`bg-card`、`text-success-text` 等），一律不寫原始色板類（`bg-emerald-500` 之類），深淺色因此保持同構。
 
 | 角色 | 令牌 | 用途 |
 | --- | --- | --- |

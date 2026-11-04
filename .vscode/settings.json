@@ -2,6 +2,6 @@
   "i18n-ally.localesPaths": [
     "internal/i18n",
     "internal/i18n/locales",
-    "packages/client-ui/src/i18n"
+    "packages/client-ui/src/i18n/messages"
   ]
 }

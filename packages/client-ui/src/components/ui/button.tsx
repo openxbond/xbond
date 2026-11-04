@@ -1,7 +1,8 @@
-import { cn } from "@lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "radix-ui";
 import * as React from "react";
+
+import { cn } from "@/lib/utils";
 
 // XBond adds the status/brand variants DESIGN.md defines on top of the
 // shadcn set. Brand carries the warm orange glow; the button stays a quiet

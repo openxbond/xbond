@@ -23,7 +23,7 @@ release-assets/
 !/docs/tasks/README.md
 
 # Runtime state when the repo root is used as XBOND_DATA_DIR. Anchor these:
-# an unanchored `subscriptions/` also hides packages/client-ui/src/containers/Subscriptions
+# an unanchored `subscriptions/` also hides packages/client-ui/src/features/configuration/subscriptions
 # on case-insensitive filesystems.
 /subscriptions/
 /subscriptions.json

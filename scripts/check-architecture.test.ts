@@ -20,7 +20,6 @@ function fixture(t: test.TestContext) {
       compilerOptions: {
         paths: {
           "@xbond/client/*": ["packages/client/src/*.ts"],
-          "@xbond/client-ui/bootstrap": ["packages/client-ui/src/index.ts"],
         },
       },
     }),
@@ -36,7 +35,7 @@ function fixture(t: test.TestContext) {
     "packages/client-ui/package.json",
     JSON.stringify({
       name: "@xbond/client-ui",
-      exports: { "./bootstrap": "./src/index.ts" },
+      exports: { "./bootstrap": "./src/app/bootstrap.ts" },
       dependencies: { "@xbond/client": "workspace:*" },
     }),
   );
@@ -49,7 +48,7 @@ function fixture(t: test.TestContext) {
   );
   write("packages/client/src/value.ts", "export const value = 1;");
   write(
-    "packages/client-ui/src/index.ts",
+    "packages/client-ui/src/app/bootstrap.ts",
     'export { value } from "@xbond/client/value";',
   );
   write("apps/dashboard/src/index.ts", 'import "@xbond/client-ui/bootstrap";');
@@ -65,7 +64,7 @@ test("relative imports cannot hide a reverse dependency or a package cycle", (t)
   const { root, write } = fixture(t);
   write(
     "packages/client/src/value.ts",
-    'export { value } from "../../client-ui/src/index.ts";',
+    'export { value } from "../../client-ui/src/app/bootstrap.ts";',
   );
   const errors = checkArchitecture(root).join("\n");
   assert.match(errors, /forbidden dependency/);
@@ -76,7 +75,7 @@ test("relative imports cannot hide a reverse dependency or a package cycle", (t)
 test("dynamic imports cannot bypass package exports", (t) => {
   const { root, write } = fixture(t);
   write(
-    "packages/client-ui/src/index.ts",
+    "packages/client-ui/src/app/bootstrap.ts",
     'export const load = () => import("@xbond/client/private");',
   );
   assert.match(checkArchitecture(root).join("\n"), /declared package export/);
