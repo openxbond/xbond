@@ -227,7 +227,14 @@ func (s *Server) Stop(ctx context.Context) error {
 		if s.remoteServer != nil {
 			remoteErr = s.remoteServer.Shutdown(ctx)
 		}
-		s.stopErr = errors.Join(runtimeErr, remoteErr, s.httpServer.Shutdown(ctx))
+		// The runtime teardown already happened above: a listener that
+		// cannot drain in-flight requests within the deadline is closed
+		// hard instead of reporting failure — the process is exiting, and a
+		// failure exit code makes the supervisors (Restart=on-failure /
+		// SuccessfulExit=false / SCM recovery) restart the daemon the user
+		// just stopped.
+		_ = s.httpServer.Shutdown(ctx)
+		s.stopErr = errors.Join(runtimeErr, remoteErr)
 	})
 	return s.stopErr
 }
