@@ -82,6 +82,9 @@ func sampleConfig() string {
 }
 
 func TestTunnelServiceLifecycleAndValidation(t *testing.T) {
+	// The platform bridge points the data dir at the app sandbox; without a
+	// bridge the tests would write through to the host's real store.
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	platform := &mockPlatform{}
 	listener := &mockListener{}
 
@@ -121,6 +124,7 @@ func TestTunnelServiceLifecycleAndValidation(t *testing.T) {
 }
 
 func TestTunnelServiceProtectSocket(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	platform := &mockPlatform{}
 	svc := NewTunnelService(platform, nil)
 
@@ -142,6 +146,7 @@ func TestTunnelServiceProtectSocket(t *testing.T) {
 }
 
 func TestTunnelServiceSelectOutboundWhenNotRunning(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	platform := &mockPlatform{}
 	svc := NewTunnelService(platform, nil)
 
@@ -152,6 +157,7 @@ func TestTunnelServiceSelectOutboundWhenNotRunning(t *testing.T) {
 }
 
 func TestTunnelServiceUpdateSubscriptionValidation(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	platform := &mockPlatform{}
 	svc := NewTunnelService(platform, nil)
 
@@ -171,6 +177,7 @@ func TestTunnelServiceUpdateSubscriptionValidation(t *testing.T) {
 }
 
 func TestTunnelServiceStopWhenIdle(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	platform := &mockPlatform{}
 	svc := NewTunnelService(platform, nil)
 
@@ -186,6 +193,7 @@ func TestTunnelServiceStopWhenIdle(t *testing.T) {
 // TUN fd stays valid, a failed reload keeps the previous core, and the
 // clash client follows the new controller endpoint.
 func TestTunnelServiceReloadKeepsTunnelAndRepointsClient(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	platform := &mockPlatform{}
 	listener := &mockListener{}
 	svc := NewTunnelService(platform, listener)
