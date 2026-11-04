@@ -4,13 +4,11 @@ import test from "node:test";
 import { openExternalUrl } from "../src/platform/open-external.ts";
 
 function mockWindow(win: unknown) {
-  // @ts-expect-error Mock global window
   globalThis.window = win as unknown as Window & typeof globalThis;
 }
 
 function restoreWindow() {
-  // @ts-expect-error Restore
-  delete globalThis.window;
+  Reflect.deleteProperty(globalThis, "window");
 }
 
 test("openExternalUrl hands the URL to the shell command on desktop", async () => {

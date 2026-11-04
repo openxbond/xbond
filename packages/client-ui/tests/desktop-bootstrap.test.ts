@@ -14,19 +14,16 @@ import {
 } from "../src/platform/local-api-bootstrap.ts";
 
 test("isDesktopApp identifies presence vs absence of Tauri desktop shell", () => {
-  // @ts-expect-error Mock global window
   globalThis.window = {} as unknown as Window & typeof globalThis;
   assert.equal(isDesktopApp(), false);
 
-  // @ts-expect-error Mock Tauri
   globalThis.window = {
     __TAURI_INTERNALS__: {},
   } as unknown as Window & typeof globalThis;
   assert.equal(isDesktopApp(), true);
 
   // Clean up
-  // @ts-expect-error Restore
-  delete globalThis.window;
+  Reflect.deleteProperty(globalThis, "window");
 });
 
 test("resolveDesktopLocalAPIConfig resolves credentials from desktop IPC", async () => {
@@ -34,7 +31,6 @@ test("resolveDesktopLocalAPIConfig resolves credentials from desktop IPC", async
   assert.equal(await resolveDesktopLocalAPIConfig(), null);
 
   // Mock desktop with successful invoke
-  // @ts-expect-error Mock global window
   globalThis.window = {
     __TAURI_INTERNALS__: {
       invoke: async (cmd: string) => {
@@ -56,7 +52,6 @@ test("resolveDesktopLocalAPIConfig resolves credentials from desktop IPC", async
   assert.equal(config.token, "desktop-token-xyz");
 
   // Mock desktop with empty token returns null
-  // @ts-expect-error Mock global window
   globalThis.window = {
     __TAURI_INTERNALS__: {
       invoke: async () => ({
@@ -101,7 +96,6 @@ test("Desktop shell syncs language preference to desktop runtime", async () => {
   let invokedCommand = "";
   let invokedArgs: unknown = null;
 
-  // @ts-expect-error Mock global window
   globalThis.window = {
     __TAURI_INTERNALS__: {
       invoke: async (cmd: string, args: unknown) => {

@@ -9,7 +9,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { checksum, validateArchive, validateTag } from "./artifact.ts";
+import { checksum, validateArchive } from "./artifact.ts";
+import { releaseVersion } from "./release-version.ts";
 
 const TRANSIENT_MESSAGES = [
   "connection was reset",
@@ -75,7 +76,7 @@ export function run(
 }
 
 export function transfer(tag: string, directory: string): void {
-  validateTag(tag);
+  releaseVersion(tag);
   const repo = "openxbond/dashboard";
   const resolvedDir = path.resolve(directory);
   validateArchive(

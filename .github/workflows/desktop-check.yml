@@ -7,7 +7,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "apps/desktop/src-tauri/**"
+      - "apps/desktop/**"
+      - "packages/client/**"
+      - "packages/client-ui/**"
+      - "vite.config.ts"
       - "pnpm-lock.yaml"
       - ".github/workflows/desktop-check.yml"
   pull_request:

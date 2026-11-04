@@ -17,5 +17,12 @@
       "@/*": ["./packages/client-ui/src/*"]
     }
   },
-  "include": ["packages/*/src", "apps/*/src", "scripts", "vite.config.ts"]
+  "include": [
+    "packages/*/src",
+    "packages/*/tests",
+    "apps/*/src",
+    "apps/*/tests",
+    "scripts",
+    "vite.config.ts"
+  ]
 }

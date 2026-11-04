@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { BUILD_TAGS, goCommand } from "./go.ts";
@@ -27,4 +28,19 @@ test("extra args append after the fixed form", () => {
   const targeted = goCommand("test", ["./internal/sub", "-run", "TestUpdate"]);
   assert.ok(targeted.args.includes("./internal/sub"));
   assert.ok(targeted.args.includes("-run"));
+});
+
+test("the Dockerfile builds with the shared build tags", () => {
+  const dockerfile = readFileSync(
+    new URL("../Dockerfile", import.meta.url),
+    "utf8",
+  );
+  assert.ok(
+    dockerfile.includes(`ARG BUILD_TAGS=${BUILD_TAGS}`),
+    "Dockerfile must default BUILD_TAGS to scripts/go.ts's value",
+  );
+  assert.ok(
+    dockerfile.includes("-tags ${BUILD_TAGS}"),
+    "the daemon build must consume the BUILD_TAGS arg",
+  );
 });

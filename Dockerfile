@@ -20,17 +20,19 @@ ARG XBOND_VERSION
 RUN XBOND_VERSION="$XBOND_VERSION" pnpm build
 
 # --- daemon binary (both cores, same tags as pnpm cli:check) -----------------
+# BUILD_TAGS must stay pinned to scripts/go.ts (enforced by scripts/go.test.ts).
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 ARG XBOND_VERSION
+ARG BUILD_TAGS=with_gvisor,with_quic,with_utls,with_clash_api
 ARG TARGETOS
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath \
       -ldflags "-s -w -X github.com/openxbond/xbond/internal/version.Version=${XBOND_VERSION:-dev}" \
-      -tags with_gvisor,with_quic,with_utls,with_clash_api \
+      -tags ${BUILD_TAGS} \
       -o /out/xbond ./cmd/xbond
 
 # --- runtime -----------------------------------------------------------------
