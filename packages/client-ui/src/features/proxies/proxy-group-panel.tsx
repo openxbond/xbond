@@ -435,35 +435,6 @@ export function Group({
               disabled={!canClick || pending}
               onSelect={() => void select(name)}
             >
-              <button
-                type="button"
-                className={cn(
-                  "inline-flex size-6 max-md:size-10 shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
-                  isPinned(name)
-                    ? "border-amber-500/40 text-amber-500 hover:text-amber-600 dark:text-amber-400"
-                    : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100",
-                )}
-                title={isPinned(name) ? t("unpin") : t("pin")}
-                aria-label={isPinned(name) ? t("unpin") : t("pin")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePin(name);
-                }}
-              >
-                <Pin
-                  className={cn("size-3", isPinned(name) && "fill-current")}
-                />
-              </button>
-
-              <span
-                className={cn(
-                  "inline-block rounded-full px-1.5 py-0.5 text-label font-semibold whitespace-nowrap tabular-nums",
-                  DELAY_PILL_TONES[delayTone],
-                )}
-              >
-                {delayDisplay}
-              </span>
-
               {canTest && (
                 <button
                   type="button"
@@ -496,6 +467,35 @@ export function Group({
                   </svg>
                 </button>
               )}
+
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex size-6 max-md:size-10 shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
+                  isPinned(name)
+                    ? "border-amber-500/40 text-amber-500 hover:text-amber-600 dark:text-amber-400"
+                    : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100",
+                )}
+                title={isPinned(name) ? t("unpin") : t("pin")}
+                aria-label={isPinned(name) ? t("unpin") : t("pin")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePin(name);
+                }}
+              >
+                <Pin
+                  className={cn("size-3", isPinned(name) && "fill-current")}
+                />
+              </button>
+
+              <span
+                className={cn(
+                  "inline-block rounded-full px-1.5 py-0.5 text-label font-semibold whitespace-nowrap tabular-nums",
+                  DELAY_PILL_TONES[delayTone],
+                )}
+              >
+                {delayDisplay}
+              </span>
             </StrategyChoice>
           );
         })}

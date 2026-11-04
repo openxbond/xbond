@@ -127,25 +127,6 @@ export function Proxy(props: ProxyProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full bg-inset px-2 py-[3px] text-xs font-semibold leading-[1.2] tabular-nums transition-colors duration-200",
-              BADGE_TONES[badgeTone],
-            )}
-          >
-            {delay > 0 && !isTesting && !isFailed && (
-              <span
-                className={cn(
-                  "inline-block size-1.5 rounded-full bg-current",
-                  BADGE_DOTS[badgeTone],
-                )}
-                aria-hidden="true"
-              />
-            )}
-            {delayText}
-            {meanDelayText}
-          </span>
-
           {!isBuiltin && (
             <button
               type="button"
@@ -176,6 +157,25 @@ export function Proxy(props: ProxyProps) {
               </svg>
             </button>
           )}
+
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full bg-inset px-2 py-[3px] text-xs font-semibold leading-[1.2] tabular-nums transition-colors duration-200",
+              BADGE_TONES[badgeTone],
+            )}
+          >
+            {delay > 0 && !isTesting && !isFailed && (
+              <span
+                className={cn(
+                  "inline-block size-1.5 rounded-full bg-current",
+                  BADGE_DOTS[badgeTone],
+                )}
+                aria-hidden="true"
+              />
+            )}
+            {delayText}
+            {meanDelayText}
+          </span>
         </div>
       </div>
 
