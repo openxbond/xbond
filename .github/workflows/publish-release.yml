@@ -1,0 +1,114 @@
+name: Publish XBond release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Prepared stable Tag
+        required: true
+        type: string
+      store_verified_tag:
+        description: Same Tag verified installable in App Store, Chrome and Edge after platform acceptance
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-xbond-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'openxbond/xbond' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment: release-production
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+      STORE_VERIFIED_TAG: ${{ inputs.store_verified_tag }}
+      XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
+      APP_STORE_URL: ${{ vars.APP_STORE_URL }}
+      CHROME_STORE_URL: ${{ vars.CHROME_STORE_URL }}
+      EDGE_STORE_URL: ${{ vars.EDGE_STORE_URL }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - id: candidate
+        run: |
+          set -euo pipefail
+          test "$STORE_VERIFIED_TAG" = "$TAG"
+          node scripts/release-ci.ts preflight "$TAG" publish
+          gh release view "$TAG" --json isDraft,isPrerelease --jq 'if .isPrerelease then error("Prerelease cannot be promoted") else "draft=" + (.isDraft | tostring) end' >> "$GITHUB_OUTPUT"
+          gh release download "$TAG" --dir release/assets
+          node scripts/release-ci.ts verify-evidence "$TAG" release/assets/release-evidence.json
+          node scripts/release-assets.ts pages "$TAG" release/assets release/pages "$APP_STORE_URL" "$CHROME_STORE_URL" "$EDGE_STORE_URL"
+      - id: registry
+        env:
+          IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+          printf '%s' "$GH_TOKEN" | skopeo login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+          image="docker://ghcr.io/openxbond/xbond:$TAG"
+          if skopeo inspect --raw "$image" > registry.json; then
+            test "sha256:$(sha256sum registry.json | cut -d' ' -f1)" = "$IMAGE_DIGEST"
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.registry.outputs.present == 'false'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-image
+          run-id: ${{ steps.candidate.outputs.run }}
+          github-token: ${{ github.token }}
+          path: release/oci
+      - if: steps.registry.outputs.present == 'false'
+        env:
+          IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          set -euo pipefail
+          archive=oci-archive:release/oci/xbond-image.tar
+          skopeo inspect --raw "$archive" > image-index.json
+          test "sha256:$(sha256sum image-index.json | cut -d' ' -f1)" = "$IMAGE_DIGEST"
+          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64","arm64"]' image-index.json
+          skopeo copy --all --preserve-digests "$archive" "docker://ghcr.io/openxbond/xbond:$TAG"
+      - name: Publish immutable Release
+        if: steps.candidate.outputs.draft == 'true'
+        run: gh release edit "$TAG" --draft=false --latest
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: release/pages
+
+  pages:
+    needs: publish
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Verify deployed version
+        env:
+          PAGES_URL: ${{ steps.deploy.outputs.page_url }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          curl -fSs --retry 5 --retry-all-errors "${PAGES_URL%/}/desktop.json?v=$TAG" | jq -e --arg version "${TAG#v}" '.version == $version'
+          curl -fSs --retry 5 "${PAGES_URL%/}/download/" > /dev/null

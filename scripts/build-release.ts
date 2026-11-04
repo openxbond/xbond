@@ -1,8 +1,11 @@
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { checksum } from "./artifact.ts";
+import { BUILD_TAGS } from "./go.ts";
+import { cliAsset, releaseTargets, releaseVersion } from "./release-version.ts";
 
 // Cross-builds the daemon binary matrix for a release and lays out the
 // publish directory: one self-contained binary per target (the web UI and
@@ -11,32 +14,30 @@ import { fileURLToPath } from "node:url";
 //
 // Usage: node scripts/build-release.ts <vX.Y.Z>   (tag form v-prefixed)
 
-const TAG_PATTERN =
-  /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
-const BUILD_TAGS = "with_gvisor,with_quic,with_utls,with_clash_api";
 const VERSION_PACKAGE = "github.com/openxbond/xbond/internal/version.Version";
-const TARGETS: [string, string][] = [
-  ["windows", "amd64"],
-  ["windows", "arm64"],
-  ["linux", "amd64"],
-  ["linux", "arm64"],
-  ["darwin", "amd64"],
-  ["darwin", "arm64"],
-];
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const tag = process.argv[2];
-if (!tag || !TAG_PATTERN.test(tag)) {
-  console.error(
-    `Usage: node scripts/build-release.ts <vX.Y.Z> (got: ${tag ?? ""})`,
-  );
-  process.exit(1);
+const { tag, version } = releaseVersion(process.argv[2] ?? "");
+const publicKey = process.env.XBOND_RELEASE_PUBLIC_KEY ?? "";
+if (publicKey && !/^[A-Za-z0-9+/]{43}=$/.test(publicKey)) {
+  throw new Error("Expected a base64 Ed25519 release public key");
 }
 
 const outDir = path.join(root, "release", tag);
-fs.rmSync(outDir, { recursive: true, force: true });
-fs.mkdirSync(outDir, { recursive: true });
+if (fs.existsSync(outDir))
+  throw new Error(`Release directory already exists: ${outDir}`);
+
+const web = spawnSync(
+  process.execPath,
+  [path.join(root, "node_modules", "vite", "bin", "vite.js"), "build"],
+  {
+    cwd: root,
+    stdio: "inherit",
+    env: { ...process.env, XBOND_VERSION: version },
+  },
+);
+if (web.status !== 0) process.exit(web.status ?? 1);
 
 // The dashboard bundle rides the existing release tooling.
 const packageResult = spawnSync(
@@ -52,9 +53,8 @@ const packageResult = spawnSync(
 if (packageResult.status !== 0) process.exit(packageResult.status ?? 1);
 
 const checksums: string[] = [];
-for (const [osName, arch] of TARGETS) {
-  const ext = osName === "windows" ? ".exe" : "";
-  const name = `xbond-${tag}-${osName}-${arch}${ext}`;
+for (const [osName, arch] of releaseTargets) {
+  const name = cliAsset(tag, osName, arch);
   const out = path.join(outDir, name);
   console.log(`building ${name} ...`);
   const res = spawnSync(
@@ -65,25 +65,23 @@ for (const [osName, arch] of TARGETS) {
       BUILD_TAGS,
       "-trimpath",
       "-ldflags",
-      `-s -w -X ${VERSION_PACKAGE}=${tag}`,
+      `-s -w -X ${VERSION_PACKAGE}=${version} -X ${VERSION_PACKAGE.replace(".Version", ".ReleasePublicKey")}=${publicKey}`,
       "-o",
       out,
       "./cmd/xbond",
     ],
     {
+      cwd: root,
       stdio: "inherit",
       env: { ...process.env, CGO_ENABLED: "0", GOOS: osName, GOARCH: arch },
     },
   );
   if (res.status !== 0) process.exit(res.status ?? 1);
-  const data = fs.readFileSync(out);
-  checksums.push(`${createHash("sha256").update(data).digest("hex")}  ${name}`);
+  checksums.push(`${checksum(out)}  ${name}`);
 }
 
 const dashboardZip = path.join(outDir, "dashboard.zip");
-checksums.push(
-  `${createHash("sha256").update(fs.readFileSync(dashboardZip)).digest("hex")}  dashboard.zip`,
-);
+checksums.push(`${checksum(dashboardZip)}  dashboard.zip`);
 fs.writeFileSync(path.join(outDir, "SHA256SUMS"), checksums.join("\n") + "\n");
 
 for (const entry of fs.readdirSync(outDir)) {

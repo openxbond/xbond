@@ -14,7 +14,7 @@ export default defineConfig((env) => ({
   root: env.mode === "tauri" ? "apps/desktop" : "apps/dashboard",
   publicDir: path.resolve("apps/dashboard/public"),
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_VERSION__: JSON.stringify(process.env.XBOND_VERSION || pkg.version),
   },
   plugins: [
     // jotai 3 dropped its babel plugin packages; dev-only debug labels are
@@ -23,9 +23,10 @@ export default defineConfig((env) => ({
     tailwindcss(),
     env.mode !== "tauri" &&
       VitePWA({
-        injectRegister: "inline",
+        injectRegister: false,
         workbox: {
           sourcemap: false,
+          navigateFallbackDenylist: [/\/download(?:\/|$)/],
         },
         manifest: {
           icons: [

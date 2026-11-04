@@ -6,6 +6,8 @@
 **/node_modules
 dist
 dist-desktop
+release
+release-assets
 apps/desktop
 docs
 *.md

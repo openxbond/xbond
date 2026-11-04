@@ -4,7 +4,7 @@
 # docs/specs/docker-daemon.md for the contract and the boundary between them.
 
 # --- web UI bundle -----------------------------------------------------------
-FROM node:24-alpine AS web
+FROM --platform=$BUILDPLATFORM node:24-alpine AS web
 WORKDIR /src
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -16,15 +16,20 @@ COPY tsconfig.json vite.config.ts ./
 COPY apps/dashboard apps/dashboard
 COPY packages/client packages/client
 COPY packages/client-ui packages/client-ui
-RUN pnpm build
+ARG XBOND_VERSION
+RUN XBOND_VERSION="$XBOND_VERSION" pnpm build
 
 # --- daemon binary (both cores, same tags as pnpm cli:check) -----------------
-FROM golang:1.27-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" \
+ARG XBOND_VERSION
+ARG TARGETOS
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath \
+      -ldflags "-s -w -X github.com/openxbond/xbond/internal/version.Version=${XBOND_VERSION:-dev}" \
       -tags with_gvisor,with_quic,with_utls,with_clash_api \
       -o /out/xbond ./cmd/xbond
 

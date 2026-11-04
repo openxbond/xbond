@@ -1,0 +1,114 @@
+name: XBond store operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Prepared stable Tag
+        required: true
+        type: string
+      store:
+        description: Store
+        type: choice
+        options: [ios, chrome, edge]
+        required: true
+      operation:
+        description: Submit build or check browser store status
+        type: choice
+        options: [status, submit]
+        required: true
+      edge_operation_id:
+        description: Operation ID from the Edge submission when checking its status
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-store-${{ inputs.store }}
+  cancel-in-progress: false
+
+jobs:
+  browser:
+    if: github.repository == 'openxbond/xbond' && github.ref == 'refs/heads/main' && inputs.store != 'ios'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release-store-${{ inputs.store }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+      STORE: ${{ inputs.store }}
+      OPERATION: ${{ inputs.operation }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Verify staged store ZIP
+        if: inputs.operation == 'submit'
+        run: |
+          node scripts/release-ci.ts preflight "$TAG" publish
+          gh release view "$TAG" --json isDraft --jq '.isDraft' | grep -Fx true
+          gh release download "$TAG" --pattern "xbond-extension-$TAG.zip" --pattern SHA256SUMS
+          sha256sum --strict --ignore-missing --check SHA256SUMS
+      - name: Submit or inspect the store build
+        env:
+          CHROME_SERVICE_ACCOUNT: ${{ secrets.CHROME_SERVICE_ACCOUNT }}
+          CHROME_PUBLISHER_ID: ${{ vars.CHROME_PUBLISHER_ID }}
+          CHROME_ITEM_ID: ${{ vars.CHROME_ITEM_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          EDGE_CLIENT_ID: ${{ vars.EDGE_CLIENT_ID }}
+          EDGE_PRODUCT_ID: ${{ vars.EDGE_PRODUCT_ID }}
+          EDGE_OPERATION_ID: ${{ inputs.edge_operation_id }}
+        run: node scripts/release-store.ts "$STORE" "$OPERATION" "$TAG" "xbond-extension-$TAG.zip"
+
+  ios:
+    if: github.repository == 'openxbond/xbond' && github.ref == 'refs/heads/main' && inputs.store == 'ios' && inputs.operation == 'submit'
+    runs-on: macos-15
+    timeout-minutes: 25
+    environment: release-store-ios
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - id: candidate
+        run: |
+          node scripts/release-ci.ts preflight "$TAG" publish
+          gh release view "$TAG" --json isDraft --jq '.isDraft' | grep -Fx true
+          gh release download "$TAG" --pattern release-evidence.json --pattern SHA256SUMS
+          shasum -a 256 --ignore-missing -c SHA256SUMS
+          node scripts/release-ci.ts verify-evidence "$TAG" release-evidence.json
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: app-store-build
+          run-id: ${{ steps.candidate.outputs.run }}
+          github-token: ${{ github.token }}
+          path: release/ios
+      - name: Upload the staged IPA to App Store Connect
+        env:
+          IOS_SHA256: ${{ steps.candidate.outputs.ios_sha256 }}
+          ASC_KEY: ${{ secrets.ASC_KEY }}
+          ASC_KEY_ID: ${{ vars.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ vars.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' "$IOS_SHA256" release/ios/xbond.ipa | shasum -a 256 -c -
+          [[ "$ASC_KEY_ID" =~ ^[A-Za-z0-9]+$ ]]
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          keyfile="$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
+          trap 'rm -f "$keyfile"' EXIT
+          (umask 077; printf '%s' "$ASC_KEY" > "$keyfile")
+          xcrun altool --upload-app --type ios --file release/ios/xbond.ipa --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
