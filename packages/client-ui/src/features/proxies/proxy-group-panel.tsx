@@ -1,11 +1,13 @@
 import type { Group as IGroup } from "@xbond/client/request";
 import { strategyPath } from "@xbond/client/workspace";
+import { Pin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { StrategyChoice, StrategyPath } from "@/components/proxy-strategy";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { usePinnedNodes } from "@/state/user-preferences";
 
 import { useLatency } from "./latency-context";
 import { useProxyMapping } from "./proxy-data";
@@ -49,6 +51,7 @@ export function Group({
   } = useNodeSelection();
   const { run, results, progress } = useLatency();
   const { t } = useTranslation("proxies");
+  const { isPinned, togglePin } = usePinnedNodes();
   const [filterOpen, setFilterOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [sortMode, setSortMode] = useState<"default" | "latency" | "name">(
@@ -74,22 +77,39 @@ export function Group({
           name.toLowerCase().includes(search.toLowerCase())) &&
         (!filter || name.toLowerCase().includes(filter.toLowerCase())),
     );
-    if (sortMode === "name")
-      return [...visible].sort((a, b) => a.localeCompare(b));
-    if (sortMode === "latency") {
-      const latencyKey = (name: string) => {
-        const delay = delayFor(name);
-        return delay !== undefined && delay > 0
-          ? delay
-          : Number.POSITIVE_INFINITY;
-      };
-      return [...visible].sort((a, b) => {
+
+    const pinnedList: string[] = [];
+    const normalList: string[] = [];
+    for (const name of visible) {
+      if (isPinned(name)) {
+        pinnedList.push(name);
+      } else {
+        normalList.push(name);
+      }
+    }
+
+    const sortFn = (a: string, b: string) => {
+      if (sortMode === "name") return a.localeCompare(b);
+      if (sortMode === "latency") {
+        const latencyKey = (name: string) => {
+          const delay = delayFor(name);
+          return delay !== undefined && delay > 0
+            ? delay
+            : Number.POSITIVE_INFINITY;
+        };
         const left = latencyKey(a);
         const right = latencyKey(b);
         return left === right ? a.localeCompare(b) : left - right;
-      });
+      }
+      return 0;
+    };
+
+    if (sortMode !== "default") {
+      pinnedList.sort(sortFn);
+      normalList.sort(sortFn);
     }
-    return visible;
+
+    return [...pinnedList, ...normalList];
   })();
 
   const delays = new Map(
@@ -415,6 +435,25 @@ export function Group({
               disabled={!canClick || pending}
               onSelect={() => void select(name)}
             >
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex size-6 max-md:size-10 shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
+                  isPinned(name) &&
+                    "border-amber-500/40 text-amber-500 hover:text-amber-600 dark:text-amber-400",
+                )}
+                title={isPinned(name) ? t("unpin") : t("pin")}
+                aria-label={isPinned(name) ? t("unpin") : t("pin")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePin(name);
+                }}
+              >
+                <Pin
+                  className={cn("size-3", isPinned(name) && "fill-current")}
+                />
+              </button>
+
               <span
                 className={cn(
                   "inline-block rounded-full px-1.5 py-0.5 text-label font-semibold whitespace-nowrap tabular-nums",

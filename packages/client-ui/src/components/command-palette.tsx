@@ -9,6 +9,7 @@ import {
   Globe,
   HelpCircle,
   Network,
+  Pin,
   Power,
   RotateCw,
   Search,
@@ -26,6 +27,7 @@ import { useProxy } from "@/features/proxies/proxy-data";
 import { useNodeSelection } from "@/features/proxies/use-node-selection";
 import { cn } from "@/lib/utils";
 import { useLocalAPI } from "@/state/local-runtime";
+import { usePinnedNodes } from "@/state/user-preferences";
 
 export function CommandPalette() {
   const { t: conn } = useTranslation("connect");
@@ -41,6 +43,7 @@ export function CommandPalette() {
   const running = status?.engine.running ?? false;
   const { groups } = useProxy();
   const nodeSelection = useNodeSelection();
+  const { isPinned } = usePinnedNodes();
 
   // Listen to keyboard shortcut Cmd/Ctrl + K and custom open event
   useEffect(() => {
@@ -220,12 +223,19 @@ export function CommandPalette() {
 
     // Filter nodes from the first primary selector group (e.g. PROXY or GLOBAL)
     const primaryGroup = groups.find((g) => g.type === "Selector") ?? groups[0];
-    const nodeItems = (primaryGroup?.all ?? [])
-      .slice(0, 30)
-      .map((nodeName) => ({
+    const allGroupNodes = primaryGroup?.all ?? [];
+    const pinnedNodes = allGroupNodes.filter(isPinned);
+    const normalNodes = allGroupNodes.filter((n) => !isPinned(n));
+    const sortedGroupNodes = [...pinnedNodes, ...normalNodes];
+
+    const nodeItems = sortedGroupNodes.slice(0, 40).map((nodeName) => {
+      const pinned = isPinned(nodeName);
+      return {
         id: `node-${nodeName}`,
-        category: `節點 (${primaryGroup?.name ?? "PROXY"})`,
-        icon: Check,
+        category: pinned
+          ? `已釘選節點`
+          : `節點 (${primaryGroup?.name ?? "PROXY"})`,
+        icon: pinned ? Pin : Check,
         title: nodeName,
         subtitle:
           nodeName === primaryGroup?.now ? "目前選中" : "點擊切換為此節點",
@@ -235,7 +245,8 @@ export function CommandPalette() {
             toast.success(`已切換至 ${nodeName}`);
           }
         },
-      }));
+      };
+    });
 
     const all = [...actions, ...navigation, ...nodeItems];
     if (!q) return all.slice(0, 16);
@@ -261,6 +272,7 @@ export function CommandPalette() {
     location.search,
     groups,
     nodeSelection,
+    isPinned,
   ]);
 
   const handleSelect = async (index: number) => {

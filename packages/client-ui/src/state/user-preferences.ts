@@ -108,3 +108,27 @@ export function useConfig() {
   );
   return { data, set: useWarpImmerSetter(setter) };
 }
+
+export const pinnedNodesAtom = atomWithStorage<string[]>("pinned_nodes", []);
+
+export function usePinnedNodes() {
+  const [pinned, setPinned] = useAtom(pinnedNodesAtom);
+
+  const togglePin = useCallback(
+    (nodeName: string) => {
+      setPinned((prev) =>
+        prev.includes(nodeName)
+          ? prev.filter((name) => name !== nodeName)
+          : [...prev, nodeName],
+      );
+    },
+    [setPinned],
+  );
+
+  const isPinned = useCallback(
+    (nodeName: string) => pinned.includes(nodeName),
+    [pinned],
+  );
+
+  return { pinned, togglePin, isPinned };
+}

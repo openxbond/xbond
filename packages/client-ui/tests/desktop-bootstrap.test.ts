@@ -78,3 +78,17 @@ test("Takeover TUN privilege notice exists across all locale dictionaries", () =
   assert.match(CN.settings.takeover.tunPrivilegeNotice, /管理员/);
   assert.match(EN.settings.takeover.tunPrivilegeNotice, /administrator/i);
 });
+
+test("Proxy pin and sort keys exist across locale dictionaries", () => {
+  assert.equal(HK.proxies.pin, "釘選");
+  assert.equal(CN.proxies.pin, "置顶");
+  assert.equal(EN.proxies.pin, "Pin");
+
+  assert.equal(HK.proxies.unpin, "取消釘選");
+  assert.equal(CN.proxies.unpin, "取消置顶");
+  assert.equal(EN.proxies.unpin, "Unpin");
+
+  assert.equal(HK.proxies.pinned, "已釘選");
+  assert.equal(CN.proxies.pinned, "已置顶");
+  assert.equal(EN.proxies.pinned, "Pinned");
+});
