@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 
 import { CommandPalette } from "@/components/command-palette";
+import { TitleBar } from "@/components/title-bar";
 import { Toaster } from "@/components/ui/sonner";
 import Activity from "@/features/activity/activity-page";
 import Connections from "@/features/activity/connections/connections-page";
@@ -80,17 +81,15 @@ export default function App() {
     <div
       className={cn(
         "h-[100dvh] min-h-0 overflow-hidden p-3 pl-[228px]",
+        // Desktop frameless window: content islands start below the 40px
+        // titlebar band, keeping the 12px island margin as the gap.
+        isDesktopApp() && "pt-[calc(var(--titlebar-height)+12px)]",
         "max-md:pt-[calc(var(--topbar-height)+env(safe-area-inset-top))] max-md:pr-0 max-md:pb-[calc(84px+env(safe-area-inset-bottom))] max-md:pl-0",
         !isClashX() &&
           "bg-[image:radial-gradient(ellipse_at_top_left,var(--surface-inset),transparent_65%)] bg-background",
       )}
     >
-      {isDesktopApp() && (
-        <div
-          data-tauri-drag-region
-          className="fixed top-0 left-0 right-0 h-6 z-40 select-none pointer-events-auto max-md:hidden"
-        />
-      )}
+      <TitleBar />
       <SideBar routes={mobileRoutes} />
       <div
         ref={contentRef}

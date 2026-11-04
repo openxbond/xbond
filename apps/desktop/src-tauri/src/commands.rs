@@ -100,6 +100,36 @@ pub fn close_main_window(app: AppHandle) {
     }
 }
 
+/// Titlebar window controls for the frameless chrome on Windows/Linux
+/// (app-defined commands keep the capability set to drag-only). Close stays
+/// on `close_main_window`, which honors the close-to-tray preference.
+#[tauri::command]
+pub fn minimize_main_window(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.minimize();
+    }
+}
+
+#[tauri::command]
+pub fn toggle_maximize_main_window(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = if window.is_maximized().unwrap_or(false) {
+            window.unmaximize()
+        } else {
+            window.maximize()
+        };
+    }
+}
+
+/// Maximized flag for the titlebar's maximize/restore glyph; the webview
+/// queries this on mount and webview resize events (no window-event ACL).
+#[tauri::command]
+pub fn is_main_window_maximized(app: AppHandle) -> bool {
+    app.get_webview_window("main")
+        .and_then(|window| window.is_maximized().ok())
+        .unwrap_or(false)
+}
+
 /// Store an import URL handed over from a deep link or a second instance and
 /// bring the window forward so the frontend picks it up.
 pub(crate) fn queue_import(app: &AppHandle, url: String) {

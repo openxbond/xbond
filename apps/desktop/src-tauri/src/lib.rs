@@ -51,6 +51,16 @@ pub fn run() {
         .setup(|app| {
             app.manage(commands::ShellState::default());
 
+            // Frameless main window on Windows/Linux: the webview draws its
+            // own titlebar (drag region + window controls); macOS keeps
+            // native traffic lights via titleBarStyle Overlay in config.
+            // Applied while the window is still hidden (visible:false in
+            // config), so no frame flash reaches the screen.
+            #[cfg(any(target_os = "windows", target_os = "linux"))]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_decorations(false);
+            }
+
             if let Err(e) = tray::setup_tray(app.handle()) {
                 eprintln!("[XBond Desktop] Failed to setup tray: {e}");
             }
@@ -119,6 +129,9 @@ pub fn run() {
             commands::get_desktop_info,
             commands::show_main_window,
             commands::close_main_window,
+            commands::minimize_main_window,
+            commands::toggle_maximize_main_window,
+            commands::is_main_window_maximized,
             commands::get_close_to_tray,
             commands::set_close_to_tray,
             commands::get_tray_language,
