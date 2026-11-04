@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openxbond/xbond/internal/platform/paths"
 	"gopkg.in/yaml.v3"
 )
 
@@ -288,5 +290,36 @@ rules:
 	ok, err := ProbeGatewayHealth(context.Background(), server.URL, "")
 	if err != nil || !ok {
 		t.Fatalf("ProbeGatewayHealth failed: ok=%v, err=%v", ok, err)
+	}
+}
+
+// A corrupt subscription store must not masquerade as "no subscriptions":
+// the corrupt bytes are preserved beside the original, and the manager
+// starts usable-empty instead of silently losing the user's list.
+func TestCorruptStoreIsPreservedAndReported(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	if err := paths.EnsureDirs(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.SubListPath(), []byte(`{"subscriptions": [not json`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	m, err := NewManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if list := m.List(); len(list) != 0 {
+		t.Fatalf("corrupt store must start empty, got %d entries", len(list))
+	}
+	if _, err := os.Stat(paths.SubListPath()); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("corrupt original must be renamed away, stat: %v", err)
+	}
+	preserved, err := os.ReadFile(paths.SubListPath() + ".corrupt")
+	if err != nil {
+		t.Fatalf("corrupt bytes were not preserved: %v", err)
+	}
+	if !strings.Contains(string(preserved), "not json") {
+		t.Fatal("preserved copy does not hold the corrupt bytes")
 	}
 }

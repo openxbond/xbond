@@ -46,8 +46,21 @@ func NewManager() (*Manager, error) {
 	}
 
 	m := &Manager{}
-	_ = m.loadStore()
+	if err := m.loadStore(); err != nil {
+		// A corrupt store must not masquerade as "no subscriptions": the
+		// corrupt bytes are preserved beside the original and the failure is
+		// loud, while the manager stays usable so the user can rebuild from
+		// their source.
+		fmt.Fprintf(os.Stderr, "xbond: %v\n", err)
+		m.store = emptyStore()
+	}
 	return m, nil
+}
+
+// emptyStore is the safe starting point after a load failure: an empty list
+// that marshals as [] (not null) in every response shape.
+func emptyStore() SubscriptionsStore {
+	return SubscriptionsStore{Subscriptions: make([]SubscriptionMeta, 0)}
 }
 
 func (m *Manager) loadStore() error {
@@ -61,10 +74,13 @@ func (m *Manager) loadStore() error {
 
 	var store SubscriptionsStore
 	if err := json.Unmarshal(data, &store); err != nil {
-		m.store = SubscriptionsStore{
-			Subscriptions: make([]SubscriptionMeta, 0),
+		// The corrupt bytes are preserved beside the original so nothing is
+		// silently lost; the manager starts empty and the failure is loud.
+		corrupt := paths.SubListPath() + ".corrupt"
+		if renameErr := os.Rename(paths.SubListPath(), corrupt); renameErr != nil {
+			return fmt.Errorf("decode subscription store: %w (preserving the corrupt copy failed: %v)", err, renameErr)
 		}
-		return nil
+		return fmt.Errorf("decode subscription store (bytes preserved as %s): %w", corrupt, err)
 	}
 	for i := range store.Subscriptions {
 		if !store.Subscriptions[i].NameCustomized && strings.Contains(store.Subscriptions[i].Name, ";") {
