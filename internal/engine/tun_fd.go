@@ -29,7 +29,7 @@ func init() {
 	// auto-route path opens its own device with fd 0 and must stay untouched.
 	boxtun.HookBeforeCreatePlatformInterface = func(options *tun.Options) {
 		if fd := mobileTunFD.Load(); fd > 0 && options.FileDescriptor == 0 {
-			options.FileDescriptor = int(fd)
+			useMobileTunDescriptor(options, fd)
 		}
 	}
 }

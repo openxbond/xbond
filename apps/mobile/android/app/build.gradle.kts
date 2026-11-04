@@ -3,6 +3,15 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val releaseVersion = providers.environmentVariable("XBOND_VERSION").orNull
+val releaseBuild = providers.environmentVariable("XBOND_BUILD_NUMBER").orNull
+val releaseKey = providers.environmentVariable("XBOND_RELEASE_PUBLIC_KEY").orNull
+if (releaseVersion != null || releaseBuild != null || releaseKey != null) {
+    require(releaseVersion?.matches(Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)")) == true)
+    require((releaseBuild?.toIntOrNull() ?: 0) in 1..2_100_000_000)
+    require(releaseKey?.matches(Regex("[A-Za-z0-9+/]{43}=")) == true)
+}
+
 // The shared web UI (packages/client-ui, built by `pnpm build` into the repo
 // dist/) ships inside the APK; MainActivity extracts it into the data dir
 // where the in-process LocalAPI serves it.
@@ -28,8 +37,13 @@ android {
         applicationId = "net.xbond.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = releaseBuild?.toInt() ?: 1
+        versionName = releaseVersion ?: "0.1.0"
+        buildConfigField("String", "RELEASE_PUBLIC_KEY", "\"${releaseKey.orEmpty()}\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {

@@ -6,6 +6,8 @@ import android.net.VpnService
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Menu
+import android.view.MenuItem
 import android.webkit.WebView
 import java.io.File
 
@@ -24,10 +26,12 @@ import java.io.File
 class MainActivity : Activity() {
 
     private lateinit var webView: WebView
+    private lateinit var updates: AppUpdates
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        updates = AppUpdates(this)
         webView = WebView(this)
         webView.settings.apply {
             javaScriptEnabled = true
@@ -58,6 +62,18 @@ class MainActivity : Activity() {
         }
 
         pollAndLoad(0)
+        updates.checkInBackground()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menu.add(Menu.NONE, UPDATE_MENU, Menu.NONE, R.string.update_check)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId != UPDATE_MENU) return super.onOptionsItemSelected(item)
+        updates.check(manual = true)
+        return true
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -125,16 +141,19 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == AppUpdates.INSTALL_PERMISSION) updates.permissionReturned()
         // Consent result is not acted on: prepare() is re-checked whenever
         // the tunnel starts.
     }
 
     override fun onDestroy() {
+        updates.close()
         webView.destroy()
         super.onDestroy()
     }
 
     private companion object {
         const val REQUEST_CONSENT = 1
+        const val UPDATE_MENU = 1
     }
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/metacubex/mihomo/component/geodata"
 	"github.com/metacubex/mihomo/component/profile/cachefile"
 	C "github.com/metacubex/mihomo/constant"
-	"github.com/metacubex/mihomo/hub"
 	"github.com/metacubex/mihomo/hub/executor"
 	mihomoLog "github.com/metacubex/mihomo/log"
 	"github.com/sagernet/sing-box"
@@ -50,7 +49,7 @@ func (c *mihomoCore) start(config []byte, m *Manager) error {
 	}
 	c.logSub = mihomoLog.Subscribe()
 	go m.pumpMihomoLogs(c.logSub)
-	if err := hub.Parse(config); err != nil {
+	if err := startMihomo(config); err != nil {
 		mihomoLog.UnSubscribe(c.logSub)
 		c.logSub = nil
 		return fmt.Errorf("failed to start mihomo core: %w", err)
@@ -94,6 +93,13 @@ func (c *singBoxCore) start(config []byte, m *Manager) error {
 		cancel()
 		return fmt.Errorf("failed to create box instance: %w", err)
 	}
+	releaseDescriptor, err := prepareSingBoxDescriptor()
+	if err != nil {
+		_ = instance.Close()
+		cancel()
+		return err
+	}
+	defer releaseDescriptor()
 	if err := instance.Start(); err != nil {
 		_ = instance.Close()
 		cancel()

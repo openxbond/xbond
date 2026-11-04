@@ -677,6 +677,10 @@ func (s *apiServer) handleWeb(w http.ResponseWriter, r *http.Request) {
 	filePath := filepath.Join(s.webDir, filepath.Clean(r.URL.Path))
 	info, err := os.Stat(filePath)
 	if err != nil || info.IsDir() {
+		if iosWebOrigin && r.Header.Get("X-XBond-Token") != s.token {
+			http.NotFound(w, r)
+			return
+		}
 		indexBytes, err := os.ReadFile(filepath.Join(s.webDir, "index.html"))
 		if err != nil {
 			http.NotFound(w, r)
@@ -689,6 +693,9 @@ func (s *apiServer) handleWeb(w http.ResponseWriter, r *http.Request) {
 			proxyPort = s.svc.controller.port
 		}
 		_, clashSecret := s.svc.runtime.endpoint()
+		if iosWebOrigin && s.svc.controller != nil {
+			clashSecret = s.svc.controller.webToken
+		}
 		metaTag := fmt.Sprintf(`<meta name="external-controller" content="http://:%s@127.0.0.1:%d">
     <meta name="localapi-token" content="%s">`, clashSecret, proxyPort, s.token)
 		html := strings.Replace(string(indexBytes), "<head>", "<head>\n    "+metaTag, 1)

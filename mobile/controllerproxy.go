@@ -1,9 +1,13 @@
 package mobile
 
 import (
+	"crypto/subtle"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/url"
+	"strings"
 	"sync"
 )
 
@@ -17,6 +21,8 @@ import (
 type controllerProxy struct {
 	mu     sync.Mutex
 	port   int
+	listener net.Listener
+	webToken string
 	engine func() (int, string) // current (clashPort, secret)
 	svc    *TunnelService
 }
@@ -28,6 +34,8 @@ func newControllerProxy(svc *TunnelService, endpoint func() (int, string)) (*con
 	}
 	p := &controllerProxy{
 		port:   l.Addr().(*net.TCPAddr).Port,
+		listener: l,
+		webToken: randomSecret(),
 		engine: endpoint,
 		svc:    svc,
 	}
@@ -88,12 +96,39 @@ func (p *controllerProxy) injectAuth(client, upstream net.Conn, secret string) e
 	filtered := make([]byte, 0, len(head)+64)
 	lineStart := 0
 	authWritten := false
+	authorized := !iosWebOrigin
 	for i := 0; i < len(head); i++ {
 		if head[i] == '\n' {
 			line := string(head[lineStart : i+1])
 			lower := toLowerAscii(line)
 			switch {
+			case lineStart == 0 && iosWebOrigin:
+				// Browsers put the Clash controller token in the WebSocket URL.
+				fields := strings.Fields(line)
+				if len(fields) != 3 {
+					return errors.New("invalid controller request line")
+				}
+				requestURL, err := url.ParseRequestURI(fields[1])
+				if err != nil {
+					return err
+				}
+				query := requestURL.Query()
+				if token := query.Get("token"); token != "" {
+					if subtle.ConstantTimeCompare([]byte(token), []byte(p.webToken)) != 1 {
+						return errors.New("invalid controller proxy token")
+					}
+					authorized = true
+					query.Set("token", secret)
+					requestURL.RawQuery = query.Encode()
+				}
+				filtered = append(filtered, fields[0]+" "+requestURL.RequestURI()+" "+fields[2]+"\r\n"...)
 			case startsWith(lower, "authorization:") || startsWith(lower, "proxy-authorization:"):
+				if iosWebOrigin && startsWith(lower, "authorization:") {
+					authorized = authorized || subtle.ConstantTimeCompare(
+						[]byte(strings.TrimSpace(line[len("Authorization:"):])),
+						[]byte("Bearer "+p.webToken),
+					) == 1
+				}
 				// drop the client's own auth; ours replaces it
 			case line == "\r\n" || line == "\n":
 				// end of headers: our Authorization must land before this
@@ -110,6 +145,9 @@ func (p *controllerProxy) injectAuth(client, upstream net.Conn, secret string) e
 	}
 	if !authWritten {
 		filtered = append(filtered, []byte("Authorization: Bearer "+secret+"\r\n")...)
+	}
+	if !authorized {
+		return errors.New("unauthorized controller proxy request")
 	}
 	_, err := upstream.Write(filtered)
 	return err

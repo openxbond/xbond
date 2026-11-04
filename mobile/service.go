@@ -117,6 +117,18 @@ func (s *TunnelService) LocalAPIToken() string {
 	return s.api.token
 }
 
+// Close releases a mobile host's listeners as well as its core.
+func (s *TunnelService) Close() error {
+	s.account.cancelPending()
+	if s.api != nil {
+		s.api.close()
+	}
+	if s.controller != nil {
+		_ = s.controller.listener.Close()
+	}
+	return s.Stop()
+}
+
 func (s *TunnelService) GetState() int32 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
