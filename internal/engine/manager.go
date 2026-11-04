@@ -340,6 +340,39 @@ func (m *Manager) Reload(runtimeConfig []byte, savedSelections map[string]string
 	return errors.Join(problems...)
 }
 
+// SetRoutingMode switches the routing mode of the running core in place and
+// records runtimeConfig (the derived config carrying the new mode) so a later
+// failed Reload rolls back to the right mode. sing-box silently ignores a mode
+// outside its mode list, so the result is read back instead of trusting the
+// PATCH; any error leaves the caller to fall back to a full Reload.
+func (m *Manager) SetRoutingMode(mode RoutingMode, runtimeConfig []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.running || m.client == nil {
+		return errors.New("core is not running")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := m.client.SetMode(ctx, mode); err != nil {
+		return err
+	}
+	applied, err := m.client.GetMode(ctx)
+	if err != nil {
+		return err
+	}
+	if applied != mode {
+		return fmt.Errorf("core kept routing mode %q instead of %q", applied, mode)
+	}
+	// Established connections keep the routing decision made under the old
+	// mode; closing them makes the switch take effect immediately.
+	if err := m.client.CloseAllConnections(ctx); err != nil {
+		return fmt.Errorf("close connections after mode switch: %w", err)
+	}
+	m.routingMode = mode
+	m.runtimeConfig = append([]byte(nil), runtimeConfig...)
+	return nil
+}
+
 func (m *Manager) restoreSelectionsLocked(selections map[string]string) error {
 	if len(selections) == 0 {
 		return nil

@@ -21,6 +21,7 @@ import (
 type runtimeEngine interface {
 	IsRunning() bool
 	Reload([]byte, map[string]string) error
+	SetRoutingMode(engine.RoutingMode, []byte) error
 	Stop() error
 }
 
@@ -384,6 +385,27 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 			c.prefs = next
 			c.stateMu.Unlock()
 			return nil
+		}
+		// A routing-mode-only change is a runtime switch on the core, not a
+		// reason to bounce it. The previous mode must regenerate exactly the
+		// applied config, proving nothing else differs; any failure falls
+		// through to the full reload below, which is always correct.
+		if previousPrefs.RoutingMode != next.RoutingMode && c.engine.IsRunning() && !c.delegatedActive() &&
+			c.appliedSubID == targetID && proxyOwnershipMatches {
+			before, err := engine.DeriveRuntimeConfig(source, deriveMode, previousPrefs.RoutingMode, next.MixedPort, next.AllowLan, next.ClashPort, next.ClashSecret)
+			if err == nil && bytes.Equal(before, c.applied) && c.engine.SetRoutingMode(next.RoutingMode, runtimeJSON) == nil {
+				c.applied = append([]byte(nil), runtimeJSON...)
+				c.stateMu.Lock()
+				c.prefs = next
+				c.stateMu.Unlock()
+				if err := c.write(paths.SubRuntimePath(targetID), runtimeJSON, 0o600); err != nil {
+					return fmt.Errorf("save runtime configuration: %w", err)
+				}
+				if err := c.write(paths.RuntimeStatePath(), prefsJSON, 0o600); err != nil {
+					return fmt.Errorf("save runtime preferences: %w", err)
+				}
+				return nil
+			}
 		}
 	}
 	prefsFile, err := captureRuntimeFile(paths.RuntimeStatePath())

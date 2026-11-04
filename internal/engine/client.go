@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -153,4 +154,15 @@ func (c *ClashClient) FlushFakeIP(ctx context.Context) error {
 func (c *ClashClient) SetMode(ctx context.Context, mode RoutingMode) error {
 	payload := map[string]string{"mode": string(mode)}
 	return c.request(ctx, http.MethodPatch, "/configs", payload, nil)
+}
+
+// GetMode reads the routing mode the running core is actually using.
+func (c *ClashClient) GetMode(ctx context.Context) (RoutingMode, error) {
+	var result struct {
+		Mode string `json:"mode"`
+	}
+	if err := c.request(ctx, http.MethodGet, "/configs", nil, &result); err != nil {
+		return "", err
+	}
+	return RoutingMode(strings.ToLower(result.Mode)), nil
 }

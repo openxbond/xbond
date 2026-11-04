@@ -27,15 +27,31 @@ type testRuntimeCore struct {
 	reloadError error
 	stopError   error
 	onReload    func()
+	// hotRouting makes SetRoutingMode succeed; otherwise it reports failure
+	// so the controller falls back to a full Reload.
+	hotRouting bool
+	reloads    int
+	hotModes   []engine.RoutingMode
 }
 
 func (c *testRuntimeCore) IsRunning() bool { c.mu.Lock(); defer c.mu.Unlock(); return c.running }
+func (c *testRuntimeCore) SetRoutingMode(mode engine.RoutingMode, config []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.hotRouting {
+		return errors.New("hot routing unsupported")
+	}
+	c.hotModes = append(c.hotModes, mode)
+	c.config = append([]byte(nil), config...)
+	return nil
+}
 func (c *testRuntimeCore) Reload(config []byte, _ map[string]string) error {
 	if c.onReload != nil {
 		c.onReload()
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.reloads++
 	if c.reloadError != nil {
 		err := c.reloadError
 		c.reloadError = nil
@@ -538,5 +554,44 @@ func TestRuntimeAppliesOverrideAndConflictKeepsPreviousCore(t *testing.T) {
 	}
 	if config := string(f.core.configuration()); strings.Contains(config, "kept.example.invalid") {
 		t.Fatal("cleared override still affects the runtime config")
+	}
+}
+
+func TestRoutingModeSwitchesHotWithoutReload(t *testing.T) {
+	f := newRuntimeFixture(t)
+	f.core.hotRouting = true
+	reloadsBefore := f.core.reloads
+	if err := f.controller.Configure(context.Background(), runtimeOptions{Routing: engine.RoutingGlobal}); err != nil {
+		t.Fatal(err)
+	}
+	if f.core.reloads != reloadsBefore {
+		t.Fatalf("core reloaded %d times for a routing-only change", f.core.reloads-reloadsBefore)
+	}
+	if len(f.core.hotModes) != 1 || f.core.hotModes[0] != engine.RoutingGlobal {
+		t.Fatalf("hot modes = %v", f.core.hotModes)
+	}
+	if f.controller.Preferences().RoutingMode != engine.RoutingGlobal {
+		t.Fatal("preferences did not record the new routing mode")
+	}
+	if !bytes.Equal(f.controller.applied, f.core.configuration()) {
+		t.Fatal("applied config out of sync with the core")
+	}
+	// Re-applying the same mode is now a byte-identical no-op.
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if f.core.reloads != reloadsBefore || len(f.core.hotModes) != 1 {
+		t.Fatal("repeat apply touched the core")
+	}
+}
+
+func TestRoutingModeFallsBackToReloadWhenHotSwitchFails(t *testing.T) {
+	f := newRuntimeFixture(t)
+	reloadsBefore := f.core.reloads
+	if err := f.controller.Configure(context.Background(), runtimeOptions{Routing: engine.RoutingDirect}); err != nil {
+		t.Fatal(err)
+	}
+	if f.core.reloads != reloadsBefore+1 {
+		t.Fatalf("expected one fallback reload, got %d", f.core.reloads-reloadsBefore)
 	}
 }
