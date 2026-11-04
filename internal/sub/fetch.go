@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -16,6 +17,37 @@ import (
 
 	"github.com/openxbond/xbond/internal/version"
 )
+
+// redactURL strips everything after the path — query (subscription tokens
+// ride it), userinfo, fragment — so a fetch target can appear in an error
+// without its secrets.
+func redactURL(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "(unparsed fetch target)"
+	}
+	parsed.RawQuery = ""
+	parsed.User = nil
+	parsed.Fragment = ""
+	if parsed.Path == "" {
+		parsed.Path = "/"
+	}
+	return parsed.String()
+}
+
+// redactedFetchError rewrites transport errors so their embedded request
+// URL never carries the subscription token into the persisted error field,
+// the UI, or the CLI. url.Error embeds the full URL verbatim, so the exact
+// string replacement is enough; anything else passes through unchanged.
+func redactedFetchError(err error, fetchURL string) error {
+	if err == nil {
+		return nil
+	}
+	if fetchURL == "" {
+		return err
+	}
+	return errors.New(strings.ReplaceAll(err.Error(), fetchURL, redactURL(fetchURL)))
+}
 
 type FetchOptions struct {
 	ETag string
@@ -136,7 +168,7 @@ func FetchSubscription(ctx context.Context, fetchURL string, opts FetchOptions) 
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, redactedFetchError(fmt.Errorf("failed to create request: %w", err), fetchURL)
 	}
 
 	req.Header.Set("Accept", "application/json, text/plain, */*")
@@ -148,10 +180,11 @@ func FetchSubscription(ctx context.Context, fetchURL string, opts FetchOptions) 
 
 	resp, err := client.Do(req)
 	if err != nil {
+		fetchErr := redactedFetchError(err, fetchURL)
 		return &FetchResponse{
 			Health:       HealthTransientError,
-			ErrorMessage: err.Error(),
-		}, err
+			ErrorMessage: fetchErr.Error(),
+		}, fetchErr
 	}
 	defer resp.Body.Close()
 
