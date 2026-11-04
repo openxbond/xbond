@@ -57,3 +57,6 @@ apps/mobile/android/local.properties
 # Local task records; only the README is tracked
 /docs/tasks/*
 !/docs/tasks/README.md
+
+# ZCode session workspace
+.zcode/
