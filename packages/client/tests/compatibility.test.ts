@@ -61,6 +61,28 @@ test("controller migration preserves multiple profiles and repairs invalid recor
   assert.equal(hosts[0].secret, "one");
   assert.deepEqual(migrateControllers(null, fallback), [fallback]);
 });
+test("persisted records cannot claim the built-in controller id", () => {
+  // A stored record holding the daemon's reserved id is hidden by every
+  // "is daemon" guard and becomes an undeletable ghost target.
+  const hosts = migrateControllers(
+    [
+      {
+        id: "default",
+        name: "nan-of",
+        hostname: "nan-of",
+        port: 9090,
+        secret: "x",
+      },
+      { id: "default", hostname: "192.168.1.1", port: 9090 },
+    ],
+    fallback,
+  );
+  assert.equal(hosts.length, 2);
+  for (const host of hosts) assert.notEqual(host.id, "default");
+  assert.equal(hosts[0].name, "nan-of");
+  assert.equal(hosts[0].secret, "x");
+  assert.notEqual(hosts[0].id, hosts[1].id);
+});
 test("HTTPS launch parameters and reverse proxy paths survive REST/WS URL construction", () => {
   const controller = controllerFromQuery(
     "?protocol=https:&host=example.com&port=9443&secret=a%26b",

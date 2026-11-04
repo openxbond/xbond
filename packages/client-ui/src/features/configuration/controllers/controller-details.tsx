@@ -143,7 +143,7 @@ export default function ControllerDetail({
       const fallback =
         remaining.find((item) => item.id !== DAEMON_CONTROLLER_ID) ||
         remaining[0];
-      if (fallback) select(fallback.id);
+      select(fallback ? fallback.id : DAEMON_CONTROLLER_ID);
     }
     setControllers(remaining);
     onRemoved();

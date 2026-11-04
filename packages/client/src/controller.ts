@@ -128,7 +128,9 @@ export function migrateControllers(
         item.url ?? `http://${hostname}:${item.port ?? 9090}`,
       );
       const id =
-        typeof item.id === "string" && !ids.has(item.id)
+        typeof item.id === "string" &&
+        item.id !== fallback.id &&
+        !ids.has(item.id)
           ? item.id
           : createControllerId();
       ids.add(id);
