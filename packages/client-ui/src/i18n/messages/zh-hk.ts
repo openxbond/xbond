@@ -575,6 +575,14 @@ const HK = {
       autostartDesc: "登入系統時自動於後台啟動 XBond",
       closeToTray: "關閉視窗時最小化至托盤",
       closeToTrayDesc: "點擊關閉按鈕時保持後台代理運作，不退出應用",
+      systemService: "系統特權服務",
+      systemServiceDesc:
+        "安裝系統級後台守護服務，支援 TUN 虛擬網卡接管與免提升運行",
+      serviceInstalled: "已安裝",
+      serviceNotInstalled: "未安裝",
+      serviceInstalling: "正在安裝…",
+      installService: "安裝服務",
+      serviceReady: "運行中",
     },
     advancedActions: {
       logLevelDesc: "調整內核輸出日誌詳細程度，排查問題時建議切換為 Debug",

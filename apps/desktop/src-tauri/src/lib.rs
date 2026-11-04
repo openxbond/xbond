@@ -118,6 +118,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_desktop_info,
             commands::show_main_window,
+            commands::close_main_window,
             commands::get_close_to_tray,
             commands::set_close_to_tray,
             commands::get_tray_language,

@@ -589,6 +589,14 @@ const FA = {
       closeToTray: "کوچک‌سازی به سینی سیستم هنگام بستن",
       closeToTrayDesc:
         "هنگام بستن پنجره، پراکسی را در پس‌زمینه در حال اجرا نگه دارید",
+      systemService: "سرویس دارای امتیاز سیستم",
+      systemServiceDesc:
+        "نصب دیمون پس‌زمینه سطح سیستم برای آداپتور مجازی TUN و اجرای بدون درخواست دسترسی",
+      serviceInstalled: "نصب شده",
+      serviceNotInstalled: "نصب نشده",
+      serviceInstalling: "در حال نصب…",
+      installService: "نصب سرویس",
+      serviceReady: "در حال اجرا",
     },
     advancedActions: {
       logLevelDesc: "میزان جزئیات گزارش‌های خروجی موتور اصلی",

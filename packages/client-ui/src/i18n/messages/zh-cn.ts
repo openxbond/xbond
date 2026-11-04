@@ -575,6 +575,14 @@ const CN = {
       autostartDesc: "登录系统时自动在后台启动 XBond",
       closeToTray: "关闭窗口时最小化到系统托盘",
       closeToTrayDesc: "点击关闭按钮时保持后台代理运行，不退出应用",
+      systemService: "系统特权服务",
+      systemServiceDesc:
+        "安装系统级后台守护服务，支持 TUN 虚拟网卡接管与免提升运行",
+      serviceInstalled: "已安装",
+      serviceNotInstalled: "未安装",
+      serviceInstalling: "正在安装…",
+      installService: "安装服务",
+      serviceReady: "运行中",
     },
     advancedActions: {
       logLevelDesc: "调整内核输出日志详细程度，排查问题时建议切换为 Debug",

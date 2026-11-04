@@ -597,6 +597,14 @@ const EN = {
       autostartDesc: "Automatically start XBond in background when logging in",
       closeToTray: "Minimize to tray on close",
       closeToTrayDesc: "Keep proxy running in background when closing window",
+      systemService: "System Privileged Service",
+      systemServiceDesc:
+        "Install system-level background daemon for TUN virtual adapter and unprompted elevation",
+      serviceInstalled: "Installed",
+      serviceNotInstalled: "Not Installed",
+      serviceInstalling: "Installing…",
+      installService: "Install Service",
+      serviceReady: "Running",
     },
     advancedActions: {
       logLevelDesc:

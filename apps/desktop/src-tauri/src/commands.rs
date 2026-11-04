@@ -93,6 +93,13 @@ pub fn show_main_window(app: AppHandle) {
     }
 }
 
+#[tauri::command]
+pub fn close_main_window(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.close();
+    }
+}
+
 /// Store an import URL handed over from a deep link or a second instance and
 /// bring the window forward so the frontend picks it up.
 pub(crate) fn queue_import(app: &AppHandle, url: String) {

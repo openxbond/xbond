@@ -588,6 +588,14 @@ const KO = {
       autostartDesc: "로그인 시 백그라운드에서 XBond 자동 실행",
       closeToTray: "닫을 때 시스템 트레이로 최소화",
       closeToTrayDesc: "창을 닫을 때 프록시를 백그라운드에서 유지합니다",
+      systemService: "시스템 특권 서비스",
+      systemServiceDesc:
+        "TUN 가상 어댑터 인계 및 관리자 권한 없는 실행을 위한 시스템 백그라운드 서비스 설치",
+      serviceInstalled: "설치됨",
+      serviceNotInstalled: "설치되지 않음",
+      serviceInstalling: "설치 중…",
+      installService: "서비스 설치",
+      serviceReady: "실행 중",
     },
     advancedActions: {
       logLevelDesc:

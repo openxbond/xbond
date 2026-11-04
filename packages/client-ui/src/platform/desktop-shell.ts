@@ -6,6 +6,11 @@ import { toast } from "sonner";
 import { invokeDesktop, isDesktopApp } from "@/platform/local-api-bootstrap";
 import { useLanguage } from "@/state/user-preferences";
 
+import {
+  handleDesktopShortcut,
+  type DesktopShortcutEvent,
+} from "./desktop-shortcuts.ts";
+
 /**
  * Desktop-shell integration for the webview side: removes browser residue
  * (native right-click menu, text selection on chrome, file-drop navigation),
@@ -18,6 +23,9 @@ export interface ImportCandidate {
   kind: "share" | "url";
   value: string;
 }
+
+export type { DesktopShortcutEvent };
+export { handleDesktopShortcut };
 
 const SHARE_LINK = /^(ss|ssr|vmess|vless|trojan|hysteria|hysteria2|tuic):\/\//i;
 const BARE_URL = /^https?:\/\/\S+$/i;
@@ -151,10 +159,33 @@ export function useDesktopShell(): void {
     };
     window.addEventListener("focus", onWindowFocus);
 
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isInput = Boolean(
+        target?.closest("input, textarea, [contenteditable='true']"),
+      );
+      const handled = handleDesktopShortcut(
+        {
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
+          key: event.key,
+          isInput,
+          isDev: Boolean(import.meta.env.DEV),
+        },
+        (path) => navigate(path),
+        () => void invoke("close_main_window").catch(() => {}),
+      );
+      if (handled) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+
     return () => {
       cancelled = true;
       clearInterval(poll);
       window.removeEventListener("focus", onWindowFocus);
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, [navigate, t]);
 }
