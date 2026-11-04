@@ -299,7 +299,7 @@ func runOfflineDoctor(asJSON bool) error {
 		}
 	}
 
-	if prefs, err := daemon.LoadPreferences(); err != nil {
+	if prefs, err := daemon.LoadPreferencesReadOnly(); err != nil {
 		add("preferences", "fail", err.Error())
 	} else {
 		add("preferences", "ok", fmt.Sprintf("mode=%s routing=%s mixedPort=%d clashPort=%d (secret not shown)",

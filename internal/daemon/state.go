@@ -115,13 +115,30 @@ func DefaultPreferences() RuntimePreferences {
 }
 
 func LoadPreferences() (RuntimePreferences, error) {
+	prefs, err := loadPreferencesParsed()
+	if err != nil {
+		return RuntimePreferences{}, err
+	}
+	if err := ensureDaemonOwnedClashEndpoint(&prefs); err != nil {
+		return RuntimePreferences{}, err
+	}
+	return prefs, nil
+}
+
+// LoadPreferencesReadOnly parses the stored preferences without the startup
+// side effects: no clash-endpoint re-picking and no persistence. Read-only
+// diagnostics use it — an offline doctor calling the mutating loader would
+// re-pick the clash port whenever the live daemon holds it (portAvailable
+// fails) and rewrite runtime_state.json behind the running process's back.
+func LoadPreferencesReadOnly() (RuntimePreferences, error) {
+	return loadPreferencesParsed()
+}
+
+func loadPreferencesParsed() (RuntimePreferences, error) {
 	prefs := DefaultPreferences()
 	data, err := os.ReadFile(paths.RuntimeStatePath())
 	if errors.Is(err, os.ErrNotExist) {
 		if err := applyEnvOverrides(&prefs); err != nil {
-			return RuntimePreferences{}, err
-		}
-		if err := ensureDaemonOwnedClashEndpoint(&prefs); err != nil {
 			return RuntimePreferences{}, err
 		}
 		return prefs, nil
@@ -167,9 +184,6 @@ func LoadPreferences() (RuntimePreferences, error) {
 		return RuntimePreferences{}, err
 	}
 	if err := validatePreferences(prefs); err != nil {
-		return RuntimePreferences{}, err
-	}
-	if err := ensureDaemonOwnedClashEndpoint(&prefs); err != nil {
 		return RuntimePreferences{}, err
 	}
 	return prefs, nil

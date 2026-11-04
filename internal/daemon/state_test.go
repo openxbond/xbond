@@ -88,3 +88,43 @@ func TestEnvOverridesDriveHeadlessPreferences(t *testing.T) {
 		}
 	})
 }
+
+// 只读诊断不得有副作用：daemon 挂着占住 clash 端口时，会改写状态的加载器
+// 会重新选端口并落盘，把活进程还在用的记录改掉（审计 #16）。
+func TestLoadPreferencesReadOnlyDoesNotPersist(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	prefs := DefaultPreferences()
+	prefs.ClashPort = 9090
+	if err := savePreferences(prefs); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(paths.RuntimeStatePath())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := LoadPreferencesReadOnly()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ClashPort != 9090 {
+		t.Fatalf("read-only load must report the stored port, got %d", loaded.ClashPort)
+	}
+	after, err := os.ReadFile(paths.RuntimeStatePath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("read-only load rewrote runtime_state.json")
+	}
+
+	// The mutating loader still re-picks and persists (the legacy fixed
+	// port is exactly what it exists to migrate away from).
+	mutated, err := LoadPreferences()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mutated.ClashPort == 9090 {
+		t.Fatal("the mutating loader must re-pick the legacy clash port")
+	}
+}
