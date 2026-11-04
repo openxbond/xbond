@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -292,7 +293,10 @@ func (c *accountController) logout(ctx context.Context) ([]sub.SubscriptionMeta,
 	return removed, errors.Join(err, logoutErr)
 }
 
-func (c *accountController) refresh(ctx context.Context) (result AccountState, err error) {
+// refresh re-resolves the subscription link and re-binds it. lang (render
+// language for the fetched configuration) comes from the caller's interface
+// language; empty keeps the subscription's persisted language.
+func (c *accountController) refresh(ctx context.Context, lang string) (result AccountState, err error) {
 	c.operation.Lock()
 	defer c.operation.Unlock()
 	c.mu.Lock()
@@ -350,7 +354,7 @@ func (c *accountController) refresh(ctx context.Context) (result AccountState, e
 	}
 	if credentials.SubscriptionToken != "" {
 		c.setPhase(generation, "syncing_subscription")
-		options := accountBindOptions{}
+		options := accountBindOptions{Lang: lang}
 		if existing := c.listXBond(); existing != nil {
 			options.Name = existing.Name
 		}
@@ -559,7 +563,18 @@ func (s *Server) handleAccountRefresh(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	state, _ := s.account.refresh(r.Context())
+	var req struct {
+		Lang string `json:"lang"`
+	}
+	// The body is optional: an empty request keeps the persisted render
+	// language of the bound subscription.
+	if r.Body != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "invalid account refresh request")
+			return
+		}
+	}
+	state, _ := s.account.refresh(r.Context(), req.Lang)
 	// The state carries UpdateError; return it with 200 so the UI can render
 	// the retry path instead of treating the session as invalid.
 	writeJSON(w, http.StatusOK, state)

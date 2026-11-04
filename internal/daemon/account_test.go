@@ -168,7 +168,7 @@ func TestAccountRefreshFailureClearsBusyPhase(t *testing.T) {
 		refreshErr: errors.New("fixture offline"),
 	}
 	controller := newAccountController(manager, nil, nil, func() *sub.SubscriptionMeta { return nil })
-	state, err := controller.refresh(context.Background())
+	state, err := controller.refresh(context.Background(), "")
 	if err == nil || state.Phase != "" || controller.snapshot().Phase != "" {
 		t.Fatalf("failed refresh stayed busy: %+v (%v)", state, err)
 	}
@@ -253,7 +253,7 @@ func TestAccountControllerLogoutInvalidatesRefreshBeforeBinding(t *testing.T) {
 		return nil, "", nil
 	}, func() ([]sub.SubscriptionMeta, error) { return nil, nil }, func() *sub.SubscriptionMeta { return nil })
 	refreshed := make(chan struct{})
-	go func() { defer close(refreshed); _, _ = controller.refresh(context.Background()) }()
+	go func() { defer close(refreshed); _, _ = controller.refresh(context.Background(), "") }()
 	<-started
 	loggedOut := make(chan struct{})
 	go func() { defer close(loggedOut); _, _ = controller.logout(context.Background()) }()
@@ -386,7 +386,7 @@ func TestAccountControllerRefreshBindsSubscription(t *testing.T) {
 		func() *sub.SubscriptionMeta { return nil },
 	)
 
-	state, err := controller.refresh(context.Background())
+	state, err := controller.refresh(context.Background(), "")
 	if err != nil {
 		t.Fatalf("refresh: %v", err)
 	}

@@ -1,4 +1,7 @@
-import type { SubscriptionMeta } from "@xbond/client/localapi";
+import {
+  subscriptionLang,
+  type SubscriptionMeta,
+} from "@xbond/client/localapi";
 import { useCallback } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
@@ -7,6 +10,7 @@ import {
   useSelectController,
 } from "@/state/controller-target";
 import { useDaemonConnection } from "@/state/daemon-connection";
+import { useLanguage } from "@/state/user-preferences";
 
 import { useConfigurationOperation } from "../configuration-operation";
 
@@ -16,6 +20,7 @@ export function useSubscriptions() {
   const { client, config } = useDaemonConnection();
   const selectController = useSelectController();
   const { operation, run: runOperation } = useConfigurationOperation();
+  const { lang } = useLanguage();
   const { mutate: mutateCache } = useSWRConfig();
   const { data, error, mutate } = useSWR(
     client && config
@@ -101,7 +106,9 @@ export function useSubscriptions() {
         if (!client) throw new Error("LocalAPI not available");
         let ready = source;
         if (!ready?.format) {
-          const refreshed = await client.accountRefresh();
+          const refreshed = await client.accountRefresh({
+            lang: subscriptionLang(lang),
+          });
           await Promise.allSettled([
             mutate(),
             mutateCache([
@@ -119,7 +126,15 @@ export function useSubscriptions() {
           );
         return ready.id;
       }),
-    [activate, client, config?.endpoint, config?.token, mutate, mutateCache],
+    [
+      activate,
+      client,
+      config?.endpoint,
+      config?.token,
+      lang,
+      mutate,
+      mutateCache,
+    ],
   );
 
   const updateSub = useCallback(

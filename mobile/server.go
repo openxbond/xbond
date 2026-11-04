@@ -345,6 +345,21 @@ func (s *apiServer) handleAccountRefresh(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
+	var req struct {
+		Lang string `json:"lang"`
+	}
+	// The body is optional: an empty request keeps the persisted render
+	// language. A new language follows the caller's interface language, the
+	// same rule the login handler applies.
+	if r.Body != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "invalid account refresh request")
+			return
+		}
+	}
+	if req.Lang != "" {
+		s.svc.account.lang = req.Lang
+	}
 	// The refreshed state carries UpdateError with 200, so the UI renders
 	// the retry path instead of treating the session as invalid.
 	writeJSON(w, http.StatusOK, s.svc.account.refresh(r.Context()))

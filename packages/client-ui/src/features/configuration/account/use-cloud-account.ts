@@ -1,8 +1,13 @@
-import { cloudSubscription, type AccountStatus } from "@xbond/client/localapi";
+import {
+  cloudSubscription,
+  subscriptionLang,
+  type AccountStatus,
+} from "@xbond/client/localapi";
 import { useCallback, useEffect } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
 import { useDaemonConnection } from "@/state/daemon-connection";
+import { useLanguage } from "@/state/user-preferences";
 
 import { useConfigurationOperation } from "../configuration-operation";
 import { useSubscriptions } from "../subscriptions/use-subscriptions";
@@ -16,6 +21,9 @@ export function useAccount() {
   const { subscriptions, selectCloud } = useSubscriptions();
   const { mutate: mutateCache } = useSWRConfig();
   const { run: runOperation } = useConfigurationOperation();
+  // The subscription render language follows the interface language at the
+  // explicit actions (login, resync) so node and group names match the UI.
+  const { lang } = useLanguage();
   const { data, error, mutate } = useSWR<AccountStatus>(
     client && config
       ? ["/localapi/v0/account", config.endpoint, config.token]
@@ -48,11 +56,14 @@ export function useAccount() {
   const login = useCallback(
     async (options?: { origin?: string; device?: boolean }) => {
       if (!client) throw new Error("LocalAPI not available");
-      const status = await client.accountLogin(options);
+      const status = await client.accountLogin({
+        lang: subscriptionLang(lang),
+        ...options,
+      });
       await mutate();
       return status;
     },
-    [client, mutate],
+    [client, mutate, lang],
   );
 
   /** Aborts an in-flight login; required before switching methods (the
@@ -77,11 +88,13 @@ export function useAccount() {
     () =>
       runOperation("sync", async () => {
         if (!client) throw new Error("LocalAPI not available");
-        const status = await client.accountRefresh();
+        const status = await client.accountRefresh({
+          lang: subscriptionLang(lang),
+        });
         await mutate();
         return status;
       }),
-    [client, mutate, runOperation],
+    [client, mutate, runOperation, lang],
   );
 
   const cloudProfile = cloudSubscription(subscriptions, data?.subscription);

@@ -38,6 +38,38 @@ func TestAccountBindingRetainsIdentityAndLocalChangesAcrossTokenRotation(t *test
 	}
 }
 
+// The render language follows the interface language that explicit binds
+// carry: interface locales normalize to render languages, rotation without a
+// language keeps the persisted one, and an explicit new language overwrites.
+func TestAccountBindingRenderLanguageFollowsExplicitInput(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	m, err := NewManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := m.BindAccount("sub-first", "https://cloud.example.invalid", "https://line.example.invalid", nil, "", "zh-cn", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Lang != "zh" {
+		t.Fatalf("interface locale did not normalize to the render language: %q", first.Lang)
+	}
+	kept, err := m.BindAccount("sub-second", "https://cloud.example.invalid", "https://line.example.invalid", nil, "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kept.ID != first.ID || kept.Lang != "zh" {
+		t.Fatalf("rotation changed the render language: id=%s lang=%q", kept.ID, kept.Lang)
+	}
+	switched, err := m.BindAccount("sub-third", "https://cloud.example.invalid", "https://line.example.invalid", nil, "", "en_US", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if switched.ID != first.ID || switched.Lang != "en" {
+		t.Fatalf("explicit language did not override the persisted one: lang=%q", switched.Lang)
+	}
+}
+
 func TestChangeSourceURLKeepsIdentityAndRejectsNonHTTP(t *testing.T) {
 	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	m, err := NewManager()
