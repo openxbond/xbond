@@ -12,6 +12,9 @@ var (
 	ClientName     = "xbond"
 )
 
+// ReleasePublicKey is the base64-encoded Ed25519 key stamped into official builds.
+var ReleasePublicKey string
+
 // Version is a var so release builds stamp it via -ldflags -X (see
 // scripts/build-release.ts); the rest stay compile-time constants.
 

@@ -115,6 +115,9 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 // channel. Every source converges on the same cleanup: engine down, system
 // proxy restored, credential files removed, listener closed, lock released.
 func serveDaemon(server *daemon.Server, stop <-chan struct{}) error {
+	if err := recordDaemonIdentity(server); err != nil {
+		fmt.Fprintf(os.Stderr, "record daemon identity for managed upgrades: %v\n", err)
+	}
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Start() }()
 

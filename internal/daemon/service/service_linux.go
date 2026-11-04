@@ -63,3 +63,15 @@ func daemonInstalled() bool {
 	_, err = os.Stat(unitPath)
 	return err == nil
 }
+
+func userRegistration(exe string) (bool, bool, error) {
+	unitPath, err := userUnitPath()
+	if err != nil {
+		return false, false, err
+	}
+	return checkRegistration(unitPath, SystemdUnitContent(exe))
+}
+
+func systemRegistration(exe string) (bool, bool, error) {
+	return checkRegistration(linuxSystemUnitPath, SystemdSystemUnitContent(exe))
+}

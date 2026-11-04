@@ -59,9 +59,16 @@ func uninstallDaemon() error {
 }
 
 func startDaemon() error {
-	// kickstart starts the job whether or not the GUI domain has it loaded
-	// (it bootstraps from the plist on disk when needed).
-	return run("launchctl", "kickstart", guiTarget()+"/"+darwinLabel)
+	target := guiTarget() + "/" + darwinLabel
+	if err := run("launchctl", "print", target); err == nil {
+		return run("launchctl", "kickstart", target)
+	}
+	plistPath, err := agentPlistPath()
+	if err != nil {
+		return err
+	}
+	// A graceful stop unloads the job. Bootstrap loads and starts RunAtLoad.
+	return run("launchctl", "bootstrap", guiTarget(), plistPath)
 }
 
 func stopDaemon() error {
@@ -75,4 +82,16 @@ func daemonInstalled() bool {
 	}
 	_, err = os.Stat(plistPath)
 	return err == nil
+}
+
+func userRegistration(exe string) (bool, bool, error) {
+	plistPath, err := agentPlistPath()
+	if err != nil {
+		return false, false, err
+	}
+	return checkRegistration(plistPath, LaunchAgentPlistContent(exe))
+}
+
+func systemRegistration(exe string) (bool, bool, error) {
+	return checkRegistration(darwinSystemPlist, LaunchDaemonPlistContent(exe))
 }

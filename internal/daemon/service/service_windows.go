@@ -3,8 +3,10 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"golang.org/x/sys/windows"
@@ -33,7 +35,7 @@ func installDaemon(exePath string) error {
 	}
 	// Registering autostart does not start anything mid-session; bring the
 	// daemon up right away so install matches the other platforms.
-	return startDaemon()
+	return startRegisteredUser(exePath)
 }
 
 func uninstallDaemon() error {
@@ -57,11 +59,22 @@ func startDaemon() error {
 	// ask, so launching the registered command directly is the equivalent.
 	// The process is a detached daemon that outlives this CLI, and the
 	// LocalAPI shutdown endpoint (xbond service stop) is the graceful exit.
-	selfPath, err := SelfPath()
+	value, err := registeredUserCommand()
 	if err != nil {
 		return err
 	}
-	cmd := backgroundCommand(selfPath)
+	args, err := windows.DecomposeCommandLine(value)
+	if err != nil {
+		return fmt.Errorf("parse daemon Run value: %w", err)
+	}
+	if len(args) != 3 || args[1] != "daemon" || args[2] != "--background" {
+		return errors.New("unexpected daemon Run value")
+	}
+	return startRegisteredUser(args[0])
+}
+
+func startRegisteredUser(exePath string) error {
+	cmd := backgroundCommand(exePath)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to launch xbond daemon: %w", err)
 	}
@@ -88,11 +101,50 @@ func stopDaemon() error {
 }
 
 func daemonInstalled() bool {
-	k, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE)
-	if err != nil {
-		return false
-	}
-	defer k.Close()
-	_, _, err = k.GetStringValue(runValueName)
+	_, err := registeredUserCommand()
 	return err == nil
+}
+
+func registeredUserCommand() (string, error) {
+	key, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE)
+	if err != nil {
+		return "", err
+	}
+	defer key.Close()
+	value, _, err := key.GetStringValue(runValueName)
+	return value, err
+}
+
+func userRegistration(exe string) (bool, bool, error) {
+	value, err := registeredUserCommand()
+	if errors.Is(err, registry.ErrNotExist) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	return true, strings.EqualFold(value, WindowsRunValue(exe)), nil
+}
+
+func systemRegistration(exe string) (bool, bool, error) {
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Services\`+systemServiceName, registry.QUERY_VALUE)
+	if errors.Is(err, registry.ErrNotExist) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	defer key.Close()
+	value, _, err := key.GetStringValue("ImagePath")
+	if err != nil {
+		return false, false, err
+	}
+	args, err := windows.DecomposeCommandLine(value)
+	if err != nil {
+		return false, false, fmt.Errorf("invalid machine service registration: %w", err)
+	}
+	if len(args) == 0 {
+		return false, false, errors.New("empty machine service registration")
+	}
+	return true, strings.EqualFold(args[0], exe), nil
 }
