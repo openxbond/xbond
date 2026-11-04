@@ -3,6 +3,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -261,6 +262,9 @@ func stopSystem() error {
 	return err
 }
 
+// ErrServiceNotInstalled reports that the machine-scoped service is not registered in SCM.
+var ErrServiceNotInstalled = errors.New("service is not installed")
+
 // querySystem reads the machine service's SCM state through read-only
 // handles. mgr.Connect (and mgr.OpenService) request ALL_ACCESS, which a
 // non-elevated process is denied — exactly the caller whose capability gate
@@ -280,8 +284,8 @@ func querySystem() (svc.State, error) {
 	sh, err := windows.OpenService(sm, name, windows.SERVICE_QUERY_STATUS)
 	if err != nil {
 		// Not installed is the honest, expected negative: the service does
-		// not exist, not "we could not look".
-		return svc.Stopped, nil
+		// not exist, so return an error indicating it's not installed.
+		return 0, fmt.Errorf("%w: %v", ErrServiceNotInstalled, err)
 	}
 	defer windows.CloseServiceHandle(sh)
 	var status windows.SERVICE_STATUS
@@ -301,6 +305,9 @@ func ServiceSystemInstalled() bool {
 func ServiceSystemState() (string, error) {
 	state, err := querySystem()
 	if err != nil {
+		if errors.Is(err, ErrServiceNotInstalled) {
+			return "not installed", nil
+		}
 		return "", err
 	}
 	switch state {
