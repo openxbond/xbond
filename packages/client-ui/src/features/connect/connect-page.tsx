@@ -303,7 +303,7 @@ export default function Connect() {
     down,
     setMode,
     refresh,
-    installService,
+    changeService,
     config: localConfig,
     error: localError,
   } = useLocalAPI();
@@ -311,7 +311,7 @@ export default function Connect() {
   const setIdentity = useSetAtom(identityAtom);
   const [focus, setFocus] = useAtom(focusAtom);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [installingService, setInstallingService] = useState(false);
+  const [changingService, setChangingService] = useState(false);
   const [privilegeDialogOpen, setPrivilegeDialogOpen] = useState(false);
   const [connectError, setConnectError] = useState<{
     kind: "port_conflict" | "tun_denied" | "generic";
@@ -362,45 +362,32 @@ export default function Connect() {
     }
   };
 
-  const handleInstallService = useCallback(async () => {
-    if (!installService) return;
-    setInstallingService(true);
-    try {
-      toast.info(st("takeover.installServicePrompt"));
-      const res = await installService();
-      if (!res?.ok) {
-        setInstallingService(false);
-        toast.error(
-          st("takeover.installServiceFailed", {
-            error: res?.message || "Failed",
-          }),
-        );
-        return;
-      }
-      let elapsed = 0;
-      const timer = setInterval(() => {
-        elapsed += 1000;
-        void refresh().then((updated) => {
-          const ready = Boolean(
-            updated?.capabilities?.serviceInstalled ||
-            updated?.capabilities?.tun,
+  const handleChangeService = useCallback(
+    async (install: boolean) => {
+      const key = install ? "install" : "uninstall";
+      setChangingService(true);
+      try {
+        toast.info(st(`takeover.${key}ServicePrompt`));
+        const done = await changeService(install);
+        if (!done) {
+          toast.error(
+            st(`takeover.${key}ServiceFailed`, {
+              error: st("takeover.serviceChangeTimeout"),
+            }),
           );
-          if (ready || elapsed >= 15000) {
-            clearInterval(timer);
-            setInstallingService(false);
-            if (ready) {
-              toast.success(st("takeover.installServiceSuccess"));
-              void run(() => setMode({ tun: true }), false);
-            }
-          }
-        });
-      }, 1000);
-    } catch (err: unknown) {
-      setInstallingService(false);
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(st("takeover.installServiceFailed", { error: msg }));
-    }
-  }, [installService, refresh, run, setMode, st]);
+          return;
+        }
+        toast.success(st(`takeover.${key}ServiceSuccess`));
+        if (install) void run(() => setMode({ tun: true }), false);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(st(`takeover.${key}ServiceFailed`, { error: msg }));
+      } finally {
+        setChangingService(false);
+      }
+    },
+    [changeService, run, setMode, st],
+  );
 
   const available = general.mode.toLowerCase() === "global" ? [global] : groups;
   const focusKey = controllerIdentity(controller.id, controller.url);
@@ -461,6 +448,9 @@ export default function Connect() {
     : false;
   const isTun = hasLocalAPI
     ? (status?.preferences.tun ?? status?.preferences.takeoverMode === "tun")
+    : false;
+  const isServiceInstalled = hasLocalAPI
+    ? Boolean(status?.capabilities?.serviceInstalled)
     : false;
   const isTunCapable = hasLocalAPI
     ? Boolean(
@@ -1222,7 +1212,7 @@ export default function Connect() {
                       </div>
                       <Switch
                         checked={isTun}
-                        disabled={pending || installingService}
+                        disabled={pending || changingService}
                         onCheckedChange={(checked: boolean) => {
                           if (checked && !isTunCapable) {
                             setPrivilegeDialogOpen(true);
@@ -1233,6 +1223,32 @@ export default function Connect() {
                         aria-label={t("tun")}
                       />
                     </div>
+                    {hasLocalAPI && (isServiceInstalled || !isTunCapable) && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
+                        <span className="text-label text-muted-foreground leading-tight">
+                          {isServiceInstalled
+                            ? st("takeover.serviceInstalled")
+                            : st("takeover.tunPrivilegeHint")}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={changingService}
+                          className="h-7 shrink-0 px-2.5 text-xs font-medium cursor-pointer"
+                          onClick={() =>
+                            isServiceInstalled
+                              ? void handleChangeService(false)
+                              : setPrivilegeDialogOpen(true)
+                          }
+                        >
+                          {changingService
+                            ? st("takeover.installingService")
+                            : isServiceInstalled
+                              ? st("takeover.uninstallService")
+                              : st("takeover.installService")}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1557,7 +1573,7 @@ export default function Connect() {
             <AlertDialogAction
               onClick={() => {
                 setPrivilegeDialogOpen(false);
-                void handleInstallService();
+                void handleChangeService(true);
               }}
             >
               {st("takeover.installService")}

@@ -128,16 +128,16 @@ test("Desktop shell syncs language preference to desktop runtime", async () => {
   delete globalThis.window;
 });
 
-test("Desktop system service settings keys exist across all 5 locale dictionaries", () => {
+test("Privileged service takeover keys exist across all 5 locale dictionaries", () => {
   const dicts = [HK, CN, EN, KO, FA];
   for (const dict of dicts) {
-    assert.ok(dict.settings.desktop.systemService);
-    assert.ok(dict.settings.desktop.systemServiceDesc);
-    assert.ok(dict.settings.desktop.serviceInstalled);
-    assert.ok(dict.settings.desktop.serviceNotInstalled);
-    assert.ok(dict.settings.desktop.serviceInstalling);
-    assert.ok(dict.settings.desktop.installService);
-    assert.ok(dict.settings.desktop.serviceReady);
+    const takeover = dict.settings.takeover;
+    assert.ok(takeover.installService);
+    assert.ok(takeover.uninstallService);
+    assert.ok(takeover.uninstallServicePrompt);
+    assert.ok(takeover.uninstallServiceSuccess);
+    assert.ok(takeover.uninstallServiceFailed);
+    assert.ok(takeover.serviceChangeTimeout);
   }
 });
 

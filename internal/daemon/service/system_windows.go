@@ -5,6 +5,7 @@ package service
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 	"unsafe"
 
@@ -25,8 +26,11 @@ const (
 	systemServiceName    = "XBondSystemService"
 	systemServiceDisplay = "XBond Daemon (system)"
 	systemDataDir        = `C:\ProgramData\xbond`
-	systemListen         = "127.0.0.1:9059"
 )
+
+// SystemDataDir is the machine-scoped daemon's state directory (Windows
+// slice); the elevated installer records the delegation grant inside it.
+const SystemDataDir = systemDataDir
 
 var (
 	shell32           = windows.NewLazySystemDLL("shell32.dll")
@@ -116,15 +120,78 @@ func installSystem(exePath string) error {
 		// Arguments ride binPath: a fixed loopback listen, the machine data
 		// dir (the LocalSystem profile has none), and service-run selecting
 		// the SCM lifecycle.
-		"daemon", "--service-run", "--listen", systemListen, "--data-dir", systemDataDir,
+		"daemon", "--service-run", "--listen", SystemListen, "--data-dir", systemDataDir,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create the service: %w", err)
 	}
 	defer svc.Close()
+	// Crash resilience: SCM restarts the tunnel host after a fault, and the
+	// delegating daemon's reconciler re-applies the delegated config.
+	if err := svc.SetRecoveryActions([]mgr.RecoveryAction{
+		{Type: mgr.ServiceRestart, Delay: 5 * time.Second},
+		{Type: mgr.ServiceRestart, Delay: 30 * time.Second},
+		{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
+	}, 86400); err != nil {
+		fmt.Printf("recovery actions could not be set (%v); a crashed service stays down until the next delegation attempt\n", err)
+	}
+	// The elevated copy runs under the invoking user's account (UAC keeps the
+	// user, elevation only widens the token), so this token's SID is exactly
+	// who may later delegate to the service's privileged transport.
+	if err := writeDelegationGrant(systemDataDir); err != nil {
+		fmt.Printf("delegation grant could not be written (%v); the service will refuse delegators until reinstall\n", err)
+	}
 	// Installing does not start anything; bring the daemon up right away so
 	// install matches the user-scope behavior.
 	return startSystemInstalled(m)
+}
+
+// writeDelegationGrant persists the current (invoking, elevated) user's SID
+// for the machine-scoped daemon's privileged transport to admit.
+func writeDelegationGrant(dataDir string) error {
+	sid, err := currentUserSID()
+	if err != nil {
+		return err
+	}
+	grant := filepath.Join(dataDir, "delegated-user")
+	return os.WriteFile(grant, []byte(sid), 0o644)
+}
+
+// currentUserSID resolves the SID string of this process's token user.
+func currentUserSID() (string, error) {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
+		return "", fmt.Errorf("open process token: %w", err)
+	}
+	defer token.Close()
+	user, err := token.GetTokenUser()
+	if err != nil {
+		return "", fmt.Errorf("read token user: %w", err)
+	}
+	return user.User.Sid.String(), nil
+}
+
+// SystemStartInteractive starts the machine service from a normal user
+// session without self-elevation: the default service DACL grants
+// authenticated users SERVICE_START (stop stays admin-only), and the
+// delegation reconciler uses this after SCM crash restarts. An access
+// denial surfaces honestly.
+func SystemStartInteractive() error {
+	sm, err := windows.OpenSCManager(nil, nil, windows.SC_MANAGER_CONNECT)
+	if err != nil {
+		return fmt.Errorf("failed to connect to the service manager: %w", err)
+	}
+	defer windows.CloseServiceHandle(sm)
+	name, err := windows.UTF16PtrFromString(systemServiceName)
+	if err != nil {
+		return err
+	}
+	sh, err := windows.OpenService(sm, name, windows.SERVICE_START)
+	if err != nil {
+		return fmt.Errorf("service %q is not installed or start is not permitted: %w", systemServiceName, err)
+	}
+	defer windows.CloseServiceHandle(sh)
+	return windows.StartService(sh, 0, nil)
 }
 
 func uninstallSystem(exePath string) error {
@@ -194,22 +261,34 @@ func stopSystem() error {
 	return err
 }
 
+// querySystem reads the machine service's SCM state through read-only
+// handles. mgr.Connect (and mgr.OpenService) request ALL_ACCESS, which a
+// non-elevated process is denied — exactly the caller whose capability gate
+// and status output need this answer. The default service DACL grants
+// authenticated users QUERY_STATUS, so connect-and-query never needs
+// elevation.
 func querySystem() (svc.State, error) {
-	m, err := mgr.Connect()
+	sm, err := windows.OpenSCManager(nil, nil, windows.SC_MANAGER_CONNECT)
 	if err != nil {
 		return 0, fmt.Errorf("failed to connect to the service manager: %w", err)
 	}
-	defer m.Disconnect()
-	handle, err := m.OpenService(systemServiceName)
-	if err != nil {
-		return svc.Stopped, nil
-	}
-	defer handle.Close()
-	status, err := handle.Query()
+	defer windows.CloseServiceHandle(sm)
+	name, err := windows.UTF16PtrFromString(systemServiceName)
 	if err != nil {
 		return 0, err
 	}
-	return status.State, nil
+	sh, err := windows.OpenService(sm, name, windows.SERVICE_QUERY_STATUS)
+	if err != nil {
+		// Not installed is the honest, expected negative: the service does
+		// not exist, not "we could not look".
+		return svc.Stopped, nil
+	}
+	defer windows.CloseServiceHandle(sh)
+	var status windows.SERVICE_STATUS
+	if err := windows.QueryServiceStatus(sh, &status); err != nil {
+		return 0, fmt.Errorf("query service status: %w", err)
+	}
+	return svc.State(status.CurrentState), nil
 }
 
 // ServiceSystemInstalled reports whether the machine service exists.

@@ -135,6 +135,24 @@ fn resolve_config() -> LocalAPIConfig {
     }
 }
 
+/// Waits up to 3 seconds for the daemon to publish credentials after a
+/// lifecycle command claims it started.
+fn wait_for_daemon() -> Option<LocalAPIConfig> {
+    for _ in 0..15 {
+        std::thread::sleep(Duration::from_millis(200));
+        if let Some((addr, token)) = read_credentials() {
+            if daemon_alive(&addr) {
+                return Some(LocalAPIConfig {
+                    addr,
+                    token,
+                    is_running: true,
+                });
+            }
+        }
+    }
+    None
+}
+
 pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
     if let Some((addr, token)) = read_credentials() {
         if daemon_alive(&addr) {
@@ -154,9 +172,14 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
         return Ok(resolve_config());
     }
 
-    // The desktop app and the CLI are peers over one shared xbond daemon; the
-    // app starts it detached when missing and never stops it on exit —
-    // closing the window must not take the proxy down.
+    // The desktop app and the CLI are peers over one shared xbond daemon;
+    // the GUI is a LocalAPI client, never a daemon parent. Lifecycle goes
+    // through the per-user supervisor (HKCU Run / LaunchAgent / systemd
+    // --user — none of them need elevation): `daemon start` covers the
+    // registered case, and a fresh install registers first, so the daemon
+    // is always supervised and closing the window never takes the proxy
+    // down. There is deliberately no bare detached spawn here — the
+    // daemon-runtime spec keeps every daemon behind a supervisor.
     let exe_name = if cfg!(windows) { "xbond.exe" } else { "xbond" };
     let mut candidate_paths = Vec::new();
 
@@ -190,68 +213,57 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
 
-        // Prefer the managed-service contract shared with the CLI: an
-        // installed service is started through `xbond daemon start`, so the
-        // GUI never bypasses the supervisor.
-        let mut service_cmd = std::process::Command::new(&bin);
-        service_cmd.args(["daemon", "start"]);
-        #[cfg(windows)]
-        no_window(&mut service_cmd);
-        if let Ok(out) = service_cmd.output() {
-            if out.status.success() {
-                // Wait up to 3 seconds for the daemon to publish credentials
-                for _ in 0..15 {
-                    std::thread::sleep(Duration::from_millis(200));
-                    if let Some((addr, token)) = read_credentials() {
-                        if daemon_alive(&addr) {
-                            return Ok(LocalAPIConfig {
-                                addr,
-                                token,
-                                is_running: true,
-                            });
-                        }
-                    }
+        let lifecycle = |args: &[&str]| -> Result<std::process::Output, std::io::Error> {
+            let mut cmd = std::process::Command::new(&bin);
+            cmd.args(args);
+            #[cfg(windows)]
+            no_window(&mut cmd);
+            cmd.output()
+        };
+
+        match lifecycle(&["daemon", "start"]) {
+            Ok(out) if out.status.success() => {
+                if let Some(cfg) = wait_for_daemon() {
+                    return Ok(cfg);
                 }
+                eprintln!(
+                    "[XBond Desktop] daemon start claimed success but the daemon never became reachable"
+                );
             }
-        }
-
-        // Fall back to a detached dev spawn (no service installed).
-        let mut cmd = std::process::Command::new(&bin);
-        cmd.arg("daemon");
-        #[cfg(windows)]
-        no_window(&mut cmd);
-
-        match cmd.spawn() {
-            Ok(mut child) => {
-                // Wait up to 3 seconds for credentials, but stop early when
-                // the daemon dies before publishing them: with the state lock
-                // held by a live instance the new process exits within
-                // milliseconds, and polling a doomed spawn only delays the
-                // honest answer.
-                for _ in 0..15 {
-                    std::thread::sleep(Duration::from_millis(200));
-                    if let Some((addr, token)) = read_credentials() {
-                        if daemon_alive(&addr) {
-                            return Ok(LocalAPIConfig {
-                                addr,
-                                token,
-                                is_running: true,
-                            });
+            Ok(out) => {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                if stderr.contains("not installed") {
+                    // First launch with no registration: `daemon install`
+                    // registers with the user-scope supervisor and starts it.
+                    match lifecycle(&["daemon", "install"]) {
+                        Ok(out) if out.status.success() => {
+                            if let Some(cfg) = wait_for_daemon() {
+                                return Ok(cfg);
+                            }
+                            eprintln!(
+                                "[XBond Desktop] daemon install claimed success but the daemon never became reachable"
+                            );
+                        }
+                        Ok(out) => eprintln!(
+                            "[XBond Desktop] daemon install failed: {}",
+                            String::from_utf8_lossy(&out.stderr).trim()
+                        ),
+                        Err(e) => {
+                            eprintln!("[XBond Desktop] daemon install could not run: {e}")
                         }
                     }
-                    if matches!(child.try_wait(), Ok(Some(_))) {
-                        break;
-                    }
+                } else {
+                    eprintln!("[XBond Desktop] daemon start failed: {}", stderr.trim());
                 }
             }
             Err(e) => {
-                eprintln!("[XBond Desktop] Failed to spawn xbond daemon: {e}");
+                eprintln!("[XBond Desktop] daemon start could not run: {e}");
             }
         }
 
-        // The spawn did not produce a usable daemon within this ensure's
-        // window: back off spawning — the frontend self-heal may re-invoke
-        // much sooner than a retry would be worth.
+        // The ensure did not produce a usable daemon within this ensure's
+        // window: back off lifecycle commands — the frontend self-heal may
+        // re-invoke much sooner than a retry would be worth.
         record_failed_spawn();
     }
 

@@ -581,14 +581,6 @@ const CN = {
       autostartDesc: "登录系统时自动在后台启动 XBond",
       closeToTray: "关闭窗口时最小化到系统托盘",
       closeToTrayDesc: "点击关闭按钮时保持后台代理运行，不退出应用",
-      systemService: "系统特权服务",
-      systemServiceDesc:
-        "安装系统级后台守护服务，支持 TUN 虚拟网卡接管与免提升运行",
-      serviceInstalled: "已安装",
-      serviceNotInstalled: "未安装",
-      serviceInstalling: "正在安装…",
-      installService: "安装服务",
-      serviceReady: "运行中",
     },
     advancedActions: {
       logLevelDesc: "调整内核输出日志详细程度，排查问题时建议切换为 Debug",
@@ -639,6 +631,12 @@ const CN = {
         "已请求提升权限，请在系统弹出的 UAC 提示窗口中允许继续。",
       installServiceSuccess: "系统特权服务安装成功，TUN 虚拟网卡已就绪",
       installServiceFailed: "安装服务失败：{{error}}",
+      uninstallService: "卸载服务",
+      uninstallServicePrompt:
+        "已请求提升权限，请在系统弹出的授权窗口中允许卸载。",
+      uninstallServiceSuccess: "系统特权服务已卸载",
+      uninstallServiceFailed: "卸载服务失败：{{error}}",
+      serviceChangeTimeout: "未收到系统确认，授权可能已被拒绝",
       privilegeDialogTitle: "需要安装系统特权服务",
       privilegeDialogDesc:
         "虚拟网卡 (TUN) 需要以系统管理员特权运行的后台服务来创建虚拟网卡并接管整机流量。是否现在请求提升权限并安装服务？",

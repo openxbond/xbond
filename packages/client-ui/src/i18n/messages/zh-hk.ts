@@ -581,14 +581,6 @@ const HK = {
       autostartDesc: "登入系統時自動於後台啟動 XBond",
       closeToTray: "關閉視窗時最小化至托盤",
       closeToTrayDesc: "點擊關閉按鈕時保持後台代理運作，不退出應用",
-      systemService: "系統特權服務",
-      systemServiceDesc:
-        "安裝系統級後台守護服務，支援 TUN 虛擬網卡接管與免提升運行",
-      serviceInstalled: "已安裝",
-      serviceNotInstalled: "未安裝",
-      serviceInstalling: "正在安裝…",
-      installService: "安裝服務",
-      serviceReady: "運行中",
     },
     advancedActions: {
       logLevelDesc: "調整內核輸出日誌詳細程度，排查問題時建議切換為 Debug",
@@ -640,6 +632,12 @@ const HK = {
         "已請求提升權限，請在系統彈出的 UAC 提示視窗中允許繼續。",
       installServiceSuccess: "系統特權服務安裝成功，TUN 虛擬網卡已就緒",
       installServiceFailed: "安裝服務失敗：{{error}}",
+      uninstallService: "解除安裝服務",
+      uninstallServicePrompt:
+        "已請求提升權限，請在系統彈出的授權視窗中允許解除安裝。",
+      uninstallServiceSuccess: "系統特權服務已解除安裝",
+      uninstallServiceFailed: "解除安裝服務失敗：{{error}}",
+      serviceChangeTimeout: "未收到系統確認，授權可能已被拒絕",
       privilegeDialogTitle: "需要安裝系統特權服務",
       privilegeDialogDesc:
         "虛擬網卡 (TUN) 需要以系統管理員特權運行的後台服務來建立虛擬網卡並接管整機流量。是否現在請求提升權限並安裝服務？",

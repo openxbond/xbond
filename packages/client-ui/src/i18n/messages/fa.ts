@@ -595,14 +595,6 @@ const FA = {
       closeToTray: "کوچک‌سازی به سینی سیستم هنگام بستن",
       closeToTrayDesc:
         "هنگام بستن پنجره، پراکسی را در پس‌زمینه در حال اجرا نگه دارید",
-      systemService: "سرویس دارای امتیاز سیستم",
-      systemServiceDesc:
-        "نصب دیمون پس‌زمینه سطح سیستم برای آداپتور مجازی TUN و اجرای بدون درخواست دسترسی",
-      serviceInstalled: "نصب شده",
-      serviceNotInstalled: "نصب نشده",
-      serviceInstalling: "در حال نصب…",
-      installService: "نصب سرویس",
-      serviceReady: "در حال اجرا",
     },
     advancedActions: {
       logLevelDesc: "میزان جزئیات گزارش‌های خروجی موتور اصلی",
@@ -661,6 +653,13 @@ const FA = {
       installServiceSuccess:
         "سرویس سیستمی با موفقیت نصب شد. کارت شبکه مجازی (TUN) آماده است.",
       installServiceFailed: "نصب سرویس ناموفق بود: {{error}}",
+      uninstallService: "حذف سرویس",
+      uninstallServicePrompt:
+        "ارتقای دسترسی درخواست شد. لطفاً در پنجره سیستم، حذف سرویس را تأیید کنید.",
+      uninstallServiceSuccess: "سرویس سیستمی حذف شد.",
+      uninstallServiceFailed: "حذف سرویس ناموفق بود: {{error}}",
+      serviceChangeTimeout:
+        "تأییدی از سیستم دریافت نشد. ممکن است درخواست رد شده باشد.",
       privilegeDialogTitle: "نیاز به سرویس سیستمی ممتاز",
       privilegeDialogDesc:
         "کارت شبکه مجازی (TUN) برای ایجاد آداپتور و هدایت کل ترافیک سیستم به سرویس پس‌زمینه با دسترسی مدیر نیاز دارد. آیا می‌خواهید اکنون دسترسی را ارتقا داده و سرویس را نصب کنید؟",

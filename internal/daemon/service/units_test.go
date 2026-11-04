@@ -43,3 +43,16 @@ func TestWindowsRunValueQuotesExecutable(t *testing.T) {
 		t.Errorf("Run value %q does not match %q", got, want)
 	}
 }
+
+func TestSystemdSystemUnitContentRunsPrivilegedHost(t *testing.T) {
+	unit := SystemdSystemUnitContent("/opt/xbond co/xbond")
+	for _, want := range []string{
+		`ExecStart="/opt/xbond co/xbond" daemon --service-run --listen ` + SystemListen + ` --data-dir ` + linuxSystemDataDir,
+		"Restart=always",
+		"WantedBy=multi-user.target",
+	} {
+		if !strings.Contains(unit, want) {
+			t.Errorf("system unit missing %q:\n%s", want, unit)
+		}
+	}
+}

@@ -113,8 +113,8 @@ func TestTUNTakeoverGatedOnPrivilege(t *testing.T) {
 	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if tunCapability().Tun {
-		t.Skip("running privileged; the negative gate cannot be exercised")
+	if tunCapability(nil).Tun {
+		t.Skip("running privileged or delegated; the negative gate cannot be exercised")
 	}
 
 	config := f.core.configuration()

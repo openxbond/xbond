@@ -120,21 +120,14 @@ export default function Settings() {
   const client = useClient();
   const version = useVersion();
   const { general, update } = useGeneral();
-  const {
-    hasLocalAPI,
-    isLocalTarget,
-    status,
-    setMode,
-    refresh,
-    installService,
-  } = useLocalAPI();
+  const { hasLocalAPI, isLocalTarget, status, setMode, refresh } =
+    useLocalAPI();
   const { data: profile, set: setProfile } = useConfig();
 
   const [theme, setTheme] = useAtom(themeAtom);
   const [desktopPrefs, setDesktopPrefs] = useAtom(desktopPreferencesAtom);
   const { run, pending } = useAction();
 
-  const [installingService, setInstallingService] = useState(false);
   const [port, setPort] = useState("");
   const [portValidation, setPortValidation] = useState("");
   const [portFeedback, setPortFeedback] = useState<"" | "saved" | "failed">("");
@@ -188,44 +181,6 @@ export default function Settings() {
   function toggleCloseToTray(value: boolean) {
     setDesktopPrefs((prev) => ({ ...prev, closeToTray: value }));
     void invokeDesktop()?.("set_close_to_tray", { value });
-  }
-
-  const isServiceInstalled = Boolean(
-    status?.capabilities?.serviceInstalled || status?.capabilities?.tun,
-  );
-
-  async function handleInstallService() {
-    if (!installService) return;
-    setInstallingService(true);
-    try {
-      toast.info(t("desktop.serviceInstalling"));
-      const res = await installService();
-      if (!res?.ok) {
-        setInstallingService(false);
-        toast.error(res?.message || t("desktop.serviceNotInstalled"));
-        return;
-      }
-      let elapsed = 0;
-      const timer = setInterval(() => {
-        elapsed += 1000;
-        void refresh().then((updated) => {
-          const ready = Boolean(
-            updated?.capabilities?.serviceInstalled ||
-            updated?.capabilities?.tun,
-          );
-          if (ready || elapsed >= 15000) {
-            clearInterval(timer);
-            setInstallingService(false);
-            if (ready) {
-              toast.success(t("desktop.serviceReady"));
-            }
-          }
-        });
-      }, 1000);
-    } catch (err: unknown) {
-      setInstallingService(false);
-      toast.error(err instanceof Error ? err.message : String(err));
-    }
   }
 
   const currentPort =
@@ -387,46 +342,6 @@ export default function Settings() {
                     onCheckedChange={toggleCloseToTray}
                   />
                 </SettingRow>
-
-                {hasLocalAPI && (
-                  <SettingRow
-                    title={t("desktop.systemService")}
-                    description={t("desktop.systemServiceDesc")}
-                    badge={
-                      <Badge
-                        variant={isServiceInstalled ? "default" : "outline"}
-                        className={
-                          isServiceInstalled
-                            ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                            : ""
-                        }
-                      >
-                        {isServiceInstalled
-                          ? t("desktop.serviceInstalled")
-                          : t("desktop.serviceNotInstalled")}
-                      </Badge>
-                    }
-                  >
-                    {!isServiceInstalled ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={installingService}
-                        onClick={() => void handleInstallService()}
-                        className="cursor-pointer"
-                      >
-                        {installingService
-                          ? t("desktop.serviceInstalling")
-                          : t("desktop.installService")}
-                      </Button>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Check className="size-4 text-emerald-500" />
-                        <span>{t("desktop.serviceReady")}</span>
-                      </div>
-                    )}
-                  </SettingRow>
-                )}
               </>
             )}
           </CardContent>

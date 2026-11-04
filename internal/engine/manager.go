@@ -4,20 +4,17 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
 	"net"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/metacubex/mihomo/common/observable"
 	"github.com/metacubex/mihomo/component/geodata"
 	"github.com/metacubex/mihomo/component/profile/cachefile"
-	"github.com/metacubex/mihomo/config"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/hub"
 	"github.com/metacubex/mihomo/hub/executor"
@@ -230,7 +227,7 @@ func (m *Manager) startLocked(runtimeConfig []byte) error {
 		return err
 	}
 
-	m.extractMetadata(format, runtimeConfig)
+	m.extractMetadata(runtimeConfig)
 
 	// mihomo applies config without failing on bind errors (listeners start
 	// asynchronously and only log a conflict); probing both cores makes a
@@ -393,98 +390,20 @@ func initCoreHome() error {
 	return nil
 }
 
-func (m *Manager) extractMetadata(format CoreFormat, runtimeConfig []byte) {
-	switch format {
-	case FormatClash:
-		m.extractMihomoMetadata(runtimeConfig)
-	case FormatSingBox:
-		m.extractSingBoxMetadata(runtimeConfig)
-	}
-}
-
-func (m *Manager) extractMihomoMetadata(runtimeYAML []byte) {
-	raw, err := config.UnmarshalRawConfig(runtimeYAML)
-	if err != nil {
-		return
-	}
-
-	if raw.Tun.Enable {
-		m.takeoverMode = ModeTun
-	} else {
-		m.takeoverMode = ModePort
-	}
-	m.allowLan = raw.AllowLan && (raw.BindAddress == "*" || raw.BindAddress == "0.0.0.0" || raw.BindAddress == "::")
+func (m *Manager) extractMetadata(runtimeConfig []byte) {
 	// Mobile derivations explicitly set mixed-port to 0 (no local listener):
 	// the value must override the construction default so the readiness
 	// probe skips the listener check instead of probing port 7890 forever.
-	m.mixedPort = raw.MixedPort
-	switch raw.Mode.String() {
-	case "rule":
-		m.routingMode = RoutingRule
-	case "global":
-		m.routingMode = RoutingGlobal
-	case "direct":
-		m.routingMode = RoutingDirect
-	}
-
-	if raw.ExternalController != "" {
-		if _, portStr, err := net.SplitHostPort(raw.ExternalController); err == nil {
-			if port, err := strconv.Atoi(portStr); err == nil && port > 0 {
-				m.clashPort = port
-			}
-		}
-		m.clashSecret = raw.Secret
-	}
-}
-
-func (m *Manager) extractSingBoxMetadata(runtimeJSON []byte) {
-	var raw struct {
-		Inbounds []struct {
-			Type       string `json:"type"`
-			Listen     string `json:"listen"`
-			ListenPort int    `json:"listen_port"`
-		} `json:"inbounds"`
-		Experimental struct {
-			ClashAPI struct {
-				ExternalController string `json:"external_controller"`
-				Secret             string `json:"secret"`
-				DefaultMode        string `json:"default_mode"`
-			} `json:"clash_api"`
-		} `json:"experimental"`
-	}
-
-	if err := json.Unmarshal(runtimeJSON, &raw); err != nil {
+	meta, err := InspectConfig(runtimeConfig)
+	if err != nil {
 		return
 	}
-
-	m.takeoverMode = ModePort
-	m.allowLan = false
-	// Baseline zero: a config without a mixed inbound has no local listener
-	// (the mobile derivation strips them), and the construction default must
-	// not make the readiness probe chase a listener that will never answer.
-	// Desktop derivations always inject a mixed inbound, so they re-set it.
-	m.mixedPort = 0
-	for _, in := range raw.Inbounds {
-		if in.Type == "tun" {
-			m.takeoverMode = ModeTun
-		}
-		if in.Type == "mixed" && in.ListenPort > 0 {
-			m.mixedPort = in.ListenPort
-			m.allowLan = in.Listen == "0.0.0.0" || in.Listen == "::"
-		}
-	}
-
-	if raw.Experimental.ClashAPI.ExternalController != "" {
-		if _, portStr, err := net.SplitHostPort(raw.Experimental.ClashAPI.ExternalController); err == nil {
-			if port, err := strconv.Atoi(portStr); err == nil && port > 0 {
-				m.clashPort = port
-			}
-		}
-		m.clashSecret = raw.Experimental.ClashAPI.Secret
-		if raw.Experimental.ClashAPI.DefaultMode != "" {
-			m.routingMode = RoutingMode(raw.Experimental.ClashAPI.DefaultMode)
-		}
-	}
+	m.takeoverMode = meta.TakeoverMode
+	m.routingMode = meta.RoutingMode
+	m.mixedPort = meta.MixedPort
+	m.allowLan = meta.AllowLan
+	m.clashPort = meta.ClashPort
+	m.clashSecret = meta.ClashSecret
 }
 
 // awaitCoreReady confirms the controller answers and the mixed listener is

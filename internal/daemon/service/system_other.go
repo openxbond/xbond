@@ -1,11 +1,12 @@
-//go:build !windows
+//go:build !windows && !darwin && !linux
 
 package service
 
 import "fmt"
 
-// The machine-scoped daemon is a Windows service slice; other platforms
-// keep the system scope explicitly unavailable (never silently user).
+// The machine-scoped daemon is a Windows service, a macOS LaunchDaemon and a Linux systemd system unit
+// slice; other platforms keep the system scope explicitly unavailable
+// (never silently user).
 func systemInstalled() bool           { return false }
 func systemStatus() (string, error)   { return "not available", nil }
 func uninstallSystemScope() error     { return errSystemUnsupported }
@@ -24,5 +25,5 @@ type SystemAction string
 
 func RunSystemAction(string, SystemAction) error { return errSystemUnsupported }
 
-// SystemStatus reports the system-scope service state (Windows slice).
+// SystemStatus reports the system-scope service state (platform slices).
 func SystemStatus() (string, error) { return systemStatus() }

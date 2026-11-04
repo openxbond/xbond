@@ -89,7 +89,7 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 
 	if daemonServiceRun {
 		return service.RunSystemService(daemonListen, webDir, func(stop <-chan struct{}) error {
-			server, err := daemon.NewServer(daemonListen, webDir)
+			server, err := daemon.NewSystemServer(daemonListen, webDir)
 			if err != nil {
 				return fmt.Errorf("failed to start daemon: %w", err)
 			}

@@ -68,10 +68,14 @@ type runtimeController struct {
 	appliedSubID  string
 	pendingApply  bool
 	originalProxy *sysproxy.Snapshot
-	write         func(string, []byte, fs.FileMode) error
-	proxyGet      func() (sysproxy.Snapshot, error)
-	proxySet      func(string, string) error
-	proxyRestore  func(sysproxy.Snapshot) error
+	// delegate hands TUN takeover to the machine-scoped daemon when the
+	// user-session process cannot open the adapter itself; nil on platforms
+	// and tests without delegation.
+	delegate     *delegateManager
+	write        func(string, []byte, fs.FileMode) error
+	proxyGet     func() (sysproxy.Snapshot, error)
+	proxySet     func(string, string) error
+	proxyRestore func(sysproxy.Snapshot) error
 }
 
 func newRuntimeController(core runtimeEngine, subs *sub.Manager, prefs RuntimePreferences) *runtimeController {
@@ -143,7 +147,7 @@ func (c *runtimeController) Restart(ctx context.Context) error {
 func (c *runtimeController) Configure(ctx context.Context, options runtimeOptions) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.applyLocked(ctx, options, c.engine.IsRunning())
+	return c.applyLocked(ctx, options, c.connectedLocked())
 }
 
 func (c *runtimeController) Use(ctx context.Context, id string) error {
@@ -152,7 +156,18 @@ func (c *runtimeController) Use(ctx context.Context, id string) error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.applyLocked(ctx, runtimeOptions{SubID: id}, c.engine.IsRunning())
+	return c.applyLocked(ctx, runtimeOptions{SubID: id}, c.connectedLocked())
+}
+
+// connectedLocked reports whether a takeover is up anywhere — the local core
+// or the delegated machine session. It is the "running" of the delegation
+// era: the local engine idles while the system service routes TUN traffic.
+func (c *runtimeController) connectedLocked() bool {
+	return c.engine.IsRunning() || c.delegatedActive()
+}
+
+func (c *runtimeController) delegatedActive() bool {
+	return c.delegate != nil && c.delegate.Active()
 }
 
 type runtimeFile struct {
@@ -330,9 +345,12 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		// TUN failures are swallowed by the cores just like bind errors: a
 		// missing privilege would silently leave the core running mixed-only
 		// while the UI reports TUN. Gate on the real capability before any
-		// state is touched (daemon-runtime spec: 不静默降级).
+		// state is touched (daemon-runtime spec: 不静默降级). The capability
+		// is honest about how it would run: this process elevated, or the
+		// machine-scoped daemon reachable for delegation — never "installed"
+		// alone.
 		if next.Tun {
-			if capability := tunCapability(); !capability.Tun {
+			if capability := tunCapability(c.delegate); !capability.Tun {
 				return &runtimeInputError{fmt.Errorf("TUN takeover unavailable: %s", capability.Reason)}
 			}
 		}
@@ -358,7 +376,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		// takeover side effect differs. Preferences still get persisted in
 		// case the file drifted from memory.
 		proxyOwnershipMatches := (next.SystemProxy == (c.originalProxy != nil))
-		if c.engine.IsRunning() && c.appliedSubID == targetID && bytes.Equal(runtimeJSON, c.applied) && proxyOwnershipMatches {
+		if c.connectedLocked() && c.appliedSubID == targetID && bytes.Equal(runtimeJSON, c.applied) && proxyOwnershipMatches {
 			if err := c.write(paths.RuntimeStatePath(), prefsJSON, 0o600); err != nil {
 				return fmt.Errorf("save runtime preferences: %w", err)
 			}
@@ -398,6 +416,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	}
 
 	wasRunning := c.engine.IsRunning()
+	wasDelegated := c.delegatedActive()
 	previousRuntime := append([]byte(nil), c.applied...)
 	previousID := c.appliedSubID
 	var previousSelections map[string]string
@@ -416,9 +435,16 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		}
 		if run {
 			var restoreErr error
-			if wasRunning {
+			switch {
+			case wasDelegated:
+				// The previous takeover ran in the machine session; put it
+				// back there, not as a local mixed-only look-alike.
+				if len(previousRuntime) > 0 {
+					_, restoreErr = c.delegate.Apply(previousRuntime)
+				}
+			case wasRunning:
 				restoreErr = c.engine.Reload(previousRuntime, previousSelections)
-			} else {
+			default:
 				restoreErr = c.engine.Stop()
 			}
 			if restoreErr != nil {
@@ -438,9 +464,31 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		return errors.Join(problems...)
 	}
 
+	// The takeover executor follows the capability: this process can open
+	// the adapter itself only when elevated; otherwise the gate's approval
+	// came from the machine-scoped daemon, and the core runs there.
+	delegateTakeover := run && next.Tun && !localTunCapable()
 	if run {
-		if err := c.engine.Reload(runtimeJSON, selected.SavedSelections); err != nil {
-			return fmt.Errorf("apply runtime configuration: %w", err)
+		if delegateTakeover {
+			// Free the loopback ports first: the delegated core binds the
+			// same mixed and controller ports in the machine session.
+			if err := c.engine.Stop(); err != nil {
+				return fmt.Errorf("stop local core before delegating: %w", err)
+			}
+			if _, err := c.delegate.Apply(runtimeJSON); err != nil {
+				return rollback(err)
+			}
+		} else {
+			if wasDelegated {
+				// Leaving the machine session: stop the delegated core so it
+				// releases the ports the local core is about to bind.
+				if err := c.delegate.Stop(); err != nil {
+					return rollback(fmt.Errorf("stop delegated takeover: %w", err))
+				}
+			}
+			if err := c.engine.Reload(runtimeJSON, selected.SavedSelections); err != nil {
+				return fmt.Errorf("apply runtime configuration: %w", err)
+			}
 		}
 	}
 	originalProxy := c.originalProxy
@@ -512,7 +560,7 @@ func (c *runtimeController) Down() (bool, error) {
 // there was anything to tear down, so `down` can distinguish "stopped" from
 // "was already stopped" instead of printing the same success for both.
 func (c *runtimeController) stopLocked() (bool, error) {
-	if c.originalProxy == nil && !c.engine.IsRunning() {
+	if c.originalProxy == nil && !c.connectedLocked() {
 		return false, nil
 	}
 	if c.originalProxy != nil {
@@ -521,6 +569,13 @@ func (c *runtimeController) stopLocked() (bool, error) {
 		}
 		if err := os.Remove(paths.SysproxySnapshotPath()); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return true, err
+		}
+	}
+	if c.delegatedActive() {
+		// The machine session must release the ports and the TUN adapter
+		// before this function claims the takeover is gone.
+		if err := c.delegate.Stop(); err != nil {
+			return true, fmt.Errorf("stop delegated takeover: %w", err)
 		}
 	}
 	if err := c.engine.Stop(); err != nil {
@@ -624,7 +679,7 @@ func (c *runtimeController) updateLocked(ctx context.Context, id string, force b
 		}
 		result.Meta.SourcePinned = false
 	}
-	if result.Meta.ID == c.subs.ActiveID() && c.engine.IsRunning() && (result.ContentChanged || c.pendingApply) {
+	if result.Meta.ID == c.subs.ActiveID() && c.connectedLocked() && (result.ContentChanged || c.pendingApply) {
 		c.pendingApply = true
 		if err := c.applyLocked(ctx, runtimeOptions{}, true); err != nil {
 			return result, err
@@ -634,8 +689,9 @@ func (c *runtimeController) updateLocked(ctx context.Context, id string, force b
 }
 
 // resolveUpdateProxy turns the subscription's update channel into a fetch
-// proxy URL. "self" rides the daemon's own mixed port only while the core
-// runs — a first configuration can never bootstrap through itself. "proxy"
+// proxy URL. "self" rides the takeover's own mixed port only while the core
+// runs (locally or delegated — the delegated core binds the same loopback
+// port) — a first configuration can never bootstrap through itself. "proxy"
 // rides the stored proxy URL. The channel never silently switches: failures
 // return actionable errors.
 func (c *runtimeController) resolveUpdateProxy(id string, override *bool) (string, error) {
@@ -653,7 +709,7 @@ func (c *runtimeController) resolveUpdateProxy(id string, override *bool) (strin
 	case "", "direct":
 		return "", nil
 	case "self":
-		if !c.engine.IsRunning() {
+		if !c.connectedLocked() {
 			return "", nil
 		}
 		return fmt.Sprintf("http://127.0.0.1:%d", c.Preferences().MixedPort), nil
@@ -670,7 +726,7 @@ func (c *runtimeController) resolveUpdateProxy(id string, override *bool) (strin
 func (c *runtimeController) UpdateDue(ctx context.Context, now time.Time) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.pendingApply && c.engine.IsRunning() {
+	if c.pendingApply && c.connectedLocked() {
 		return c.applyLocked(ctx, runtimeOptions{}, true)
 	}
 	id := c.subs.ActiveID()
@@ -698,4 +754,80 @@ func (c *runtimeController) UpdateDue(ctx context.Context, now time.Time) error 
 	}
 	_, err = c.updateLocked(ctx, id, false, nil)
 	return err
+}
+
+// Delegated reports whether takeover currently rides the machine-scoped
+// daemon; the status surface reads the remote engine state when it does.
+func (c *runtimeController) Delegated() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.delegatedActive()
+}
+
+// ReconcileDelegation aligns the delegated takeover with the user's intent
+// beside the synchronous apply paths: adopt a takeover this process did not
+// start (the user daemon restarted while the machine session kept routing),
+// re-apply the delegated config after the system service restarts, and stop
+// when intent flipped while delegation was active. It deliberately never
+// establishes a fresh takeover from a stored intent — connecting stays an
+// explicit act, same as the local core.
+func (c *runtimeController) ReconcileDelegation() {
+	if c.delegate == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.Preferences().Tun {
+		if c.engine.IsRunning() {
+			// A locally elevated core owns TUN; the machine session must
+			// stay idle so it never fights the local takeover for ports.
+			return
+		}
+		status, alive := c.delegate.Status()
+		if !alive {
+			return // the failed transport was logged at the transition
+		}
+		if status.Running {
+			if !c.delegatedActive() {
+				c.delegate.Adopt(status)
+				c.appliedSubID = c.subs.ActiveID()
+				c.logDelegated("delegated TUN takeover adopted from the system service")
+			}
+			return
+		}
+		if !c.delegatedActive() {
+			// Service up and idle, no delegation in this process: connecting
+			// stays explicit (no auto-connect from stored intent).
+			return
+		}
+		config := c.delegate.LastConfig()
+		if config == nil {
+			// Adopted earlier — the config bytes were never known here.
+			// The persisted runtime file of the active subscription is the
+			// same derivation the previous process delegated.
+			id := c.subs.ActiveID()
+			if id == "" {
+				return
+			}
+			data, err := os.ReadFile(paths.SubRuntimePath(id))
+			if err != nil {
+				c.logDelegated(fmt.Sprintf("delegated config unavailable after service restart: %v", err))
+				return
+			}
+			config = data
+		}
+		if _, err := c.delegate.Apply(config); err != nil {
+			return // logged at the transition
+		}
+	} else if c.delegatedActive() {
+		if err := c.delegate.Stop(); err != nil {
+			return // logged
+		}
+	}
+}
+
+func (c *runtimeController) logDelegated(message string) {
+	if c.delegate != nil {
+		c.delegate.LogRuntime(message)
+	}
 }

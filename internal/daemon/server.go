@@ -37,6 +37,15 @@ type Server struct {
 	subMgr    *sub.Manager
 	runtime   *runtimeController
 	account   *accountController
+	// delegate drives the layered-privilege client side (user-session
+	// daemons): TUN takeover applied by the machine-scoped daemon.
+	delegate *delegateManager
+
+	// System-scope only: the machine-scoped daemon additionally serves its
+	// delegation endpoints on the privileged transport (pipe / socket).
+	systemScope  bool
+	privileged   net.Listener
+	remoteServer *http.Server
 
 	webDir string
 	done   chan struct{}
@@ -49,7 +58,19 @@ type Server struct {
 	lock         *instanceLock
 }
 
+// NewServer builds the per-user control service.
 func NewServer(addr string, webDir string) (*Server, error) {
+	return newServer(addr, webDir, false)
+}
+
+// NewSystemServer builds the machine-scoped daemon: the same LocalAPI on its
+// fixed listen, plus the delegation endpoints on the privileged transport
+// whose caller identity the transport itself verifies.
+func NewSystemServer(addr string, webDir string) (*Server, error) {
+	return newServer(addr, webDir, true)
+}
+
+func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	// The lock must exist before proxy recovery and discovery-file writes:
 	// a second instance must never fight over ports, system proxy, or the
 	// credential files.
@@ -87,14 +108,15 @@ func NewServer(addr string, webDir string) (*Server, error) {
 
 	core := engine.NewManager(1000)
 	s := &Server{
-		token:      token,
-		engineMgr:  core,
-		subMgr:     subMgr,
-		runtime:    newRuntimeController(core, subMgr, prefs),
-		webDir:     webDir,
-		done:       make(chan struct{}),
-		shutdownCh: make(chan struct{}),
-		lock:       lock,
+		token:       token,
+		engineMgr:   core,
+		subMgr:      subMgr,
+		runtime:     newRuntimeController(core, subMgr, prefs),
+		webDir:      webDir,
+		done:        make(chan struct{}),
+		shutdownCh:  make(chan struct{}),
+		lock:        lock,
+		systemScope: systemScope,
 	}
 	s.account = newAccountController(
 		account.NewManager(paths.AccountSessionPath()),
@@ -123,6 +145,21 @@ func NewServer(addr string, webDir string) (*Server, error) {
 
 	s.httpServer = &http.Server{
 		Handler: mux,
+	}
+
+	if systemScope {
+		remoteMux := http.NewServeMux()
+		s.registerRemoteRoutes(remoteMux)
+		s.remoteServer = &http.Server{Handler: remoteMux}
+		if s.privileged, err = listenPrivileged(); err != nil {
+			// The TCP LocalAPI still serves diagnostics; only delegation is
+			// unavailable, and delegators report that honestly.
+			core.RingLog().Append(engine.LogLevelError, fmt.Sprintf("privileged transport unavailable: %v", err))
+			s.privileged = nil
+		}
+	} else {
+		s.delegate = newDelegateManager(core.RingLog())
+		s.runtime.delegate = s.delegate
 	}
 
 	_ = os.WriteFile(paths.LocalAPITokenPath(), []byte(token), 0o600)
@@ -157,6 +194,16 @@ func (s *Server) Autostart(ctx context.Context) error {
 
 func (s *Server) Start() error {
 	go s.runScheduledUpdates()
+	if s.delegate != nil {
+		go s.runDelegateReconciler()
+	}
+	if s.privileged != nil && s.remoteServer != nil {
+		go func() {
+			if err := s.remoteServer.Serve(s.privileged); err != nil && err != http.ErrServerClosed {
+				fmt.Printf("privileged transport failed: %v\n", err)
+			}
+		}()
+	}
 	return s.httpServer.Serve(s.listener)
 }
 
@@ -176,7 +223,11 @@ func (s *Server) Stop(ctx context.Context) error {
 		_ = os.Remove(paths.LocalAPITokenPath())
 		_ = os.Remove(paths.LocalAPIAddrPath())
 
-		s.stopErr = errors.Join(runtimeErr, s.httpServer.Shutdown(ctx))
+		var remoteErr error
+		if s.remoteServer != nil {
+			remoteErr = s.remoteServer.Shutdown(ctx)
+		}
+		s.stopErr = errors.Join(runtimeErr, remoteErr, s.httpServer.Shutdown(ctx))
 	})
 	return s.stopErr
 }
@@ -197,6 +248,29 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
+}
+
+// coreStatus reports the engine state of wherever the takeover runs: the
+// machine session's core while delegated, the local one otherwise.
+func (s *Server) coreStatus() engine.EngineStatus {
+	if s.runtime.Delegated() && s.delegate != nil {
+		if status, alive := s.delegate.Status(); alive {
+			return status
+		}
+	}
+	return s.engineMgr.Status()
+}
+
+// coreClient addresses the running core's clash API. The delegated core
+// binds the same loopback controller port the local one would, so clients
+// never learn where the core actually runs.
+func (s *Server) coreClient() *engine.ClashClient {
+	if s.runtime.Delegated() && s.delegate != nil {
+		if client := s.delegate.ClashClient(); client != nil {
+			return client
+		}
+	}
+	return s.engineMgr.Client()
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
@@ -242,6 +316,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/bugreport", s.authMiddleware(s.handleBugReport))
 	mux.HandleFunc("/localapi/v0/shutdown", s.authMiddleware(s.handleShutdown))
 	mux.HandleFunc("/localapi/v0/service/install", s.authMiddleware(s.handleServiceInstall))
+	mux.HandleFunc("/localapi/v0/service/uninstall", s.authMiddleware(s.handleServiceUninstall))
 
 	// Web UI static files
 	mux.HandleFunc("/", s.handleWeb)
@@ -251,7 +326,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	prefs := s.runtime.Preferences()
 
-	status := s.engineMgr.Status()
+	status := s.coreStatus()
 	var threeTier diag.ThreeTierStatus
 	// light=1 keeps readiness probes and polling loops off the network: the
 	// full evaluation runs DNS and egress checks, which is doctor's job.
@@ -269,7 +344,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"preferences":  prefs,
 		"threeTier":    threeTier,
 		"activeSub":    activeSub,
-		"capabilities": tunCapability(),
+		"capabilities": tunCapability(s.delegate),
 		"rulePaging":   true,
 	}
 
@@ -285,7 +360,7 @@ func (s *Server) handleUp(w http.ResponseWriter, r *http.Request) {
 		writeRuntimeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": s.engineMgr.Status(), "preferences": s.runtime.Preferences()})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": s.coreStatus(), "preferences": s.runtime.Preferences()})
 }
 
 func (s *Server) handleDown(w http.ResponseWriter, r *http.Request) {
@@ -302,7 +377,7 @@ func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 		writeRuntimeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": s.engineMgr.Status(), "preferences": s.runtime.Preferences()})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": s.coreStatus(), "preferences": s.runtime.Preferences()})
 }
 
 func (s *Server) handleMode(w http.ResponseWriter, r *http.Request) {
@@ -897,12 +972,12 @@ func (s *Server) handleSubUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleNodes(w http.ResponseWriter, r *http.Request) {
-	if s.engineMgr.Client() == nil {
+	if s.coreClient() == nil {
 		writeError(w, http.StatusServiceUnavailable, "engine is not running")
 		return
 	}
 
-	proxies, err := s.engineMgr.Client().GetProxies(r.Context())
+	proxies, err := s.coreClient().GetProxies(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -921,12 +996,12 @@ func (s *Server) handleNodeSelect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.engineMgr.Client() == nil {
+	if s.coreClient() == nil {
 		writeError(w, http.StatusServiceUnavailable, "engine is not running")
 		return
 	}
 
-	if err := s.engineMgr.Client().SelectNode(r.Context(), req.Group, req.Node); err != nil {
+	if err := s.coreClient().SelectNode(r.Context(), req.Group, req.Node); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -950,12 +1025,12 @@ func (s *Server) handleNodeTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.engineMgr.Client() == nil {
+	if s.coreClient() == nil {
 		writeError(w, http.StatusServiceUnavailable, "engine is not running")
 		return
 	}
 
-	delay, err := s.engineMgr.Client().TestDelay(r.Context(), req.Node, req.URL, req.TimeoutMs)
+	delay, err := s.coreClient().TestDelay(r.Context(), req.Node, req.URL, req.TimeoutMs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -965,14 +1040,14 @@ func (s *Server) handleNodeTest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
-	if s.engineMgr.Client() == nil {
+	if s.coreClient() == nil {
 		writeError(w, http.StatusServiceUnavailable, "engine is not running")
 		return
 	}
 
 	switch r.Method {
 	case http.MethodGet:
-		conns, err := s.engineMgr.Client().GetConnections(r.Context())
+		conns, err := s.coreClient().GetConnections(r.Context())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -982,21 +1057,21 @@ func (s *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		id := r.URL.Query().Get("id")
 		if id == "" || id == "all" {
-			_ = s.engineMgr.Client().CloseAllConnections(r.Context())
+			_ = s.coreClient().CloseAllConnections(r.Context())
 		} else {
-			_ = s.engineMgr.Client().CloseConnection(r.Context(), id)
+			_ = s.coreClient().CloseConnection(r.Context(), id)
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 	}
 }
 
 func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
-	if s.engineMgr.Client() == nil {
+	if s.coreClient() == nil {
 		writeError(w, http.StatusServiceUnavailable, "engine is not running")
 		return
 	}
 
-	rules, err := s.engineMgr.Client().GetRules(r.Context())
+	rules, err := s.coreClient().GetRules(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -1052,12 +1127,12 @@ func (s *Server) handleDNSQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.engineMgr.Client() == nil {
+	if s.coreClient() == nil {
 		writeError(w, http.StatusServiceUnavailable, "engine is not running")
 		return
 	}
 
-	resp, err := s.engineMgr.Client().QueryDNS(r.Context(), req.Domain, req.Type)
+	resp, err := s.coreClient().QueryDNS(r.Context(), req.Domain, req.Type)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -1067,12 +1142,12 @@ func (s *Server) handleDNSQuery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDNSFlush(w http.ResponseWriter, r *http.Request) {
-	if s.engineMgr.Client() == nil {
+	if s.coreClient() == nil {
 		writeError(w, http.StatusServiceUnavailable, "engine is not running")
 		return
 	}
 
-	if err := s.engineMgr.Client().FlushFakeIP(r.Context()); err != nil {
+	if err := s.coreClient().FlushFakeIP(r.Context()); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -1089,7 +1164,36 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	logs := s.engineMgr.RingLog().Snapshot(level, limit)
+	// The delegated core logs into the machine session's ring; a local-only
+	// snapshot would hide exactly the lines that explain a takeover failure.
+	if s.runtime.Delegated() && s.delegate != nil {
+		if remote, err := s.delegate.Logs(level, limit); err == nil {
+			logs = mergeLogs(logs, remote, limit)
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"logs": logs})
+}
+
+// mergeLogs interleaves both rings newest-first and trims to the limit.
+func mergeLogs(a, b []engine.LogEntry, limit int) []engine.LogEntry {
+	merged := make([]engine.LogEntry, 0, len(a)+len(b))
+	i, j := 0, 0
+	for i < len(a) && j < len(b) && len(merged) < limit {
+		if a[i].Timestamp.After(b[j].Timestamp) {
+			merged = append(merged, a[i])
+			i++
+		} else {
+			merged = append(merged, b[j])
+			j++
+		}
+	}
+	for ; i < len(a) && len(merged) < limit; i++ {
+		merged = append(merged, a[i])
+	}
+	for ; j < len(b) && len(merged) < limit; j++ {
+		merged = append(merged, b[j])
+	}
+	return merged
 }
 
 func (s *Server) handleDoctor(w http.ResponseWriter, r *http.Request) {
@@ -1123,24 +1227,38 @@ func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	s.shutdownOnce.Do(func() { close(s.shutdownCh) })
 }
 
+// handleServiceInstall registers the machine-scoped tunnel host. The platform
+// layer raises the native elevation prompt (UAC / osascript) itself, so this
+// returns once the elevated helper is launched; callers confirm the outcome by
+// polling capabilities.serviceInstalled.
 func (s *Server) handleServiceInstall(w http.ResponseWriter, r *http.Request) {
+	s.handleServiceChange(w, r, func(selfPath string) error {
+		return service.Install(selfPath, service.ScopeSystem)
+	}, "service installation requested")
+}
+
+// handleServiceUninstall is the symmetric removal, with the same elevation
+// and confirmation contract.
+func (s *Server) handleServiceUninstall(w http.ResponseWriter, r *http.Request) {
+	s.handleServiceChange(w, r, func(string) error {
+		return service.UninstallScope(service.ScopeSystem)
+	}, "service removal requested")
+}
+
+func (s *Server) handleServiceChange(w http.ResponseWriter, r *http.Request, change func(selfPath string) error, message string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, `{"error": "method not allowed"}`, http.StatusMethodNotAllowed)
 		return
 	}
 	selfPath, err := service.SelfPath()
+	if err == nil {
+		err = change(selfPath)
+	}
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	if err := service.Install(selfPath, service.ScopeSystem); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":      true,
-		"message": "service installation requested",
-	})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": message})
 }
 
 func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {

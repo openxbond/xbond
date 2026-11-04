@@ -191,13 +191,20 @@ function normalizeSubscription(meta: SubscriptionWire): SubscriptionMeta {
 }
 
 /** Daemon-side privilege facts the UI must not guess: TUN takeover needs an
- * elevated token (Windows) or root (unix) and, on Windows, the wintun
+ * elevated token (Windows) or root (unix) — this process's own, or the
+ * privileged system service's via delegation — plus, on Windows, the wintun
  * driver DLL. Absent on non-daemon controllers. */
 export interface LocalAPICapabilities {
   tun: boolean;
-  tunReasonCode?: "not_elevated" | "not_root" | "wintun_missing";
+  tunReasonCode?:
+    | "not_elevated"
+    | "not_root"
+    | "wintun_missing"
+    | "service_unreachable";
   tunReason?: string;
   serviceInstalled?: boolean;
+  /** True when the takeover runs in the privileged system service, not this process. */
+  delegated?: boolean;
 }
 
 export interface LocalAPIStatusResponse {
@@ -717,6 +724,12 @@ export class LocalAPIClient {
 
   async installService(): Promise<{ ok: boolean; message?: string }> {
     return this.request("/localapi/v0/service/install", {
+      method: "POST",
+    });
+  }
+
+  async uninstallService(): Promise<{ ok: boolean; message?: string }> {
+    return this.request("/localapi/v0/service/uninstall", {
       method: "POST",
     });
   }

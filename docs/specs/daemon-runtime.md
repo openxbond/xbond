@@ -7,9 +7,9 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - `cmd/xbond`：`run`、`daemon` 及 `daemon install|uninstall|start|stop|restart|status`；订阅、节点、日志、诊断等既有命令保留，其余控制命令（`up`／`down`／`restart`／`status`）默认查询 daemon。
 - LocalAPI（`/localapi/v0/*`）：CLI（`internal/daemon/client.go`）与前端（`packages/client/src/localapi.ts`）共用。
 - 桌面 GUI（Tauri）：与 CLI 对等的 LocalAPI 客户端，不持有第二份状态来源。
-- 平台后台托管入口：Windows 任务计划（用户会话）与 SCM（机器级）；Linux systemd --user 与 system unit；macOS LaunchAgent／`SMAppService`（GUI 后台组件）与 Network Extension（GUI VPN）；Android `VpnService`；iOS `NEPacketTunnelProvider`。
-- 两个维度相互独立：运行形式（前台、用户级后台、系统级后台、原生 VPN 扩展）与网络权限（本地端口、用户会话系统代理、TUN、路由与 DNS）。安装了服务不代表获得 TUN 权限；Go 代码能编译不代表获得移动端后台运行能力。
-- 服务管理选型：机器级系统服务以 `kardianos/service` 为首选候选，作为可替换的平台适配依赖，产品组织不围绕其接口；用户会话注册、macOS 应用注册与移动 VPN 走原生平台适配。
+- 平台后台托管入口：Windows HKCU Run（用户会话；原生 Task Scheduler API 被策略环境拒绝时的既定替代）与 SCM（机器级）；Linux systemd --user 与 system unit；macOS LaunchAgent（用户会话）／`SMAppService`（GUI 后台组件，未做）与 LaunchDaemon（机器级）；Android `VpnService`；iOS `NEPacketTunnelProvider`。
+- 两个维度相互独立：运行形式（前台、用户级后台、系统级后台、原生 VPN 扩展）与网络权限（本地端口、用户会话系统代理、TUN、路由与 DNS）。安装了服务不代表获得 TUN 权限——TUN 能力门验证的是「本进程提升，或机器级服务经特权通道可达且可委托」，注册状态本身不算数；Go 代码能编译不代表获得移动端后台运行能力。
+- 服务管理选型：机器级系统服务走平台原生适配（Windows SCM `svc/mgr`、macOS LaunchDaemon），不引入 `kardianos/service` 抽象层；用户会话注册、macOS 应用注册与移动 VPN 走原生平台适配。
 
 ## 行为契约
 
@@ -41,7 +41,7 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 | `daemon status` | 分别报告注册状态（未安装／已注册无响应）与运行状态（含核心与接管信息） |
 
 - 普通操作不隐式注册自启动：服务未运行且未安装时，命令报错并给出 `xbond daemon install` 指引，不得静默安装。
-- scope：user 注册在当前用户（用户数据目录、用户会话系统代理）；system 注册为机器级服务（经 `kardianos/service` 适配 SCM／system unit／LaunchDaemon，独立数据目录与控制接口授权）。平台或构建不支持某个 scope 时返回明确结果，不得偷换为另一种机制宣称成功。
+- scope：user 注册在当前用户（用户数据目录、用户会话系统代理）；system 注册为机器级特权隧道宿主（Windows SCM 服务 `XBondSystemService`，macOS root LaunchDaemon `net.xbond.daemon-system`，Linux root system unit `xbond-daemon-system.service`；独立数据目录与特权控制通道）。平台或构建不支持某个 scope 时返回明确结果，不得偷换为另一种机制宣称成功。安装经平台原生提权一次完成：Windows 由提升副本自装 SCM（`ShellExecuteW runas` 唤起 UAC），macOS 由 `osascript with administrator privileges` 执行安装脚本，Linux 由 `pkexec`（polkit）执行安装脚本（无 polkit 时明确报错并给出 `sudo` 命令）；拒绝授权如实回报「已拒绝，未变更」。
 - 平台注册内容：Windows 用户会话=当前用户登录任务（原生 Task Scheduler API；被策略拒绝时明确报错并提供显式 run-key 备选），Windows 机器级=SCM；Linux user=systemd --user 单元（免登录自启需显式 linger，不得宣称天然开机自启），system=system unit；macOS CLI=LaunchAgent（系统级任务用 LaunchDaemon），正式 GUI=`SMAppService`。注册的都是受监督的前台 `xbond daemon`，程序不再自行 fork；Windows SCM 由服务回调触发同一套启动与关闭流程。
 - CLI 与 GUI 控制同一个 daemon：CLI 启动的连接在 GUI 可见；关闭窗口不停止连接；GUI 升级或崩溃不带走网络运行时；配置与状态只有一个来源。四种用户操作语义分离：关闭窗口、退出 GUI、断开连接、停止后台服务。
 
@@ -62,11 +62,19 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 
 - 用户级 daemon 拥有用户订阅、偏好与凭据；系统级实例有独立数据目录与访问授权；`run` 使用显式配置及隔离的临时运行状态。
 - GUI、CLI 通过控制接口修改 daemon 的生效状态，避免并行写文件；原始配置、用户偏好与实际运行配置分别保存；配置应用失败保留上一份可用状态并报告回滚结果。
-- 用户级 LocalAPI 使用 loopback HTTP 与受保护的发现文件；系统级特权控制接口使用 Named Pipe、Unix Socket 或 XPC 并验证调用者身份，不因「来自本机」即授权。
+- 用户级 LocalAPI 使用 loopback HTTP 与受保护的发现文件；系统级特权控制接口（委托端点 `/localapi/v0/remote/*`）只挂在与 TCP LocalAPI 隔离的特权传输上——Windows named pipe（SD 按安装时记录的调用者 SID 授予）、macOS unix socket（按 `LOCAL_PEERCRED` 校验对端 uid）、Linux unix socket（按 `SO_PEERCRED` 校验对端 uid）——身份由传输在连接时验证，不因「来自本机」即授权。提权安装时把调用者身份（SID／uid）写入机器数据目录的 `delegated-user` 作为委托授权凭据；缺失时特权传输拒绝开启，而非匿名开放。
+
+### 分层特权委托（TUN）
+
+- 用户会话 daemon 是唯一状态源（订阅、偏好、凭据、系统代理接管留在用户会话）；TUN 接管委托给机器级服务执行：用户 daemon 推导运行配置后经特权通道下发（`remote/apply`），机器会话内的核心开 TUN 适配器并绑定相同的 mixed/controller 端口，UI 经既有 clash API 无感读取远端核心。sysproxy 与 port 接管永不委托——用户会话系统代理必须由用户会话写。
+- 只接受 TUN 形态的委托配置；委托失败如实回滚到委托前状态（本地核心恢复或委托恢复），不静默改跑 mixed。`down`／关机／模式切换同步停掉远端核心，不留孤儿隧道。
+- 能力门如实反映执行路径：`capabilities.delegated` 标明接管将跑在机器会话；服务已安装但不可达时报 `service_unreachable`（本地化原因），而不是把注册状态当成 TUN 能力。
+- 调解循环（非连接建立者）：吸收本 daemon 重启后已在运行的委托（adopt）、服务重启后从已下发的配置重推（re-apply）、意图翻转时停掉远端；从不凭存量意图新建连接——连接始终是显式动作。
+- 一次安装终身无感：服务经原生提权一次性安装（SCM 崩溃自动重启／LaunchDaemon KeepAlive），之后开关 TUN、改路由、重启 daemon 全程不再需要管理员权限，GUI 永远以普通权限运行。
 
 ## 边界与失败
 
-- 权限不足（任务创建被策略拒绝、无 TUN 权限、无管理员）：明确报错并给出可用路径；不静默降级，不伪造成功。已落地：`tunCapability` 在应用前检测 TUN 真实可用性——Windows 校验提升令牌（`IsUserAnAdmin`）与 wintun.dll 可寻性（可执行文件旁或 System32），unix 校验 root（euid 0）；不可用时 TUN 模式在触碰任何状态前以输入错误失败，核心与偏好保持原状，核心吞错导致的「静默 mixed-only」不再发生。能力经 `/status` 的 `capabilities`（`tun`、`tunReasonCode`、`tunReason`）上报，设置页禁用 TUN 选项并显示本地化原因。特权辅助服务（不把守护进程搬出用户会话的分层方案）仍待实机验证后交付。
+- 权限不足（任务创建被策略拒绝、无 TUN 权限、无管理员）：明确报错并给出可用路径；不静默降级，不伪造成功。已落地：`tunCapability` 在应用前检测 TUN 真实可用性——Windows 校验提升令牌（`IsUserAnAdmin`）或委托通道可达性再加 wintun.dll 可寻性，unix 校验 root（euid 0）或委托通道；不可用时 TUN 模式在触碰任何状态前以输入错误失败，核心与偏好保持原状，核心吞错导致的「静默 mixed-only」不再发生。能力经 `/status` 的 `capabilities`（`tun`、`tunReasonCode`、`tunReason`、`delegated`）上报，设置页禁用 TUN 选项并显示本地化原因。分层特权委托已实现（Windows 实机待验、macOS 仅有编译与单元测试证据）。
 - 双实例、端口冲突、TUN 已被持有：启动失败，错误指名冲突资源；已知良好状态不被覆盖。
 - 停止超时：报告超时与当前状态；恢复代理失败显示具体错误。
 - 崩溃恢复由系统管理器与 xbond 共同完成：管理器重启进程，xbond 检查自身遗留资源并恢复状态；是否自动重连由用户意图决定，主动断开不被重试循环重新连接。
@@ -86,12 +94,15 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - AC-9 scope：`--scope system` 未实现或平台不支持时返回明确「不可用」，不偷换为 user。
 - AC-10 GUI 关窗后，CLI 查询到的连接仍在（与 AC-5 联动，桌面平台验收）。
 - AC-11 移动端：Android `VpnService` 与 iOS `PacketTunnelProvider` 完成原生桥接并跑通真实流量（后续任务）。
+- AC-12 分层委托：普通权限的 GUI 一键唤起原生提权完成服务安装；此后开/关 TUN、切换路由、重启 daemon 全程零提权，核心确跑在机器会话（`capabilities.delegated`）；服务停止时 TUN 如实失联（`service_unreachable`），不静默 mixed-only。
+- AC-13 GUI 启动契约：GUI 不裸拉 daemon——已注册走 `daemon start`，未注册先 `daemon install`（用户级，免提权）；失败原因如实上达。
 
 ## 已知限制
 
-- 已实现：单二进制的 `daemon` 子命令与用户级注册（systemd --user／LaunchAgent／HKCU Run）、LocalAPI 优雅 shutdown、Windows Run key 安装全周期实测；Linux／macOS 仅有编译与单元测试证据。
-- 已承诺未实作：`run` 命令；实例锁；stop 的退出等待确认；`--scope system`（kardianos 后端）；Windows 用户会话的原生 Task Scheduler API 注册（现为 HKCU Run，无进程监督，升级路径为 COM 注册并显式处理策略拒绝）；macOS `SMAppService`；GUI／CLI／Tauri 启动契约统一（Tauri 仍直接 detached 拉起 `xbond daemon`）；移动端原生桥接（Android `TunnelService` 占位、iOS 扩展未接 Go 核心、mobile 三层状态直接映射 running 需修正）。
-- 刻意不支持：run 与 daemon 静默共享同机接管资源；scope 之间偷换冒充成功。
+- 已实现：单二进制的 `daemon` 子命令与用户级注册（systemd --user／LaunchAgent／HKCU Run）、LocalAPI 优雅 shutdown、Windows Run key 安装全周期实测；分层特权委托（SCM 服务/LaunchDaemon + 特权传输 + 委托运行时，Windows 服务安装流程待实机复验、macOS 仅有编译与单元测试证据）；GUI 启动契约统一（`daemon start`／`daemon install`，无裸 spawn）。
+- 已承诺未实作：`run` 命令；实例锁；stop 的退出等待确认；Windows 用户会话的原生 Task Scheduler API 注册（现为 HKCU Run，无进程监督，升级路径为 COM 注册并显式处理策略拒绝）；macOS `SMAppService`；doctor 对委托态的引擎读取仍查本地实例；移动端原生桥接（Android `TunnelService` 占位、iOS 扩展未接 Go 核心、mobile 三层状态直接映射 running 需修正）。
+- 刻意不支持：run 与 daemon 静默共享同机接管资源；scope 之间偷换冒充成功；凭存量意图自动建立连接（含委托重连）。
+- 委托残留风险：mihomo 核心吞 TUN 启动错误，机器会话内「配置请求 TUN」与「适配器真的起来了」在运行时层面仍不可完全区分——能力门把已知失败路径（非提升、wintun 缺失、服务不可达）全部拦在触碰状态之前，残余风险与本地提升路径一致，记为已知限制。
 
 ## 落地顺序
 

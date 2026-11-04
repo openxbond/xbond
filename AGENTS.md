@@ -6,7 +6,7 @@
 
 本倉庫是 XBond 客戶端；Cloud 控制面在另一個倉庫。本倉庫使用 pnpm、Go 及 Rust，命令以根目錄 `package.json` 為準。
 
-- `cmd/xbond/`：單一二進位的 CLI；`daemon` 子命令本機前景運行，`service` 子命令組註冊使用者級自啟。`internal/daemon/`：本機服務與 LocalAPI；`internal/daemon/service/`：平台託管（systemd --user／LaunchAgent／HKCU Run）。
+- `cmd/xbond/`：單一二進位的 CLI；`daemon` 子命令本機前景運行，`daemon install|uninstall|start|stop|restart|status` 管理服務註冊（`--scope user`／`system`）。`internal/daemon/`：本機服務與 LocalAPI；`internal/daemon/service/`：平台託管（systemd --user／LaunchAgent／HKCU Run；機器級：Windows SCM 服務、macOS LaunchDaemon）。
 - `internal/engine/`：雙核心（mihomo v1.19.33 主核心跑 Clash YAML，sing-box v1.13.21 副核心跑 sing-box JSON，同一時間僅一個，引用包模式）；`internal/sub/`：訂閱與配置；`internal/platform/`：資料位置與系統代理；`internal/diag/`：診斷與脫敏。
 - `apps/dashboard/`：網頁入口及靜態資源；`apps/desktop/`：桌面入口與 `src-tauri/` 原生殼；`apps/mobile/android/`、`apps/mobile/ios/`：原生接入；`mobile/` 保留 gomobile 公開入口。
 - `packages/client/`：無 React 的控制器、配置及傳輸；`packages/client-ui/`：React 19、React Router、Jotai、Tailwind CSS v4 + shadcn/ui（組件在 `src/components/ui/`，由 `packages/client-ui/components.json` 管理，在根目錄執行 `pnpm ui:add <component>` 添加）共用畫面。
@@ -27,7 +27,7 @@
 - 安裝：`pnpm install --frozen-lockfile`；Node ≥ 24（`scripts/*.ts` 直接執行，不帶 `--experimental-strip-types`）。版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準。
 - Web：`pnpm dev`（預設 3000）；`pnpm check` 一次跑 typecheck、lint（含架構檢查）、format、test；交付前另跑 `pnpm build`；`pnpm test:watch` 進入 watch 迴圈。
 - Go：`pnpm cli:run [args]` 本機執行 CLI；`pnpm cli:daemon` 前景運行 daemon；`pnpm cli:fmt`／`cli:fmt:check`（gofmt）；`pnpm cli:check` 為 vet、test、build。build tags 的單一來源在 `scripts/go.ts`；包路徑、`-run`、CLI 參數等額外參數直接附在命令後（如 `pnpm cli:test ./internal/sub -run TestX`）。
-- daemon 生命週期（契約見 [daemon-runtime 規格](docs/specs/daemon-runtime.md)）：`xbond daemon install`（`--scope user`；system 暫未提供，明確報錯）把受監督的 `xbond daemon --background` 註冊到平台使用者級 supervisor，`daemon stop` 經 LocalAPI shutdown 端點優雅退出並等待確認。CLI 不 spawn daemon、不隱式註冊：未安裝且未運行時報錯並給出指引。同一資料目錄由實例鎖保證單一 daemon。`xbond run --config <file>` 前台運行獨立核心，與 daemon 的接管資源互斥、衝突即報錯，不觸碰 daemon 發現文件與狀態。
+- daemon 生命週期（契約見 [daemon-runtime 規格](docs/specs/daemon-runtime.md)）：`xbond daemon install`（`--scope user` 默認；`--scope system` 經原生提權安裝機器級特權隧道宿主——Windows SCM／macOS LaunchDaemon，UAC／osascript 拒絕即如實報告）把受監督的 daemon 註冊到平台 supervisor，`daemon stop` 經 LocalAPI shutdown 端點優雅退出並等待確認。CLI 不 spawn daemon、不隱式註冊：未安裝且未運行時報錯並給出指引。TUN 接管分層委託：普通權限的用戶會話 daemon 把 TUN 下發給機器級服務執行，能力門驗證「本進程提升或委託通道可達」，註冊狀態不算數。同一資料目錄由實例鎖保證單一 daemon。`xbond run --config <file>` 前台運行獨立核心，與 daemon 的接管資源互斥、衝突即報錯，不觸碰 daemon 發現文件與狀態。
 - 桌面：`pnpm desktop`（Tauri 殼；其 `beforeDevCommand` 會自動以 `dev:desktop` 拉起前端，固定 127.0.0.1:1420——單命令即可，另開 `pnpm dev:desktop` 會撞埠）；`pnpm desktop:fmt`／`desktop:fmt:check`、`pnpm desktop:check`、`pnpm build:desktop`。
 - 移動端：`pnpm mobile:check` 只驗證 Go 接口；原生接入另須目標平台工具鏈及裝置驗證。
 - 格式：`pnpm exec oxfmt --check <本次檔案>`；`git diff --check`。可選 `pnpm hooks:install` 安裝 lefthook pre-commit，對提交中的檔案跑同樣的 oxfmt 與 oxlint 檢查。

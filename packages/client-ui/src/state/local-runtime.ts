@@ -4,6 +4,9 @@ import { useCallback } from "react";
 import { useAPIInfo } from "./controller-target";
 import { useDaemonConnection } from "./daemon-connection";
 
+/** UAC / osascript consent is human-paced; generous but bounded. */
+const SERVICE_CHANGE_TIMEOUT_MS = 60_000;
+
 /**
  * Daemon-backed actions plus the view-level distinction between the local
  * daemon core and an externally selected controller. Connection state and
@@ -81,12 +84,31 @@ export function useLocalAPI() {
     [daemonClient],
   );
 
-  const installService = useCallback(async () => {
-    if (!daemonClient) throw new Error("LocalAPI not available");
-    const res = await daemonClient.installService();
-    await mutateStatus();
-    return res;
-  }, [daemonClient, mutateStatus]);
+  /**
+   * Installs or removes the privileged system service. The platform raises
+   * its native elevation prompt (UAC / osascript) and the API returns once
+   * the elevated helper is launched, so the outcome is confirmed by polling
+   * the daemon's own `serviceInstalled` fact. Resolves false when it never
+   * flipped (prompt declined or helper failed) — never assumes success.
+   */
+  const changeService = useCallback(
+    async (install: boolean) => {
+      if (!daemonClient) throw new Error("LocalAPI not available");
+      const res = install
+        ? await daemonClient.installService()
+        : await daemonClient.uninstallService();
+      if (!res?.ok) throw new Error(res?.message || "service change failed");
+      const deadline = Date.now() + SERVICE_CHANGE_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const updated = await mutateStatus();
+        if (Boolean(updated?.capabilities?.serviceInstalled) === install)
+          return true;
+      }
+      return false;
+    },
+    [daemonClient, mutateStatus],
+  );
 
   return {
     hasLocalAPI,
@@ -104,6 +126,6 @@ export function useLocalAPI() {
     restart,
     setMode,
     selectNode,
-    installService,
+    changeService,
   };
 }

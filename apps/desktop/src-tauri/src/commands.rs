@@ -181,11 +181,6 @@ pub fn set_autostart(app: AppHandle, enable: bool) -> Result<bool, String> {
     Ok(launch.is_enabled().unwrap_or(enable))
 }
 
-#[tauri::command]
-pub fn install_system_service() -> Result<(), String> {
-    crate::localapi::install_service()
-}
-
 /// Extract the subscription URL from a `xbond://` / `clash://` handover URL:
 /// `xbond://install-config?url=<percent-encoded https URL>`. Only http(s)
 /// payload URLs are accepted — a deep link must never point the import form

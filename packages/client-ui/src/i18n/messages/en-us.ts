@@ -603,14 +603,6 @@ const EN = {
       autostartDesc: "Automatically start XBond in background when logging in",
       closeToTray: "Minimize to tray on close",
       closeToTrayDesc: "Keep proxy running in background when closing window",
-      systemService: "System Privileged Service",
-      systemServiceDesc:
-        "Install system-level background daemon for TUN virtual adapter and unprompted elevation",
-      serviceInstalled: "Installed",
-      serviceNotInstalled: "Not Installed",
-      serviceInstalling: "Installing…",
-      installService: "Install Service",
-      serviceReady: "Running",
     },
     advancedActions: {
       logLevelDesc:
@@ -670,6 +662,13 @@ const EN = {
       installServiceSuccess:
         "System service installed successfully. Virtual NIC (TUN) is ready.",
       installServiceFailed: "Failed to install service: {{error}}",
+      uninstallService: "Uninstall Service",
+      uninstallServicePrompt:
+        "Elevation requested. Please approve the system prompt to remove the service.",
+      uninstallServiceSuccess: "System service removed.",
+      uninstallServiceFailed: "Failed to remove service: {{error}}",
+      serviceChangeTimeout:
+        "No confirmation received from the system. The prompt may have been declined.",
       privilegeDialogTitle: "Privileged Service Required",
       privilegeDialogDesc:
         "Virtual NIC (TUN) requires a background service running with system administrator privileges to configure network adapters and capture whole-system traffic. Would you like to elevate privileges and install the service now?",
