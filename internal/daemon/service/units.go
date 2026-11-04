@@ -15,6 +15,7 @@ const (
 	darwinSystemLabel   = "net.xbond.daemon-system"
 	darwinSystemDataDir = "/Library/Application Support/xbond-system"
 	darwinSystemPlist   = "/Library/LaunchDaemons/net.xbond.daemon-system.plist"
+	darwinSystemExe     = "/Library/PrivilegedHelperTools/net.xbond.daemon/xbond"
 )
 
 // SystemdUnitContent renders the systemd user unit for the daemon. The unit
@@ -41,6 +42,7 @@ const (
 	linuxSystemUnitName = "xbond-daemon-system.service"
 	linuxSystemUnitPath = "/etc/systemd/system/xbond-daemon-system.service"
 	linuxSystemDataDir  = "/var/lib/xbond-system"
+	linuxSystemExe      = "/usr/lib/xbond/xbond"
 )
 
 // SystemdSystemUnitContent renders the machine-scoped daemon's system unit.

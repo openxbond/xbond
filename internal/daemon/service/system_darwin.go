@@ -9,6 +9,20 @@ import (
 	"strings"
 )
 
+func machinePaths() (MachineInstallation, error) {
+	return MachineInstallation{Binary: darwinSystemExe, DataDir: darwinSystemDataDir, Updater: darwinSystemExe}, nil
+}
+
+func machineRegistrationMatches(installation MachineInstallation) (bool, error) {
+	_, matches, err := checkRegistration(darwinSystemPlist, LaunchDaemonPlistContent(installation.Binary))
+	return matches, err
+}
+
+func elevateMachineUpgrade(executable, origin, version string) error {
+	return elevateScript("XBond wants to update its privileged tunnel service.",
+		"exec "+shellQuote(executable)+" daemon system-upgrade "+shellQuote(origin)+" "+shellQuote(version))
+}
+
 // The machine-scoped daemon is a root LaunchDaemon: TUN takeover needs an
 // elevated session that survives logout, while the user-session daemon
 // stays unprivileged so per-user state and system proxy keep working. The
@@ -38,40 +52,67 @@ func systemStatus() (string, error) {
 }
 
 func installSystemScope(exePath string) error {
-	script := fmt.Sprintf(`mkdir -p '%s'
-cat > '%s' <<'XBOND_PLIST_EOF'
-%sXBOND_PLIST_EOF
-printf '%%s' '%d' > '%s/delegated-user'
-chmod 644 '%s' '%s/delegated-user'
-launchctl bootout system/%s 2>/dev/null || true
-launchctl bootstrap system '%s'
+	registered, managed, err := checkRegistration(darwinSystemPlist, LaunchDaemonPlistContent(darwinSystemExe))
+	if err != nil {
+		return err
+	}
+	if registered {
+		if !managed {
+			return fmt.Errorf("the existing machine service uses a different executable; remove its registration before installing this version")
+		}
+		return startSystemScope("")
+	}
+	binary, err := installUnixSystemBinary(exePath, darwinSystemExe, darwinSystemPlist, "wheel", "stat -f '%u:%Lp'", "shasum -a 256")
+	if err != nil {
+		return err
+	}
+	script := fmt.Sprintf(`%[5]s
+if [ -L %[1]s ]; then exit 1; fi
+install -d -o root -g wheel -m 0700 %[1]s
+candidate=$(mktemp %[1]s/.delegation.XXXXXXXX)
+printf '%%s' '%[4]d' > "$candidate"
+mv -f "$candidate" %[1]s/delegated-user
+cat > %[2]s <<'XBOND_PLIST_EOF'
+%[3]sXBOND_PLIST_EOF
+if ! launchctl bootstrap system %[2]s; then
+  rm -f %[2]s
+  exit 1
+fi
 `,
 		shellQuote(darwinSystemDataDir),
 		shellQuote(darwinSystemPlist),
-		LaunchDaemonPlistContent(exePath),
+		LaunchDaemonPlistContent(darwinSystemExe),
 		os.Getuid(),
-		shellQuote(darwinSystemDataDir),
-		shellQuote(darwinSystemPlist), shellQuote(darwinSystemDataDir),
-		darwinSystemLabel,
-		shellQuote(darwinSystemPlist),
+		binary,
 	)
 	return elevateScript("XBond wants to install its privileged tunnel service.", script)
 }
 
 func uninstallSystemScope() error {
-	script := fmt.Sprintf(`launchctl bootout system/%s 2>/dev/null || true
-rm -f '%s'
+	script := fmt.Sprintf(`set -e
+if launchctl print system/%[1]s >/dev/null 2>&1; then
+  launchctl bootout system/%[1]s
+fi
+rm -f %[2]s
 `, darwinSystemLabel, shellQuote(darwinSystemPlist))
 	return elevateScript("XBond wants to remove its privileged tunnel service.", script)
 }
 
 func startSystemScope(string) error {
-	script := fmt.Sprintf("launchctl kickstart system/%s\n", darwinSystemLabel)
+	script := fmt.Sprintf(`if launchctl print system/%[1]s >/dev/null 2>&1; then
+  launchctl kickstart system/%[1]s
+else
+  launchctl bootstrap system %[2]s
+fi
+`, darwinSystemLabel, shellQuote(darwinSystemPlist))
 	return elevateScript("XBond wants to start its privileged tunnel service.", script)
 }
 
 func stopSystemScope(string) error {
-	script := fmt.Sprintf("launchctl kill SIGTERM system/%s 2>/dev/null || true\n", darwinSystemLabel)
+	script := fmt.Sprintf(`if launchctl print system/%[1]s >/dev/null 2>&1; then
+  launchctl bootout system/%[1]s
+fi
+`, darwinSystemLabel)
 	return elevateScript("XBond wants to stop its privileged tunnel service.", script)
 }
 
@@ -79,8 +120,20 @@ func stopSystemScope(string) error {
 // authorization dialog. A declined prompt reports "declined" — the caller
 // and the UI must be able to distinguish refusal from failure.
 func elevateScript(prompt, script string) error {
-	out, err := exec.Command("osascript", "-e",
-		fmt.Sprintf("do shell script %s with administrator privileges with prompt %q", shellQuote(script), prompt),
+	if os.Geteuid() == 0 {
+		command := exec.Command("/bin/sh", "-c", script)
+		command.Env = append(os.Environ(), "PATH=/usr/bin:/bin:/usr/sbin:/sbin")
+		out, err := command.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("run machine action: %w: %s", err, strings.TrimSpace(string(out)))
+		}
+		return nil
+	}
+	out, err := exec.Command("/usr/bin/osascript",
+		"-e", "on run argv",
+		"-e", "do shell script (item 1 of argv) with administrator privileges with prompt (item 2 of argv)",
+		"-e", "end run",
+		"--", script, prompt,
 	).CombinedOutput()
 	if err == nil {
 		return nil

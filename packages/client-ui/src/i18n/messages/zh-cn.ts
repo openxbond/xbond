@@ -687,6 +687,7 @@ const CN = {
       installing: "正在安装更新…",
       failed: "更新失败。请重新检查后重试。",
       daemonError: "随附守护进程更新失败。请重启 XBond 后重试。",
+      machineUpdateError: "系统隧道服务更新失败。请重启 XBond 后重试。",
       managed: "请通过原安装方式更新此版本。",
     },
     about: {

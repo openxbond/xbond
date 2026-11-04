@@ -10,6 +10,19 @@ import (
 	"strings"
 )
 
+func machinePaths() (MachineInstallation, error) {
+	return MachineInstallation{Binary: linuxSystemExe, DataDir: linuxSystemDataDir, Updater: linuxSystemExe}, nil
+}
+
+func machineRegistrationMatches(installation MachineInstallation) (bool, error) {
+	_, matches, err := checkRegistration(linuxSystemUnitPath, SystemdSystemUnitContent(installation.Binary))
+	return matches, err
+}
+
+func elevateMachineUpgrade(executable, origin, version string) error {
+	return elevateScript("exec " + shellQuote(executable) + " daemon system-upgrade " + shellQuote(origin) + " " + shellQuote(version))
+}
+
 // The machine-scoped daemon is a root systemd system unit: TUN takeover needs
 // root and a session that survives logout, while the user-session daemon
 // stays unprivileged so per-user state and system proxy keep working. The
@@ -38,29 +51,53 @@ func systemStatus() (string, error) {
 }
 
 func installSystemScope(exePath string) error {
-	script := fmt.Sprintf(`set -e
-mkdir -p %[1]s
+	registered, managed, err := checkRegistration(linuxSystemUnitPath, SystemdSystemUnitContent(linuxSystemExe))
+	if err != nil {
+		return err
+	}
+	if registered {
+		if !managed {
+			return errors.New("the existing machine service uses a different executable; remove its registration before installing this version")
+		}
+		return startSystemScope("")
+	}
+	binary, err := installUnixSystemBinary(exePath, linuxSystemExe, linuxSystemUnitPath, "root", "stat -c '%u:%a'", "sha256sum")
+	if err != nil {
+		return err
+	}
+	script := fmt.Sprintf(`%[6]s
+if [ -L %[1]s ]; then exit 1; fi
+install -d -o root -g root -m 0700 %[1]s
+candidate=$(mktemp %[1]s/.delegation.XXXXXXXX)
+printf '%%s' '%[4]d' > "$candidate"
+mv -f "$candidate" %[1]s/delegated-user
 cat > %[2]s <<'XBOND_UNIT_EOF'
 %[3]sXBOND_UNIT_EOF
-printf '%%s' '%[4]d' > %[1]s/delegated-user
-chmod 644 %[2]s %[1]s/delegated-user
 systemctl daemon-reload
-systemctl enable %[5]s
-systemctl restart %[5]s
+if ! systemctl enable --now %[5]s; then
+  systemctl disable --now %[5]s || true
+  rm -f %[2]s
+  systemctl daemon-reload
+  exit 1
+fi
 `,
 		shellQuote(linuxSystemDataDir),
 		shellQuote(linuxSystemUnitPath),
-		SystemdSystemUnitContent(exePath),
+		SystemdSystemUnitContent(linuxSystemExe),
 		os.Getuid(),
 		linuxSystemUnitName,
+		binary,
 	)
 	return elevateScript(script)
 }
 
 func uninstallSystemScope() error {
-	script := fmt.Sprintf(`systemctl disable --now %[1]s 2>/dev/null || true
-rm -f %[2]s
-systemctl daemon-reload
+	script := fmt.Sprintf(`set -e
+if [ -e %[2]s ] || [ -L %[2]s ]; then
+  systemctl disable --now %[1]s
+  rm -f %[2]s
+  systemctl daemon-reload
+fi
 `, linuxSystemUnitName, shellQuote(linuxSystemUnitPath))
 	return elevateScript(script)
 }
@@ -90,10 +127,11 @@ func elevateScript(script string) error {
 func runShell(elevator, script string) error {
 	var cmd *exec.Cmd
 	if elevator == "pkexec" {
-		cmd = exec.Command("pkexec", "sh", "-c", script)
+		cmd = exec.Command("pkexec", "/bin/sh", "-c", script)
 	} else {
-		cmd = exec.Command("sh", "-c", script)
+		cmd = exec.Command("/bin/sh", "-c", script)
 	}
+	cmd.Env = append(os.Environ(), "PATH=/usr/sbin:/usr/bin:/sbin:/bin")
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return nil

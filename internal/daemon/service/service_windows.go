@@ -127,15 +127,10 @@ func userRegistration(exe string) (bool, bool, error) {
 }
 
 func systemRegistration(exe string) (bool, bool, error) {
-	key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Services\`+systemServiceName, registry.QUERY_VALUE)
+	value, err := registeredSystemCommand()
 	if errors.Is(err, registry.ErrNotExist) {
 		return false, false, nil
 	}
-	if err != nil {
-		return false, false, err
-	}
-	defer key.Close()
-	value, _, err := key.GetStringValue("ImagePath")
 	if err != nil {
 		return false, false, err
 	}
@@ -146,5 +141,26 @@ func systemRegistration(exe string) (bool, bool, error) {
 	if len(args) == 0 {
 		return false, false, errors.New("empty machine service registration")
 	}
-	return true, strings.EqualFold(args[0], exe), nil
+	return true, sameRegisteredExecutable(args[0], exe), nil
+}
+
+func registeredSystemCommand() (string, error) {
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Services\`+systemServiceName, registry.QUERY_VALUE)
+	if err != nil {
+		return "", err
+	}
+	defer key.Close()
+	value, _, err := key.GetStringValue("ImagePath")
+	return value, err
+}
+
+func machineRegistrationMatches(installation MachineInstallation) (bool, error) {
+	value, err := registeredSystemCommand()
+	if errors.Is(err, registry.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return isFixedWindowsMachineCommand(value, installation.Binary)
 }

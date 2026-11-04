@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 
-	"github.com/openxbond/xbond/internal/platform/wintun"
+	"github.com/openxbond/xbond/internal/upgrade"
 )
 
 // The machine-scoped daemon is a real Windows service (LocalSystem, delayed
@@ -26,12 +26,7 @@ import (
 const (
 	systemServiceName    = "XBondSystemService"
 	systemServiceDisplay = "XBond Daemon (system)"
-	systemDataDir        = `C:\ProgramData\xbond`
 )
-
-// SystemDataDir is the machine-scoped daemon's state directory (Windows
-// slice); the elevated installer records the delegation grant inside it.
-const SystemDataDir = systemDataDir
 
 var (
 	shell32           = windows.NewLazySystemDLL("shell32.dll")
@@ -93,25 +88,64 @@ func installSystem(exePath string) error {
 	if ok, err := isElevated(); err != nil || !ok {
 		return elevateForSystemAction(exePath, "system-install")
 	}
-	_ = wintun.EnsureLocal()
-
 	m, err := mgr.Connect()
 	if err != nil {
 		return fmt.Errorf("failed to connect to the service manager: %w", err)
 	}
 	defer m.Disconnect()
 
+	dir, err := machineWindowsDirectory()
+	if err != nil {
+		return fmt.Errorf("resolve Program Files: %w", err)
+	}
 	if existing, err := m.OpenService(systemServiceName); err == nil {
-		status, qerr := existing.Query()
-		existing.Close()
-		if qerr == nil && (status.State == svc.Running || status.State == svc.StartPending) {
+		defer existing.Close()
+		cfg, err := existing.Config()
+		if err != nil {
+			return err
+		}
+		fixed, err := isFixedWindowsMachineCommand(cfg.BinaryPathName, filepath.Join(dir, "xbond.exe"))
+		if err != nil {
+			return err
+		}
+		if !fixed {
+			return errors.New("the existing machine service uses a different executable; remove its registration before installing this version")
+		}
+		status, err := existing.Query()
+		if err != nil {
+			return err
+		}
+		if status.State == svc.Running || status.State == svc.StartPending {
 			return nil
 		}
-		return startSystemInstalled(m)
+		return existing.Start()
+	} else if !errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
+		return err
+	}
+	if err := ensureMachineDirectory(dir, machinePublicDirACL); err != nil {
+		return err
+	}
+	releaseLock, err := upgrade.Lock(dir)
+	if err != nil {
+		return err
+	}
+	defer releaseLock()
+	if existing, err := m.OpenService(systemServiceName); err == nil {
+		existing.Close()
+		return errors.New("the machine service was registered concurrently")
+	} else if !errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
+		return err
+	}
+	binary, stateDir, err := installWindowsMachineFiles(exePath, dir)
+	if err != nil {
+		return fmt.Errorf("install the protected machine binary: %w", err)
+	}
+	if err := writeDelegationGrant(stateDir); err != nil {
+		return fmt.Errorf("write the delegation grant: %w", err)
 	}
 	svc, err := m.CreateService(
 		systemServiceName,
-		exePath,
+		binary,
 		mgr.Config{
 			DisplayName:      systemServiceDisplay,
 			Description:      "XBond daemon in the machine session: TUN takeover that survives logout. Managed by the per-user xbond CLI.",
@@ -121,7 +155,7 @@ func installSystem(exePath string) error {
 		// Arguments ride binPath: a fixed loopback listen, the machine data
 		// dir (the LocalSystem profile has none), and service-run selecting
 		// the SCM lifecycle.
-		"daemon", "--service-run", "--listen", SystemListen, "--data-dir", systemDataDir,
+		machineWindowsArguments(stateDir)...,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create the service: %w", err)
@@ -139,12 +173,12 @@ func installSystem(exePath string) error {
 	// The elevated copy runs under the invoking user's account (UAC keeps the
 	// user, elevation only widens the token), so this token's SID is exactly
 	// who may later delegate to the service's privileged transport.
-	if err := writeDelegationGrant(systemDataDir); err != nil {
-		fmt.Printf("delegation grant could not be written (%v); the service will refuse delegators until reinstall\n", err)
-	}
 	// Installing does not start anything; bring the daemon up right away so
 	// install matches the user-scope behavior.
-	return startSystemInstalled(m)
+	if err := svc.Start(); err != nil {
+		return errors.Join(err, svc.Delete())
+	}
+	return nil
 }
 
 // writeDelegationGrant persists the current (invoking, elevated) user's SID
@@ -206,23 +240,14 @@ func uninstallSystem(exePath string) error {
 	defer m.Disconnect()
 	handle, err := m.OpenService(systemServiceName)
 	if err != nil {
-		return nil // already gone: uninstall converges on "gone"
-	}
-	defer handle.Close()
-	status, err := handle.Query()
-	if err != nil {
+		if errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
+			return nil
+		}
 		return err
 	}
-	if status.State == svc.Running || status.State == svc.StartPending {
-		_, _ = handle.Control(svc.Stop)
-		deadline := time.Now().Add(10 * time.Second)
-		for time.Now().Before(deadline) {
-			status, err = handle.Query()
-			if err != nil || (status.State != svc.Running && status.State != svc.StopPending) {
-				break
-			}
-			time.Sleep(300 * time.Millisecond)
-		}
+	defer handle.Close()
+	if err := stopSystemInstalled(handle); err != nil {
+		return err
 	}
 	return handle.Delete()
 }
@@ -244,7 +269,10 @@ func startSystemInstalled(m *mgr.Mgr) error {
 		return fmt.Errorf("service %q is not installed", systemServiceName)
 	}
 	defer svc.Close()
-	return svc.Start()
+	if err := svc.Start(); err != nil && !errors.Is(err, windows.ERROR_SERVICE_ALREADY_RUNNING) {
+		return err
+	}
+	return nil
 }
 
 func stopSystem() error {
@@ -255,11 +283,43 @@ func stopSystem() error {
 	defer m.Disconnect()
 	handle, err := m.OpenService(systemServiceName)
 	if err != nil {
-		return nil
+		if errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
+			return nil
+		}
+		return err
 	}
 	defer handle.Close()
-	_, err = handle.Control(svc.Stop)
-	return err
+	return stopSystemInstalled(handle)
+}
+
+func stopSystemInstalled(handle *mgr.Service) error {
+	deadline := time.Now().Add(10 * time.Second)
+	requested := false
+	for {
+		status, err := handle.Query()
+		if err != nil {
+			return err
+		}
+		switch status.State {
+		case svc.Stopped:
+			return nil
+		case svc.StartPending, svc.StopPending:
+			// Wait for a pending start before requesting a stop, or for
+			// an in-flight stop to finish.
+		default:
+			if !requested {
+				_, err := handle.Control(svc.Stop)
+				if err != nil && !errors.Is(err, windows.ERROR_SERVICE_NOT_ACTIVE) {
+					return err
+				}
+				requested = true
+			}
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("machine service did not stop (state: %d)", status.State)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // ErrServiceNotInstalled reports that the machine-scoped service is not registered in SCM.
@@ -283,9 +343,10 @@ func querySystem() (svc.State, error) {
 	}
 	sh, err := windows.OpenService(sm, name, windows.SERVICE_QUERY_STATUS)
 	if err != nil {
-		// Not installed is the honest, expected negative: the service does
-		// not exist, so return an error indicating it's not installed.
-		return 0, fmt.Errorf("%w: %v", ErrServiceNotInstalled, err)
+		if errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
+			return 0, ErrServiceNotInstalled
+		}
+		return 0, fmt.Errorf("open machine service: %w", err)
 	}
 	defer windows.CloseServiceHandle(sh)
 	var status windows.SERVICE_STATUS

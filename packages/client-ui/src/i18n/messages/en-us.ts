@@ -722,6 +722,8 @@ const EN = {
       failed: "The update failed. Check again to retry.",
       daemonError:
         "The bundled daemon could not be updated. Relaunch XBond to retry.",
+      machineUpdateError:
+        "The system tunnel service could not be updated. Relaunch XBond to retry.",
       managed: "Use the original installation method to update this build.",
     },
     about: {

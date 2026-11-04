@@ -125,7 +125,7 @@ func runWindowsUpgradeHelper(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "XBond %s is installed.\n", next)
-	return nil
+	return reportMachineUpgrade(cmd, target, next)
 }
 
 func waitForParent(pid uint32) error {

@@ -3,9 +3,11 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func userUnitPath() (string, error) {
@@ -73,5 +75,26 @@ func userRegistration(exe string) (bool, bool, error) {
 }
 
 func systemRegistration(exe string) (bool, bool, error) {
-	return checkRegistration(linuxSystemUnitPath, SystemdSystemUnitContent(exe))
+	config, err := os.ReadFile(linuxSystemUnitPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	for _, line := range strings.Split(string(config), "\n") {
+		value, ok := strings.CutPrefix(strings.TrimSpace(line), "ExecStart=")
+		if !ok {
+			continue
+		}
+		value = strings.TrimLeft(value, "-@:+!")
+		path, _, _ := strings.Cut(value, " ")
+		if unquoted, ok := strings.CutPrefix(value, `"`); ok {
+			path, _, _ = strings.Cut(unquoted, `"`)
+		}
+		if sameRegisteredExecutable(path, exe) {
+			return true, true, nil
+		}
+	}
+	return true, false, nil
 }

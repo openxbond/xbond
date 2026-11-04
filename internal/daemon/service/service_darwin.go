@@ -3,6 +3,8 @@
 package service
 
 import (
+	"encoding/xml"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -93,5 +95,23 @@ func userRegistration(exe string) (bool, bool, error) {
 }
 
 func systemRegistration(exe string) (bool, bool, error) {
-	return checkRegistration(darwinSystemPlist, LaunchDaemonPlistContent(exe))
+	config, err := os.ReadFile(darwinSystemPlist)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	var plist struct {
+		Args []string `xml:"dict>array>string"`
+	}
+	if err := xml.Unmarshal(config, &plist); err != nil {
+		return true, false, fmt.Errorf("read machine launch arguments: %w", err)
+	}
+	for _, arg := range plist.Args {
+		if sameRegisteredExecutable(arg, exe) {
+			return true, true, nil
+		}
+	}
+	return true, false, nil
 }

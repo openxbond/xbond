@@ -17,6 +17,7 @@ struct UpdateStatus {
     update: Option<Update>,
     reconciling_daemon: bool,
     daemon_error: bool,
+    machine_update_error: bool,
 }
 
 #[derive(Clone, Copy, Default, Serialize)]
@@ -43,6 +44,7 @@ pub struct UpdateSnapshot {
     phase: Phase,
     version: Option<String>,
     daemon_error: bool,
+    machine_update_error: bool,
     reconciling_daemon: bool,
 }
 
@@ -78,6 +80,7 @@ pub fn desktop_update_status(state: State<'_, UpdateState>) -> UpdateSnapshot {
         phase: status.phase,
         version: status.update.as_ref().map(|update| update.version.clone()),
         daemon_error: status.daemon_error,
+        machine_update_error: status.machine_update_error,
         reconciling_daemon: status.reconciling_daemon,
     }
 }
@@ -218,13 +221,21 @@ pub fn on_launch(app: AppHandle) {
         let state = app.state::<UpdateState>();
         let reconciliation =
             tauri::async_runtime::spawn_blocking(crate::daemon::reconcile_packaged_daemon).await;
-        let daemon_error = !matches!(reconciliation, Ok(Ok(())));
-        if daemon_error {
-            eprintln!("[XBond Desktop] Packaged daemon reconciliation failed: {reconciliation:?}");
-        }
+        let (daemon_error, machine_update_error) = match reconciliation {
+            Ok(Ok(Some(error))) => {
+                eprintln!("[XBond Desktop] Machine daemon update failed: {error}");
+                (false, true)
+            }
+            Ok(Ok(None)) => (false, false),
+            error => {
+                eprintln!("[XBond Desktop] Packaged daemon reconciliation failed: {error:?}");
+                (true, false)
+            }
+        };
         if let Ok(mut status) = state.inner.lock() {
             status.reconciling_daemon = false;
             status.daemon_error = daemon_error;
+            status.machine_update_error = machine_update_error;
         }
         if enabled() {
             if let Err(error) = check(&app, &state, true).await {

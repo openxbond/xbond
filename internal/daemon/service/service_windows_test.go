@@ -3,10 +3,29 @@
 package service
 
 import (
+	"path/filepath"
 	"testing"
 
 	"golang.org/x/sys/windows"
 )
+
+func TestMachineCommandRequiresProtectedBinaryAndState(t *testing.T) {
+	binary := `C:\Program Files\XBond Machine\xbond.exe`
+	good := windows.ComposeCommandLine(append([]string{binary}, machineWindowsArguments(filepath.Join(filepath.Dir(binary), "state"))...))
+	for _, tc := range []struct {
+		command string
+		want    bool
+	}{
+		{good, true},
+		{windows.ComposeCommandLine(append([]string{`C:\Users\sample\Downloads\xbond.exe`}, machineWindowsArguments("state")...)), false},
+		{windows.ComposeCommandLine(append([]string{binary}, machineWindowsArguments(`C:\Users\sample\state`)...)), false},
+	} {
+		got, err := isFixedWindowsMachineCommand(tc.command, binary)
+		if err != nil || got != tc.want {
+			t.Fatalf("registered command %q: got %v, %v, want %v", tc.command, got, err, tc.want)
+		}
+	}
+}
 
 func TestBackgroundCommandHidesConsole(t *testing.T) {
 	exePath := `C:\Program Files\XBond\xbond.exe`

@@ -19,12 +19,12 @@ import (
 // Authorization header per connection, so UI traffic and its WebSocket
 // streams survive restarts and reloads transparently.
 type controllerProxy struct {
-	mu     sync.Mutex
-	port   int
+	mu       sync.Mutex
+	port     int
 	listener net.Listener
 	webToken string
-	engine func() (int, string) // current (clashPort, secret)
-	svc    *TunnelService
+	engine   func() (int, string) // current (clashPort, secret)
+	svc      *TunnelService
 }
 
 func newControllerProxy(svc *TunnelService, endpoint func() (int, string)) (*controllerProxy, error) {
@@ -33,11 +33,11 @@ func newControllerProxy(svc *TunnelService, endpoint func() (int, string)) (*con
 		return nil, err
 	}
 	p := &controllerProxy{
-		port:   l.Addr().(*net.TCPAddr).Port,
+		port:     l.Addr().(*net.TCPAddr).Port,
 		listener: l,
 		webToken: randomSecret(),
-		engine: endpoint,
-		svc:    svc,
+		engine:   endpoint,
+		svc:      svc,
 	}
 	go p.serve(l)
 	return p, nil

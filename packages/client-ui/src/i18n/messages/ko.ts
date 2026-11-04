@@ -709,6 +709,8 @@ const KO = {
       failed: "업데이트에 실패했습니다. 다시 확인해 주세요.",
       daemonError:
         "함께 설치된 데몬을 업데이트하지 못했습니다. XBond를 다시 실행해 주세요.",
+      machineUpdateError:
+        "시스템 터널 서비스를 업데이트하지 못했습니다. XBond를 다시 실행해 주세요.",
       managed: "이 빌드는 기존 설치 방식으로 업데이트하세요.",
     },
     about: {

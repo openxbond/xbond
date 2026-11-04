@@ -24,6 +24,7 @@
 ## 用戶操作
 
 - **CLI**：下載對應 Windows、macOS 或 Linux 的 `amd64`／`arm64` 檔案，Unix 需賦予執行權限。`xbond upgrade --check` 只檢查版本，`xbond upgrade` 在確認後更新，`--yes` 用於無人值守。CLI 與桌面依安裝歸屬更新自己的 daemon。正在運行的受管服務會短暫斷線並接受健康檢查，失敗時嘗試恢復上一版。`xbond update` 管理訂閱。
+- **系統隧道服務**：新版以管理員受保護的固定路徑安裝系統級 daemon。更新由同一安裝來源發起，系統級服務使用原生提權，`--yes` 仍可能需要管理員操作。用戶級更新和系統級更新分別回報結果。若開發版本曾把系統服務直接指向 CLI 或桌面附帶檔案，請由管理員在可短暫斷線時，用原安裝來源卸載系統服務，再用新版執行 `xbond daemon install --scope system`。
 - **桌面**：Windows 使用 NSIS、macOS 使用 DMG、Linux 使用 AppImage。在設定頁檢查及安裝更新。獨立 CLI 管理的 daemon 由其安裝來源更新。
 - **手機及擴充功能**：Android 從下載頁或應用內更新，系統會要求批准安裝。iOS、Chrome、Edge 透過對應商店更新。
 - **Web 和 Docker**：Dashboard 發現待啟用的新版時會提示重新載入。`dashboard.zip` 可另行解壓並交給 daemon 的 `--web-dir` 使用。Docker 用指定 Tag 或 digest 拉取新鏡像並重建容器，保留 `/data` 卷。

@@ -18,6 +18,7 @@ type UpdateStatus = {
   received?: number;
   total?: number | null;
   daemonError: boolean;
+  machineUpdateError: boolean;
   reconcilingDaemon: boolean;
 };
 
@@ -100,6 +101,9 @@ export function DesktopUpdate() {
           {message && <p>{message}</p>}
           {version && !failed && <p>{t("desktopUpdate.interruption")}</p>}
           {update?.daemonError && <p>{t("desktopUpdate.daemonError")}</p>}
+          {update?.machineUpdateError && (
+            <p>{t("desktopUpdate.machineUpdateError")}</p>
+          )}
         </div>
         {update?.status === "downloading" && (
           <progress

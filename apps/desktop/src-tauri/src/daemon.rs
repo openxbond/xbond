@@ -103,7 +103,13 @@ pub fn packaged() -> bool {
     option_env!("XBOND_DESKTOP_RELEASE") == Some("1")
 }
 
-pub fn reconcile_packaged_daemon() -> Result<(), String> {
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BundledDaemonUpdate {
+    machine_update_error: Option<String>,
+}
+
+pub fn reconcile_packaged_daemon() -> Result<Option<String>, String> {
     let current = std::env::current_exe().map_err(|err| err.to_string())?;
     let executable = current.with_file_name(if cfg!(windows) {
         "xbond-daemon.exe"
@@ -121,7 +127,9 @@ pub fn reconcile_packaged_daemon() -> Result<(), String> {
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).trim().to_owned());
     }
-    Ok(())
+    let update: BundledDaemonUpdate =
+        serde_json::from_slice(&output.stdout).map_err(|err| err.to_string())?;
+    Ok(update.machine_update_error)
 }
 
 fn now_millis() -> u64 {

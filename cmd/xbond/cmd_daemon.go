@@ -168,8 +168,16 @@ var daemonInstallCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if err := service.Install(selfPath, service.Scope(daemonScope)); err != nil {
+		scope := service.Scope(daemonScope)
+		if err := service.Install(selfPath, scope); err != nil {
 			return err
+		}
+		if scope == service.ScopeSystem {
+			if err := waitMachineSupervisor(20*time.Second, machineRunning); err != nil {
+				return err
+			}
+			fmt.Println("XBond machine service installed and started.")
+			return nil
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -186,6 +194,17 @@ var daemonUninstallCmd = &cobra.Command{
 	Short: "Stop the daemon and remove its autostart registration, keeping user data",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		scope := service.Scope(daemonScope)
+		if scope == service.ScopeSystem {
+			if err := service.UninstallScope(scope); err != nil {
+				return err
+			}
+			if err := waitMachineSupervisor(20*time.Second, func(state string) bool { return state == "not installed" }); err != nil {
+				return err
+			}
+			fmt.Println("XBond machine service unregistered; data kept.")
+			return nil
+		}
 		ctx := context.Background()
 		// Clean the connection first: the daemon exits gracefully (engine
 		// down, proxy restored) before its registration disappears.
@@ -194,7 +213,7 @@ var daemonUninstallCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "shutdown request failed (%v); falling back to the supervisor\n", err)
 			}
 		}
-		if err := service.UninstallScope(service.Scope(daemonScope)); err != nil {
+		if err := service.UninstallScope(scope); err != nil {
 			return err
 		}
 		if err := waitDaemonExit(5 * time.Second); err != nil {
@@ -221,6 +240,13 @@ var daemonStartCmd = &cobra.Command{
 		if err := service.StartScope(scope, exePath); err != nil {
 			return err
 		}
+		if scope == service.ScopeSystem {
+			if err := waitMachineSupervisor(20*time.Second, machineRunning); err != nil {
+				return err
+			}
+			fmt.Println("XBond machine service is running.")
+			return nil
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if _, err := waitDaemonReady(ctx); err != nil {
@@ -236,6 +262,22 @@ var daemonStopCmd = &cobra.Command{
 	Short: "Stop the background daemon service and wait for its exit",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if service.Scope(daemonScope) == service.ScopeSystem {
+			exePath, err := service.SelfPath()
+			if err != nil {
+				return err
+			}
+			if err := service.StopScope(service.ScopeSystem, exePath); err != nil {
+				return err
+			}
+			if err := waitMachineSupervisor(20*time.Second, func(state string) bool {
+				return machineStopped(state) || state == "not installed"
+			}); err != nil {
+				return err
+			}
+			fmt.Println("XBond machine service stopped.")
+			return nil
+		}
 		ctx := context.Background()
 
 		// "Request failed", "unresponsive", "process exited" and "cleanup
@@ -257,20 +299,6 @@ var daemonStopCmd = &cobra.Command{
 			}
 		}
 
-		scope := service.Scope(daemonScope)
-		if scope == service.ScopeSystem {
-			// The system daemon's LocalAPI lives in another data dir; skip
-			// the graceful-first dance and let the SCM stop it.
-			exePath, err := service.SelfPath()
-			if err != nil {
-				return err
-			}
-			if err := service.StopScope(scope, exePath); err != nil {
-				return err
-			}
-			fmt.Println("Daemon service stopped.")
-			return nil
-		}
 		installed := service.Installed()
 		if !reachable && !installed {
 			fmt.Println("Daemon service is not running.")

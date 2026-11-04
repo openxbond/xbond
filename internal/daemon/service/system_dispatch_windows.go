@@ -7,9 +7,6 @@ import "golang.org/x/sys/windows/svc"
 func systemInstalled() bool { return ServiceSystemInstalled() }
 
 func systemStatus() (string, error) {
-	if !ServiceSystemInstalled() {
-		return "not installed", nil
-	}
 	return ServiceSystemState()
 }
 
@@ -67,8 +64,11 @@ func (h *systemHandler) Execute(args []string, req <-chan svc.ChangeRequest, cha
 			case svc.Interrogate:
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
-				changes <- svc.Status{State: svc.StopPending}
+				changes <- svc.Status{State: svc.StopPending, WaitHint: 5_000}
 				close(stop)
+				if err := <-serveErr; err != nil {
+					return false, 1
+				}
 				return false, 0
 			}
 		}

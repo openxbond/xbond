@@ -688,6 +688,7 @@ const HK = {
       installing: "正在安裝更新…",
       failed: "更新失敗。請重新檢查後再試。",
       daemonError: "隨附守護程式更新失敗。請重新啟動 XBond 後再試。",
+      machineUpdateError: "系統隧道服務更新失敗。請重新啟動 XBond 後再試。",
       managed: "請透過原有安裝方式更新此版本。",
     },
     about: {

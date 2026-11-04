@@ -69,7 +69,16 @@ func runUpgrade(cmd *cobra.Command, check, yes bool) error {
 	if err != nil {
 		return err
 	}
-	if release.Build <= current {
+	cliUpdate := release.Build > current
+	var machineUpdate bool
+	if release.Build >= current {
+		machine, err := pendingMachineUpgrade(self, release.Version)
+		if err != nil {
+			return fmt.Errorf("check the machine daemon: %w", err)
+		}
+		machineUpdate = machine != nil
+	}
+	if !cliUpdate && !machineUpdate {
 		fmt.Fprintf(cmd.OutOrStdout(), "XBond %s is up to date.\n", version.Version)
 		return nil
 	}
@@ -77,12 +86,19 @@ func runUpgrade(cmd *cobra.Command, check, yes bool) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "XBond %s is available (installed %s).\n", release.Version, version.Version)
+	if cliUpdate {
+		fmt.Fprintf(cmd.OutOrStdout(), "XBond %s is available (installed %s).\n", release.Version, version.Version)
+	}
+	if machineUpdate {
+		fmt.Fprintf(cmd.OutOrStdout(), "The machine daemon can update to %s with administrator authorization.\n", release.Version)
+	}
 	if check {
 		return nil
 	}
-	if err := ensureNoMachineOwner(self); err != nil {
-		return err
+	if cliUpdate {
+		if err := ensureNoMachineOwner(self); err != nil {
+			return err
+		}
 	}
 	if !yes {
 		if input, ok := cmd.InOrStdin().(*os.File); ok {
@@ -98,6 +114,9 @@ func runUpgrade(cmd *cobra.Command, check, yes bool) error {
 			return nil
 		}
 	}
+	if !cliUpdate {
+		return reportMachineUpgrade(cmd, self, release.Version)
+	}
 	staged, err := asset.Download(cmd.Context(), filepath.Dir(self))
 	if err != nil {
 		return err
@@ -109,10 +128,22 @@ func runUpgrade(cmd *cobra.Command, check, yes bool) error {
 	return installCLIUpdate(cmd, self, staged, release.Version, asset.SHA256)
 }
 
+func reportMachineUpgrade(cmd *cobra.Command, target, next string) error {
+	updated, err := upgradeMachineFor(target, next)
+	if err != nil {
+		return fmt.Errorf("the machine daemon upgrade failed: %w", err)
+	}
+	if updated {
+		fmt.Fprintf(cmd.OutOrStdout(), "The machine daemon is installed at XBond %s.\n", next)
+	}
+	return nil
+}
+
 type desktopUpdateResult struct {
-	State   string `json:"state"`
-	Path    string `json:"path,omitempty"`
-	Running bool   `json:"running"`
+	State              string `json:"state"`
+	Path               string `json:"path,omitempty"`
+	Running            bool   `json:"running"`
+	MachineUpdateError string `json:"machineUpdateError,omitempty"`
 }
 
 func applyDesktopBundle(cmd *cobra.Command, _ []string) error {
@@ -136,6 +167,11 @@ func applyDesktopBundle(cmd *cobra.Command, _ []string) error {
 	result, err := syncDesktop(source, target)
 	if err != nil {
 		return err
+	}
+	if result.State == "managed" {
+		if _, err := upgradeMachineFor(target, version.Version); err != nil {
+			result.MachineUpdateError = err.Error()
+		}
 	}
 	return json.NewEncoder(cmd.OutOrStdout()).Encode(result)
 }
@@ -253,7 +289,7 @@ func ensureNoMachineOwner(exe string) error {
 		return fmt.Errorf("inspect machine daemon registration: %w", err)
 	}
 	if owned {
-		return errors.New("a machine-level service uses this executable; have its administrator stop and update the machine installation")
+		return errors.New("a legacy machine service uses this executable; run `xbond daemon uninstall --scope system`, retry the update, then run `xbond daemon install --scope system` from the updated installation")
 	}
 	return nil
 }

@@ -29,5 +29,5 @@ func installCLIUpdate(cmd *cobra.Command, target, staged, next, _ string) error 
 		return err
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "XBond %s is installed.\n", next)
-	return nil
+	return reportMachineUpgrade(cmd, target, next)
 }
