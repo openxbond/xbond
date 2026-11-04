@@ -60,6 +60,7 @@ import {
 } from "@/state/user-preferences";
 
 import { DASHBOARD_VERSION, parseClientInfo } from "./client-version";
+import { DesktopUpdate } from "./desktop-update";
 import {
   proxyEndpoint,
   proxyTerminalCommand,
@@ -807,6 +808,7 @@ export default function Settings() {
                 <ExternalLink className="size-3" />
               </span>
             </a>
+            <DesktopUpdate />
           </CardContent>
         </Card>
       </div>

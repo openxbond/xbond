@@ -2,6 +2,7 @@ mod commands;
 mod daemon;
 mod localapi;
 mod tray;
+mod updater;
 
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
@@ -38,6 +39,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
+        .manage(updater::UpdateState::default())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -51,6 +53,10 @@ pub fn run() {
         )
         .setup(|app| {
             app.manage(commands::ShellState::default());
+            if daemon::packaged() {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+            }
 
             // Frameless main window on Windows/Linux: the webview draws its
             // own titlebar (drag region + window controls); macOS keeps
@@ -113,7 +119,7 @@ pub fn run() {
                 }
             });
 
-            let _ = daemon::ensure_daemon();
+            updater::on_launch(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -144,6 +150,9 @@ pub fn run() {
             commands::get_autostart,
             commands::set_autostart,
             daemon::get_localapi_config,
+            updater::desktop_update_status,
+            updater::check_desktop_update,
+            updater::install_desktop_update,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build XBond desktop app")

@@ -696,6 +696,21 @@ const KO = {
       daemonOffline: "데몬 오프라인",
       daemonConnecting: "데몬 연결 중",
     },
+    desktopUpdate: {
+      title: "소프트웨어 업데이트",
+      check: "업데이트 확인",
+      checking: "업데이트 확인 중…",
+      current: "XBond가 최신 버전입니다.",
+      available: "버전 {{version}}을 사용할 수 있습니다.",
+      install: "업데이트 및 재시작",
+      interruption: "데몬이 재시작하는 동안 연결이 잠시 끊길 수 있습니다.",
+      downloading: "업데이트 다운로드 중…",
+      installing: "업데이트 설치 중…",
+      failed: "업데이트에 실패했습니다. 다시 확인해 주세요.",
+      daemonError:
+        "함께 설치된 데몬을 업데이트하지 못했습니다. XBond를 다시 실행해 주세요.",
+      managed: "이 빌드는 기존 설치 방식으로 업데이트하세요.",
+    },
     about: {
       title: "정보",
       appVersion: "대시보드 버전",

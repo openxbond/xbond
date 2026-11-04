@@ -28,3 +28,7 @@ ureq = { version = "2", default-features = false, features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 # preserve_order keeps the core's proxy-group order (config order) in tray menus.
 serde_json = { version = "1.0", features = ["preserve_order"] }
+tauri-plugin-updater = { version = "2.14.1", default-features = false, features = [
+  "rustls-tls",
+  "system-proxy",
+] }

@@ -99,6 +99,31 @@ static ENSURE_LOCK: Mutex<()> = Mutex::new(());
 static LAST_FAILED_SPAWN: AtomicU64 = AtomicU64::new(0);
 const SPAWN_COOLDOWN_MS: u64 = 30_000;
 
+pub fn packaged() -> bool {
+    option_env!("XBOND_DESKTOP_RELEASE") == Some("1")
+}
+
+pub fn reconcile_packaged_daemon() -> Result<(), String> {
+    let current = std::env::current_exe().map_err(|err| err.to_string())?;
+    let executable = current.with_file_name(if cfg!(windows) {
+        "xbond-daemon.exe"
+    } else {
+        "xbond-daemon"
+    });
+    let mut command = std::process::Command::new(executable);
+    command.args(["daemon", "apply-bundled-update"]);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let output = command.output().map_err(|err| err.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_owned());
+    }
+    Ok(())
+}
+
 fn now_millis() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -154,6 +179,13 @@ fn wait_for_daemon() -> Option<LocalAPIConfig> {
 }
 
 pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
+    // The release sidecar reconciles registration and runtime on launch.
+    // Reads must preserve a stopped service and must never start from the
+    // immutable application bundle (or an ephemeral AppImage mount).
+    if packaged() {
+        return Ok(resolve_config());
+    }
+
     if let Some((addr, token)) = read_credentials() {
         if daemon_alive(&addr) {
             return Ok(LocalAPIConfig {
