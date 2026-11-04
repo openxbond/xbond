@@ -2,7 +2,7 @@ import { ButtonSelect, Card, Header, Input } from "@components";
 import { CopyIconButton } from "@components/CopyButton";
 import { EmptyState } from "@components/EmptyState";
 import { RequestStatus } from "@components/RequestStatus";
-import { hasDaemonConfig } from "@lib/localapi-bootstrap";
+import { Button } from "@components/ui/button";
 import {
   useCapabilities,
   useGlobalMixin,
@@ -10,223 +10,404 @@ import {
   useRule,
   useRuleProviders,
 } from "@stores";
-import type * as API from "@xbond/client/request";
+import type { RulePage } from "@xbond/client/localapi";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { List, type RowComponentProps } from "react-window";
+import useSWR from "swr";
 
 import GlobalMixinPanel from "./GlobalMixinPanel";
 import { Provider } from "./Provider";
 
+const pageSize = 50;
+
 function RuleProviders() {
-  const { providers, error, update } = useRuleProviders();
+  const { providers, error, update, isLoading } = useRuleProviders();
   const { t } = useTranslation("rules");
+  const { t: common } = useTranslation("common");
+  const { t: runtime } = useTranslation("runtime");
+  const capabilities = useCapabilities();
 
   return (
     <>
       <RequestStatus error={error} retry={update} />
-      {providers.length !== 0 && (
-        <div className="flex flex-col">
-          <Header title={t("providerTitle")} />
-          <Card className="mt-4 p-0 divide-y divide-border">
-            {providers.map((p) => (
-              <Provider key={p.name} provider={p} />
-            ))}
-          </Card>
-        </div>
+      {providers.length > 0 ? (
+        <Card className="divide-y divide-border p-0">
+          {providers.map((provider) => (
+            <Provider key={provider.name} provider={provider} />
+          ))}
+        </Card>
+      ) : (
+        !error && (
+          <EmptyState
+            message={
+              isLoading
+                ? common("loading")
+                : capabilities.kind === "sing-box"
+                  ? runtime("providerUnavailable")
+                  : t("providersEmpty")
+            }
+          />
+        )
       )}
     </>
   );
 }
 
-function RuleRow({
-  index,
-  style,
-  rules,
-}: RowComponentProps<{ rules: API.Rule[] }>) {
-  const { t: tc } = useTranslation("common");
-  const rule = rules[index];
+function RuleRows({ rules }: Pick<RulePage, "rules">) {
+  const { t } = useTranslation("rules");
+  const { t: common } = useTranslation("common");
   return (
-    <div
-      className="rule-item h-[50px] list-none overflow-hidden border-b border-border transition-colors duration-[120ms] last:border-b-0 hover:bg-inset"
-      style={style}
-    >
-      <div className="rule-row flex h-full items-center gap-3 px-4">
-        <div className="w-10 shrink-0 text-right text-label tabular-nums text-muted-foreground max-md:hidden">
-          {index + 1}
-        </div>
-        <div className="rule-type w-44 overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap text-muted-foreground max-md:hidden">
-          {rule.type}
-        </div>
-        <div
-          className="payload min-w-0 flex-1 overflow-hidden font-mono text-body text-ellipsis whitespace-nowrap text-foreground"
-          title={rule.payload}
-        >
-          {rule.payload}
-        </div>
-        <div
-          className="rule-proxy w-56 overflow-hidden text-right text-label text-ellipsis whitespace-nowrap text-muted-foreground max-md:hidden"
-          title={rule.proxy}
-        >
-          {rule.proxy}
-        </div>
-        {/* 截斷的 payload 需要完整取用路徑：就地複製。 */}
-        <CopyIconButton value={rule.payload} label={tc("copy")} />
+    <>
+      <div className="table-header rule-row hidden grid-cols-[4rem_minmax(0,1.6fr)_minmax(0,1fr)_2rem] items-center gap-3 px-4 md:grid">
+        <span>#</span>
+        <span>{t("columns.payload")}</span>
+        <span>{t("columns.proxy")}</span>
+        <span />
       </div>
-    </div>
+      <ul
+        aria-label={t("tabActive")}
+        className="max-h-[60dvh] divide-y divide-border overflow-auto"
+      >
+        {rules.map((rule) => (
+          <li
+            className="rule-item grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 md:grid-cols-[4rem_minmax(0,1.6fr)_minmax(0,1fr)_2rem]"
+            key={rule.index}
+          >
+            <span className="self-start text-label tabular-nums text-muted-foreground">
+              #{rule.index}
+            </span>
+            <div className="min-w-0">
+              <div
+                className="payload truncate font-mono text-body"
+                title={rule.payload || rule.type}
+              >
+                {rule.payload || rule.type}
+              </div>
+              {rule.payload && (
+                <div
+                  className="truncate text-label text-muted-foreground"
+                  title={rule.type}
+                >
+                  {rule.type}
+                </div>
+              )}
+            </div>
+            <span
+              className="col-start-2 row-start-2 min-w-0 truncate text-label text-muted-foreground md:col-start-3 md:row-start-1 md:text-body md:text-foreground"
+              title={rule.proxy}
+            >
+              {rule.proxy}
+            </span>
+            <div className="col-start-3 row-start-1 md:col-start-4">
+              <CopyIconButton
+                value={rule.payload || rule.type}
+                label={common("copy")}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function RuleBrowser({ local }: { local: ReturnType<typeof useLocalAPI> }) {
+  const { t } = useTranslation("rules");
+  const { t: common } = useTranslation("common");
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const query = params.get("ruleSearch") ?? "";
+  const matchType = params.get("matchedRuleType") ?? "";
+  const matchPayload = params.get("matchedRulePayload") ?? "";
+  const [draft, setDraft] = useState({ query, value: query });
+  const searchValue = draft.query === query ? draft.value : query;
+  const [loadRemote, setLoadRemote] = useState(false);
+  const parsedPage = Number(params.get("rulePage"));
+  const page =
+    Number.isSafeInteger(parsedPage) &&
+    Number.isSafeInteger(parsedPage * pageSize) &&
+    parsedPage > 0
+      ? parsedPage
+      : 1;
+  const offset = (page - 1) * pageSize;
+  const request = new URLSearchParams({
+    offset: String(offset),
+    limit: String(pageSize),
+  });
+  if (query) request.set("q", query);
+  if (matchType) {
+    request.set("matchType", matchType);
+    request.set("matchPayload", matchPayload);
+  }
+  const { config, daemonClient, isLocalTarget, status } = local;
+  const unsupported = isLocalTarget && !!status && !status.rulePaging;
+  const localPage = useSWR(
+    isLocalTarget && !unsupported && daemonClient && config
+      ? [
+          "/localapi/v0/rules/page",
+          config.endpoint,
+          config.token,
+          status?.engine.startedAt,
+          request.toString(),
+        ]
+      : null,
+    () => daemonClient?.getRulesPage(request),
+    { shouldRetryOnError: false },
+  );
+  const remote = useRule(!isLocalTarget && loadRemote);
+  const remotePage = useMemo<RulePage | undefined>(() => {
+    if (!remote.rules) return;
+    if (!query && !matchType) {
+      return {
+        total: remote.rules.length,
+        rules: remote.rules
+          .slice(offset, offset + pageSize)
+          .map((rule, index) => ({ ...rule, index: offset + index + 1 })),
+      };
+    }
+    const needle = query.toLowerCase();
+    const typeNeedle = needle.replace(/[-_ ]/g, "");
+    const matchTypeLower = matchType.toLowerCase();
+    const rows: RulePage["rules"] = [];
+    let total = 0;
+    for (const [index, rule] of remote.rules.entries()) {
+      if (
+        matchType &&
+        !(
+          rule.type?.toLowerCase() === matchTypeLower &&
+          rule.payload === matchPayload
+        ) &&
+        !(
+          matchPayload === "" &&
+          matchType === `${rule.payload} => ${rule.proxy}`
+        )
+      )
+        continue;
+      if (
+        needle &&
+        ![rule.payload, rule.proxy].some((value) =>
+          value?.toLowerCase().includes(needle),
+        ) &&
+        !(
+          typeNeedle &&
+          rule.type?.toLowerCase().replace(/[-_ ]/g, "").includes(typeNeedle)
+        )
+      )
+        continue;
+      if (total >= offset && rows.length < pageSize)
+        rows.push({ ...rule, index: index + 1 });
+      total++;
+    }
+    return { rules: rows, total };
+  }, [remote.rules, query, matchType, matchPayload, offset]);
+  const result = isLocalTarget ? localPage.data : remotePage;
+  const error = isLocalTarget ? localPage.error : remote.error;
+  const loading = isLocalTarget
+    ? !unsupported && !result && !error
+    : remote.isLoading;
+  const retry = isLocalTarget ? localPage.mutate : remote.update;
+  const canGoBack = page > 1 && !loading;
+  const canGoNext = !!result && offset + pageSize < result.total;
+
+  function search(value: string) {
+    setDraft({ query: value, value });
+    if (!isLocalTarget) setLoadRemote(true);
+    const next = new URLSearchParams(params);
+    next.delete("matchedRuleType");
+    next.delete("matchedRulePayload");
+    next.delete("rulePage");
+    if (value) next.set("ruleSearch", value);
+    else next.delete("ruleSearch");
+    setParams(next);
+  }
+
+  function goTo(nextPage: number) {
+    const next = new URLSearchParams(params);
+    if (nextPage === 1) next.delete("rulePage");
+    else next.set("rulePage", String(nextPage));
+    setParams(next);
+  }
+
+  return (
+    <>
+      <form
+        className="page-toolbar"
+        onSubmit={(event) => {
+          event.preventDefault();
+          search(searchValue.trim());
+        }}
+      >
+        <Input
+          aria-label={t("searchPlaceholder")}
+          placeholder={t("searchPlaceholder")}
+          className="min-w-0 flex-1 text-left"
+          value={searchValue}
+          onChange={(event) => setDraft({ query, value: event.target.value })}
+        />
+        <Button type="submit">{common("search")}</Button>
+        {(query || matchType) && (
+          <Button type="button" variant="outline" onClick={() => search("")}>
+            {common("clear")}
+          </Button>
+        )}
+      </form>
+      {matchType && (
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg bg-inset px-4 py-3 text-sm">
+          <span className="font-semibold">{t("reportedMatch")}</span>
+          <code className="min-w-0 break-all">
+            {[matchType, matchPayload].filter(Boolean).join(" · ")}
+          </code>
+          <span className="basis-full text-muted-foreground">
+            {t("matchNote")}
+          </span>
+        </div>
+      )}
+      <RequestStatus error={error} retry={retry} />
+      {unsupported && <EmptyState message={t("updateDaemon")} />}
+      {loading && (
+        <p
+          role="status"
+          className="px-4 py-6 text-center text-body text-muted-foreground"
+        >
+          {common("loading")}
+        </p>
+      )}
+      {!isLocalTarget && !loadRemote && (
+        <EmptyState
+          message={t("remoteNotice")}
+          action={
+            <Button variant="outline" onClick={() => setLoadRemote(true)}>
+              {t("loadRemote")}
+            </Button>
+          }
+        />
+      )}
+      {(result || loading) && (
+        <Card className="overflow-hidden p-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <p
+              aria-live="polite"
+              className="text-label tabular-nums text-muted-foreground"
+            >
+              {result?.rules.length
+                ? t("range", {
+                    from: offset + 1,
+                    to: offset + result.rules.length,
+                    total: result.total,
+                  })
+                : ""}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                aria-disabled={!canGoBack}
+                className="aria-disabled:opacity-50"
+                onClick={() => {
+                  if (canGoBack) goTo(page - 1);
+                }}
+              >
+                {t("previousPage")}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-disabled={!canGoNext}
+                className="aria-disabled:opacity-50"
+                onClick={() => {
+                  if (canGoNext) goTo(page + 1);
+                }}
+              >
+                {t("nextPage")}
+              </Button>
+            </div>
+          </div>
+          {result &&
+            (result.rules.length > 0 ? (
+              <RuleRows rules={result.rules} />
+            ) : (
+              <EmptyState
+                className="min-h-48"
+                message={
+                  query || matchType || page > 1 ? t("noMatches") : t("empty")
+                }
+                action={
+                  page > 1 ? (
+                    <Button variant="outline" onClick={() => goTo(1)}>
+                      {t("firstPage")}
+                    </Button>
+                  ) : query || matchType ? (
+                    <Button variant="outline" onClick={() => search("")}>
+                      {common("clear")}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate("/config")}
+                    >
+                      {t("emptyAction")}
+                    </Button>
+                  )
+                }
+              />
+            ))}
+        </Card>
+      )}
+    </>
   );
 }
 
 export default function Rules() {
-  const { rules: allRules, error, update, isLoading } = useRule();
-  const [search, setSearch] = useState("");
-  const rules = useMemo(() => {
-    const query = search.toLowerCase();
-    if (!query) return allRules;
-    return allRules.filter((rule) =>
-      [rule.type, rule.payload, rule.proxy].some((value) =>
-        value.toLowerCase().includes(query),
-      ),
-    );
-  }, [allRules, search]);
-  const capabilities = useCapabilities();
   const { t } = useTranslation("rules");
-  const { t: tc } = useTranslation("common");
-  const navigate = useNavigate();
-  const supported = hasDaemonConfig();
-  const { isLocalTarget } = useLocalAPI();
+  const local = useLocalAPI();
   const { mixin } = useGlobalMixin();
   const [params, setParams] = useSearchParams();
-  const tab = (params.get("tab") as "rules" | "mixin") || "rules";
-
-  const activeMixinCount =
+  const selected = params.get("tab");
+  const tab =
+    selected === "providers" || (selected === "mixin" && local.isLocalTarget)
+      ? selected
+      : "rules";
+  const mixinCount =
     (mixin.bypassLan ? 1 : 0) +
-    (mixin.rulesPrepend?.length || 0) +
-    (mixin.rulesAppend?.length || 0) +
+    (mixin.rulesPrepend?.length ?? 0) +
+    (mixin.rulesAppend?.length ?? 0) +
     (mixin.dns ? 1 : 0);
+  const options: { label: string; value: string }[] = [
+    { label: t("tabActive"), value: "rules" },
+    { label: t("providerTitle"), value: "providers" },
+  ];
+  if (local.isLocalTarget)
+    options.push({
+      label:
+        mixinCount > 0
+          ? t("tabMixin") + " (" + mixinCount + ")"
+          : t("tabMixin"),
+      value: "mixin",
+    });
 
   return (
     <div className="page">
-      <Header title={t("title")}>
-        {supported && isLocalTarget && (
-          <ButtonSelect<"rules" | "mixin">
-            value={tab}
-            options={[
-              { label: t("tabActive"), value: "rules" },
-              {
-                label:
-                  activeMixinCount > 0
-                    ? `${t("tabMixin")} (${activeMixinCount})`
-                    : t("tabMixin"),
-                value: "mixin",
-              },
-            ]}
-            onSelect={(nextTab) => {
-              setParams((prev) => {
-                const next = new URLSearchParams(prev);
-                if (nextTab === "rules") next.delete("tab");
-                else next.set("tab", nextTab);
-                return next;
-              });
-            }}
-          />
-        )}
-      </Header>
-
-      {tab === "mixin" && supported && isLocalTarget ? (
+      <Header title={t("title")} />
+      <div className="flex items-start">
+        <ButtonSelect
+          value={tab}
+          options={options}
+          onSelect={(nextTab) => {
+            const next = new URLSearchParams(params);
+            if (nextTab === "rules") next.delete("tab");
+            else next.set("tab", nextTab);
+            setParams(next);
+          }}
+        />
+      </div>
+      {tab === "providers" ? (
+        <RuleProviders />
+      ) : tab === "mixin" ? (
         <GlobalMixinPanel />
       ) : (
-        <>
-          <RequestStatus error={error} retry={update} />
-          {!capabilities.ruleProviders && capabilities.kind === "sing-box" && (
-            <ProviderNote />
-          )}
-          <div className="page-toolbar">
-            <RuleSearch value={search} onChange={setSearch} />
-          </div>
-          <RuleProviders />
-          <Card className="flex flex-1 flex-col overflow-hidden p-0 focus:outline-none">
-            <div className="table-header rule-header flex shrink-0 items-center gap-3 px-4">
-              <div className="w-10 shrink-0 text-right max-md:hidden">#</div>
-              <div className="w-44 max-md:hidden">{t("columns.type")}</div>
-              <div className="flex-1">{t("columns.payload")}</div>
-              <div className="w-56 text-right max-md:hidden">
-                {t("columns.proxy")}
-              </div>
-            </div>
-            {/* Keep the virtual list's spacer out of the viewport's sizing. */}
-            <div className="rule-list-box relative min-h-[480px] flex-1 overflow-hidden">
-              {isLoading && allRules.length === 0 ? (
-                <p className="p-6 text-center text-sm text-muted-foreground">
-                  {tc("loading")}
-                </p>
-              ) : allRules.length === 0 ? (
-                <EmptyState
-                  className="h-full"
-                  message={t("empty")}
-                  action={
-                    <button
-                      className="empty-state-action"
-                      onClick={() => navigate("/config")}
-                    >
-                      {t("emptyAction")}
-                    </button>
-                  }
-                />
-              ) : rules.length === 0 ? (
-                <EmptyState
-                  className="h-full"
-                  message={tc("empty")}
-                  action={
-                    <button
-                      className="empty-state-action"
-                      onClick={() => setSearch("")}
-                    >
-                      {tc("clear")}
-                    </button>
-                  }
-                />
-              ) : (
-                <List
-                  style={{ position: "absolute", inset: 0 }}
-                  rowCount={rules.length}
-                  rowHeight={50}
-                  rowComponent={RuleRow}
-                  rowProps={{ rules }}
-                />
-              )}
-            </div>
-          </Card>
-        </>
+        <RuleBrowser local={local} />
       )}
     </div>
-  );
-}
-
-function ProviderNote() {
-  const { t } = useTranslation("runtime");
-  return (
-    <p className="my-3 text-sm text-muted-foreground">
-      {t("providerUnavailable")}
-    </p>
-  );
-}
-function RuleSearch({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const { t: tc } = useTranslation("common");
-  return (
-    <Input
-      aria-label={tc("search")}
-      placeholder={tc("search")}
-      className="flex-1 text-left"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
   );
 }

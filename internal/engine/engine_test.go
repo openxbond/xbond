@@ -363,6 +363,19 @@ func TestManagerLifecycleAndClashClient(t *testing.T) {
 		if proxiesAfter["proxy-group"].Now != "block" {
 			t.Errorf("%s: expected now to be block, got %s", name, proxiesAfter["proxy-group"].Now)
 		}
+		controllerRules, err := client.GetRules(ctx)
+		if err != nil {
+			t.Fatalf("%s: read controller rules: %v", name, err)
+		}
+		page, ok := mgr.RulesPage(RuleQuery{Limit: 50})
+		if !ok || page.Total != len(controllerRules) || len(page.Rules) != min(len(controllerRules), 50) {
+			t.Fatalf("%s: unexpected rule page %+v for %d controller rules", name, page, len(controllerRules))
+		}
+		for index, rule := range page.Rules {
+			if rule.Index != index+1 || rule.RuleItem != controllerRules[index] {
+				t.Fatalf("%s: rule %d differs from the controller response", name, index)
+			}
+		}
 		if logs := mgr.RingLog().Snapshot(LogLevelInfo, 10); len(logs) == 0 {
 			t.Errorf("%s: expected ring logger to have entries", name)
 		}

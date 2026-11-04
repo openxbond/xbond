@@ -6,6 +6,7 @@
  */
 
 import type { Lang } from "./language.ts";
+import type { Rule } from "./request.ts";
 
 export interface LocalAPIEngineStatus {
   running: boolean;
@@ -14,6 +15,7 @@ export interface LocalAPIEngineStatus {
   clashPort: number;
   uptime: string;
   configPath: string;
+  startedAt?: string;
 }
 
 export type TakeoverMode = "sysproxy" | "tun" | "port";
@@ -199,6 +201,7 @@ export interface LocalAPIStatusResponse {
   threeTier: ThreeTierStatus;
   activeSub: SubscriptionMeta | null;
   capabilities?: LocalAPICapabilities;
+  rulePaging?: boolean;
 }
 
 /** Service status from user.billing.subscription (billing-disabled collapses
@@ -291,6 +294,11 @@ export interface LocalAPIConfig {
   token: string;
 }
 
+export interface RulePage {
+  rules: (Rule & { index: number })[];
+  total: number;
+}
+
 interface LocalAPILogEntry {
   seq: number;
   timestamp: string;
@@ -355,6 +363,10 @@ export class LocalAPIClient {
       `/localapi/v0/logs?${query}`,
     );
     return logs;
+  }
+
+  async getRulesPage(params: URLSearchParams): Promise<RulePage> {
+    return this.request(`/localapi/v0/rules/page?${params}`);
   }
 
   async up(options?: {

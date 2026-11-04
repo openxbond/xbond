@@ -93,6 +93,13 @@ func TestRuntimeBulkUpdateReportsFailuresInsteadOfReturningSuccess(t *testing.T)
 
 func TestRuntimeUpHTTPReturnsActualStartedCoreStatus(t *testing.T) {
 	f := newRuntimeFixture(t)
+	source := readRuntimeFile(t, f.firstSource)
+	if err := os.WriteFile(f.firstSource, append(source, []byte("rules:\n  - DOMAIN-SUFFIX,example.test,DIRECT\n  - MATCH,DIRECT\n")...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.subs.Update(f.first.ID, true, ""); err != nil {
+		t.Fatal(err)
+	}
 	freePort := func() int {
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -126,6 +133,23 @@ func TestRuntimeUpHTTPReturnsActualStartedCoreStatus(t *testing.T) {
 	}
 	if response.Code != http.StatusOK || !result.Status.Running || result.Status.MixedPort != mixedPort {
 		t.Fatalf("up response did not describe the started core: %d %s", response.Code, response.Body)
+	}
+	rulesResponse := httptest.NewRecorder()
+	server.handleRulesPage(rulesResponse, httptest.NewRequest(http.MethodGet, "/localapi/v0/rules/page?limit=1", nil))
+	var rules engine.RulePage
+	if err := json.Unmarshal(rulesResponse.Body.Bytes(), &rules); err != nil {
+		t.Fatal(err)
+	}
+	if rulesResponse.Code != http.StatusOK || rules.Total != 2 || len(rules.Rules) != 1 ||
+		rules.Rules[0].Index != 1 || rules.Rules[0].Payload != "example.test" {
+		t.Fatalf("rule page did not read the started core: %d %s", rulesResponse.Code, rulesResponse.Body)
+	}
+	for _, query := range []string{"offset=-1", "offset=1.5", "limit=101", "limit=0"} {
+		invalid := httptest.NewRecorder()
+		server.handleRulesPage(invalid, httptest.NewRequest(http.MethodGet, "/localapi/v0/rules/page?"+query, nil))
+		if invalid.Code != http.StatusBadRequest {
+			t.Fatalf("invalid rule pagination %s returned %d", query, invalid.Code)
+		}
 	}
 	if err := controller.Configure(context.Background(), runtimeOptions{Routing: engine.RoutingGlobal}); err != nil {
 		t.Fatal(err)

@@ -20,7 +20,18 @@ export function workspaceLink(
   values: Record<string, string> = {},
 ) {
   const params = new URLSearchParams(search);
-  for (const name of ["section", "view", "group", "track"]) params.delete(name);
+  for (const name of [
+    "section",
+    "view",
+    "group",
+    "track",
+    "tab",
+    "ruleSearch",
+    "rulePage",
+    "matchedRuleType",
+    "matchedRulePayload",
+  ])
+    params.delete(name);
   for (const [name, value] of Object.entries(values)) params.set(name, value);
   return { pathname, search: params.toString() ? `?${params}` : "" };
 }

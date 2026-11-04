@@ -232,6 +232,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/localapi/v0/connections", s.authMiddleware(s.handleConnections))
 	mux.HandleFunc("/localapi/v0/rules", s.authMiddleware(s.handleRules))
+	mux.HandleFunc("/localapi/v0/rules/page", s.authMiddleware(s.handleRulesPage))
 	mux.HandleFunc("/localapi/v0/dns/query", s.authMiddleware(s.handleDNSQuery))
 	mux.HandleFunc("/localapi/v0/dns/flush", s.authMiddleware(s.handleDNSFlush))
 	mux.HandleFunc("/localapi/v0/logs", s.authMiddleware(s.handleLogs))
@@ -267,6 +268,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"threeTier":    threeTier,
 		"activeSub":    activeSub,
 		"capabilities": tunCapability(),
+		"rulePaging":   true,
 	}
 
 	writeJSON(w, http.StatusOK, response)
@@ -999,6 +1001,43 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"rules": rules})
+}
+
+func (s *Server) handleRulesPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	params := r.URL.Query()
+	query := engine.RuleQuery{
+		Limit:        50,
+		Search:       params.Get("q"),
+		MatchType:    params.Get("matchType"),
+		MatchPayload: params.Get("matchPayload"),
+	}
+	if params.Has("offset") {
+		offset, err := strconv.Atoi(params.Get("offset"))
+		if err != nil || offset < 0 {
+			writeError(w, http.StatusBadRequest, "invalid rule offset")
+			return
+		}
+		query.Offset = offset
+	}
+	if params.Has("limit") {
+		limit, err := strconv.Atoi(params.Get("limit"))
+		if err != nil || limit < 1 || limit > 100 {
+			writeError(w, http.StatusBadRequest, "invalid rule limit")
+			return
+		}
+		query.Limit = limit
+	}
+	page, ok := s.engineMgr.RulesPage(query)
+	if !ok {
+		writeError(w, http.StatusServiceUnavailable, "engine is not running")
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
 }
 
 func (s *Server) handleDNSQuery(w http.ResponseWriter, r *http.Request) {

@@ -59,7 +59,7 @@ test("nested strategy paths terminate on a leaf and survive cyclic upstream grou
 
 test("workspace links preserve controller context and replace only the destination view", () => {
   const link = workspaceLink(
-    "?host=core.example&port=9443&protocol=https&group=old&section=general",
+    "?host=core.example&port=9443&protocol=https&group=old&section=general&ruleSearch=example&rulePage=2&matchedRuleType=Match&tab=providers",
     "/activity",
     { view: "connections" },
   );
@@ -70,4 +70,8 @@ test("workspace links preserve controller context and replace only the destinati
   assert.equal(params.get("view"), "connections");
   assert.equal(params.has("group"), false);
   assert.equal(params.has("section"), false);
+  assert.equal(params.has("ruleSearch"), false);
+  assert.equal(params.has("rulePage"), false);
+  assert.equal(params.has("matchedRuleType"), false);
+  assert.equal(params.has("tab"), false);
 });

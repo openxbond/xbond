@@ -1,7 +1,9 @@
 import { cn } from "@lib/utils";
 import { type BaseComponentProps } from "@models";
 import { basePath, formatTraffic } from "@xbond/client/helper";
+import { workspaceLink } from "@xbond/client/workspace";
 import { useTranslation } from "react-i18next";
+import { Link, useLocation } from "react-router-dom";
 
 import { type Connection } from "../store";
 
@@ -11,6 +13,8 @@ interface ConnectionsInfoProps extends BaseComponentProps {
 
 export function ConnectionInfo(props: ConnectionsInfoProps) {
   const { t } = useTranslation("connections");
+  const { search } = useLocation();
+  const { rule, rulePayload } = props.connection;
 
   return (
     <div
@@ -70,10 +74,23 @@ export function ConnectionInfo(props: ConnectionsInfoProps) {
       </div>
       <div className="my-3 flex">
         <span className="w-20 font-bold">{t("info.rule")}</span>
-        <span className="font-mono">
-          {props.connection.rule &&
-            `${props.connection.rule}${props.connection.rulePayload && ` :: ${props.connection.rulePayload}`}`}
-        </span>
+        {rule === "final" && !rulePayload ? (
+          <span className="font-mono">{rule}</span>
+        ) : (
+          rule && (
+            <Link
+              className="min-w-0 flex-1 break-all font-mono text-brand-text underline underline-offset-4"
+              to={workspaceLink(search, "/rules", {
+                tab: "rules",
+                matchedRuleType: rule,
+                matchedRulePayload: rulePayload ?? "",
+              })}
+            >
+              {rule}
+              {rulePayload && ` :: ${rulePayload}`}
+            </Link>
+          )
+        )}
       </div>
       <div className="my-3 flex">
         <span className="w-20 font-bold">{t("info.chains")}</span>
