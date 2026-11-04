@@ -56,6 +56,35 @@ func TestCloudSyncRetainsThirdPartyConfigurationAndAccountIdentity(t *testing.T)
 	}
 }
 
+// Signing in is an explicit ask for the Cloud configuration: login binds with
+// Use and the runtime follows. Rotation refreshes bind without Use and keep
+// the current selection.
+func TestAccountLoginActivatesAndRotationKeepsSelection(t *testing.T) {
+	f := newRuntimeFixture(t)
+	server := &Server{subMgr: f.subs, runtime: f.controller}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("proxies:\n  - {name: cloud, type: trojan, server: example.invalid, port: 443, password: fixture}\nrules:\n  - MATCH,DIRECT\n"))
+	}))
+	defer upstream.Close()
+	credentials := &account.Credentials{Issuer: "https://cloud.example.invalid", Origin: upstream.URL, SubscriptionToken: "sub-first"}
+
+	bound, updateError, err := server.bindCredentials(context.Background(), credentials, accountBindOptions{Use: true})
+	if err != nil || updateError != "" {
+		t.Fatalf("bind account source: %v %s", err, updateError)
+	}
+	if f.subs.ActiveID() != bound.ID || !strings.Contains(string(f.core.configuration()), "name: cloud") {
+		t.Fatalf("login with use did not activate the Cloud configuration: active=%s", f.subs.ActiveID())
+	}
+
+	rotated, updateError, err := server.bindCredentials(context.Background(), credentials, accountBindOptions{})
+	if err != nil || updateError != "" || rotated.ID != bound.ID {
+		t.Fatalf("rotation bind: %v %s", err, updateError)
+	}
+	if f.subs.ActiveID() != bound.ID || !strings.Contains(string(f.core.configuration()), "name: cloud") {
+		t.Fatal("account rotation switched the selected configuration")
+	}
+}
+
 func TestImportValidatesAgainstCoreAndPreservesWorkingRuntime(t *testing.T) {
 	f := newRuntimeFixture(t)
 	server := &Server{subMgr: f.subs, runtime: f.controller}

@@ -52,6 +52,10 @@ type accountBindOptions struct {
 	Name     string
 	Lang     string
 	Protocol string
+	// Use activates the bound subscription. Explicit logins set it (mobile
+	// parity: mobile/account.go activates on login); background rotation and
+	// recovery refreshes leave it false so they never switch the runtime.
+	Use bool
 }
 
 type accountLoginManager interface {
@@ -503,6 +507,7 @@ func (s *Server) handleAccountLogin(w http.ResponseWriter, r *http.Request) {
 		Protocol  string `json:"protocol"`
 		Device    bool   `json:"device"`
 		NoBrowser bool   `json:"noBrowser"`
+		Use       *bool  `json:"use"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid account login request")
@@ -516,7 +521,10 @@ func (s *Server) handleAccountLogin(w http.ResponseWriter, r *http.Request) {
 			CallbackHTML: i18n.RenderCallbackHTML,
 			OpenBrowser:  browser.Open,
 		},
-		accountBindOptions{Name: req.Name, Lang: req.Lang, Protocol: req.Protocol},
+		// Signing in is an explicit ask to use the Cloud configuration; the
+		// same default as /localapi/v0/login. Rotation refreshes never pass
+		// Use, so they keep the current selection.
+		accountBindOptions{Name: req.Name, Lang: req.Lang, Protocol: req.Protocol, Use: req.Use == nil || *req.Use},
 	)
 	writeJSON(w, http.StatusOK, state)
 }

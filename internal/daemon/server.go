@@ -540,6 +540,11 @@ func (s *Server) bindCredentials(
 	if err != nil {
 		return meta, err.Error(), nil
 	}
+	if options.Use {
+		if err := s.runtime.Use(ctx, meta.ID); err != nil {
+			return result.Meta, "", &bindError{err: err, input: false}
+		}
+	}
 	return result.Meta, "", nil
 }
 
