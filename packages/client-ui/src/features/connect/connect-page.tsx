@@ -14,7 +14,8 @@ import { Link } from "react-router-dom";
 
 import { CountryFlag } from "@/components/country-flag";
 import { nodeFlagCode, stripFlagEmoji } from "@/components/country-flag";
-import { Segmented } from "@/components/segmented-control";
+import { SegmentedControl } from "@/components/segmented-control";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useProxy, useProxyMapping } from "@/features/proxies/proxy-data";
@@ -445,6 +446,7 @@ export default function Connect() {
     (mode) => ({
       value: mode,
       label: t(mode),
+      disabled: mode === "tun" && status?.capabilities?.tun === false,
       disabledReason:
         mode === "tun" && status?.capabilities?.tun === false
           ? (status.capabilities.tunReason ?? undefined)
@@ -458,7 +460,6 @@ export default function Connect() {
       label: tc(`routingMode.${mode}`),
     }),
   );
-  // Segmented 的泛型由 options 收窄；value 只在當前模式確實是三擋之一時傳入。
   const routingValue = routingOptions.find(
     (option) => option.value === currentMode,
   )?.value;
@@ -475,7 +476,7 @@ export default function Connect() {
   }
 
   return (
-    <div className="page w-full">
+    <div className="page @container/connect w-full">
       {localConfig && !status && (
         <div
           className="flex items-center justify-between gap-3 rounded-control border border-border bg-card px-4 py-3 text-sm"
@@ -493,7 +494,7 @@ export default function Connect() {
         </div>
       )}
 
-      <div className="grid w-full grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-4 [grid-template-areas:'control_aside'_'live_live'] max-md:grid-cols-1 max-md:[grid-template-areas:'control'_'aside'_'live']">
+      <div className="grid w-full min-w-0 grid-cols-1 gap-4 [grid-template-areas:'control'_'aside'_'live'] @min-[46rem]/connect:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] @min-[46rem]/connect:[grid-template-areas:'control_aside'_'live_live']">
         <section
           className={cn(
             cardSurface,
@@ -713,9 +714,9 @@ export default function Connect() {
                   {t("strategyGroups")}
                 </h2>
                 {available.length > 0 && (
-                  <span className="rounded-full bg-inset px-2 py-0.5 text-label tabular-nums text-muted-foreground font-medium">
+                  <Badge variant="secondary" className="tabular-nums">
                     {available.length} {t("strategyMembers")}
-                  </span>
+                  </Badge>
                 )}
               </div>
               <Link
@@ -971,12 +972,13 @@ export default function Connect() {
                   </button>
                 </div>
                 <div className="max-md:hidden">
-                  <Segmented
+                  <SegmentedControl
                     ariaLabel={t("takeoverMode")}
                     options={takeoverOptions}
                     value={takeover ?? null}
                     disabled={pending}
-                    className="w-full justify-stretch"
+                    className="grid w-full grid-cols-3"
+                    itemClassName="px-2 whitespace-normal"
                     onChange={(mode) =>
                       void run(() => setMode({ mode }), false)
                     }
@@ -988,11 +990,13 @@ export default function Connect() {
               <span className="text-label font-semibold text-muted-foreground">
                 {tc("routingMode.title")}
               </span>
-              <Segmented
+              <SegmentedControl
                 ariaLabel={tc("routingMode.title")}
                 options={routingOptions}
                 value={routingValue ?? null}
                 disabled={pending}
+                className="grid w-full grid-cols-3"
+                itemClassName="px-2 whitespace-normal"
                 onChange={(mode) => void switchRouting(mode)}
               />
               {currentMode === "rule" ||
@@ -1017,9 +1021,9 @@ export default function Connect() {
             {t("trafficStats")}
           </h2>
 
-          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-stretch gap-6 max-md:grid-cols-1 max-md:gap-4">
+          <div className="grid min-w-0 grid-cols-1 items-stretch gap-4 @min-[46rem]/connect:grid-cols-[auto_minmax(0,1fr)_auto] @min-[46rem]/connect:gap-6">
             {/* Desktop Speeds: 左右横排，橙色箭头，中间发丝分割线 */}
-            <div className="flex items-center gap-6 my-auto pr-2 max-md:hidden">
+            <div className="my-auto hidden items-center gap-6 pe-2 @min-[46rem]/connect:flex">
               {/* 下载速率 */}
               <div className="flex flex-col gap-1">
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -1077,7 +1081,7 @@ export default function Connect() {
             </div>
 
             {/* Mobile Speeds */}
-            <div className="hidden max-md:flex max-md:items-center max-md:justify-between max-md:gap-4">
+            <div className="flex items-center justify-between gap-4 @min-[46rem]/connect:hidden">
               <div className="flex flex-1 items-center gap-3">
                 <div
                   className="grid size-11 shrink-0 place-items-center rounded-full bg-success/10 text-success"
@@ -1152,7 +1156,7 @@ export default function Connect() {
             />
 
             {/* Desktop Totals & Quota: 本次累计与剩余配额 */}
-            <div className="flex min-w-[190px] flex-col justify-center gap-3.5 border-l border-border/80 pl-6 pr-1 max-md:hidden">
+            <div className="hidden min-w-0 flex-wrap items-start justify-between gap-3.5 border-t border-border/80 pt-3 md:flex @min-[46rem]/connect:min-w-[190px] @min-[46rem]/connect:flex-col @min-[46rem]/connect:justify-center @min-[46rem]/connect:border-s @min-[46rem]/connect:border-t-0 @min-[46rem]/connect:pe-1 @min-[46rem]/connect:ps-6 @min-[46rem]/connect:pt-0">
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs font-medium text-muted-foreground">
                   {t("sessionTotal")}
@@ -1319,47 +1323,26 @@ export default function Connect() {
                   ✕
                 </button>
               </header>
-              <div className="flex flex-col gap-2">
-                {takeoverOptions.map((option) => (
-                  <button
-                    type="button"
-                    key={option.value}
-                    className={cn(
-                      "flex w-full cursor-pointer items-center gap-3 rounded-control border border-border bg-card px-3.5 py-3 text-left text-foreground enabled:hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-55",
-                      takeover === option.value &&
-                        "border-transparent bg-brand-soft",
-                    )}
-                    disabled={pending || option.disabledReason !== undefined}
-                    title={option.disabledReason}
-                    onClick={() =>
-                      void run(() => setMode({ mode: option.value }), false)
-                    }
-                  >
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <b className="text-sm font-semibold">{option.label}</b>
-                      <span className="text-label text-muted-foreground">
+              <SegmentedControl
+                ariaLabel={t("takeoverMode")}
+                orientation="vertical"
+                className="flex w-full flex-col"
+                itemClassName="justify-start px-3 py-2 text-start whitespace-normal"
+                value={takeover}
+                disabled={pending}
+                onChange={(mode) => void run(() => setMode({ mode }), false)}
+                options={takeoverOptions.map((option) => ({
+                  ...option,
+                  label: (
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <strong>{option.label}</strong>
+                      <span className="text-label leading-snug">
                         {st(`takeover.${option.value}Desc` as const)}
                       </span>
                     </span>
-                    {takeover === option.value && (
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="16"
-                        height="16"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="shrink-0 text-brand-text"
-                        aria-hidden="true"
-                      >
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    )}
-                  </button>
-                ))}
-              </div>
+                  ),
+                }))}
+              />
             </div>
           </SheetContent>
         </Sheet>

@@ -161,7 +161,7 @@ export default function ControllerDetail({
   return (
     <div className="flex flex-col w-full gap-6">
       {/* 1. Unified Top Header */}
-      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
         <div className="flex items-start gap-4">
           <ResourceIcon
             kind="controller"
@@ -308,7 +308,7 @@ export default function ControllerDetail({
               </Button>
             </div>
 
-            <div className="grid gap-3 pt-2 text-xs sm:grid-cols-2">
+            <div className="grid gap-3 pt-2 text-xs @min-[34rem]/config-detail:grid-cols-2">
               <div className="flex items-center justify-between rounded-xl bg-inset/70 px-3.5 py-2.5">
                 <span className="text-muted-foreground">
                   {t("about.coreVersion")}
@@ -330,7 +330,7 @@ export default function ControllerDetail({
 
           {/* 3. Danger Zone Card (Bottom) */}
           {controller.id !== DAEMON_CONTROLLER_ID && (
-            <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
               <div>
                 <h3 className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
                   <Trash2 className="size-4" />

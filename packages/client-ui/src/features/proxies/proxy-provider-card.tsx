@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Icon } from "@/components/icon-font";
-import { Tag } from "@/components/tag";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -67,7 +67,7 @@ export function Provider(props: ProvidersProps) {
       <div className="flex flex-col justify-between md:flex-row md:items-center">
         <div className="flex items-center">
           <span className="mr-6">{provider.name}</span>
-          <Tag>{provider.vehicleType}</Tag>
+          <Badge variant="secondary">{provider.vehicleType}</Badge>
         </div>
         <div className="flex items-center pt-3 md:pt-0">
           {provider.updatedAt && (

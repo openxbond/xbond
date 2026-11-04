@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { StrategyChoice, StrategyPath } from "@/components/proxy-strategy";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 import { useLatency } from "./latency-context";
@@ -168,9 +169,7 @@ export function Group({
             <h3 className="m-0 text-base font-semibold text-foreground">
               {config.name}
             </h3>
-            <span className="rounded-full bg-inset px-1.5 py-px text-label font-semibold text-muted-foreground">
-              {config.type}
-            </span>
+            <Badge variant="secondary">{config.type}</Badge>
             <span className="text-label text-muted-foreground">
               {t("groupMembers", { count: config.all.length })}
             </span>

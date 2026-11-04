@@ -4,14 +4,15 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import useSWR from "swr";
 
-import { ButtonSelect } from "@/components/button-select";
 import { CopyIconButton } from "@/components/copy-button";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/page-header";
 import { RequestStatus } from "@/components/request-status";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCapabilities } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
 
@@ -360,7 +361,7 @@ function RuleBrowser({ local }: { local: ReturnType<typeof useLocalAPI> }) {
 }
 
 export default function Rules() {
-  const { t } = useTranslation("rules");
+  const { t, i18n } = useTranslation("rules");
   const local = useLocalAPI();
   const { mixin } = useGlobalMixin();
   const [params, setParams] = useSearchParams();
@@ -374,41 +375,42 @@ export default function Rules() {
     (mixin.rulesPrepend?.length ?? 0) +
     (mixin.rulesAppend?.length ?? 0) +
     (mixin.dns ? 1 : 0);
-  const options: { label: string; value: string }[] = [
-    { label: t("tabActive"), value: "rules" },
-    { label: t("providerTitle"), value: "providers" },
-  ];
-  if (local.isLocalTarget)
-    options.push({
-      label:
-        mixinCount > 0
-          ? t("tabMixin") + " (" + mixinCount + ")"
-          : t("tabMixin"),
-      value: "mixin",
-    });
 
   return (
-    <div className="page">
+    <Tabs
+      value={tab}
+      dir={i18n.dir()}
+      activationMode="manual"
+      className="page"
+      onValueChange={(nextTab) => {
+        const next = new URLSearchParams(params);
+        if (nextTab === "rules") next.delete("tab");
+        else next.set("tab", nextTab);
+        setParams(next);
+      }}
+    >
       <Header title={t("title")} />
-      <div className="flex items-start">
-        <ButtonSelect
-          value={tab}
-          options={options}
-          onSelect={(nextTab) => {
-            const next = new URLSearchParams(params);
-            if (nextTab === "rules") next.delete("tab");
-            else next.set("tab", nextTab);
-            setParams(next);
-          }}
-        />
-      </div>
-      {tab === "providers" ? (
-        <RuleProviders />
-      ) : tab === "mixin" ? (
-        <GlobalMixinPanel />
-      ) : (
+      <TabsList aria-label={t("title")} className="max-md:w-full">
+        <TabsTrigger value="rules">{t("tabActive")}</TabsTrigger>
+        <TabsTrigger value="providers">{t("providerTitle")}</TabsTrigger>
+        {local.isLocalTarget && (
+          <TabsTrigger value="mixin">
+            {t("tabMixin")}
+            {mixinCount > 0 && <Badge variant="secondary">{mixinCount}</Badge>}
+          </TabsTrigger>
+        )}
+      </TabsList>
+      <TabsContent value="rules">
         <RuleBrowser local={local} />
+      </TabsContent>
+      <TabsContent value="providers">
+        <RuleProviders />
+      </TabsContent>
+      {local.isLocalTarget && (
+        <TabsContent value="mixin">
+          <GlobalMixinPanel />
+        </TabsContent>
       )}
-    </div>
+    </Tabs>
   );
 }

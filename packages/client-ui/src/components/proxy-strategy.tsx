@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 import { renderNodeTitle } from "./country-flag";
@@ -59,11 +60,7 @@ export function StrategyDirectory({
             >
               {renderNodeTitle(item.name)}
             </strong>
-            {item.kind && (
-              <span className="shrink-0 rounded-full bg-inset px-1.5 py-px text-label font-medium text-muted-foreground">
-                {item.kind}
-              </span>
-            )}
+            {item.kind && <Badge variant="secondary">{item.kind}</Badge>}
           </span>
           <span className="mt-1 flex items-center justify-between gap-1.5 text-xs text-muted-foreground">
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">

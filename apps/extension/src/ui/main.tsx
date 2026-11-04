@@ -16,7 +16,7 @@ import {
   Input,
   NativeSelect,
   NativeSelectOption,
-  ButtonSelect,
+  SegmentedControl,
   Switch,
   XBondIcon,
   QuotaRing,
@@ -184,11 +184,12 @@ function Modes({
       </>
     );
   return (
-    <ButtonSelect<RoutingMode>
+    <SegmentedControl<RoutingMode>
+      ariaLabel={t("mode")}
       value={model.mode}
       disabled={disabled}
       options={options}
-      onSelect={(mode) => void controller.act({ type: "set-mode", mode })}
+      onChange={(mode) => void controller.act({ type: "set-mode", mode })}
     />
   );
 }
@@ -1271,9 +1272,9 @@ function Logs({ context }: { context: Context }) {
               <tr key={`${index}:${event.at}`}>
                 <td>{new Date(event.at).toLocaleTimeString()}</td>
                 <td>
-                  <span
+                  <Badge
+                    variant="secondary"
                     className={cn(
-                      badgeClass,
                       event.level === "error"
                         ? "text-destructive-text"
                         : event.level === "warn"
@@ -1282,7 +1283,7 @@ function Logs({ context }: { context: Context }) {
                     )}
                   >
                     {t(event.level)}
-                  </span>
+                  </Badge>
                 </td>
                 <td>{event.message}</td>
               </tr>

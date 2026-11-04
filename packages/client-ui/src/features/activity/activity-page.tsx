@@ -7,15 +7,15 @@ import { Link, useSearchParams } from "react-router-dom";
 
 import { Header } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
-import { cn } from "@/lib/utils";
 import { useCapabilities } from "@/state/core-settings";
 
 import Connections from "./connections/connections-page";
 import Logs from "./logs/logs-page";
 
 export default function Activity() {
-  const { t: sb } = useTranslation("sidebar");
+  const { t: sb, i18n } = useTranslation("sidebar");
   const { t: r } = useTranslation("runtime");
   const { t: ov } = useTranslation("overview");
   const caps = useCapabilities();
@@ -61,7 +61,12 @@ export default function Activity() {
     );
   }
   return (
-    <div className="page gap-[22px]">
+    <Tabs
+      value={activeTab}
+      onValueChange={select}
+      dir={i18n.dir()}
+      className="page gap-[22px]"
+    >
       <Header title={sb("activity")}>
         <output>{r(state)}</output>
       </Header>
@@ -103,49 +108,10 @@ export default function Activity() {
           </div>
         )}
       </dl>
-      <div
-        className="flex max-md:w-full w-fit gap-1 rounded-xl border border-border bg-inset p-1"
-        role="tablist"
-        aria-label={sb("activity")}
-      >
-        {(["logs", "connections"] as const).map((view) => (
-          <button
-            type="button"
-            key={view}
-            id={"tab-" + view}
-            role="tab"
-            aria-controls={"panel-" + view}
-            aria-selected={activeTab === view}
-            tabIndex={activeTab === view ? 0 : -1}
-            className={cn(
-              "rounded-lg px-[22px] py-2 text-body font-medium transition-colors duration-150 max-md:min-h-11 max-md:flex-1 motion-reduce:transition-none",
-              activeTab === view
-                ? "bg-brand font-semibold text-brand-foreground shadow-brand"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            onClick={() => select(view)}
-            onKeyDown={(event) => {
-              if (
-                ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-              ) {
-                event.preventDefault();
-                const next =
-                  event.key === "Home"
-                    ? "logs"
-                    : event.key === "End"
-                      ? "connections"
-                      : view === "logs"
-                        ? "connections"
-                        : "logs";
-                select(next);
-                document.getElementById("tab-" + next)?.focus();
-              }
-            }}
-          >
-            {sb(view === "logs" ? "logs" : "connections")}
-          </button>
-        ))}
-      </div>
+      <TabsList aria-label={sb("activity")} className="max-md:w-full">
+        <TabsTrigger value="logs">{sb("logs")}</TabsTrigger>
+        <TabsTrigger value="connections">{sb("connections")}</TabsTrigger>
+      </TabsList>
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm">
           <Link to="/rules">{sb("rules")}</Link>
@@ -155,23 +121,17 @@ export default function Activity() {
         </Button>
       </div>
       <div className="min-w-0 w-full min-h-0 flex-1 [&_[role=tabpanel]]:h-full [&_.page]:p-0 [&_.page]:gap-3 [&_.page]:h-full [&_.page]:min-h-0 [&_.header]:m-0 [&_.header]:flex-wrap [&_.header]:gap-3 [&_.header_h1]:text-base [&_.connections-filter]:max-md:ml-0 [&_.connections-card]:max-md:min-h-[360px] [&_.log-table]:overflow-hidden [&_.log-table]:rounded-xl">
-        <div
-          id="panel-logs"
-          role="tabpanel"
-          aria-labelledby="tab-logs"
-          hidden={activeTab !== "logs"}
-        >
+        <TabsContent value="logs" forceMount hidden={activeTab !== "logs"}>
           <Logs />
-        </div>
-        <div
-          id="panel-connections"
-          role="tabpanel"
-          aria-labelledby="tab-connections"
+        </TabsContent>
+        <TabsContent
+          value="connections"
+          forceMount
           hidden={activeTab !== "connections"}
         >
           <Connections />
-        </div>
+        </TabsContent>
       </div>
-    </div>
+    </Tabs>
   );
 }

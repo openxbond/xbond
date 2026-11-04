@@ -3,12 +3,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { ButtonSelect } from "@/components/button-select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useLocalAPI } from "@/state/local-runtime";
 import { useLanguage } from "@/state/user-preferences";
@@ -21,7 +21,7 @@ export default function ImportConfig({
 }: {
   onAdded: (id: string) => void;
 }) {
-  const { t } = useTranslation("onboarding");
+  const { t, i18n } = useTranslation("onboarding");
   const { t: c } = useTranslation("configuration");
   const { t: s } = useTranslation("subscriptions");
   const { lang } = useLanguage();
@@ -91,81 +91,94 @@ export default function ImportConfig({
         aria-label={c("addProfile")}
       >
         <FieldGroup className="gap-5">
-          <ButtonSelect<"url" | "file" | "paste">
+          <Tabs
             value={mode}
-            options={[
-              { value: "url", label: t("modeUrl") },
-              { value: "file", label: t("modeFile") },
-              { value: "paste", label: t("modePaste") },
-            ]}
-            onSelect={(value) => {
-              setMode(value);
-              setError("");
+            dir={i18n.dir()}
+            activationMode="manual"
+            className="gap-5"
+            onValueChange={(value) => {
+              if (value === "url" || value === "file" || value === "paste") {
+                setMode(value);
+                setError("");
+              }
             }}
-            disabled={pending}
-          />
-          <Field className="gap-2" data-disabled={pending}>
-            <FieldLabel htmlFor="import-name">
-              {s("namePlaceholder")}
-            </FieldLabel>
-            <Input
-              id="import-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={pending}
-            />
-          </Field>
-          {mode === "url" && (
+          >
+            <TabsList aria-label={c("addProfile")} className="max-md:w-full">
+              <TabsTrigger value="url" disabled={pending}>
+                {t("modeUrl")}
+              </TabsTrigger>
+              <TabsTrigger value="file" disabled={pending}>
+                {t("modeFile")}
+              </TabsTrigger>
+              <TabsTrigger value="paste" disabled={pending}>
+                {t("modePaste")}
+              </TabsTrigger>
+            </TabsList>
             <Field className="gap-2" data-disabled={pending}>
-              <FieldLabel htmlFor="import-url">
-                {t("urlPlaceholder")}
+              <FieldLabel htmlFor="import-name">
+                {s("namePlaceholder")}
               </FieldLabel>
               <Input
-                id="import-url"
-                type="url"
-                required
-                value={url}
-                onChange={(e) => setURL(e.target.value)}
-                placeholder="https://"
+                id="import-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 disabled={pending}
               />
             </Field>
-          )}
-          {mode === "file" && (
-            <Field className="gap-2" data-disabled={pending}>
-              <FieldLabel htmlFor="import-file">{t("chooseFile")}</FieldLabel>
-              <Input
-                id="import-file"
-                type="file"
-                accept=".json,.yaml,.yml,.conf,.txt"
-                required
-                disabled={pending}
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-            </Field>
-          )}
-          {mode === "url" && (
-            <UpdateFrequency
-              value={updateIntervalHours}
-              onChange={setUpdateIntervalHours}
-              disabled={pending}
-            />
-          )}
-          {mode === "paste" && (
-            <Field className="gap-2" data-disabled={pending}>
-              <FieldLabel htmlFor="import-content">{t("modePaste")}</FieldLabel>
-              <Textarea
-                id="import-content"
-                className="font-mono"
-                rows={12}
-                required
-                value={content}
-                disabled={pending}
-                onChange={(e) => setContent(e.target.value)}
-                spellCheck={false}
-              />
-            </Field>
-          )}
+            <TabsContent value="url">
+              <FieldGroup className="gap-5">
+                <Field className="gap-2" data-disabled={pending}>
+                  <FieldLabel htmlFor="import-url">
+                    {t("urlPlaceholder")}
+                  </FieldLabel>
+                  <Input
+                    id="import-url"
+                    type="url"
+                    required
+                    value={url}
+                    onChange={(e) => setURL(e.target.value)}
+                    placeholder="https://"
+                    disabled={pending}
+                  />
+                </Field>
+                <UpdateFrequency
+                  value={updateIntervalHours}
+                  onChange={setUpdateIntervalHours}
+                  disabled={pending}
+                />
+              </FieldGroup>
+            </TabsContent>
+            <TabsContent value="file">
+              <Field className="gap-2" data-disabled={pending}>
+                <FieldLabel htmlFor="import-file">{t("chooseFile")}</FieldLabel>
+                <Input
+                  id="import-file"
+                  type="file"
+                  accept=".json,.yaml,.yml,.conf,.txt"
+                  required
+                  disabled={pending}
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+              </Field>
+            </TabsContent>
+            <TabsContent value="paste">
+              <Field className="gap-2" data-disabled={pending}>
+                <FieldLabel htmlFor="import-content">
+                  {t("modePaste")}
+                </FieldLabel>
+                <Textarea
+                  id="import-content"
+                  className="font-mono"
+                  rows={12}
+                  required
+                  value={content}
+                  disabled={pending}
+                  onChange={(e) => setContent(e.target.value)}
+                  spellCheck={false}
+                />
+              </Field>
+            </TabsContent>
+          </Tabs>
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

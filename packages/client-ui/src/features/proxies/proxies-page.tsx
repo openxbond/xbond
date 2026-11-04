@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/page-header";
 import { StrategyDirectory } from "@/components/proxy-strategy";
 import { RequestStatus } from "@/components/request-status";
+import { SegmentedControl } from "@/components/segmented-control";
 import { Button } from "@/components/ui/button";
 import {
   NativeSelect,
@@ -58,7 +59,7 @@ function ProxyGroups() {
       <div className="section-heading mb-3.5">
         <h2>{t("groups")}</h2>
       </div>
-      <label className="hidden max-md:mb-4 max-md:flex max-md:flex-col max-md:gap-2 max-md:text-body">
+      <label className="mb-4 flex flex-col gap-2 text-body md:@min-[44rem]/proxies:hidden">
         {t("groups")}
         <NativeSelect
           wrapperClassName="w-full"
@@ -73,8 +74,9 @@ function ProxyGroups() {
           ))}
         </NativeSelect>
       </label>
-      <div className="grid grid-cols-[250px_minmax(0,1fr)] h-[calc(100vh-210px)] min-h-[460px] overflow-hidden rounded-card border border-border bg-card shadow-elevation-card max-md:flex max-md:flex-col max-md:h-auto">
+      <div className="flex min-h-[460px] flex-col overflow-hidden rounded-card border border-border bg-card shadow-elevation-card md:@min-[44rem]/proxies:grid md:@min-[44rem]/proxies:h-[calc(100vh-210px)] md:@min-[44rem]/proxies:grid-cols-[250px_minmax(0,1fr)]">
         <StrategyDirectory
+          className="hidden md:@min-[44rem]/proxies:flex"
           label={t("groups")}
           value={selected.name}
           onSelect={select}
@@ -85,7 +87,7 @@ function ProxyGroups() {
             kind: group.type,
           }))}
         />
-        <div className="min-w-0 h-full min-h-0 overflow-y-auto bg-card md:overflow-hidden">
+        <div className="min-w-0 h-full min-h-0 overflow-y-auto bg-card md:@min-[44rem]/proxies:overflow-hidden">
           <Group
             key={selected.name}
             config={selected}
@@ -157,6 +159,16 @@ function ProxyPage() {
       : general.mode
     )?.toLowerCase() || "rule";
 
+  const routingOptions = (["rule", "global", "direct"] as const).map(
+    (mode) => ({
+      value: mode,
+      label: tc(`routingMode.${mode}`),
+    }),
+  );
+  const routingValue = routingOptions.find(
+    (option) => option.value === currentRouting,
+  )?.value;
+
   const switchRouting = async (mode: "rule" | "global" | "direct") => {
     if (hasLocalAPI) {
       await setMode({ routing: mode });
@@ -176,7 +188,7 @@ function ProxyPage() {
     .map((proxy) => proxy.name);
   return (
     <SearchContext value={search}>
-      <div className="page gap-5 max-md:pb-[84px]">
+      <div className="page @container/proxies gap-5 max-md:pb-[84px]">
         <Header title={t("title")} />
         <div className="rounded-card border border-border bg-card px-5 py-4 shadow-elevation-card">
           <div className="flex flex-wrap items-center justify-between gap-4 max-md:flex-col max-md:items-stretch max-md:gap-3">
@@ -293,21 +305,14 @@ function ProxyPage() {
             </div>
 
             <div className="ml-auto flex shrink-0 items-center max-md:ml-0 max-md:w-full">
-              <div
-                className="segmented-control max-md:flex max-md:w-full max-md:[&>button]:flex-1 max-md:[&>button]:px-1 max-md:[&>button]:py-2 max-md:[&>button]:text-center max-md:[&>button]:text-body max-md:[&>button]:whitespace-nowrap"
-                aria-label={tc("routingMode.title")}
-              >
-                {(["rule", "global", "direct"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    aria-pressed={currentRouting === mode}
-                    onClick={() => void switchRouting(mode)}
-                  >
-                    {tc(`routingMode.${mode}`)}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                ariaLabel={tc("routingMode.title")}
+                value={routingValue}
+                className="max-md:w-full"
+                itemClassName="max-md:flex-1"
+                options={routingOptions}
+                onChange={(mode) => void switchRouting(mode)}
+              />
             </div>
           </div>
         </div>

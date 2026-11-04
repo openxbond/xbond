@@ -1,6 +1,6 @@
 export { XBondIcon } from "./xbond-icon";
 export { Button } from "./ui/button";
-export { ButtonSelect } from "./button-select";
+export { SegmentedControl } from "./segmented-control";
 export { Switch } from "./ui/switch";
 export { QuotaRing } from "./quota-ring";
 export { EmptyState } from "./empty-state";

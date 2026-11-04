@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { Header } from "@/components/page-header";
 import { RequestStatus } from "@/components/request-status";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
 import { useAPIInfo } from "@/state/controller-target";
@@ -131,9 +132,7 @@ export default function Overview() {
         <div className="flex items-center justify-between gap-3 text-xs tabular-nums text-muted-foreground">
           <span>{formatTraffic(max)}/s</span>
           {state !== "open" && history.length > 0 && (
-            <span className="rounded-full bg-inset px-2 py-0.5 text-label">
-              {t("streamStopped")}
-            </span>
+            <Badge variant="secondary">{t("streamStopped")}</Badge>
           )}
         </div>
         {history.length ? (

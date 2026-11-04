@@ -2,7 +2,7 @@ import { type RuleProvider } from "@xbond/client/request";
 import { useTranslation } from "react-i18next";
 
 import { Icon } from "@/components/icon-font";
-import { Tag } from "@/components/tag";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAction } from "@/hooks/use-action";
@@ -40,8 +40,8 @@ export function Provider(props: ProvidersProps) {
           <span className="rule-provider-name mr-1.5 w-[120px] overflow-hidden text-ellipsis whitespace-nowrap">
             {provider.name}
           </span>
-          <Tag>{provider.vehicleType}</Tag>
-          <Tag>{provider.behavior}</Tag>
+          <Badge variant="secondary">{provider.vehicleType}</Badge>
+          <Badge variant="secondary">{provider.behavior}</Badge>
           <span className="rule-provider-update text-body leading-[14px] text-muted-foreground tabular-nums">{`${t("ruleCount")}: ${provider.ruleCount}`}</span>
         </div>
         <div className="rule-provider-header-part flex items-center max-md:my-1.5">

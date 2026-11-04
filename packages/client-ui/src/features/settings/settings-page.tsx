@@ -17,8 +17,8 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import { ButtonSelect } from "@/components/button-select";
 import { Header } from "@/components/page-header";
+import { SegmentedControl } from "@/components/segmented-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { XBondIcon } from "@/components/xbond-icon";
 import { useAction } from "@/hooks/use-action";
 import type { Lang } from "@/i18n/instance";
@@ -112,7 +112,7 @@ function SettingRow({
 
 export default function Settings() {
   const { lang, setLang } = useLanguage();
-  const { t } = useTranslation("settings");
+  const { t, i18n } = useTranslation("settings");
   const { t: tc } = useTranslation("common");
   const { t: c } = useTranslation("connect");
   const navigate = useNavigate();
@@ -222,14 +222,15 @@ export default function Settings() {
           <CardContent className="flex flex-col gap-1 divide-y divide-border/40 [&>*:not(:first-child)]:pt-3.5">
             {/* Theme */}
             <SettingRow title={t("theme")} description={t("themeDesc")}>
-              <ButtonSelect<ThemePreference>
+              <SegmentedControl<ThemePreference>
+                ariaLabel={t("theme")}
                 value={theme ?? "system"}
                 options={[
                   { value: "system", label: t("system") },
                   { value: "light", label: t("light") },
                   { value: "dark", label: t("dark") },
                 ]}
-                onSelect={setTheme}
+                onChange={setTheme}
               />
             </SettingRow>
 
@@ -341,45 +342,33 @@ export default function Settings() {
                 <strong className="text-body font-semibold text-foreground">
                   {t("takeover.title")}
                 </strong>
-                <ToggleGroup
-                  type="single"
-                  aria-label={t("takeover.title")}
-                  value={status?.preferences.takeoverMode ?? ""}
-                  spacing={2}
+                <SegmentedControl
+                  ariaLabel={t("takeover.title")}
+                  value={status?.preferences.takeoverMode}
                   disabled={pending}
                   className="grid w-full grid-cols-3"
-                  onValueChange={(value) => {
-                    const mode = takeoverModes.find((item) => item === value);
-                    if (mode) void run(() => setMode({ mode }));
-                  }}
-                >
-                  {takeoverModes.map((mode) => {
+                  itemClassName="flex-col items-start justify-start gap-1 px-2 text-start whitespace-normal"
+                  onChange={(mode) => void run(() => setMode({ mode }))}
+                  options={takeoverModes.map((mode) => {
                     const tunUnavailable =
-                      mode === "tun" &&
-                      !!status?.capabilities &&
-                      !status.capabilities.tun;
-                    return (
-                      <ToggleGroupItem
-                        key={mode}
-                        value={mode}
-                        className="h-full flex-col items-start justify-start gap-1 rounded-control border border-border bg-inset p-3 text-start whitespace-normal text-foreground hover:bg-row-hover data-[state=on]:border-brand/40 data-[state=on]:bg-brand-soft"
-                        disabled={tunUnavailable}
-                        title={
-                          tunUnavailable
-                            ? status?.capabilities?.tunReason
-                            : undefined
-                        }
-                      >
-                        <strong className="text-body font-semibold">
-                          {c(mode)}
-                        </strong>
-                        <span className="text-label leading-[1.3] text-muted-foreground">
-                          {t(`takeover.${mode}Desc` as const)}
-                        </span>
-                      </ToggleGroupItem>
-                    );
+                      mode === "tun" && status?.capabilities?.tun === false;
+                    return {
+                      value: mode,
+                      disabled: tunUnavailable,
+                      disabledReason: tunUnavailable
+                        ? status?.capabilities?.tunReason
+                        : undefined,
+                      label: (
+                        <>
+                          <strong>{c(mode)}</strong>
+                          <span className="text-label leading-snug">
+                            {t(`takeover.${mode}Desc` as const)}
+                          </span>
+                        </>
+                      ),
+                    };
                   })}
-                </ToggleGroup>
+                />
                 {!status?.capabilities?.tun &&
                   status?.capabilities?.tunReasonCode && (
                     <p className="mt-1 text-sm text-warning-text">
@@ -406,19 +395,19 @@ export default function Settings() {
                       {t("takeover.mixedPort")}
                     </strong>
                     {status?.preferences.portOverride ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-brand/20 bg-brand-soft px-2 py-0.5 text-label font-medium text-brand-text">
+                      <Badge variant="brand">
                         <span className="size-1.5 rounded-full bg-brand" />
                         {t("takeover.portNoteOverride", {
                           port: status.preferences.portOverride,
                         })}
-                      </span>
+                      </Badge>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-border bg-inset px-2 py-0.5 text-label font-medium text-muted-foreground">
+                      <Badge variant="secondary">
                         <span className="size-1.5 rounded-full bg-muted-foreground/50" />
                         {status?.preferences.portSource === "subscription"
                           ? t("takeover.portNoteSubscription")
                           : t("takeover.portNoteDefault")}
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground leading-relaxed max-w-xl">
@@ -534,9 +523,22 @@ export default function Settings() {
             </SettingRow>
 
             {/* Terminal Commands Widget */}
-            <div className="-mx-3 flex flex-col gap-3 rounded-xl p-3 transition-colors duration-150 hover:bg-row-hover/50">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-                <div className="flex min-w-0 flex-col gap-1">
+            <Tabs
+              value={terminalFormat}
+              dir={i18n.dir()}
+              activationMode="manual"
+              onValueChange={(value) => {
+                if (
+                  value === "powershell" ||
+                  value === "cmd" ||
+                  value === "bash"
+                )
+                  setTerminalFormat(value);
+              }}
+              className="-mx-3 gap-3 rounded-xl p-3 transition-colors duration-150 hover:bg-row-hover/50"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-1 basis-56 flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <Terminal
                       className="size-4 text-brand shrink-0"
@@ -551,16 +553,12 @@ export default function Settings() {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <ButtonSelect<TerminalFormat>
-                    value={terminalFormat}
-                    options={[
-                      { value: "powershell", label: "PowerShell" },
-                      { value: "cmd", label: "CMD" },
-                      { value: "bash", label: "Bash / Zsh" },
-                    ]}
-                    onSelect={setTerminalFormat}
-                  />
+                <div className="flex max-w-full flex-wrap items-center gap-2">
+                  <TabsList aria-label={t("terminalCommand")}>
+                    <TabsTrigger value="powershell">PowerShell</TabsTrigger>
+                    <TabsTrigger value="cmd">CMD</TabsTrigger>
+                    <TabsTrigger value="bash">Bash / Zsh</TabsTrigger>
+                  </TabsList>
                   <Button
                     variant="outline"
                     size="sm"
@@ -584,13 +582,18 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* Code Surface */}
-              <div className="relative flex items-center justify-between rounded-xl border border-border bg-inset p-3.5 shadow-inner">
-                <code className="block w-full select-all break-all font-mono text-xs text-foreground tracking-tight">
-                  {terminalCommands[terminalFormat]}
-                </code>
-              </div>
-            </div>
+              {(["powershell", "cmd", "bash"] as const).map((format) => (
+                <TabsContent
+                  key={format}
+                  value={format}
+                  className="rounded-xl border border-border bg-inset p-3.5 shadow-inner"
+                >
+                  <code className="block w-full select-all break-all font-mono text-xs text-foreground tracking-tight">
+                    {terminalCommands[format]}
+                  </code>
+                </TabsContent>
+              ))}
+            </Tabs>
           </CardContent>
         </Card>
 
@@ -619,7 +622,8 @@ export default function Settings() {
               title={t("about.logLevel")}
               description={t("advancedActions.logLevelDesc")}
             >
-              <ButtonSelect<string>
+              <SegmentedControl
+                ariaLabel={t("about.logLevel")}
                 value={general.logLevel || "info"}
                 disabled={pending}
                 options={[
@@ -629,7 +633,7 @@ export default function Settings() {
                   { value: "error", label: "Error" },
                   { value: "silent", label: "Silent" },
                 ]}
-                onSelect={(level) =>
+                onChange={(level) =>
                   void run(async () => {
                     await client.updateConfig({ "log-level": level });
                     await update();

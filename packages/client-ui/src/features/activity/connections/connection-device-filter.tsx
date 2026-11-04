@@ -1,52 +1,38 @@
 import { useTranslation } from "react-i18next";
 
-import { type BaseComponentProps } from "@/components/component-props";
-import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/segmented-control";
+import { Badge } from "@/components/ui/badge";
 
-interface DevicesProps extends BaseComponentProps {
+interface DevicesProps {
   devices: Array<{ label: string; number: number }>;
   selected: string;
-  onChange?: (label: string) => void;
+  onChange: (label: string) => void;
 }
 
-export function Devices(props: DevicesProps) {
+export function Devices({ devices, selected, onChange }: DevicesProps) {
   const { t } = useTranslation("connections");
 
-  const { className, style } = props;
-  function handleSelected(label: string) {
-    props.onChange?.(label);
-  }
-  // Selected chips keep their brand colors on hover — the base hover styles
-  // only apply to unselected ones, matching the old cascade order.
-  const itemClass = (selected: boolean) =>
-    cn(
-      "connections-devices-item mb-2 mr-2 cursor-pointer rounded-full border bg-inset px-3 py-1 max-md:min-h-11 max-md:px-4 text-label leading-[18px] tabular-nums transition-colors duration-[120ms]",
-      selected
-        ? "border-brand bg-brand-soft font-medium text-brand-text"
-        : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
-    );
-
   return (
-    <div className={cn("flex flex-wrap px-1", className)} style={style}>
-      <button
-        type="button"
-        className={itemClass(props.selected === "")}
-        aria-pressed={props.selected === ""}
-        onClick={() => handleSelected("")}
-      >
-        {t("filterAll")}
-      </button>
-      {props.devices.map((device) => (
-        <button
-          type="button"
-          key={device.label}
-          className={itemClass(props.selected === device.label)}
-          aria-pressed={props.selected === device.label}
-          onClick={() => handleSelected(device.label)}
-        >
-          {device.label} ({device.number})
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      ariaLabel={t("columns.sourceIP")}
+      value={selected ? "device:" + selected : "all"}
+      onChange={(value) =>
+        onChange(value === "all" ? "" : value.slice("device:".length))
+      }
+      options={[
+        { value: "all", label: t("filterAll") },
+        ...devices.map((device) => ({
+          value: "device:" + device.label,
+          label: (
+            <>
+              {device.label}
+              <Badge variant="secondary" className="tabular-nums">
+                {device.number}
+              </Badge>
+            </>
+          ),
+        })),
+      ]}
+    />
   );
 }

@@ -417,14 +417,12 @@ export default function Config() {
           )}
         </div>
         <div className="config-detail" key={selected}>
-          <Button
-            variant="ghost"
-            className="mb-5 md:hidden"
-            onClick={() => choose()}
-          >
-            <ArrowLeft className="size-4" />
-            {t("back")}
-          </Button>
+          <div className="config-back">
+            <Button variant="ghost" className="mb-5" onClick={() => choose()}>
+              <ArrowLeft className="size-4" />
+              {t("back")}
+            </Button>
+          </div>
           <fieldset
             className="min-w-0"
             disabled={

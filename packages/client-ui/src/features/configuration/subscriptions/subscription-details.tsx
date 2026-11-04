@@ -21,10 +21,10 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { ButtonSelect } from "@/components/button-select";
 import { CopyButton } from "@/components/copy-button";
 import { QuotaRing } from "@/components/quota-ring";
 import { RequestStatus } from "@/components/request-status";
+import { SegmentedControl } from "@/components/segmented-control";
 import { Stat } from "@/components/stat";
 import {
   AlertDialog,
@@ -237,7 +237,7 @@ export default function SubscriptionDetail({
       <RequestStatus error={subError} retry={refreshSubs} />
 
       {/* 1. Header Banner & Identity */}
-      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
         <div className="flex items-start gap-4">
           <ResourceIcon
             kind={sub.format || "local"}
@@ -373,7 +373,7 @@ export default function SubscriptionDetail({
 
       {/* Source pinned notice (user edited raw config locally) */}
       {sub.sourcePinned && (
-        <div className="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
           <div className="flex items-center gap-2.5 text-sm">
             <AlertCircle className="size-4 shrink-0 text-warning-text" />
             <span className="text-warning-text">{t("sourceEditHint")}</span>
@@ -396,7 +396,7 @@ export default function SubscriptionDetail({
         <h3 className="mb-4 text-sm font-semibold text-foreground">
           {c("quota.title")}
         </h3>
-        <div className="grid gap-5 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 @min-[34rem]/config-detail:grid-cols-[auto_minmax(10rem,1fr)_auto] @min-[34rem]/config-detail:items-center">
           {quota ? (
             <>
               <QuotaRing percent={quota.remainingPercent} />
@@ -436,9 +436,9 @@ export default function SubscriptionDetail({
             </div>
           )}
 
-          <div className="flex flex-col gap-2.5 border-t border-border pt-4 text-xs sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6">
+          <div className="col-span-full flex min-w-0 flex-col gap-2.5 border-t border-border pt-4 text-xs @min-[34rem]/config-detail:col-span-1 @min-[34rem]/config-detail:border-t-0 @min-[34rem]/config-detail:border-s @min-[34rem]/config-detail:pt-0 @min-[34rem]/config-detail:ps-6">
             {sub.expire > 0 && (
-              <div className="flex items-center justify-between gap-4 sm:justify-start">
+              <div className="flex items-center justify-between gap-3 @min-[34rem]/config-detail:justify-start">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                   <Calendar className="size-3.5" />
                   {c("expiry")}
@@ -450,7 +450,7 @@ export default function SubscriptionDetail({
                 </span>
               </div>
             )}
-            <div className="flex items-center justify-between gap-4 sm:justify-start">
+            <div className="flex items-center justify-between gap-3 @min-[34rem]/config-detail:justify-start">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="size-3.5" />
                 {t("updated")}
@@ -522,9 +522,10 @@ export default function SubscriptionDetail({
             )}
 
             {/* Update Channel Selector */}
-            <div className="flex flex-col gap-2 border-t border-border/60 pt-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 border-t border-border/60 pt-3 text-xs @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
               <span className="text-muted-foreground">{t("channelTitle")}</span>
-              <ButtonSelect<"direct" | "self" | "proxy">
+              <SegmentedControl<"direct" | "self" | "proxy">
+                ariaLabel={t("channelTitle")}
                 value={sub.updateChannel || "direct"}
                 disabled={pending || Boolean(operation)}
                 options={[
@@ -532,7 +533,7 @@ export default function SubscriptionDetail({
                   { label: t("channelSelf"), value: "self" },
                   { label: t("channelProxy"), value: "proxy" },
                 ]}
-                onSelect={(channel) => selectChannel(sub.id, channel)}
+                onChange={(channel) => selectChannel(sub.id, channel)}
               />
             </div>
           </>
@@ -576,7 +577,7 @@ export default function SubscriptionDetail({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-3">
           {/* Source Editor */}
           <div className="flex flex-col justify-between rounded-xl bg-inset/60 p-4 transition-colors hover:bg-inset">
             <div>
@@ -652,7 +653,7 @@ export default function SubscriptionDetail({
       </div>
 
       {/* 5. Danger Zone */}
-      <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
         <div>
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
             <Trash2 className="size-4" />
