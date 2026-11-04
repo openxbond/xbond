@@ -22,9 +22,7 @@ import Settings from "@/features/settings/settings-page";
 import { cn } from "@/lib/utils";
 import { isClashX } from "@/platform/clashx-bridge";
 import { useDesktopShell } from "@/platform/desktop-shell";
-import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
 import { identityAtom, useAPIInfo } from "@/state/controller-target";
-import { useLocalAPI } from "@/state/local-runtime";
 import { useTheme } from "@/state/user-preferences";
 
 import SideBar from "./navigation/app-navigation";
@@ -42,7 +40,6 @@ export default function App() {
   // Desktop shell: anti-flash reveal, deep-link drain, clipboard sniffing.
   useDesktopShell();
 
-  const { status } = useLocalAPI();
   const [identity, setIdentity] = useAtom(identityAtom);
   const target = useAPIInfo();
   const location = useLocation();
@@ -54,8 +51,7 @@ export default function App() {
     contentRef.current?.scrollTo({ top: 0, behavior: "instant" });
   }, [location.pathname]);
 
-  const initialPage =
-    hasDaemonConfig() && status?.activeSub ? "/connect" : "/config";
+  const initialPage = "/connect";
   // Pages ask for controller management by clearing the identity flag; send
   // them to the matching detail instead of reviving the removed modal.
   useEffect(() => {
