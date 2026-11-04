@@ -15,13 +15,13 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { cliAsset, releaseVersion } from "./release-version.ts";
+
 const [tag, releaseOS, arch, cliDirectory, outputDirectory] =
   process.argv.slice(2);
+const { version } = releaseVersion(tag);
 const os = releaseOS === "windows" ? "win32" : releaseOS;
-const versionPattern = /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 if (
-  !tag ||
-  !versionPattern.test(tag) ||
   os !== process.platform ||
   (os !== "win32" && os !== "darwin" && os !== "linux") ||
   (arch !== "amd64" && arch !== "arm64") ||
@@ -33,7 +33,6 @@ if (
   );
 }
 
-const version = tag.slice(1);
 const publicKey = process.env.XBOND_TAURI_PUBLIC_KEY?.trim();
 if (!publicKey || !process.env.TAURI_SIGNING_PRIVATE_KEY) {
   throw new Error("Set XBOND_TAURI_PUBLIC_KEY and TAURI_SIGNING_PRIVATE_KEY");
@@ -129,7 +128,7 @@ let copiedSidecar = false;
 try {
   mkdirSync(join(tauriDirectory, "binaries"), { recursive: true });
   copyFileSync(
-    join(cliDirectory, `xbond-${tag}-${releaseOS}-${arch}${exeExtension}`),
+    join(cliDirectory, cliAsset(tag, releaseOS, arch)),
     sidecar,
     constants.COPYFILE_EXCL,
   );
@@ -194,7 +193,8 @@ try {
     copyBundle("macos", ".app.tar.gz", true);
     if (!macRehearsal && macIdentity && notaryArgs) {
       const dmg = join(output, prefix + extension);
-      run("codesign", ["--force", "--sign", macIdentity, "--timestamp", dmg]);
+      // Tauri signs the DMG while its temporary signing keychain is open.
+      run("codesign", ["--verify", "--strict", dmg]);
       run("xcrun", ["notarytool", "submit", dmg, "--wait", ...notaryArgs]);
       run("xcrun", ["stapler", "staple", dmg]);
       run("xcrun", ["stapler", "validate", dmg]);

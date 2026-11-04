@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing stable Tag on main
+        description: Stable Tag or proposed Tag for a rehearsal from main
         required: true
         type: string
       rehearsal:
@@ -42,7 +42,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag || github.ref_name }}
-        run: node scripts/release-ci.ts preflight "$TAG" prepare
+          RELEASE_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.rehearsal && 'rehearsal' || 'prepare' }}
+        run: node scripts/release-ci.ts preflight "$TAG" "$RELEASE_MODE"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-notes
@@ -146,6 +147,7 @@ jobs:
           APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
           APPLE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && vars.APPLE_TEAM_ID || '' }}
+          XBOND_DESKTOP_REHEARSAL: ${{ runner.os == 'macOS' && github.event_name == 'workflow_dispatch' && inputs.rehearsal && vars.APPLE_SIGNING_IDENTITY == '' && '1' || '' }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: node scripts/build-desktop-release.ts "$TAG" "$TARGET_OS" "$TARGET_ARCH" release/core release/desktop
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -220,10 +222,8 @@ jobs:
 
   ios:
     needs: preflight
-    # Tag pushes must build iOS; a manual rehearsal may run before the Apple
-    # Developer credentials exist, in which case the job is skipped and the
-    # candidate assembles without iOS evidence (publish still requires it).
-    if: github.event_name == 'push' || vars.APPLE_TEAM_ID != ''
+    # Only rehearsals may omit the App Store archive.
+    if: github.event_name == 'push' || !inputs.rehearsal || vars.APPLE_TEAM_ID != ''
     runs-on: macos-15
     timeout-minutes: 65
     environment: release-ios-signing
@@ -330,10 +330,10 @@ jobs:
   assemble:
     needs: [preflight, core, desktop, android, image, ios]
     if: >-
-      needs.preflight.result == 'success' && needs.core.result == 'success' &&
+      ${{ !cancelled() && needs.preflight.result == 'success' && needs.core.result == 'success' &&
       needs.desktop.result == 'success' && needs.android.result == 'success' &&
-      needs.image.result == 'success' &&
-      (needs.ios.result == 'success' || needs.ios.result == 'skipped')
+      needs.image.result == 'success' && (needs.ios.result == 'success' ||
+      (github.event_name == 'workflow_dispatch' && inputs.rehearsal && needs.ios.result == 'skipped')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: release-manifest-signing
@@ -362,6 +362,7 @@ jobs:
           XBOND_TAURI_PUBLIC_KEY: ${{ vars.XBOND_TAURI_PUBLIC_KEY }}
           IMAGE_DIGEST: ${{ needs.image.outputs.digest }}
           IOS_SHA256: ${{ needs.ios.outputs.sha256 }}
+          PARTIAL_IOS_REHEARSAL: ${{ github.event_name == 'workflow_dispatch' && inputs.rehearsal && needs.ios.result == 'skipped' && '1' || '' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y minisign

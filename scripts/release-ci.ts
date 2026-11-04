@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -28,7 +28,15 @@ function releases(): Release[] {
 const [command, tag, argument] = process.argv.slice(2);
 const { version, build } = releaseVersion(tag);
 if (command === "preflight") {
-  const commit = git("rev-parse", "--verify", `refs/tags/${tag}^{commit}`);
+  const ref = `refs/tags/${tag}`;
+  const rehearsalWithoutTag =
+    argument === "rehearsal" &&
+    spawnSync("git", ["show-ref", "--verify", "--quiet", ref]).status === 1;
+  const commit = git(
+    "rev-parse",
+    "--verify",
+    `${rehearsalWithoutTag ? "HEAD" : ref}^{commit}`,
+  );
   git("merge-base", "--is-ancestor", commit, "refs/remotes/origin/main");
   const list = releases();
   let previous: { tag: string; build: number } | undefined;
@@ -42,7 +50,7 @@ if (command === "preflight") {
     }
     if (
       candidate.build > build ||
-      (candidate.build === build && argument === "prepare")
+      (candidate.build === build && argument !== "publish")
     ) {
       throw new Error(`Release ${tag} must follow ${candidate.tag}`);
     }
@@ -67,10 +75,14 @@ if (command === "preflight") {
   const commit = git("rev-parse", "HEAD");
   const run = process.env.GITHUB_RUN_ID;
   const digest = process.env.IMAGE_DIGEST ?? "";
-  // An iOS-less rehearsal (deferred Apple credentials) assembles with an
-  // empty digest; verify-evidence still refuses it at publish time.
   const iosSHA256 = process.env.IOS_SHA256 ?? "";
-  if (!run || !/^\d+$/.test(run) || !/^sha256:[a-f0-9]{64}$/.test(digest))
+  const partial = !iosSHA256 && process.env.PARTIAL_IOS_REHEARSAL === "1";
+  if (
+    !run ||
+    !/^\d+$/.test(run) ||
+    !/^sha256:[a-f0-9]{64}$/.test(digest) ||
+    (!partial && !/^[a-f0-9]{64}$/.test(iosSHA256))
+  )
     throw new Error("Missing candidate evidence");
   fs.writeFileSync(
     path.join(argument, "release-evidence.json"),

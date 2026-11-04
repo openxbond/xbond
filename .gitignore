@@ -11,6 +11,7 @@ dist-desktop/
 # Tauri desktop shell
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/schemas/
+apps/desktop/src-tauri/binaries/xbond-daemon-*
 
 # Compiled JSX and coverage output
 packages/client-ui/src/**/*.jsx
