@@ -67,6 +67,8 @@ export function buildAndroidAAR(
       "21",
       "-tags",
       BUILD_TAGS,
+      "-ldflags",
+      "-s -w",
       "-o",
       outputPath,
       MOBILE_PKG,

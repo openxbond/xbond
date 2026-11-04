@@ -15,6 +15,11 @@ export APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-Apple Distribution}"
 [[ "$XBOND_VERSION" =~ ^(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)$ ]]
 [[ "$XBOND_BUILD_NUMBER" =~ ^[1-9][0-9]{0,5}$ ]]
 [[ "$XBOND_APP_STORE_URL" == https://apps.apple.com/* ]]
+sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+if [[ "${sdk_version%%.*}" -lt 26 ]]; then
+  echo "App Store archives require the iOS 26 SDK or newer. Found $sdk_version." >&2
+  exit 1
+fi
 
 ios="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$1"
@@ -31,6 +36,13 @@ xcodebuild -project "$ios/XBond.xcodeproj" -scheme XBond \
   CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
   XBOND_APP_PROFILE="$APPLE_APP_PROFILE" XBOND_TUNNEL_PROFILE="$APPLE_TUNNEL_PROFILE" \
   archive
+
+app="$out/XBond.xcarchive/Products/Applications/XBond.app"
+codesign --verify --deep --strict "$app"
+for bundle in "$app" "$app/PlugIns/PacketTunnel.appex"; do
+  [[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$bundle/Info.plist")" == "$XBOND_VERSION" ]]
+  [[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$bundle/Info.plist")" == "$XBOND_BUILD_NUMBER" ]]
+done
 
 python3 - "$out/ExportOptions.plist" <<'PY'
 import os

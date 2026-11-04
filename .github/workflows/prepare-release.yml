@@ -215,6 +215,11 @@ jobs:
           apk="release/android/xbond-android-$TAG.apk"
           "$tools/zipalign" -P 16 -f 4 apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk "$tmp/aligned.apk"
           "$tools/apksigner" sign --ks "$tmp/keystore" --ks-key-alias "$ANDROID_KEY_ALIAS" --ks-pass env:ANDROID_STORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD --out "$apk" "$tmp/aligned.apk"
+          apk_bytes=$(stat -c %s "$apk")
+          if (( apk_bytes > 512 * 1024 * 1024 )); then
+            echo "::error::APK size $apk_bytes bytes exceeds the Android updater's 512 MiB limit"
+            exit 1
+          fi
           "$tools/apksigner" verify --print-certs "$apk" | grep -Fx "Signer #1 certificate SHA-256 digest: $ANDROID_SIGNER_SHA256"
           "$tools/aapt" dump badging "$apk" | grep -F "package: name='net.xbond.app' versionCode='$XBOND_BUILD_NUMBER' versionName='$XBOND_VERSION'"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -228,7 +233,7 @@ jobs:
     needs: preflight
     # Only rehearsals may omit the App Store archive.
     if: github.event_name == 'push' || !inputs.rehearsal || inputs.rehearsal_apple_signing
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 65
     environment: release-ios-signing
     outputs:
@@ -271,7 +276,7 @@ jobs:
           security unlock-keychain -p "$password" "$keychain"
           security list-keychains -d user -s "$keychain"
           printf '%s' "$IOS_DISTRIBUTION_P12" | base64 -D > "$tmp/cert.p12"
-          security import "$tmp/cert.p12" -k "$keychain" -P "$IOS_DISTRIBUTION_PASSWORD" -T /usr/bin/codesign
+          security import "$tmp/cert.p12" -f pkcs12 -k "$keychain" -P "$IOS_DISTRIBUTION_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
           install_profile() {
             local profile="$tmp/$1.mobileprovision"
