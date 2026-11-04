@@ -9,6 +9,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import { CommandPalette } from "@/components/command-palette";
 import { Toaster } from "@/components/ui/sonner";
 import Activity from "@/features/activity/activity-page";
 import Connections from "@/features/activity/connections/connections-page";
@@ -22,6 +23,7 @@ import Settings from "@/features/settings/settings-page";
 import { cn } from "@/lib/utils";
 import { isClashX } from "@/platform/clashx-bridge";
 import { useDesktopShell } from "@/platform/desktop-shell";
+import { isDesktopApp } from "@/platform/local-api-bootstrap";
 import { identityAtom, useAPIInfo } from "@/state/controller-target";
 import { useTheme } from "@/state/user-preferences";
 
@@ -83,6 +85,12 @@ export default function App() {
           "bg-[image:radial-gradient(ellipse_at_top_left,var(--surface-inset),transparent_65%)] bg-background",
       )}
     >
+      {isDesktopApp() && (
+        <div
+          data-tauri-drag-region
+          className="fixed top-0 left-0 right-0 h-6 z-40 select-none pointer-events-auto max-md:hidden"
+        />
+      )}
       <SideBar routes={mobileRoutes} />
       <div
         ref={contentRef}
@@ -91,6 +99,7 @@ export default function App() {
         <ControllerPage />
       </div>
       <Toaster />
+      <CommandPalette />
     </div>
   );
 

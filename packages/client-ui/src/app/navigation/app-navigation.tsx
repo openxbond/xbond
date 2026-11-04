@@ -1,5 +1,5 @@
 import { workspaceLink } from "@xbond/client/workspace";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Search, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
@@ -294,6 +294,23 @@ export default function Sidebar(props: SidebarProps) {
             XBond
           </span>
         </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(new CustomEvent("open-command-palette"))
+          }
+          className="mx-2.5 mb-2 flex cursor-pointer items-center justify-between rounded-control border border-border/70 bg-surface-inset/60 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-inset hover:text-foreground"
+          aria-label="快速搜尋"
+        >
+          <span className="flex items-center gap-1.5">
+            <Search className="size-3.5" />
+            <span>快速搜尋…</span>
+          </span>
+          <kbd className="rounded border border-border/80 bg-card px-1 text-[10px] font-mono">
+            ⌘K
+          </kbd>
+        </button>
 
         <ul className="m-0 flex list-none flex-1 flex-col gap-[3px] overflow-y-auto px-2.5 pt-1 pb-3">
           {desktopItems.map((item) => (
