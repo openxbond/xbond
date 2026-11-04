@@ -27,8 +27,10 @@ export function useNodeSelection() {
       await update();
       if (preferences.breakConnections) {
         const snapshot = await client.getConnections();
+        // 核心在零连接时返回 null 而非 []：这里 throw 会把一次成功的节点
+        // 切换误报成 partial（traffic-overview 对同字段做了同样防护）。
         await Promise.all(
-          snapshot.data.connections
+          (snapshot.data.connections ?? [])
             .filter((connection) => connection.chains.includes(group))
             .map((connection) => client.closeConnection(connection.id)),
         );

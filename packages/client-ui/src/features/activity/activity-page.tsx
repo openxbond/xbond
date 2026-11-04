@@ -96,7 +96,7 @@ export default function Activity() {
           <dt className="text-xs text-muted-foreground">{sb("connections")}</dt>
           <dd className="text-xl font-medium tabular-nums max-md:text-subtitle">
             {connectionState === "open"
-              ? (snapshot?.connections.length ?? "—")
+              ? (snapshot?.connections?.length ?? "—")
               : "—"}
           </dd>
         </div>
