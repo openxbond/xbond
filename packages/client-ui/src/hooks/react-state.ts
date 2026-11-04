@@ -1,6 +1,5 @@
-import { noop } from "@xbond/client/helper";
 import { type Draft } from "immer";
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useImmer } from "use-immer";
 
 export function useObject<T extends Record<string, unknown>>(initialValue: T) {
@@ -36,39 +35,6 @@ export function useObject<T extends Record<string, unknown>>(initialValue: T) {
   }, [rawSet]);
 
   return [copy, set] as [T, typeof set];
-}
-
-export function useInterval(callback: () => void, delay: number) {
-  const savedCallback = useRef(noop);
-
-  useEffect(() => {
-    savedCallback.current = callback;
-  }, [callback]);
-
-  useEffect(() => {
-    const handler = () => savedCallback.current();
-
-    if (delay !== null) {
-      const id = setInterval(handler, delay);
-      return () => clearInterval(id);
-    }
-  }, [delay]);
-}
-
-export function useRound<T>(list: T[], defidx = 0) {
-  if (list.length < 2) {
-    throw new Error("List requires at least two elements");
-  }
-
-  const [state, setState] = useState(defidx);
-
-  function next() {
-    setState((state + 1) % list.length);
-  }
-
-  const current = useMemo(() => list[state], [list, state]);
-
-  return { current, next };
 }
 
 export function useVisible(initial = false) {

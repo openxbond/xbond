@@ -238,7 +238,7 @@ function Proxies() {
   );
 }
 
-function ProxyPage() {
+export default function ProxyPage() {
   const [search, setSearch] = useState("");
   const { data, set } = useConfig();
   const { t } = useTranslation("proxies");
@@ -459,8 +459,4 @@ function ProxyPage() {
       </div>
     </SearchContext>
   );
-}
-
-export default function ProxyContainer() {
-  return <ProxyPage />;
 }

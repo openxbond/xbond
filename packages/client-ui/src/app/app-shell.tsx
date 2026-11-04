@@ -18,7 +18,7 @@ import Logs from "@/features/activity/logs/logs-page";
 import Config from "@/features/configuration/configuration-page";
 import Connect from "@/features/connect/connect-page";
 import Diagnostics from "@/features/diagnostics/diagnostics-page";
-import Proxies from "@/features/proxies/proxies-page";
+import ProxyPage from "@/features/proxies/proxies-page";
 import Rules from "@/features/rules/rules-page";
 import Settings from "@/features/settings/settings-page";
 import { cn } from "@/lib/utils";
@@ -118,7 +118,7 @@ export default function App() {
             />
           }
         />
-        <Route path="/proxies" element={<Proxies />} />
+        <Route path="/proxies" element={<ProxyPage />} />
         <Route path="/config" element={<Config />} />
         <Route
           path="/subscriptions"

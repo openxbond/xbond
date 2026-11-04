@@ -83,8 +83,6 @@ export function TrafficChart({
   windowLabel,
   stale,
   staleLabel,
-  _downloadLabel,
-  _uploadLabel,
 }: {
   samples: TrafficSample[];
   title: string;
@@ -92,10 +90,6 @@ export function TrafficChart({
   windowLabel: string;
   stale?: boolean;
   staleLabel?: string;
-  downloadLabel?: string;
-  uploadLabel?: string;
-  _downloadLabel?: string;
-  _uploadLabel?: string;
 }) {
   const maximum = Math.max(
     0,

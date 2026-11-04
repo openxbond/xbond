@@ -10,8 +10,7 @@
     "webRequest",
     "webRequestAuthProvider",
     "storage",
-    "alarms",
-    "tabs"
+    "alarms"
   ],
   "host_permissions": ["http://*/*", "https://*/*", "ws://*/*", "wss://*/*"],
   "background": {
