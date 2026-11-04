@@ -19,7 +19,7 @@ import {
  * Daemon-backed actions plus the view-level distinction between the local
  * daemon core and an externally selected controller. Connection state and
  * self-heal live in useDaemonConnection; the daemon's clash endpoint details
- * (random port + random secret) are composed in useClient from status and
+ * (random port + random secret) are resolved in useAPIInfo from status and
  * never surfaced here.
  */
 export function useLocalAPI() {

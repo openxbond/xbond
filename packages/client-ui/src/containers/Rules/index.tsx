@@ -11,7 +11,7 @@ import {
   useRuleProviders,
 } from "@stores";
 import type * as API from "@xbond/client/request";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { List, type RowComponentProps } from "react-window";
@@ -81,13 +81,15 @@ function RuleRow({
 export default function Rules() {
   const { rules: allRules, error, update, isLoading } = useRule();
   const [search, setSearch] = useState("");
-  const rules = allRules.filter(
-    (rule) =>
-      !search ||
+  const rules = useMemo(() => {
+    const query = search.toLowerCase();
+    if (!query) return allRules;
+    return allRules.filter((rule) =>
       [rule.type, rule.payload, rule.proxy].some((value) =>
-        value.toLowerCase().includes(search.toLowerCase()),
+        value.toLowerCase().includes(query),
       ),
-  );
+    );
+  }, [allRules, search]);
   const capabilities = useCapabilities();
   const { t } = useTranslation("rules");
   const { t: tc } = useTranslation("common");
@@ -153,9 +155,8 @@ export default function Rules() {
                 {t("columns.proxy")}
               </div>
             </div>
-            {/* CSS-only bounds: flex basis 0 sizes the box from the card's
-                remaining space after the header, never from row content. */}
-            <div className="rule-list-box min-h-[480px] flex-1 overflow-hidden">
+            {/* Keep the virtual list's spacer out of the viewport's sizing. */}
+            <div className="rule-list-box relative min-h-[480px] flex-1 overflow-hidden">
               {isLoading && allRules.length === 0 ? (
                 <p className="p-6 text-center text-sm text-muted-foreground">
                   {tc("loading")}
@@ -188,7 +189,7 @@ export default function Rules() {
                 />
               ) : (
                 <List
-                  style={{ height: "100%", width: "100%" }}
+                  style={{ position: "absolute", inset: 0 }}
                   rowCount={rules.length}
                   rowHeight={50}
                   rowComponent={RuleRow}

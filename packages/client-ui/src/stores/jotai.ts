@@ -316,7 +316,9 @@ export function useRule() {
 }
 
 export function useStreamReader<T>(path: string | null, bufferLength = 0) {
-  const { url, secret } = useAPIInfo();
+  const {
+    endpoint: { url, secret },
+  } = useAPIInfo();
   const connection = useMemo(
     () => ({
       stream: new StreamReader<T>({ bufferLength }),

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { resolveControlTarget, type Controller } from "../src/controller.ts";
+import {
+  resolveControlTarget,
+  streamURL,
+  type Controller,
+} from "../src/controller.ts";
 
 const saved: Controller = {
   id: "default",
@@ -26,6 +30,19 @@ test("the built-in target is identified only when its daemon is configured", () 
   );
 });
 
+test("desktop traffic and logs use the core advertised by LocalAPI", () => {
+  const { controller, endpoint } = resolveControlTarget(saved, { daemon });
+  assert.deepEqual(controller, saved);
+  assert.equal(
+    streamURL(endpoint.url, "traffic", endpoint.secret),
+    "ws://127.0.0.1:49152/traffic?token=daemon-fixture",
+  );
+  assert.equal(
+    streamURL(endpoint.url, "logs?level=info", endpoint.secret),
+    "ws://127.0.0.1:49152/logs?level=info&token=daemon-fixture",
+  );
+});
+
 test("configured daemon identity survives injected metadata awaiting its first status", () => {
   const target = resolveControlTarget(saved, {
     daemon: { id: saved.id },
@@ -42,10 +59,9 @@ test("verified static metadata keeps the daemon binding after its core endpoint 
     core: { url: "http://127.0.0.1:49153", secret: "rotated-fixture" },
     verifiedMeta: meta,
   };
-  assert.equal(
-    resolveControlTarget(saved, { daemon: rotated, meta }).kind,
-    "daemon",
-  );
+  const target = resolveControlTarget(saved, { daemon: rotated, meta });
+  assert.equal(target.kind, "daemon");
+  assert.deepEqual(target.endpoint, rotated.core);
   assert.equal(
     resolveControlTarget(saved, {
       daemon: rotated,
@@ -91,6 +107,7 @@ test("query launch targets override the daemon even when they retain its saved I
   assert.equal(target.controller.url, "https://remote.example:9443");
   assert.equal(target.controller.secret, "remote");
   assert.equal(target.controller.id, saved.id);
+  assert.equal(target.endpoint, target.controller);
 });
 
 test("ordinary navigation parameters do not detach the built-in daemon", () => {

@@ -8,6 +8,8 @@ export interface Controller {
 export interface ControlTarget {
   kind: "daemon" | "controller";
   controller: Controller;
+  /** The daemon's live endpoint can rotate independently of its identity. */
+  endpoint: Pick<Controller, "url" | "secret">;
 }
 
 /** Resolve the effective target before granting local runtime operations. */
@@ -42,7 +44,12 @@ export function resolveControlTarget(
       // Invalid launch metadata does not replace a usable saved target.
     }
   }
-  if (launch.bridge) return { kind: "controller", controller: launch.bridge };
+  if (launch.bridge)
+    return {
+      kind: "controller",
+      controller: launch.bridge,
+      endpoint: launch.bridge,
+    };
   const query = new URLSearchParams(launch.search);
   if (["host", "port", "protocol", "secret"].some((key) => query.has(key))) {
     try {
@@ -52,7 +59,12 @@ export function resolveControlTarget(
       // Preserve the preceding target when launch parameters are invalid.
     }
   }
-  return { kind, controller };
+  return {
+    kind,
+    controller,
+    endpoint:
+      kind === "daemon" ? (launch.daemon?.core ?? controller) : controller,
+  };
 }
 
 let sequence = 0;

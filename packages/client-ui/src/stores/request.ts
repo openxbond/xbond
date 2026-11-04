@@ -97,26 +97,30 @@ export function useAPIInfo() {
     const meta = document.querySelector<HTMLMetaElement>(
       'meta[name="external-controller"]',
     );
-    const { controller, kind } = resolveControlTarget(savedController, {
-      meta: meta?.content,
-      search: location.search,
-      bridge: clashx,
-      daemon: config
-        ? {
-            id: DAEMON_CONTROLLER_ID,
-            verifiedMeta,
-            core: data
-              ? {
-                  url: `http://127.0.0.1:${data.preferences.clashPort}`,
-                  secret: data.preferences.clashSecret ?? "",
-                }
-              : undefined,
-          }
-        : null,
-    });
+    const { controller, kind, endpoint } = resolveControlTarget(
+      savedController,
+      {
+        meta: meta?.content,
+        search: location.search,
+        bridge: clashx,
+        daemon: config
+          ? {
+              id: DAEMON_CONTROLLER_ID,
+              verifiedMeta,
+              core: data
+                ? {
+                    url: `http://127.0.0.1:${data.preferences.clashPort}`,
+                    secret: data.preferences.clashSecret ?? "",
+                  }
+                : undefined,
+            }
+          : null,
+      },
+    );
     const url = new URL(controller.url);
     return {
       ...controller,
+      endpoint,
       targetKind: kind,
       hostname: url.hostname,
       port: url.port || (url.protocol === "https:" ? "443" : "80"),
@@ -133,18 +137,8 @@ export function useAPIInfo() {
   return info;
 }
 export function useClient() {
-  const { url, secret, targetKind } = useAPIInfo();
-  const { data, hasDaemon } = useDaemonConnection();
-  return useMemo(() => {
-    // The daemon's clash endpoint (random available port + random secret) is
-    // a daemon-owned implementation detail: compose it from LocalAPI status
-    // instead of any persisted identity, and never surface it in the UI.
-    if (hasDaemon && data && targetKind === "daemon") {
-      return Client.forController(
-        `http://127.0.0.1:${data.preferences.clashPort}`,
-        data.preferences.clashSecret ?? "",
-      );
-    }
-    return Client.forController(url, secret);
-  }, [hasDaemon, data, targetKind, url, secret]);
+  const {
+    endpoint: { url, secret },
+  } = useAPIInfo();
+  return useMemo(() => Client.forController(url, secret), [url, secret]);
 }
