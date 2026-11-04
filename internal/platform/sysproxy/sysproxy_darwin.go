@@ -31,15 +31,34 @@ func getDefaultNetworkService() string {
 
 func Get() (Snapshot, error) {
 	service := getDefaultNetworkService()
-	cmd := exec.Command("networksetup", "-getwebproxy", service)
-	out, err := cmd.Output()
+	out, err := exec.Command("networksetup", "-getwebproxy", service).Output()
 	if err != nil {
 		return Snapshot{}, err
 	}
+	enabled, host, port := parseNetworksetupWebProxy(string(out))
 
-	enabled := strings.Contains(string(out), "Enabled: Yes")
+	// The bypass domains are what a restore must put back, so capture them
+	// whenever the proxy is on; without them a restore would clobber the
+	// user's original exception list with ours.
+	bypass := ""
+	if enabled {
+		bypassOut, err := exec.Command("networksetup", "-getproxybypassdomains", service).Output()
+		if err != nil {
+			return Snapshot{}, err
+		}
+		bypass = strings.Join(parseNetworksetupBypassDomains(string(bypassOut)), ";")
+	}
+
+	server := ""
+	if enabled {
+		// networksetup prints "(null)"/0 while disabled; only an enabled
+		// proxy has a server worth capturing.
+		server = joinHostPort(host, port)
+	}
 	return Snapshot{
 		Enabled:   enabled,
+		Server:    server,
+		Bypass:    bypass,
 		Timestamp: time.Now().Unix(),
 	}, nil
 }
@@ -54,17 +73,29 @@ func Set(server string, bypass string) error {
 	}
 
 	service := getDefaultNetworkService()
-	parts := strings.Split(server, ":")
-	host := parts[0]
-	port := "7890"
-	if len(parts) > 1 {
-		port = parts[1]
-	}
+	host, port := splitHostPort(server)
 
 	for _, command := range []string{"-setwebproxy", "-setsecurewebproxy", "-setsocksfirewallproxy"} {
 		if err := exec.Command("networksetup", command, service, host, port).Run(); err != nil {
 			return fmt.Errorf("apply system proxy setting: %w", err)
 		}
+	}
+	// Restore the exception list the snapshot captured (or clear it when
+	// empty): leaving it untouched would keep the previous owner's bypass
+	// domains pointing away from our proxy.
+	domains := []string{}
+	for _, domain := range strings.Split(bypass, ";") {
+		if domain = strings.TrimSpace(domain); domain != "" {
+			domains = append(domains, domain)
+		}
+	}
+	if len(domains) == 0 {
+		// networksetup's keyword for "no exceptions".
+		domains = []string{"Empty"}
+	}
+	args := append([]string{"-setproxybypassdomains", service}, domains...)
+	if err := exec.Command("networksetup", args...).Run(); err != nil {
+		return fmt.Errorf("apply system proxy bypass domains: %w", err)
 	}
 	return nil
 }

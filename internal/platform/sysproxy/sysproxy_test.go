@@ -53,3 +53,52 @@ func TestCorruptRecoverySnapshotIsPreservedAndReported(t *testing.T) {
 		t.Fatal("unrestored recovery state was deleted")
 	}
 }
+
+func TestParseNetworksetupWebProxy(t *testing.T) {
+	enabled, host, port := parseNetworksetupWebProxy(
+		"Enabled: Yes\nServer: 127.0.0.1\nPort: 7890\nAuthenticated Proxy Enabled: 0\n")
+	if !enabled || host != "127.0.0.1" || port != "7890" {
+		t.Fatalf("enabled sample parsed wrong: %v %q %q", enabled, host, port)
+	}
+	enabled, host, port = parseNetworksetupWebProxy("Enabled: No\nServer: (null)\nPort: 0\n")
+	if enabled {
+		t.Fatal("disabled sample parsed as enabled")
+	}
+}
+
+func TestParseNetworksetupBypassDomains(t *testing.T) {
+	domains := parseNetworksetupBypassDomains("\n*.local\n169.254/16\n<direct>\ncompany.example\n")
+	if len(domains) != 3 || domains[0] != "*.local" || domains[1] != "169.254/16" || domains[2] != "company.example" {
+		t.Fatalf("bypass parse wrong: %v", domains)
+	}
+}
+
+func TestParseGSettingsScalarAndArray(t *testing.T) {
+	if got := parseGSettingsScalar("'127.0.0.1'\n"); got != "127.0.0.1" {
+		t.Fatalf("scalar parse wrong: %q", got)
+	}
+	hosts := parseGSettingsStringArray("['localhost', '127.0.0.0/8', 'company.example']\n")
+	if len(hosts) != 3 || hosts[0] != "localhost" || hosts[2] != "company.example" {
+		t.Fatalf("array parse wrong: %v", hosts)
+	}
+	if hosts := parseGSettingsStringArray("@as []\n"); hosts != nil {
+		t.Fatalf("empty array parse wrong: %v", hosts)
+	}
+}
+
+func TestSplitJoinHostPort(t *testing.T) {
+	host, port := splitHostPort("127.0.0.1:17890")
+	if host != "127.0.0.1" || port != "17890" {
+		t.Fatalf("split wrong: %q %q", host, port)
+	}
+	host, port = splitHostPort("proxy.lan")
+	if host != "proxy.lan" || port != "7890" {
+		t.Fatalf("default port wrong: %q %q", host, port)
+	}
+	if got := joinHostPort("proxy.lan", "8080"); got != "proxy.lan:8080" {
+		t.Fatalf("join wrong: %q", got)
+	}
+	if got := joinHostPort("", "8080"); got != "" {
+		t.Fatalf("empty host must stay empty: %q", got)
+	}
+}
