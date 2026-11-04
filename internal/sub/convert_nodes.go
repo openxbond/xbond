@@ -105,14 +105,22 @@ func parseProxyURI(text string) (map[string]any, error) {
 	if name == "" {
 		name = parsed.Host
 	}
+	// net/url 不对 userinfo 做 percent-decoding：trojan://pass%40word@host
+	// 的 Username() 原样返回 pass%40word，凭据必须先解码，否则导入的节点
+	// 永远认证失败且无任何错误提示（fragment 倒是已解码，同一函数两种
+	// 标准不一致）。
+	credential, err := url.PathUnescape(parsed.User.Username())
+	if err != nil {
+		return nil, fmt.Errorf("decode share-link credential: %w", err)
+	}
 	proxy := map[string]any{"type": parsed.Scheme, "name": name, "server": parsed.Hostname(), "port": port}
 	if parsed.Scheme == "trojan" {
-		proxy["password"] = parsed.User.Username()
+		proxy["password"] = credential
 		if query.Get("sni") != "" {
 			proxy["sni"] = query.Get("sni")
 		}
 	} else {
-		proxy["uuid"] = parsed.User.Username()
+		proxy["uuid"] = credential
 		proxy["tls"] = query.Get("security") == "tls"
 		if query.Get("sni") != "" {
 			proxy["servername"] = query.Get("sni")

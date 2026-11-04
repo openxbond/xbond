@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"gopkg.in/yaml.v3"
 )
@@ -358,5 +359,31 @@ func TestComputeUpdateDiffSingBox(t *testing.T) {
 	}
 	if same.ReloadRequired || len(same.AddedNodes) != 0 || len(same.RemovedNodes) != 0 {
 		t.Errorf("identical sources must diff empty: %+v", same)
+	}
+}
+
+// net/url 不解码 userinfo：percent-encoded 的凭据必须先 PathUnescape，
+// 否则导入的节点永远认证失败且无提示（审计 #12）。
+func TestShareLinkCredentialIsDecoded(t *testing.T) {
+	converted, format, _, err := DetectAndConvert([]byte(
+		"trojan://pass%40word%2Fa@hk.example.com:443?sni=hk.example.com#Encoded-01\n",
+	))
+	if err != nil {
+		t.Fatalf("encoded share link must convert: %v", err)
+	}
+	if format != engine.FormatClash {
+		t.Fatalf("expected clash format, got %q", format)
+	}
+	var parsed struct {
+		Proxies []map[string]any `yaml:"proxies"`
+	}
+	if err := yaml.Unmarshal(converted, &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Proxies) != 1 {
+		t.Fatalf("expected one node, got %d", len(parsed.Proxies))
+	}
+	if got := parsed.Proxies[0]["password"]; got != "pass@word/a" {
+		t.Fatalf("credential was not percent-decoded: %v", got)
 	}
 }
