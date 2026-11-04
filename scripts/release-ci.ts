@@ -73,11 +73,13 @@ if (command === "preflight") {
   fs.writeFileSync("release-notes.md", `# XBond ${version}\n\n${log}\n`);
 } else if (command === "evidence") {
   const commit = git("rev-parse", "HEAD");
+  const mode = process.env.RELEASE_MODE;
   const run = process.env.GITHUB_RUN_ID;
   const digest = process.env.IMAGE_DIGEST ?? "";
   const iosSHA256 = process.env.IOS_SHA256 ?? "";
-  const partial = !iosSHA256 && process.env.PARTIAL_IOS_REHEARSAL === "1";
+  const partial = !iosSHA256 && mode === "rehearsal";
   if (
+    (mode !== "release" && mode !== "rehearsal") ||
     !run ||
     !/^\d+$/.test(run) ||
     !/^sha256:[a-f0-9]{64}$/.test(digest) ||
@@ -86,7 +88,7 @@ if (command === "preflight") {
     throw new Error("Missing candidate evidence");
   fs.writeFileSync(
     path.join(argument, "release-evidence.json"),
-    JSON.stringify({ tag, commit, run, digest, iosSHA256 }) + "\n",
+    JSON.stringify({ tag, commit, run, digest, iosSHA256, mode }) + "\n",
   );
 } else if (command === "verify-evidence") {
   const {
@@ -95,15 +97,19 @@ if (command === "preflight") {
     run,
     digest,
     iosSHA256,
+    mode,
   } = JSON.parse(fs.readFileSync(argument, "utf8"));
   if (
+    mode !== "release" ||
     candidate !== tag ||
     commit !== git("rev-parse", `refs/tags/${tag}^{commit}`) ||
     !/^\d+$/.test(run) ||
     !/^sha256:[a-f0-9]{64}$/.test(digest) ||
     !/^[a-f0-9]{64}$/.test(iosSHA256)
   ) {
-    throw new Error("Candidate evidence does not match the requested Tag");
+    throw new Error(
+      "Candidate evidence is not a complete release for the requested Tag",
+    );
   }
   fs.appendFileSync(
     process.env.GITHUB_OUTPUT ?? "",

@@ -39,6 +39,7 @@ jobs:
       TAG: ${{ inputs.tag }}
       STORE: ${{ inputs.store }}
       OPERATION: ${{ inputs.operation }}
+      XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -52,8 +53,10 @@ jobs:
         run: |
           node scripts/release-ci.ts preflight "$TAG" publish
           gh release view "$TAG" --json isDraft --jq '.isDraft' | grep -Fx true
-          gh release download "$TAG" --pattern "xbond-extension-$TAG.zip" --pattern SHA256SUMS
-          sha256sum --strict --ignore-missing --check SHA256SUMS
+          gh release download "$TAG" --pattern "xbond-extension-$TAG.zip" --pattern release.json --pattern release-evidence.json
+          node scripts/release-assets.ts verify "$TAG" . extension
+          node scripts/release-assets.ts verify "$TAG" . release-evidence
+          node scripts/release-ci.ts verify-evidence "$TAG" release-evidence.json
       - name: Submit or inspect the store build
         env:
           CHROME_SERVICE_ACCOUNT: ${{ secrets.CHROME_SERVICE_ACCOUNT }}
@@ -76,6 +79,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ inputs.tag }}
+      XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -88,8 +92,8 @@ jobs:
         run: |
           node scripts/release-ci.ts preflight "$TAG" publish
           gh release view "$TAG" --json isDraft --jq '.isDraft' | grep -Fx true
-          gh release download "$TAG" --pattern release-evidence.json --pattern SHA256SUMS
-          shasum -a 256 --ignore-missing -c SHA256SUMS
+          gh release download "$TAG" --pattern release-evidence.json --pattern release.json
+          node scripts/release-assets.ts verify "$TAG" . release-evidence
           node scripts/release-ci.ts verify-evidence "$TAG" release-evidence.json
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:

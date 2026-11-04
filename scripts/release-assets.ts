@@ -178,28 +178,11 @@ function escape(value: string) {
     .replaceAll('"', "&quot;");
 }
 
-export function buildPages(
-  directory: string,
-  output: string,
-  tag: string,
-  storeLinks: string[],
-  publicKey: string,
-) {
-  const { version } = releaseVersion(tag);
-  const sums = fs.readFileSync(readAsset(directory, "SHA256SUMS"), "utf8");
-  const checksums = new Map<string, string>();
-  for (const line of sums.trimEnd().split("\n")) {
-    const match = /^([a-f0-9]{64})  ([a-zA-Z0-9._-]+)$/.exec(line);
-    if (
-      !match ||
-      checksums.has(match[2]) ||
-      checksum(readAsset(directory, match[2])) !== match[1]
-    ) {
-      throw new Error(`Release checksum mismatch: ${line}`);
-    }
-    checksums.set(match[2], match[1]);
-  }
-  const manifestPath = path.join(directory, "release.json");
+type ReleaseAsset = { name: string; url: string; sha256: string };
+
+function readManifest(directory: string, tag: string, publicKey: string) {
+  const { version, build } = releaseVersion(tag);
+  const manifestPath = readAsset(directory, "release.json");
   const envelope = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   if (!/^[A-Za-z0-9+/]{43}=$/.test(publicKey))
     throw new Error("Invalid release public key");
@@ -214,24 +197,61 @@ export function buildPages(
   const payload = Buffer.from(envelope.payload, "base64");
   if (!verify(null, payload, key, Buffer.from(envelope.signature, "base64")))
     throw new Error("Invalid release manifest signature");
-  const {
-    assets,
-    notes,
-    version: manifestVersion,
+  const manifest: {
+    assets: Record<string, ReleaseAsset>;
+    notes: string;
+    version: string;
+    build: number;
   } = JSON.parse(payload.toString("utf8"));
-  if (manifestVersion !== version)
+  if (manifest.version !== version || manifest.build !== build)
     throw new Error("Release manifest version mismatch");
-  for (const { name, url, sha256 } of Object.values(assets) as {
-    name: string;
-    url: string;
-    sha256: string;
-  }[]) {
+  for (const { name, url } of Object.values(manifest.assets)) {
     if (
-      checksums.get(name) !== sha256 ||
+      !/^[a-zA-Z0-9._-]+$/.test(name) ||
       url !== `${repo}/releases/download/${tag}/${name}`
     ) {
       throw new Error(`Release asset mismatch: ${name}`);
     }
+  }
+  return manifest;
+}
+
+export function verifyManifestAsset(
+  directory: string,
+  tag: string,
+  id: string,
+  publicKey: string,
+) {
+  const asset = readManifest(directory, tag, publicKey).assets[id];
+  if (!asset || checksum(readAsset(directory, asset.name)) !== asset.sha256) {
+    throw new Error(`Release asset mismatch: ${id}`);
+  }
+}
+
+export function buildPages(
+  directory: string,
+  output: string,
+  tag: string,
+  storeLinks: string[],
+  publicKey: string,
+) {
+  const { version, assets, notes } = readManifest(directory, tag, publicKey);
+  const sums = fs.readFileSync(readAsset(directory, "SHA256SUMS"), "utf8");
+  const checksums = new Map<string, string>();
+  for (const line of sums.trimEnd().split("\n")) {
+    const match = /^([a-f0-9]{64})  ([a-zA-Z0-9._-]+)$/.exec(line);
+    if (
+      !match ||
+      checksums.has(match[2]) ||
+      checksum(readAsset(directory, match[2])) !== match[1]
+    ) {
+      throw new Error(`Release checksum mismatch: ${line}`);
+    }
+    checksums.set(match[2], match[1]);
+  }
+  for (const { name, sha256 } of Object.values(assets)) {
+    if (checksums.get(name) !== sha256)
+      throw new Error(`Release asset mismatch: ${name}`);
   }
   validateArchive(path.join(directory, "dashboard.zip"), undefined, output);
   for (const name of ["release.json", "desktop.json", "SHA256SUMS"]) {
@@ -318,6 +338,13 @@ else if (command === "assemble") {
     argument,
     tag,
     rest,
+    process.env.XBOND_RELEASE_PUBLIC_KEY ?? "",
+  );
+else if (command === "verify")
+  verifyManifestAsset(
+    directory,
+    tag,
+    argument,
     process.env.XBOND_RELEASE_PUBLIC_KEY ?? "",
   );
 else if (command) throw new Error(`Unknown release asset command: ${command}`);

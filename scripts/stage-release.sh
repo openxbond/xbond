@@ -4,6 +4,7 @@ set -euo pipefail
 tag=$1
 directory=release/assets
 (cd "$directory" && sha256sum --strict --check SHA256SUMS)
+jq -e '.mode == "release"' "$directory/release-evidence.json" > /dev/null
 if ! release=$(gh release view "$tag" --json isDraft,assets); then
   gh release create "$tag" --verify-tag --draft --title "XBond $tag" --notes-file release-notes.md
   release=$(gh release view "$tag" --json isDraft,assets)

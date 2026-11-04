@@ -15,7 +15,7 @@
 
 ## 發佈流程
 
-1. 確認 `main` 的檢查、版本號和目標提交後推送 Tag。**Prepare XBond release** 產生六種 CLI、六種桌面安裝包、簽署的 Android APK、App Store IPA、MV3 ZIP、`dashboard.zip` 和兩架構 OCI 鏡像，驗證產物後建立 GitHub Release 草稿。開啟 `rehearsal` 可在推送 Tag 前用擬定版本演練本次 `main` 提交，也可指定已有 Tag。缺少 Apple 簽名設定時，演練會使用臨時 macOS 程式碼簽名並跳過 iOS 歸檔。演練結果保存在 Actions，正式草稿須通過完整矩陣。
+1. 確認 `main` 的檢查、版本號和目標提交後推送 Tag。**Prepare XBond release** 產生六種 CLI、六種桌面安裝包、簽署的 Android APK、App Store IPA、MV3 ZIP、`dashboard.zip` 和兩架構 OCI 鏡像，驗證產物後建立 GitHub Release 草稿。開啟 `rehearsal` 可在推送 Tag 前用擬定版本演練本次 `main` 提交，也可指定已有 Tag。預設使用臨時 macOS 簽名並跳過 iOS 歸檔，Apple 憑證備妥後可開啟 `rehearsal_apple_signing` 演練簽名與歸檔。簽名證據記錄候選類型，正式草稿、商店提交與公開發佈只接受完整正式構建。
 2. 從同一草稿與工作流下載或提交商店包。**XBond store operations** 可上傳 iOS IPA 至 App Store Connect。維護者在 TestFlight 確認隧道後送審。首次 Chrome／Edge 上架使用同 Tag 的 MV3 ZIP，後續可執行商店工作流的 `submit` 和 `status`。Edge status 使用提交輸出的 operation ID。提交成功只代表接收，公開前要在三個商店核對實際可安裝版本。提供商店要求的隱私資料、測試帳號及地區資訊。
 3. 核對 [RELEASE-01](./tasks/README.md) 的平台演練與三個商店版本後，從 `main` 執行 **Publish XBond release**，兩個 Tag 輸入填同一版本，由生產環境審核人核對。工作流以原始 digest 發佈 GHCR，公開 GitHub Release，再部署 [Dashboard](https://openxbond.github.io/xbond/) 與 [下載頁](https://openxbond.github.io/xbond/download/)。二進位只由 Release 提供，Pages 提供下載連結、更新清單及校驗值。
 

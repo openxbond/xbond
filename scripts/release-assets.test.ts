@@ -6,7 +6,12 @@ import path from "node:path";
 import test from "node:test";
 
 import { buildZipBuffer, checksum } from "./artifact.ts";
-import { assemble, buildPages, packExtension } from "./release-assets.ts";
+import {
+  assemble,
+  buildPages,
+  packExtension,
+  verifyManifestAsset,
+} from "./release-assets.ts";
 import { cliAsset, releaseTargets, releaseVersion } from "./release-version.ts";
 
 const tag = "v0.4.2";
@@ -86,6 +91,13 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
     /does not match/,
   );
   assemble(directory, tag, "<script>test</script>", pem, key);
+  verifyManifestAsset(directory, tag, "release-evidence", key);
+  put("release-evidence.json", '{"mode":"release"}');
+  assert.throws(
+    () => verifyManifestAsset(directory, tag, "release-evidence", key),
+    /asset mismatch/,
+  );
+  put("release-evidence.json", "{}");
   const pages = path.join(directory, "pages");
   buildPages(directory, pages, tag, stores, key);
   assert.equal(
