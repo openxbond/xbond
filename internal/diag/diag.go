@@ -240,12 +240,27 @@ func GenerateBugReport(
 ) BugReport {
 	doc := RunDoctor(ctx, client, coreStatus, subMgr, mode, routing, mixedPort)
 
+	// The report is designed to leave the machine: the doctor's embedded
+	// subscription meta carries the raw credential, and older stores may
+	// still hold unredacted fetch errors from before the source-level
+	// redaction. Redact every carried-over surface (Get returns a copy, so
+	// this cannot corrupt the live store).
+	redactSubMeta := func(meta *sub.SubscriptionMeta) {
+		if meta == nil {
+			return
+		}
+		meta.Token = Redact(meta.Token)
+		meta.SourceURL = Redact(meta.SourceURL)
+		meta.UpdateProxy = Redact(meta.UpdateProxy)
+		meta.LastErrorMessage = Redact(meta.LastErrorMessage)
+	}
+	redactSubMeta(doc.Subscription)
 	var activeSubCopy *sub.SubscriptionMeta
 	var runtimeRedacted string
 	if subMgr != nil && subMgr.ActiveID() != "" {
 		if s, err := subMgr.Get(subMgr.ActiveID()); err == nil {
 			cp := *s
-			cp.Token = Redact(cp.Token)
+			redactSubMeta(&cp)
 			activeSubCopy = &cp
 
 			if rtBytes, err := os.ReadFile(paths.SubRuntimePath(s.ID)); err == nil {

@@ -2,10 +2,12 @@ package diag
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/openxbond/xbond/internal/engine"
+	"github.com/openxbond/xbond/internal/sub"
 )
 
 func TestRedact(t *testing.T) {
@@ -97,5 +99,32 @@ func TestEvaluateThreeTierPortMode(t *testing.T) {
 	}
 	if !strings.Contains(st.InterceptNote, "port mode only") {
 		t.Errorf("expected interceptNote in port mode, got %q", st.InterceptNote)
+	}
+}
+
+// bug report 的设计用途是交给第三方：doctor 嵌入的订阅 meta 带原始凭据、
+// 旧存储里可能还有未脱敏的拉取错误文本，任何一处漏网都等于把订阅 token
+// 发布出去（审计：安全第二条）。
+func TestGenerateBugReportRedactsEmbeddedSubscription(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	subMgr, err := sub.NewManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := "sub-" + strings.Repeat("a", 32)
+	if _, err := subMgr.AddXBond(token, "", nil, "", "zh-HK", "XBond", 24, true); err != nil {
+		t.Fatal(err)
+	}
+
+	report := GenerateBugReport(context.Background(), nil, nil, engine.EngineStatus{}, subMgr, engine.ModePort, engine.RoutingRule, 0)
+	data, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), token) {
+		t.Fatal("bug report JSON carries the raw subscription token")
+	}
+	if !strings.Contains(string(data), "sub-[REDACTED]") {
+		t.Fatal("expected the token to appear redacted in the report")
 	}
 }
