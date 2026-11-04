@@ -38,7 +38,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useProxy, useProxyMapping } from "@/features/proxies/proxy-data";
 import { useNodeSelection } from "@/features/proxies/use-node-selection";
-import { useAction } from "@/hooks/use-action";
+import { errorKind, useAction } from "@/hooks/use-action";
 import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
 import { cn } from "@/lib/utils";
 import { useAPIInfo, useClient, identityAtom } from "@/state/controller-target";
@@ -436,8 +436,12 @@ export default function Connect() {
         status?.capabilities?.serviceInstalled || status?.capabilities?.tun,
       )
     : false;
+  const [optimisticRouting, setOptimisticRouting] = useState<
+    "rule" | "global" | "direct" | null
+  >(null);
   const currentMode = (
-    hasLocalAPI ? status?.preferences.routingMode : general.mode
+    optimisticRouting ??
+    (hasLocalAPI ? status?.preferences.routingMode : general.mode)
   )?.toLowerCase();
   const mixedPort = hasLocalAPI
     ? status?.engine.mixedPort || 7890
@@ -571,14 +575,19 @@ export default function Connect() {
   )?.value;
 
   async function switchRouting(mode: "rule" | "global" | "direct") {
-    await run(async () => {
+    setOptimisticRouting(mode);
+    try {
       if (hasLocalAPI) {
         await setMode({ routing: mode });
       } else {
         await client.updateConfig({ mode });
         await update();
       }
-    }, false);
+    } catch (err) {
+      toast.error(r(errorKind(err)), { duration: 6000 });
+    } finally {
+      setOptimisticRouting(null);
+    }
   }
 
   return (

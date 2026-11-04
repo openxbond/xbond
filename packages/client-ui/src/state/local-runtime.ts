@@ -70,7 +70,14 @@ export function useLocalAPI() {
     }) => {
       if (!daemonClient) throw new Error("LocalAPI not available");
       const res = await daemonClient.setMode(options);
-      await mutateStatus();
+      if (res?.preferences) {
+        await mutateStatus(
+          (prev) => (prev ? { ...prev, preferences: res.preferences! } : prev),
+          false,
+        );
+      } else {
+        await mutateStatus();
+      }
       return res;
     },
     [daemonClient, mutateStatus],

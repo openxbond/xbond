@@ -595,3 +595,17 @@ func TestRoutingModeFallsBackToReloadWhenHotSwitchFails(t *testing.T) {
 		t.Fatalf("expected one fallback reload, got %d", f.core.reloads-reloadsBefore)
 	}
 }
+
+func TestPatchRoutingMode(t *testing.T) {
+	clash := []byte("mixed-port: 7890\nmode: rule\nlog-level: info\n")
+	patchedClash := patchRoutingMode(clash, engine.RoutingGlobal)
+	if !strings.Contains(string(patchedClash), "mode: global") {
+		t.Fatalf("clash patch failed: %s", string(patchedClash))
+	}
+
+	singbox := []byte(`{"experimental":{"clash_api":{"default_mode":"rule"}}}`)
+	patchedSingbox := patchRoutingMode(singbox, engine.RoutingDirect)
+	if !strings.Contains(string(patchedSingbox), `"default_mode": "direct"`) {
+		t.Fatalf("singbox patch failed: %s", string(patchedSingbox))
+	}
+}

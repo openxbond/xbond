@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -45,6 +46,24 @@ type runtimeOptions struct {
 // defaultMixedPort applies when neither the subscription nor an explicit
 // local override names a mixed port.
 const defaultMixedPort = 7890
+
+var (
+	clashModeRegex   = regexp.MustCompile(`(?m)^mode:\s*.*$`)
+	singboxModeRegex = regexp.MustCompile(`"default_mode":\s*"[^"]*"`)
+)
+
+func patchRoutingMode(config []byte, mode engine.RoutingMode) []byte {
+	if len(config) == 0 {
+		return config
+	}
+	if clashModeRegex.Match(config) {
+		return clashModeRegex.ReplaceAll(config, []byte("mode: "+string(mode)))
+	}
+	if singboxModeRegex.Match(config) {
+		return singboxModeRegex.ReplaceAll(config, []byte(`"default_mode": "`+string(mode)+`"`))
+	}
+	return config
+}
 
 // resolveMixedPort picks the effective mixed port: an explicit local override
 // wins over the subscription's own port; without either the daemon default
@@ -299,6 +318,34 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		if targetID == "" {
 			return &runtimeInputError{errors.New("no active subscription; please login or add a subscription first")}
 		}
+		// A routing-mode-only change on a running local core is an in-place
+		// switch: the core patches its mode in memory, avoiding multi-megabyte
+		// YAML parsing, validation, and disk churn. If the hot switch fails,
+		// it falls through to the full reload path below.
+		routingOnly := c.engine.IsRunning() && !c.delegatedActive() &&
+			c.appliedSubID == targetID &&
+			next.TakeoverMode == previousPrefs.TakeoverMode &&
+			next.SystemProxy == previousPrefs.SystemProxy &&
+			next.Tun == previousPrefs.Tun &&
+			next.PortOverride == previousPrefs.PortOverride &&
+			next.AllowLan == previousPrefs.AllowLan &&
+			next.RoutingMode != previousPrefs.RoutingMode
+		if routingOnly {
+			nextRuntime := patchRoutingMode(c.applied, next.RoutingMode)
+			if err := c.engine.SetRoutingMode(next.RoutingMode, nextRuntime); err == nil {
+				c.applied = append([]byte(nil), nextRuntime...)
+				c.stateMu.Lock()
+				c.prefs = next
+				c.stateMu.Unlock()
+				if len(nextRuntime) > 0 {
+					_ = c.write(paths.SubRuntimePath(targetID), nextRuntime, 0o600)
+				}
+				if err := c.write(paths.RuntimeStatePath(), prefsJSON, 0o600); err != nil {
+					return fmt.Errorf("save runtime preferences: %w", err)
+				}
+				return nil
+			}
+		}
 		if selected == nil {
 			var err error
 			selected, err = c.subs.Get(targetID)
@@ -385,27 +432,6 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 			c.prefs = next
 			c.stateMu.Unlock()
 			return nil
-		}
-		// A routing-mode-only change is a runtime switch on the core, not a
-		// reason to bounce it. The previous mode must regenerate exactly the
-		// applied config, proving nothing else differs; any failure falls
-		// through to the full reload below, which is always correct.
-		if previousPrefs.RoutingMode != next.RoutingMode && c.engine.IsRunning() && !c.delegatedActive() &&
-			c.appliedSubID == targetID && proxyOwnershipMatches {
-			before, err := engine.DeriveRuntimeConfig(source, deriveMode, previousPrefs.RoutingMode, next.MixedPort, next.AllowLan, next.ClashPort, next.ClashSecret)
-			if err == nil && bytes.Equal(before, c.applied) && c.engine.SetRoutingMode(next.RoutingMode, runtimeJSON) == nil {
-				c.applied = append([]byte(nil), runtimeJSON...)
-				c.stateMu.Lock()
-				c.prefs = next
-				c.stateMu.Unlock()
-				if err := c.write(paths.SubRuntimePath(targetID), runtimeJSON, 0o600); err != nil {
-					return fmt.Errorf("save runtime configuration: %w", err)
-				}
-				if err := c.write(paths.RuntimeStatePath(), prefsJSON, 0o600); err != nil {
-					return fmt.Errorf("save runtime preferences: %w", err)
-				}
-				return nil
-			}
 		}
 	}
 	prefsFile, err := captureRuntimeFile(paths.RuntimeStatePath())

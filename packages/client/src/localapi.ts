@@ -413,7 +413,7 @@ export class LocalAPIClient {
     routing?: RoutingMode;
     port?: number;
     allowLan?: boolean;
-  }): Promise<{ ok: boolean }> {
+  }): Promise<{ ok: boolean; preferences?: LocalAPIPreferences }> {
     return this.request("/localapi/v0/mode", {
       method: "POST",
       body: JSON.stringify(options),
@@ -643,10 +643,13 @@ export class LocalAPIClient {
     return { ...data, removed: data.removed.map(normalizeSubscription) };
   }
 
-  async accountRefresh(): Promise<AccountStatus> {
+  /** Re-resolves the subscription link. `lang` (render language) follows the
+   * UI language so the fetched configuration names match the interface;
+   * omitting it keeps the subscription's persisted language. */
+  async accountRefresh(options?: { lang?: string }): Promise<AccountStatus> {
     const data = await this.request<AccountStatusWire>(
       "/localapi/v0/account/refresh",
-      { method: "POST" },
+      { method: "POST", body: JSON.stringify(options ?? {}) },
     );
     return normalizeAccountStatus(data);
   }
