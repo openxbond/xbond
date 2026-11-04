@@ -128,3 +128,17 @@ func TestGenerateBugReportRedactsEmbeddedSubscription(t *testing.T) {
 		t.Fatal("expected the token to appear redacted in the report")
 	}
 }
+
+// 子串匹配端口在数字嵌套时误判（混合端口 7890 vs 他人的 17890）：拆开
+// host:port 按数字比较，无法解析的 server 如实判 false（审计 #18）。
+func TestSystemProxyTargetsPort(t *testing.T) {
+	if !systemProxyTargetsPort("127.0.0.1:7890", 7890) {
+		t.Fatal("exact port must match")
+	}
+	if systemProxyTargetsPort("127.0.0.1:17890", 7890) {
+		t.Fatal("nested port digits must not match")
+	}
+	if systemProxyTargetsPort("127.0.0.1", 7890) {
+		t.Fatal("server without a port cannot target ours")
+	}
+}

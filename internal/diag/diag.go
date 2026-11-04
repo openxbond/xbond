@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/openxbond/xbond/internal/engine"
@@ -46,7 +46,7 @@ func EvaluateThreeTier(
 	}
 
 	// 2. Tier 2: Traffic Intercepted (System Proxy and/or TUN)
-	if snap, err := sysproxy.Get(); err == nil && snap.Enabled && (mixedPort <= 0 || strings.Contains(snap.Server, fmt.Sprintf("%d", mixedPort))) {
+	if snap, err := sysproxy.Get(); err == nil && snap.Enabled && (mixedPort <= 0 || systemProxyTargetsPort(snap.Server, mixedPort)) {
 		st.SystemProxyActive = true
 	}
 	if (mode == engine.ModeTun || coreStatus.TakeoverMode == engine.ModeTun) && st.CoreReachable {
@@ -150,6 +150,23 @@ func ResolveStrategyChain(proxies map[string]engine.ProxyItem) (string, []string
 	}
 
 	return rootGroup, chain
+}
+
+// systemProxyTargetsPort reports whether the captured system proxy server
+// points at the given port. Substring matching false-positives whenever the
+// port digits nest (mixed port 7890 vs another app on 17890): split the
+// host:port pair and compare numerically. Unparsable servers cannot match
+// our listener, so they report false — the honest "unknown" for this check.
+func systemProxyTargetsPort(server string, port int) bool {
+	_, portText, err := net.SplitHostPort(server)
+	if err != nil {
+		return false
+	}
+	captured, err := strconv.Atoi(portText)
+	if err != nil {
+		return false
+	}
+	return captured == port
 }
 
 func RunDoctor(
