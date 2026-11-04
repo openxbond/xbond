@@ -19,7 +19,8 @@ import (
 
 func EvaluateThreeTier(
 	ctx context.Context,
-	mgr *engine.Manager,
+	client *engine.ClashClient,
+	coreStatus engine.EngineStatus,
 	mode engine.TakeoverMode,
 	routing engine.RoutingMode,
 	mixedPort int,
@@ -31,23 +32,24 @@ func EvaluateThreeTier(
 		InterceptNote:      "port mode only, whole-system not intercepted",
 	}
 
-	if mgr == nil || !mgr.IsRunning() {
+	// The core this daemon serves may run in the machine session (delegated
+	// TUN): the caller decides which core is "the user's" via
+	// coreClient()/coreStatus(). Gate on that status, not on the local
+	// manager.
+	if client == nil || !coreStatus.Running {
 		return st
 	}
 
 	// 1. Tier 1: Core Reachable
-	client := mgr.Client()
-	if client != nil {
-		if ver, err := client.GetVersion(ctx); err == nil && ver != "" {
-			st.CoreReachable = true
-		}
+	if ver, err := client.GetVersion(ctx); err == nil && ver != "" {
+		st.CoreReachable = true
 	}
 
 	// 2. Tier 2: Traffic Intercepted (System Proxy and/or TUN)
 	if snap, err := sysproxy.Get(); err == nil && snap.Enabled && (mixedPort <= 0 || strings.Contains(snap.Server, fmt.Sprintf("%d", mixedPort))) {
 		st.SystemProxyActive = true
 	}
-	if (mode == engine.ModeTun || (mgr != nil && mgr.Status().TakeoverMode == engine.ModeTun)) && st.CoreReachable {
+	if (mode == engine.ModeTun || coreStatus.TakeoverMode == engine.ModeTun) && st.CoreReachable {
 		st.TunActive = true
 	}
 	st.TrafficIntercepted = st.SystemProxyActive || st.TunActive
@@ -152,13 +154,14 @@ func ResolveStrategyChain(proxies map[string]engine.ProxyItem) (string, []string
 
 func RunDoctor(
 	ctx context.Context,
-	mgr *engine.Manager,
+	client *engine.ClashClient,
+	coreStatus engine.EngineStatus,
 	subMgr *sub.Manager,
 	mode engine.TakeoverMode,
 	routing engine.RoutingMode,
 	mixedPort int,
 ) DoctorReport {
-	threeTier := EvaluateThreeTier(ctx, mgr, mode, routing, mixedPort)
+	threeTier := EvaluateThreeTier(ctx, client, coreStatus, mode, routing, mixedPort)
 
 	// 1. DNS check
 	dnsRes := DNSCheckResult{}
@@ -167,8 +170,8 @@ func RunDoctor(
 		dnsRes.LocalIPs = ips[0].String()
 	}
 
-	if mgr != nil && mgr.Client() != nil {
-		if queryResp, err := mgr.Client().QueryDNS(ctx, "google.com", "A"); err == nil && len(queryResp.Answer) > 0 {
+	if client != nil {
+		if queryResp, err := client.QueryDNS(ctx, "google.com", "A"); err == nil && len(queryResp.Answer) > 0 {
 			dnsRes.ProxyDNSSuccess = true
 			dnsRes.ProxyIPs = queryResp.Answer[0].Data
 		}
@@ -228,12 +231,14 @@ func RunDoctor(
 func GenerateBugReport(
 	ctx context.Context,
 	mgr *engine.Manager,
+	client *engine.ClashClient,
+	coreStatus engine.EngineStatus,
 	subMgr *sub.Manager,
 	mode engine.TakeoverMode,
 	routing engine.RoutingMode,
 	mixedPort int,
 ) BugReport {
-	doc := RunDoctor(ctx, mgr, subMgr, mode, routing, mixedPort)
+	doc := RunDoctor(ctx, client, coreStatus, subMgr, mode, routing, mixedPort)
 
 	var activeSubCopy *sub.SubscriptionMeta
 	var runtimeRedacted string

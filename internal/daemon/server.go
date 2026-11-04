@@ -331,7 +331,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	// light=1 keeps readiness probes and polling loops off the network: the
 	// full evaluation runs DNS and egress checks, which is doctor's job.
 	if r.URL.Query().Get("light") != "1" {
-		threeTier = diag.EvaluateThreeTier(ctx, s.engineMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
+		threeTier = diag.EvaluateThreeTier(ctx, s.coreClient(), s.coreStatus(), prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
 	}
 
 	var activeSub *sub.SubscriptionMeta
@@ -1114,12 +1114,51 @@ func (s *Server) handleRulesPage(w http.ResponseWriter, r *http.Request) {
 		}
 		query.Limit = limit
 	}
+	// The delegated core's rules live in the machine session; a local-only
+	// read would 503 exactly while the user is connected (same shape as
+	// handleLogs).
+	if s.runtime.Delegated() && s.delegate != nil {
+		page, err := s.delegate.RulesPage(query)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, fmt.Sprintf("delegated rules unavailable: %v", err))
+			return
+		}
+		writeJSON(w, http.StatusOK, page)
+		return
+	}
 	page, ok := s.engineMgr.RulesPage(query)
 	if !ok {
 		writeError(w, http.StatusServiceUnavailable, "engine is not running")
 		return
 	}
 	writeJSON(w, http.StatusOK, page)
+}
+
+// ruleQueryFromRequest parses the shared rules-page query parameters for
+// both the LocalAPI handler and the privileged remote/rules endpoint.
+func ruleQueryFromRequest(r *http.Request) (engine.RuleQuery, error) {
+	params := r.URL.Query()
+	query := engine.RuleQuery{
+		Limit:        50,
+		Search:       params.Get("q"),
+		MatchType:    params.Get("matchType"),
+		MatchPayload: params.Get("matchPayload"),
+	}
+	if params.Has("offset") {
+		offset, err := strconv.Atoi(params.Get("offset"))
+		if err != nil || offset < 0 {
+			return query, errors.New("invalid rule offset")
+		}
+		query.Offset = offset
+	}
+	if params.Has("limit") {
+		limit, err := strconv.Atoi(params.Get("limit"))
+		if err != nil || limit < 1 || limit > 100 {
+			return query, errors.New("invalid rule limit")
+		}
+		query.Limit = limit
+	}
+	return query, nil
 }
 
 func (s *Server) handleDNSQuery(w http.ResponseWriter, r *http.Request) {
@@ -1204,14 +1243,14 @@ func mergeLogs(a, b []engine.LogEntry, limit int) []engine.LogEntry {
 func (s *Server) handleDoctor(w http.ResponseWriter, r *http.Request) {
 	prefs := s.runtime.Preferences()
 
-	rep := diag.RunDoctor(r.Context(), s.engineMgr, s.subMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
+	rep := diag.RunDoctor(r.Context(), s.coreClient(), s.coreStatus(), s.subMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
 	writeJSON(w, http.StatusOK, rep)
 }
 
 func (s *Server) handleBugReport(w http.ResponseWriter, r *http.Request) {
 	prefs := s.runtime.Preferences()
 
-	rep := diag.GenerateBugReport(r.Context(), s.engineMgr, s.subMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
+	rep := diag.GenerateBugReport(r.Context(), s.engineMgr, s.coreClient(), s.coreStatus(), s.subMgr, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
 	writeJSON(w, http.StatusOK, rep)
 }
 

@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -93,8 +95,10 @@ func (d *delegateManager) LogRuntime(message string) {
 
 // Apply hands a derived TUN runtime config to the machine-scoped daemon and
 // waits for its core to become ready. The response's engine status is the
-// truth for "the delegated takeover is up".
-func (d *delegateManager) Apply(config []byte) (engine.EngineStatus, error) {
+// truth for "the delegated takeover is up". The saved node selections ride
+// along so the machine session's fresh core starts with the user's picks
+// instead of group defaults.
+func (d *delegateManager) Apply(config []byte, selections map[string]string) (engine.EngineStatus, error) {
 	meta, err := engine.InspectConfig(config)
 	if err != nil {
 		return engine.EngineStatus{}, fmt.Errorf("inspect delegated config: %w", err)
@@ -102,8 +106,16 @@ func (d *delegateManager) Apply(config []byte) (engine.EngineStatus, error) {
 	if meta.TakeoverMode != engine.ModeTun {
 		return engine.EngineStatus{}, fmt.Errorf("refusing to delegate a %s takeover; only TUN runs in the machine session", meta.TakeoverMode)
 	}
+	var headers map[string]string
+	if len(selections) > 0 {
+		raw, err := json.Marshal(selections)
+		if err != nil {
+			return engine.EngineStatus{}, fmt.Errorf("encode delegated selections: %w", err)
+		}
+		headers = map[string]string{delegatedSelectionsHeader: string(raw)}
+	}
 	var reply remoteReply
-	if err := d.post("/localapi/v0/remote/apply", config, &reply); err != nil {
+	if err := d.post("/localapi/v0/remote/apply", config, &reply, headers); err != nil {
 		d.noteFailure(fmt.Errorf("delegate TUN takeover: %w", err))
 		return engine.EngineStatus{}, d.lastError
 	}
@@ -130,7 +142,7 @@ func (d *delegateManager) Apply(config []byte) (engine.EngineStatus, error) {
 // but the error is reported so callers can surface it.
 func (d *delegateManager) Stop() error {
 	var reply remoteReply
-	err := d.post("/localapi/v0/remote/stop", []byte("{}"), &reply)
+	err := d.post("/localapi/v0/remote/stop", []byte("{}"), &reply, nil)
 	d.mu.Lock()
 	d.active = false
 	d.lastConfig = nil
@@ -206,6 +218,44 @@ func (d *delegateManager) Logs(level engine.LogLevel, limit int) ([]engine.LogEn
 		return nil, err
 	}
 	return payload.Logs, nil
+}
+
+// RulesPage reads the machine session's core rules: the delegated core's
+// rule set lives across the privileged transport, not in this process.
+func (d *delegateManager) RulesPage(query engine.RuleQuery) (engine.RulePage, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	params := url.Values{}
+	if query.Search != "" {
+		params.Set("q", query.Search)
+	}
+	if query.MatchType != "" {
+		params.Set("matchType", query.MatchType)
+	}
+	if query.MatchPayload != "" {
+		params.Set("matchPayload", query.MatchPayload)
+	}
+	if query.Offset > 0 {
+		params.Set("offset", strconv.Itoa(query.Offset))
+	}
+	params.Set("limit", strconv.Itoa(query.Limit))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://xbond-system/localapi/v0/remote/rules?"+params.Encode(), nil)
+	if err != nil {
+		return engine.RulePage{}, err
+	}
+	resp, err := d.http.Do(req)
+	if err != nil {
+		return engine.RulePage{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return engine.RulePage{}, fmt.Errorf("remote rules returned %d", resp.StatusCode)
+	}
+	var page engine.RulePage
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		return engine.RulePage{}, err
+	}
+	return page, nil
 }
 
 // Status returns the remote core's engine state, cached briefly so frequent
@@ -311,7 +361,7 @@ func (d *delegateManager) fetchStatus() (engine.EngineStatus, error) {
 	return reply.Status, nil
 }
 
-func (d *delegateManager) post(path string, body []byte, reply *remoteReply) error {
+func (d *delegateManager) post(path string, body []byte, reply *remoteReply, extraHeaders map[string]string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), d.http.Timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://xbond-system"+path, bytes.NewReader(body))
@@ -319,6 +369,9 @@ func (d *delegateManager) post(path string, body []byte, reply *remoteReply) err
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for key, value := range extraHeaders {
+		req.Header.Set(key, value)
+	}
 	resp, err := d.http.Do(req)
 	if err != nil {
 		return err

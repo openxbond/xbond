@@ -114,7 +114,7 @@ func (s *apiServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 	// app process's own probes are unreliable behind the VPN anyway — see the
 	// mobile spec's self-traffic note).
 	if r.URL.Query().Get("light") != "1" {
-		threeTier = diag.EvaluateThreeTier(ctx, s.svc.engineManager(), engine.ModeTun, s.svc.runtime.routing, 0)
+		threeTier = diag.EvaluateThreeTier(ctx, s.svc.engineManager().Client(), s.svc.engineManager().Status(), engine.ModeTun, s.svc.runtime.routing, 0)
 	}
 
 	var activeSub *sub.SubscriptionMeta
@@ -660,13 +660,13 @@ func (s *apiServer) handleDNSFlush(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- diag
 
 func (s *apiServer) handleDoctor(w http.ResponseWriter, r *http.Request) {
-	rep := diag.RunDoctor(r.Context(), s.svc.engineManager(), s.svc.subMgr,
+	rep := diag.RunDoctor(r.Context(), s.svc.engineManager().Client(), s.svc.engineManager().Status(), s.svc.subMgr,
 		engine.ModeTun, s.svc.runtime.routing, 0)
 	writeJSON(w, http.StatusOK, rep)
 }
 
 func (s *apiServer) handleBugReport(w http.ResponseWriter, r *http.Request) {
-	rep := diag.GenerateBugReport(r.Context(), s.svc.engineManager(), s.svc.subMgr,
+	rep := diag.GenerateBugReport(r.Context(), s.svc.engineManager(), s.svc.engineManager().Client(), s.svc.engineManager().Status(), s.svc.subMgr,
 		engine.ModeTun, s.svc.runtime.routing, 0)
 	writeJSON(w, http.StatusOK, rep)
 }

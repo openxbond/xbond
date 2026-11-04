@@ -91,7 +91,7 @@ func TestResolveStrategyChain(t *testing.T) {
 }
 
 func TestEvaluateThreeTierPortMode(t *testing.T) {
-	st := EvaluateThreeTier(context.Background(), nil, engine.ModePort, engine.RoutingRule, 7890)
+	st := EvaluateThreeTier(context.Background(), nil, engine.EngineStatus{}, engine.ModePort, engine.RoutingRule, 7890)
 	if st.TrafficIntercepted {
 		t.Errorf("port mode should have trafficIntercepted=false")
 	}

@@ -468,7 +468,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	previousRuntime := append([]byte(nil), c.applied...)
 	previousID := c.appliedSubID
 	var previousSelections map[string]string
-	if wasRunning && previousID != "" {
+	if previousID != "" {
 		if meta, err := c.subs.Get(previousID); err == nil {
 			previousSelections = meta.SavedSelections
 		}
@@ -486,9 +486,10 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 			switch {
 			case wasDelegated:
 				// The previous takeover ran in the machine session; put it
-				// back there, not as a local mixed-only look-alike.
+				// back there, not as a local mixed-only look-alike, with the
+				// selections the previous core ran with.
 				if len(previousRuntime) > 0 {
-					_, restoreErr = c.delegate.Apply(previousRuntime)
+					_, restoreErr = c.delegate.Apply(previousRuntime, previousSelections)
 				}
 			case wasRunning:
 				restoreErr = c.engine.Reload(previousRuntime, previousSelections)
@@ -523,7 +524,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 			if err := c.engine.Stop(); err != nil {
 				return fmt.Errorf("stop local core before delegating: %w", err)
 			}
-			if _, err := c.delegate.Apply(runtimeJSON); err != nil {
+			if _, err := c.delegate.Apply(runtimeJSON, selected.SavedSelections); err != nil {
 				return rollback(err)
 			}
 		} else {
@@ -864,7 +865,19 @@ func (c *runtimeController) ReconcileDelegation() {
 			}
 			config = data
 		}
-		if _, err := c.delegate.Apply(config); err != nil {
+		// The delegated config belongs to the subscription it was derived
+		// from; its saved selections ride along on the re-apply too.
+		id := c.appliedSubID
+		if id == "" {
+			id = c.subs.ActiveID()
+		}
+		var selections map[string]string
+		if id != "" {
+			if meta, err := c.subs.Get(id); err == nil {
+				selections = meta.SavedSelections
+			}
+		}
+		if _, err := c.delegate.Apply(config, selections); err != nil {
 			return // logged at the transition
 		}
 	} else if c.delegatedActive() {

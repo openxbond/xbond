@@ -22,12 +22,13 @@ import (
 // engine state, so the client contract runs against a known truth instead
 // of the real SCM and core.
 type fakeMachineSession struct {
-	mu       sync.Mutex
-	running  bool
-	config   []byte
-	applyErr string
-	stops    int
-	applies  int
+	mu         sync.Mutex
+	running    bool
+	config     []byte
+	applyErr   string
+	stops      int
+	applies    int
+	selections map[string]string
 }
 
 func (s *fakeMachineSession) mux() *http.ServeMux {
@@ -45,6 +46,13 @@ func (s *fakeMachineSession) mux() *http.ServeMux {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.applies++
+		s.selections = nil
+		if raw := r.Header.Get(delegatedSelectionsHeader); raw != "" {
+			var selections map[string]string
+			if err := json.Unmarshal([]byte(raw), &selections); err == nil {
+				s.selections = selections
+			}
+		}
 		if s.applyErr != "" {
 			writeJSON(w, http.StatusInternalServerError, remoteReply{Error: s.applyErr})
 			return
@@ -84,6 +92,54 @@ func (s *fakeMachineSession) stopCount() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.stops
+}
+
+func (s *fakeMachineSession) selectionsSnapshot() map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.selections
+}
+
+// The delegator must deliver the user's saved node selections with the
+// runtime config: a delegated core that starts from group defaults silently
+// resets every selector the user picked.
+func TestDelegateApplyCarriesSelections(t *testing.T) {
+	session := &fakeMachineSession{}
+	srv := httptest.NewServer(session.mux())
+	defer srv.Close()
+	d := newTestDelegate(srv)
+
+	config := derivedTUNConfig(t, 19090)
+	if _, err := d.Apply(config, map[string]string{"🚀 节点选择": "Tokyo"}); err != nil {
+		t.Fatal(err)
+	}
+	if sel := session.selectionsSnapshot(); sel["🚀 节点选择"] != "Tokyo" {
+		t.Fatalf("selections header did not arrive: %v", sel)
+	}
+
+	// No selections → no header at all (the old wire shape stays valid).
+	if _, err := d.Apply(config, nil); err != nil {
+		t.Fatal(err)
+	}
+	if sel := session.selectionsSnapshot(); sel != nil {
+		t.Fatalf("empty selections must not send the header: %v", sel)
+	}
+}
+
+// A malformed selections header must be rejected, not silently treated as
+// "no picks" — that silent drop is exactly the defect the header fixes.
+func TestDelegatedSelectionsHeaderParsing(t *testing.T) {
+	sel, err := delegatedSelectionsFromHeader("")
+	if err != nil || sel != nil {
+		t.Fatalf("empty header must parse to nil, got %v, %v", sel, err)
+	}
+	sel, err = delegatedSelectionsFromHeader(`{"A":"B"}`)
+	if err != nil || sel["A"] != "B" {
+		t.Fatalf("valid header did not parse: %v, %v", sel, err)
+	}
+	if _, err := delegatedSelectionsFromHeader("{nope"); err == nil {
+		t.Fatal("malformed header must error, not silently drop")
+	}
 }
 
 // setRunning simulates the machine session's own engine state changing
@@ -145,7 +201,7 @@ func TestDelegateApplyStopLifecycle(t *testing.T) {
 	if d.Active() {
 		t.Fatal("fresh manager already claims an active delegation")
 	}
-	status, err := d.Apply(derivedTUNConfig(t, 19090))
+	status, err := d.Apply(derivedTUNConfig(t, 19090), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +238,7 @@ func TestDelegateReportsUnreachableSession(t *testing.T) {
 	session := &fakeMachineSession{}
 	srv := httptest.NewServer(session.mux())
 	d := newTestDelegate(srv)
-	if _, err := d.Apply(derivedTUNConfig(t, 19090)); err != nil {
+	if _, err := d.Apply(derivedTUNConfig(t, 19090), nil); err != nil {
 		t.Fatal(err)
 	}
 	srv.Close() // the machine session died mid-session
@@ -212,7 +268,7 @@ func TestDelegateApplyRefusesNonTUNConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.Apply(config); err == nil {
+	if _, err := d.Apply(config, nil); err == nil {
 		t.Fatal("a port-mode takeover was accepted for delegation")
 	}
 	if session.applyCount() != 0 {
