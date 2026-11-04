@@ -8,6 +8,7 @@ import {
 } from "@xbond/client/workspace";
 import { useAtom, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import { AlertCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -29,6 +30,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Switch } from "@/components/ui/switch";
 import { useProxy, useProxyMapping } from "@/features/proxies/proxy-data";
 import { useNodeSelection } from "@/features/proxies/use-node-selection";
@@ -362,33 +368,6 @@ export default function Connect() {
     }
   };
 
-  const handleChangeService = useCallback(
-    async (install: boolean) => {
-      const key = install ? "install" : "uninstall";
-      setChangingService(true);
-      try {
-        toast.info(st(`takeover.${key}ServicePrompt`));
-        const done = await changeService(install);
-        if (!done) {
-          toast.error(
-            st(`takeover.${key}ServiceFailed`, {
-              error: st("takeover.serviceChangeTimeout"),
-            }),
-          );
-          return;
-        }
-        toast.success(st(`takeover.${key}ServiceSuccess`));
-        if (install) void run(() => setMode({ tun: true }), false);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        toast.error(st(`takeover.${key}ServiceFailed`, { error: msg }));
-      } finally {
-        setChangingService(false);
-      }
-    },
-    [changeService, run, setMode, st],
-  );
-
   const available = general.mode.toLowerCase() === "global" ? [global] : groups;
   const focusKey = controllerIdentity(controller.id, controller.url);
   const group =
@@ -463,6 +442,37 @@ export default function Connect() {
   const mixedPort = hasLocalAPI
     ? status?.engine.mixedPort || 7890
     : general.mixedPort || 7890;
+
+  const handleChangeService = useCallback(
+    async (install: boolean) => {
+      const key = install ? "install" : "uninstall";
+      setChangingService(true);
+      try {
+        toast.info(st(`takeover.${key}ServicePrompt`));
+        const done = await changeService(install);
+        if (!done) {
+          toast.error(
+            st(`takeover.${key}ServiceFailed`, {
+              error: st("takeover.serviceChangeTimeout"),
+            }),
+          );
+          return;
+        }
+        toast.success(st(`takeover.${key}ServiceSuccess`));
+        if (install) {
+          void run(() => setMode({ tun: true }), false);
+        } else if (isTun) {
+          void run(() => setMode({ tun: false }), false);
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(st(`takeover.${key}ServiceFailed`, { error: msg }));
+      } finally {
+        setChangingService(false);
+      }
+    },
+    [changeService, isTun, run, setMode, st],
+  );
 
   // Latest known delay for a node, from the same history the proxies page reads.
   const nodeDelay = (name: string) => {
@@ -1154,101 +1164,106 @@ export default function Connect() {
                   </div>
 
                   {/* Virtual NIC (TUN) */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <strong className="text-body font-semibold text-foreground">
-                            {t("tun")}
-                          </strong>
-                          {hasLocalAPI && !isTunCapable && (
-                            <div className="group/tun-hint relative inline-flex items-center">
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <strong className="text-body font-semibold text-foreground">
+                          {t("tun")}
+                        </strong>
+                        {hasLocalAPI && (
+                          <HoverCard openDelay={150} closeDelay={200}>
+                            <HoverCardTrigger asChild>
                               <button
                                 type="button"
-                                onClick={() => setPrivilegeDialogOpen(true)}
+                                className={cn(
+                                  "inline-flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                  isServiceInstalled
+                                    ? "text-muted-foreground/60 hover:text-foreground"
+                                    : "text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300",
+                                )}
                                 aria-label={
-                                  status?.capabilities?.tunReasonCode
-                                    ? st(
-                                        `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
-                                      )
+                                  isServiceInstalled
+                                    ? st("takeover.serviceInstalled")
                                     : st("takeover.tunPrivilegeHint")
                                 }
-                                title={
-                                  status?.capabilities?.tunReasonCode
-                                    ? st(
-                                        `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
-                                      )
-                                    : st("takeover.tunPrivilegeHint")
-                                }
-                                className="inline-flex size-4 cursor-pointer items-center justify-center text-amber-500 hover:text-amber-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                               >
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className="size-3.5"
-                                >
-                                  <circle cx="12" cy="12" r="10" />
-                                  <line x1="12" y1="8" x2="12" y2="12" />
-                                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                                </svg>
+                                <AlertCircle className="size-3.5" />
                               </button>
-                              <div className="pointer-events-none absolute top-full left-0 z-50 mt-1.5 w-60 rounded-md border border-border/80 bg-popover p-2.5 text-xs font-normal text-popover-foreground shadow-elevation-raised opacity-0 transition-opacity duration-150 group-hover/tun-hint:opacity-100 group-focus-within/tun-hint:opacity-100 leading-relaxed text-left">
-                                {status?.capabilities?.tunReasonCode
-                                  ? st(
-                                      `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
-                                    )
-                                  : st("takeover.tunPrivilegeHint")}
+                            </HoverCardTrigger>
+                            <HoverCardContent
+                              align="start"
+                              side="top"
+                              className="flex flex-col gap-2.5 w-68 p-3 text-xs"
+                            >
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5 font-medium text-foreground">
+                                  <AlertCircle
+                                    className={cn(
+                                      "size-3.5 shrink-0",
+                                      isServiceInstalled
+                                        ? "text-emerald-500 dark:text-emerald-400"
+                                        : "text-amber-500 dark:text-amber-400",
+                                    )}
+                                  />
+                                  <span>
+                                    {isServiceInstalled
+                                      ? st("takeover.serviceInstalled")
+                                      : st("takeover.tunPrivilegeRequired")}
+                                  </span>
+                                </div>
+                                <p className="text-muted-foreground leading-relaxed text-[11px]">
+                                  {isServiceInstalled
+                                    ? st("takeover.serviceInstalledDesc")
+                                    : status?.capabilities?.tunReasonCode
+                                      ? st(
+                                          `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                                        )
+                                      : st("takeover.tunPrivilegeHint")}
+                                </p>
                               </div>
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-label text-muted-foreground leading-tight">
-                          {st("takeover.tunDesc")}
-                        </span>
+                              <Button
+                                size="sm"
+                                variant={
+                                  isServiceInstalled ? "outline" : "default"
+                                }
+                                disabled={changingService}
+                                className={cn(
+                                  "h-7 w-full text-xs font-medium cursor-pointer",
+                                  !isServiceInstalled &&
+                                    "bg-brand-action text-brand-action-foreground hover:bg-brand-action-hover",
+                                )}
+                                onClick={() =>
+                                  isServiceInstalled
+                                    ? void handleChangeService(false)
+                                    : setPrivilegeDialogOpen(true)
+                                }
+                              >
+                                {changingService
+                                  ? st("takeover.installingService")
+                                  : isServiceInstalled
+                                    ? st("takeover.uninstallService")
+                                    : st("takeover.installService")}
+                              </Button>
+                            </HoverCardContent>
+                          </HoverCard>
+                        )}
                       </div>
-                      <Switch
-                        checked={isTun}
-                        disabled={pending || changingService}
-                        onCheckedChange={(checked: boolean) => {
-                          if (checked && !isTunCapable) {
-                            setPrivilegeDialogOpen(true);
-                            return;
-                          }
-                          void run(() => setMode({ tun: checked }), false);
-                        }}
-                        aria-label={t("tun")}
-                      />
+                      <span className="text-label text-muted-foreground leading-tight">
+                        {st("takeover.tunDesc")}
+                      </span>
                     </div>
-                    {hasLocalAPI && (isServiceInstalled || !isTunCapable) && (
-                      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
-                        <span className="text-label text-muted-foreground leading-tight">
-                          {isServiceInstalled
-                            ? st("takeover.serviceInstalled")
-                            : st("takeover.tunPrivilegeHint")}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={changingService}
-                          className="h-7 shrink-0 px-2.5 text-xs font-medium cursor-pointer"
-                          onClick={() =>
-                            isServiceInstalled
-                              ? void handleChangeService(false)
-                              : setPrivilegeDialogOpen(true)
-                          }
-                        >
-                          {changingService
-                            ? st("takeover.installingService")
-                            : isServiceInstalled
-                              ? st("takeover.uninstallService")
-                              : st("takeover.installService")}
-                        </Button>
-                      </div>
-                    )}
+                    <Switch
+                      checked={isTun}
+                      disabled={pending || changingService}
+                      onCheckedChange={(checked: boolean) => {
+                        if (checked && !isTunCapable) {
+                          setPrivilegeDialogOpen(true);
+                          return;
+                        }
+                        void run(() => setMode({ tun: checked }), false);
+                      }}
+                      aria-label={t("tun")}
+                    />
                   </div>
                 </div>
               )}

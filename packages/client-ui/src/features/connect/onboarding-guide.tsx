@@ -104,7 +104,7 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 max-w-4xl mx-auto w-full">
         {/* Option 1: XBond Cloud Account */}
         <Card
-          onClick={() => navigate("/config?item=account")}
+          onClick={() => navigate("/config?item=cloud")}
           className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border/80 bg-card/95 p-5 shadow-elevation-card transition-all duration-200 hover:-translate-y-1 hover:border-brand hover:shadow-elevation-raised"
         >
           <div>

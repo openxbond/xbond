@@ -628,6 +628,8 @@ const HK = {
       installService: "提升權限並安裝服務",
       installingService: "正在提升權限...",
       serviceInstalled: "系統特權服務已就緒",
+      serviceInstalledDesc:
+        "虛擬網卡特權服務已就緒，如需移除系統後台服務可點擊解除安裝。",
       installServicePrompt:
         "已請求提升權限，請在系統彈出的 UAC 提示視窗中允許繼續。",
       installServiceSuccess: "系統特權服務安裝成功，TUN 虛擬網卡已就緒",

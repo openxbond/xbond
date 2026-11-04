@@ -645,6 +645,8 @@ const KO = {
       installService: "권한 상승 및 서비스 설치",
       installingService: "권한 상승 중...",
       serviceInstalled: "시스템 서비스 준비 완료",
+      serviceInstalledDesc:
+        "TUN 가상 카드를 위한 시스템 서비스가 활성화되었습니다. 백그라운드 서비스를 제거하려면 제거를 클릭하세요.",
       installServicePrompt:
         "권한 상승이 요청되었습니다. 시스템 UAC 창에서 계속을 허용해 주세요.",
       installServiceSuccess:

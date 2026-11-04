@@ -648,6 +648,8 @@ const FA = {
       installService: "ارتقای دسترسی و نصب سرویس",
       installingService: "در حال ارتقای دسترسی...",
       serviceInstalled: "سرویس ممتاز آماده است",
+      serviceInstalledDesc:
+        "سرویس ویژه سیستم برای کارت شبکه مجازی فعال است. در صورت تمایل می‌توانید آن را حذف کنید.",
       installServicePrompt:
         "درخواست ارتقای دسترسی ارسال شد. لطفاً پیام UAC ویندوز را تأیید کنید.",
       installServiceSuccess:

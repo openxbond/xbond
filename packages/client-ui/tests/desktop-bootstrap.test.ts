@@ -132,6 +132,8 @@ test("Privileged service takeover keys exist across all 5 locale dictionaries", 
   const dicts = [HK, CN, EN, KO, FA];
   for (const dict of dicts) {
     const takeover = dict.settings.takeover;
+    assert.ok(takeover.serviceInstalled);
+    assert.ok(takeover.serviceInstalledDesc);
     assert.ok(takeover.installService);
     assert.ok(takeover.uninstallService);
     assert.ok(takeover.uninstallServicePrompt);

@@ -185,7 +185,7 @@ export function ConfigMenu() {
           </div>
         )}
 
-        {/* Target 2: 订阅与本地配置 */}
+        {/* Target 2: 订阅配置 */}
         {supported && universalSubs.length > 0 && (
           <div className="config-menu-section">
             <div className="config-menu-divider" />

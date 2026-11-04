@@ -657,6 +657,8 @@ const EN = {
       installService: "Elevate & Install Service",
       installingService: "Elevating...",
       serviceInstalled: "Privileged service ready",
+      serviceInstalledDesc:
+        "System service is active for TUN mode. Uninstall it to remove background system access.",
       installServicePrompt:
         "Elevation requested. Please approve the system UAC prompt to proceed.",
       installServiceSuccess:

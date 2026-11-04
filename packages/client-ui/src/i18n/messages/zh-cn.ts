@@ -627,6 +627,8 @@ const CN = {
       installService: "提升权限并安装服务",
       installingService: "正在提升权限...",
       serviceInstalled: "系统特权服务已就绪",
+      serviceInstalledDesc:
+        "虚拟网卡特权服务已就绪，如需移除系统后台服务可点击卸载。",
       installServicePrompt:
         "已请求提升权限，请在系统弹出的 UAC 提示窗口中允许继续。",
       installServiceSuccess: "系统特权服务安装成功，TUN 虚拟网卡已就绪",
