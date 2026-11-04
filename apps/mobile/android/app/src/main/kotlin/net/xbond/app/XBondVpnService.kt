@@ -93,9 +93,11 @@ class XBondVpnService : VpnService() {
             }
             ACTION_STOP -> stopAndShutdown()
             ACTION_ENSURE -> { /* nothing: creation is the whole point */ }
-            // START_STICKY restart after the process was killed delivers a
-            // null intent: re-establish from the saved intent state so the
-            // tunnel survives process death.
+            // START_STICKY restart after process death redelivers a null
+            // intent. Nothing in-tree pushes EXTRA_CONFIG, so lastConfig is
+            // always empty and the tunnel is not re-established here: the
+            // service (and its LocalAPI) comes back, and the UI or the tile
+            // re-establishes the tunnel through /up.
             null -> if (lastConfig.isNotEmpty()) startTunnel()
         }
         return START_STICKY
