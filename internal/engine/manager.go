@@ -58,6 +58,13 @@ func (c *mihomoCore) start(config []byte, m *Manager) error {
 }
 
 func (c *mihomoCore) stop() error {
+	// mihomo 的日志源是包级全局 observable，executor.Shutdown() 不会关闭
+	// 它：不退订则每次 reload 泄漏一个 pump goroutine，且每个泄漏的泵把
+	// 同一行日志重复写进 ring 一次。
+	if c.logSub != nil {
+		mihomoLog.UnSubscribe(c.logSub)
+		c.logSub = nil
+	}
 	executor.Shutdown()
 	// Release mihomo's cache.db file lock: the bbolt singleton would
 	// otherwise stay open for the process lifetime and block data-dir
