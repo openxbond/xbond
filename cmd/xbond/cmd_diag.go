@@ -561,7 +561,13 @@ var logsCmd = &cobra.Command{
 			return err
 		}
 
-		logs, err := client.GetLogs(ctx, logsLevel, 200)
+		// 服务端上限 1000：flag 承诺的行数必须如实请求，超过 200 静默截断
+		// 会让 -n 500 之类的要求撒谎。
+		fetchLimit := 1000
+		if logsLines > 0 && logsLines < fetchLimit {
+			fetchLimit = logsLines
+		}
+		logs, err := client.GetLogs(ctx, logsLevel, fetchLimit)
 		if err != nil {
 			return err
 		}
