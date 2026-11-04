@@ -60,11 +60,28 @@ class MainActivity : Activity() {
         pollAndLoad(0)
     }
 
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+        val scheme = uri.scheme?.lowercase()
+        if (scheme == "xbond" || scheme == "clash") {
+            val urlString = uri.toString()
+            val js = "window.dispatchEvent(new CustomEvent('xbond-deep-link', { detail: ${org.json.JSONObject.quote(urlString)} }));"
+            webView.evaluateJavascript(js, null)
+        }
+    }
+
     private fun pollAndLoad(attempt: Int) {
         val addr = File(filesDir, "localapi.addr")
         if (addr.exists()) {
             val port = addr.readText().trim().substringAfterLast(':')
             webView.loadUrl("http://127.0.0.1:$port/")
+            handler.postDelayed({ handleDeepLink(intent) }, 1200)
             return
         }
         if (attempt < 20) {

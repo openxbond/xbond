@@ -183,6 +183,12 @@ class XBondVpnService : VpnService() {
             Log.e(TAG, "Interface close failed: ${e.message}", e)
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
+        runCatching {
+            android.service.quicksettings.TileService.requestListeningState(
+                this,
+                android.content.ComponentName(this, XBondTileService::class.java),
+            )
+        }
     }
 
     private fun goForeground(message: String) {
@@ -195,22 +201,40 @@ class XBondVpnService : VpnService() {
             )
             manager.createNotificationChannel(channel)
         }
-        val notification: Notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+        val openIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val stopIntent = PendingIntent.getService(
+            this,
+            0,
+            Intent(this, XBondVpnService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        val disconnectAction = Notification.Action.Builder(
+            android.R.drawable.ic_menu_close_clear_cancel,
+            "Disconnect",
+            stopIntent,
+        ).build()
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle("XBond")
-                .setContentText(message)
-                .setSmallIcon(android.R.drawable.ic_lock_lock)
-                .setOngoing(true)
-                .build()
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
-                .setContentTitle("XBond")
-                .setContentText(message)
-                .setSmallIcon(android.R.drawable.ic_lock_lock)
-                .setOngoing(true)
-                .build()
         }
+        val notification: Notification = builder
+            .setContentTitle("XBond")
+            .setContentText(message)
+            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentIntent(openIntent)
+            .addAction(disconnectAction)
+            .setOngoing(true)
+            .build()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 NOTIFICATION_ID,
@@ -219,6 +243,13 @@ class XBondVpnService : VpnService() {
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)
+        }
+
+        runCatching {
+            android.service.quicksettings.TileService.requestListeningState(
+                this,
+                android.content.ComponentName(this, XBondTileService::class.java),
+            )
         }
     }
 
