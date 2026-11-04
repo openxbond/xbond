@@ -30,8 +30,10 @@ func (e *runtimeInputError) Error() string { return e.cause.Error() }
 func (e *runtimeInputError) Unwrap() error { return e.cause }
 
 type runtimeOptions struct {
-	Mode    engine.TakeoverMode `json:"mode"`
-	Routing engine.RoutingMode  `json:"routing"`
+	SystemProxy *bool               `json:"systemProxy"`
+	Tun         *bool               `json:"tun"`
+	Mode        engine.TakeoverMode `json:"mode"`
+	Routing     engine.RoutingMode  `json:"routing"`
 	// Port is tri-state: nil leaves the override unchanged, 0 clears it back
 	// to following the subscription, a positive value fixes the local port.
 	Port     *int   `json:"port"`
@@ -73,6 +75,10 @@ type runtimeController struct {
 }
 
 func newRuntimeController(core runtimeEngine, subs *sub.Manager, prefs RuntimePreferences) *runtimeController {
+	if prefs.TakeoverMode == engine.ModePort {
+		prefs.SystemProxy = false
+		prefs.Tun = false
+	}
 	return &runtimeController{
 		engine: core, subs: subs, prefs: prefs, write: atomicfile.Write,
 		proxyGet: sysproxy.Get, proxySet: sysproxy.Set, proxyRestore: sysproxy.Restore,
@@ -80,10 +86,12 @@ func newRuntimeController(core runtimeEngine, subs *sub.Manager, prefs RuntimePr
 }
 
 func validatePreferences(prefs RuntimePreferences) error {
-	switch prefs.TakeoverMode {
-	case engine.ModeSysproxy, engine.ModeTun, engine.ModePort:
-	default:
-		return errors.New("invalid takeover mode")
+	if prefs.TakeoverMode != "" {
+		switch prefs.TakeoverMode {
+		case engine.ModeSysproxy, engine.ModeTun, engine.ModePort:
+		default:
+			return errors.New("invalid takeover mode")
+		}
 	}
 	switch prefs.RoutingMode {
 	case engine.RoutingRule, engine.RoutingGlobal, engine.RoutingDirect:
@@ -180,8 +188,35 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	}
 	previousPrefs := c.Preferences()
 	next := previousPrefs
-	if options.Mode != "" {
-		next.TakeoverMode = options.Mode
+	if options.SystemProxy != nil {
+		next.SystemProxy = *options.SystemProxy
+	}
+	if options.Tun != nil {
+		next.Tun = *options.Tun
+	}
+	if options.SystemProxy == nil && options.Tun == nil {
+		if options.Mode != "" {
+			next.TakeoverMode = options.Mode
+		}
+		switch next.TakeoverMode {
+		case engine.ModePort:
+			next.SystemProxy = false
+			next.Tun = false
+		case engine.ModeSysproxy:
+			next.SystemProxy = true
+			next.Tun = false
+		case engine.ModeTun:
+			next.SystemProxy = false
+			next.Tun = true
+		}
+	} else {
+		if next.Tun {
+			next.TakeoverMode = engine.ModeTun
+		} else if next.SystemProxy {
+			next.TakeoverMode = engine.ModeSysproxy
+		} else {
+			next.TakeoverMode = engine.ModePort
+		}
 	}
 	if options.Routing != "" {
 		next.RoutingMode = options.Routing
@@ -296,7 +331,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		// missing privilege would silently leave the core running mixed-only
 		// while the UI reports TUN. Gate on the real capability before any
 		// state is touched (daemon-runtime spec: 不静默降级).
-		if next.TakeoverMode == engine.ModeTun {
+		if next.Tun {
 			if capability := tunCapability(); !capability.Tun {
 				return &runtimeInputError{fmt.Errorf("TUN takeover unavailable: %s", capability.Reason)}
 			}
@@ -305,7 +340,11 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		if err != nil {
 			return err
 		}
-		runtimeJSON, err = engine.DeriveRuntimeConfig(source, next.TakeoverMode, next.RoutingMode, next.MixedPort, next.AllowLan, next.ClashPort, next.ClashSecret)
+		deriveMode := engine.ModePort
+		if next.Tun {
+			deriveMode = engine.ModeTun
+		}
+		runtimeJSON, err = engine.DeriveRuntimeConfig(source, deriveMode, next.RoutingMode, next.MixedPort, next.AllowLan, next.ClashPort, next.ClashSecret)
 		if err != nil {
 			return fmt.Errorf("derive runtime configuration: %w", err)
 		}
@@ -318,7 +357,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		// — sysproxy and port can derive the same core JSON while the
 		// takeover side effect differs. Preferences still get persisted in
 		// case the file drifted from memory.
-		proxyOwnershipMatches := (next.TakeoverMode == engine.ModeSysproxy) == (c.originalProxy != nil)
+		proxyOwnershipMatches := (next.SystemProxy == (c.originalProxy != nil))
 		if c.engine.IsRunning() && c.appliedSubID == targetID && bytes.Equal(runtimeJSON, c.applied) && proxyOwnershipMatches {
 			if err := c.write(paths.RuntimeStatePath(), prefsJSON, 0o600); err != nil {
 				return fmt.Errorf("save runtime preferences: %w", err)
@@ -341,7 +380,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		}
 	}
 
-	proxyTouched := run && (next.TakeoverMode == engine.ModeSysproxy || c.originalProxy != nil)
+	proxyTouched := run && (next.SystemProxy || c.originalProxy != nil)
 	var beforeProxy sysproxy.Snapshot
 	var proxyFile runtimeFile
 	if proxyTouched {
@@ -406,7 +445,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	}
 	originalProxy := c.originalProxy
 	if proxyTouched {
-		if next.TakeoverMode == engine.ModeSysproxy {
+		if next.SystemProxy {
 			if originalProxy == nil {
 				snapshot := beforeProxy
 				originalProxy = &snapshot
@@ -422,13 +461,15 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 				return rollback(fmt.Errorf("save system proxy recovery state: %w", err))
 			}
 		} else {
-			if err := c.proxyRestore(*originalProxy); err != nil {
-				return rollback(fmt.Errorf("release system proxy: %w", err))
+			if originalProxy != nil {
+				if err := c.proxyRestore(*originalProxy); err != nil {
+					return rollback(fmt.Errorf("release system proxy: %w", err))
+				}
+				if err := os.Remove(paths.SysproxySnapshotPath()); err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return rollback(err)
+				}
+				originalProxy = nil
 			}
-			if err := os.Remove(paths.SysproxySnapshotPath()); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return rollback(err)
-			}
-			originalProxy = nil
 		}
 	}
 	if err := ctx.Err(); err != nil {

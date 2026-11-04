@@ -1,8 +1,11 @@
-import { useSetAtom } from "jotai";
 import { useMemo, useState, createContext, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
+import {
+  DisconnectedState,
+  useIsServiceConnected,
+} from "@/components/disconnected-state";
 import { Header } from "@/components/page-header";
 import { StrategyDirectory } from "@/components/proxy-strategy";
 import { RequestStatus } from "@/components/request-status";
@@ -12,12 +15,13 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
-import { identityAtom, useClient } from "@/state/controller-target";
+import { Spinner } from "@/components/ui/spinner";
+import { useClient } from "@/state/controller-target";
 import { useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
 import { useConfig } from "@/state/user-preferences";
 
-import { LatencyProvider, useLatency } from "./latency-context";
+import { useLatency } from "./latency-context";
 import { useProxy, useProxyProviders, useProxyMapping } from "./proxy-data";
 import { Group } from "./proxy-group-panel";
 import { Provider } from "./proxy-provider-card";
@@ -147,11 +151,12 @@ function ProxyPage() {
   const { t: tc } = useTranslation("common");
   const { run, cancel, progress } = useLatency();
   const mapping = useProxyMapping();
-  const { error, update } = useProxy();
+  const { error, update, isLoading } = useProxy();
   const { general, update: updateGeneral } = useGeneral();
   const { hasLocalAPI, status, setMode } = useLocalAPI();
+  const { isConnected, hasSub } = useIsServiceConnected();
   const client = useClient();
-  const setIdentity = useSetAtom(identityAtom);
+  const navigate = useNavigate();
 
   const currentRouting =
     (hasLocalAPI
@@ -186,6 +191,19 @@ function ProxyPage() {
         (!search || proxy.name.toLowerCase().includes(search.toLowerCase())),
     )
     .map((proxy) => proxy.name);
+
+  if (!isConnected) {
+    return (
+      <div className="page @container/proxies gap-5 max-md:pb-[84px]">
+        <Header title={t("title")} />
+        <DisconnectedState
+          description={!hasSub ? t("noConfigNotice") : t("disconnectedNotice")}
+          onConnected={() => void update()}
+        />
+      </div>
+    );
+  }
+
   return (
     <SearchContext value={search}>
       <div className="page @container/proxies gap-5 max-md:pb-[84px]">
@@ -317,10 +335,24 @@ function ProxyPage() {
           </div>
         </div>
         <RequestStatus error={error} retry={update} />
-        {!mapping.size && (
-          <div className="flex items-center gap-[18px] py-8 text-sm text-muted-foreground">
-            <p>{tc("empty")}</p>
-            <Button onClick={() => setIdentity(false)}>{tc("edit")}</Button>
+        {isLoading && !mapping.size && (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <Spinner className="size-6 text-brand" />
+          </div>
+        )}
+        {!isLoading && !mapping.size && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-sm text-muted-foreground">
+            <p className="text-base font-medium text-foreground">
+              {t("emptyNodes")}
+            </p>
+            <p className="max-w-md text-xs">{t("emptyNodesDesc")}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/config")}
+            >
+              {t("manageConfig")}
+            </Button>
           </div>
         )}
         <ProxyGroups />
@@ -335,9 +367,5 @@ function ProxyPage() {
 }
 
 export default function ProxyContainer() {
-  return (
-    <LatencyProvider>
-      <ProxyPage />
-    </LatencyProvider>
-  );
+  return <ProxyPage />;
 }

@@ -17,7 +17,7 @@ import { nodeFlagCode, stripFlagEmoji } from "@/components/country-flag";
 import { SegmentedControl } from "@/components/segmented-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import { useProxy, useProxyMapping } from "@/features/proxies/proxy-data";
 import { useNodeSelection } from "@/features/proxies/use-node-selection";
 import { useAction } from "@/hooks/use-action";
@@ -297,7 +297,6 @@ export default function Connect() {
   const setIdentity = useSetAtom(identityAtom);
   const [focus, setFocus] = useAtom(focusAtom);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [takeoverSheetOpen, setTakeoverSheetOpen] = useState(false);
 
   const available = general.mode.toLowerCase() === "global" ? [global] : groups;
   const focusKey = controllerIdentity(controller.id, controller.url);
@@ -352,7 +351,13 @@ export default function Connect() {
   const quota = subscriptionQuota(sub);
   const coreOpen = trafficState === "open";
   const active = hasLocalAPI ? running : !isLocalTarget && coreOpen;
-  const takeover = hasLocalAPI ? status?.preferences.takeoverMode : undefined;
+  const isSysproxy = hasLocalAPI
+    ? (status?.preferences.systemProxy ??
+      status?.preferences.takeoverMode === "sysproxy")
+    : false;
+  const isTun = hasLocalAPI
+    ? (status?.preferences.tun ?? status?.preferences.takeoverMode === "tun")
+    : false;
   const currentMode = (
     hasLocalAPI ? status?.preferences.routingMode : general.mode
   )?.toLowerCase();
@@ -393,11 +398,13 @@ export default function Connect() {
   // 運行時的副行交代接管方式；未運行交代下一步，遠端交代管理歸屬。
   const stateNote = hasLocalAPI
     ? running
-      ? takeover === "sysproxy"
-        ? t("runningSysproxy")
-        : takeover === "tun"
-          ? t("runningTun")
-          : t("runningPort", { port: mixedPort })
+      ? isSysproxy && isTun
+        ? t("runningDual")
+        : isSysproxy
+          ? t("runningSysproxy")
+          : isTun
+            ? t("runningTun")
+            : t("runningPort", { port: mixedPort })
       : sub
         ? t("readyToConnect")
         : t("noConfig")
@@ -416,15 +423,17 @@ export default function Connect() {
     },
     {
       kind: "takeover" as const,
-      tone: hasLocalAPI
-        ? takeover === "port"
-          ? "muted"
-          : status?.threeTier.trafficIntercepted
-            ? "ok"
-            : "muted"
-        : "muted",
+      tone: hasLocalAPI ? (isSysproxy || isTun ? "ok" : "muted") : "muted",
       label: t("takeoverMode"),
-      value: takeover ? t(takeover) : tc("unknown"),
+      value: hasLocalAPI
+        ? isSysproxy && isTun
+          ? `${t("sysproxy")} + TUN`
+          : isSysproxy
+            ? t("sysproxy")
+            : isTun
+              ? t("tun")
+              : t("portOnly")
+        : tc("unknown"),
     },
     {
       kind: "egress" as const,
@@ -441,18 +450,6 @@ export default function Connect() {
   function setFocusGroup(name: string) {
     setFocus((previous) => ({ ...previous, [focusKey]: name }));
   }
-
-  const takeoverOptions = (["sysproxy", "tun", "port"] as const).map(
-    (mode) => ({
-      value: mode,
-      label: t(mode),
-      disabled: mode === "tun" && status?.capabilities?.tun === false,
-      disabledReason:
-        mode === "tun" && status?.capabilities?.tun === false
-          ? (status.capabilities.tunReason ?? undefined)
-          : undefined,
-    }),
-  );
 
   const routingOptions = (["rule", "global", "direct"] as const).map(
     (mode) => ({
@@ -930,59 +927,65 @@ export default function Connect() {
           >
             <h2 className="text-subtitle font-semibold">{t("prefs")}</h2>
             {hasLocalAPI && (
-              <div className="flex flex-col gap-2.5 border-t border-border/70 pt-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-label font-semibold text-muted-foreground">
-                    {t("takeoverMode")}
-                  </span>
-                  <button
-                    type="button"
-                    className="ml-auto hidden max-md:inline-flex cursor-pointer items-center gap-1.5 rounded-control px-1.5 py-1 text-body font-semibold text-brand-text"
-                    aria-haspopup="dialog"
-                    onClick={() => setTakeoverSheetOpen(true)}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="15"
-                      height="15"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                    </svg>
-                    <span>{takeover ? t(takeover) : tc("unknown")}</span>
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="13"
-                      height="13"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="m9 6 6 6-6 6" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="max-md:hidden">
-                  <SegmentedControl
-                    ariaLabel={t("takeoverMode")}
-                    options={takeoverOptions}
-                    value={takeover ?? null}
+              <div className="flex flex-col gap-3 border-t border-border/70 pt-3">
+                <span className="text-label font-semibold text-muted-foreground">
+                  {t("takeoverMode")}
+                </span>
+
+                {/* System Proxy */}
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <strong className="text-body font-semibold text-foreground">
+                      {t("sysproxy")}
+                    </strong>
+                    <span className="text-label text-muted-foreground leading-tight">
+                      {st("takeover.sysproxyDesc")}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={isSysproxy}
                     disabled={pending}
-                    className="grid w-full grid-cols-3"
-                    itemClassName="px-2 whitespace-normal"
-                    onChange={(mode) =>
-                      void run(() => setMode({ mode }), false)
+                    onCheckedChange={(checked: boolean) =>
+                      void run(() => setMode({ systemProxy: checked }), false)
                     }
+                    aria-label={t("sysproxy")}
                   />
+                </div>
+
+                {/* Virtual NIC (TUN) */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <strong className="text-body font-semibold text-foreground">
+                        {t("tun")}
+                      </strong>
+                      <span className="text-label text-muted-foreground leading-tight">
+                        {st("takeover.tunDesc")}
+                      </span>
+                    </div>
+                    <Switch
+                      checked={isTun}
+                      disabled={pending || status?.capabilities?.tun === false}
+                      onCheckedChange={(checked: boolean) =>
+                        void run(() => setMode({ tun: checked }), false)
+                      }
+                      aria-label={t("tun")}
+                    />
+                  </div>
+                  {status?.capabilities?.tun === false &&
+                    status?.capabilities?.tunReasonCode && (
+                      <p className="px-1 text-xs text-warning-text leading-tight">
+                        {st(
+                          `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                        )}
+                      </p>
+                    )}
+                </div>
+
+                {/* Inbound mixed port info */}
+                <div className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+                  <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
+                  <span>{t("portListeningHint", { port: mixedPort })}</span>
                 </div>
               </div>
             )}
@@ -1286,66 +1289,6 @@ export default function Connect() {
             await nodeSelection.select(groupName, nodeName);
           }}
         />
-      )}
-
-      {/* 流動端接管方式面板：桌面用分段滑塊，手機開底部面板（能力與原因相同）。 */}
-      {takeoverSheetOpen && (
-        <Sheet
-          open
-          onOpenChange={(sheetOpen) => {
-            if (!sheetOpen) setTakeoverSheetOpen(false);
-          }}
-        >
-          <SheetContent
-            side="right"
-            showCloseButton={false}
-            aria-describedby={undefined}
-            className="w-[340px] max-w-full overflow-y-auto sm:max-w-[340px]"
-          >
-            <div
-              className="flex flex-col gap-3.5 py-5 px-[18px]"
-              role="dialog"
-              aria-modal="true"
-              aria-label={t("takeoverMode")}
-            >
-              <header className="flex items-center justify-between">
-                <SheetTitle asChild>
-                  <h3 className="text-base font-semibold">
-                    {t("takeoverMode")}
-                  </h3>
-                </SheetTitle>
-                <button
-                  type="button"
-                  className="inline-flex cursor-pointer items-center justify-center rounded-sm px-1.5 py-1 max-md:min-h-11 max-md:min-w-11 text-body font-semibold text-brand-text"
-                  onClick={() => setTakeoverSheetOpen(false)}
-                  aria-label={tc("close")}
-                >
-                  ✕
-                </button>
-              </header>
-              <SegmentedControl
-                ariaLabel={t("takeoverMode")}
-                orientation="vertical"
-                className="flex w-full flex-col"
-                itemClassName="justify-start px-3 py-2 text-start whitespace-normal"
-                value={takeover}
-                disabled={pending}
-                onChange={(mode) => void run(() => setMode({ mode }), false)}
-                options={takeoverOptions.map((option) => ({
-                  ...option,
-                  label: (
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <strong>{option.label}</strong>
-                      <span className="text-label leading-snug">
-                        {st(`takeover.${option.value}Desc` as const)}
-                      </span>
-                    </span>
-                  ),
-                }))}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
       )}
     </div>
   );

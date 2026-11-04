@@ -84,6 +84,12 @@ const KO = {
     noConfigRemote: "구독은 이 외부 컨트롤러에서 관리합니다.",
     manageController: "컨트롤러 관리",
     remoteNote: "원거 컨트롤러입니다. 이 기기의 트래픽은 인계하지 않습니다.",
+    goToConsole: "대시보드로 이동",
+    noConfigTitle: "프로필 미선택",
+    noConfigDescription:
+      "프록시 서비스를 사용하려면 먼저 설정에서 구독 프로필을 추가하거나 활성화하세요.",
+    remoteDisconnectedDesc:
+      "외부 컨트롤러에 연결할 수 없습니다. 실행 상태와 주소 설정을 확인하세요.",
     statusReadFailed: "로컬 상태를 읽을 수 없습니다. 다시 시도하세요.",
     currentNode: "현재 노드",
     strategyGroups: "전략 그룹",
@@ -132,8 +138,12 @@ const KO = {
     runningSysproxy: "시스템 프록시가 켜져 있습니다",
     coreRunning: "실행 중",
     runningTun: "가상 네트워크 어댑터가 켜져 있습니다",
+    runningDual: "시스템 프록시 및 가상 네트워크 카드가 모두 켜져 있습니다",
     runningPort:
       "프록시 포트 {{port}} 준비됨 · 시스템 트래픽은 아직 가로채지 않았습니다",
+    dualTakeover: "이중 인계",
+    portOnly: "포트만",
+    portListeningHint: "혼합 프록시 포트 상시 수신 ({{port}})",
     currentConfig: "현재 구성",
     prefs: "연결 환경설정",
     nodeSelection: "노드 선택",
@@ -169,6 +179,14 @@ const KO = {
   },
   proxies: {
     title: "프록시",
+    disconnectedNotice:
+      "프록시 서비스가 중지되었습니다. 연결 후 모든 노드, 그룹 및 지연 시간 측정을 확인할 수 있습니다.",
+    noConfigNotice:
+      "선택된 프로필이 없습니다. 설정에서 구독을 추가하거나 활성화하세요.",
+    emptyNodes: "사용 가능한 노드 없음",
+    emptyNodesDesc:
+      "현재 프로필에 프록시 노드가 없습니다. 구독을 업데이트하거나 확인하세요.",
+    manageConfig: "설정 관리",
     groups: "정책 그룹",
     parameters: "테스트 설정",
     providerTitle: "프로바이더",
@@ -211,6 +229,8 @@ const KO = {
   },
   connections: {
     title: "연결",
+    disconnectedNotice:
+      "프록시 서비스가 실행되지 않았습니다. 연결 후 활성 연결과 라우팅을 실시간으로 확인할 수 있습니다.",
     keepClosed: "닫힌 연결 유지",
     empty: "활성 연결이 없습니다. 새 연결은 자동으로 여기에 표시됩니다.",
     emptyAction: "외부 컨트롤러 설정 확인",
@@ -268,6 +288,8 @@ const KO = {
   },
   logs: {
     title: "로그",
+    disconnectedNotice:
+      "프록시 서비스가 실행되지 않았습니다. 연결 후 런타임 로그와 진단 정보를 실시간으로 확인할 수 있습니다.",
     levelLabel: "로그 레벨",
     empty: "아직 로그가 없습니다. 트래픽이 흐르면 여기에 표시됩니다.",
     emptyAction: "Debug 레벨로 전환",
@@ -285,6 +307,12 @@ const KO = {
     filterLogs: "로그 메시지 검색",
   },
   rules: {
+    disconnectedNotice:
+      "프록시 서비스가 실행되지 않았습니다. 연결 후 라우팅 규칙 목록을 실시간으로 확인할 수 있습니다.",
+    disconnectedProvidersNotice:
+      "프록시 서비스가 실행되지 않았습니다. 연결 후 규칙 제공자 상태를 확인하고 업데이트할 수 있습니다.",
+    mixinDisconnectedHint:
+      "서비스가 연결되지 않았습니다. 여기서 구성한 분류 규칙은 다음 연결 시 적용됩니다.",
     updateDaemon:
       "규칙을 보려면 로컬 XBond 서비스를 업데이트하고 다시 시작하세요.",
     searchPlaceholder: "도메인, 규칙 유형 또는 아웃바운드",

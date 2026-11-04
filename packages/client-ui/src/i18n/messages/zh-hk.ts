@@ -83,6 +83,12 @@ const HK = {
     noConfigRemote: "訂閱由此外部控制器管理。",
     manageController: "管理控制器",
     remoteNote: "遠端控制器，不接管本機流量。",
+    goToConsole: "前往控制台",
+    noConfigTitle: "尚未選擇設定",
+    noConfigDescription:
+      "請先在設定管理中新增或啟用訂閱／設定檔，即可開始使用代理服務。",
+    remoteDisconnectedDesc:
+      "無法連線至外部控制器，請確認目標控制器已啟動且位址設定正確。",
     statusReadFailed: "未能讀取本機狀態，請再試一次。",
     currentNode: "目前節點",
     strategyGroups: "策略組",
@@ -130,7 +136,11 @@ const HK = {
     runningSysproxy: "系統代理已開啟",
     coreRunning: "運行中",
     runningTun: "虛擬網卡已開啟",
+    runningDual: "系統代理與虛擬網卡已開啟",
     runningPort: "代理端口 {{port}} 已就緒，尚未接管系統流量",
+    dualTakeover: "雙重接管",
+    portOnly: "僅端口",
+    portListeningHint: "混合代理端口常駐監聽 ({{port}})",
     currentConfig: "當前配置",
     prefs: "連接偏好",
     nodeSelection: "節點選擇",
@@ -166,6 +176,13 @@ const HK = {
   },
   proxies: {
     title: "代理",
+    disconnectedNotice:
+      "代理服務目前未運行。啟動連線後即可在此查看與切換全部節點、策略組與延遲測速。",
+    noConfigNotice:
+      "尚未選擇設定。請先在設定管理中新增或啟用訂閱，即可開始使用。",
+    emptyNodes: "暫無可用節點",
+    emptyNodesDesc: "目前設定中未包含可用的代理節點，請更新或檢查訂閱設定。",
+    manageConfig: "管理設定",
     groups: "策略組",
     parameters: "測速設定",
     providerTitle: "代理集",
@@ -206,6 +223,8 @@ const HK = {
   },
   connections: {
     title: "連線",
+    disconnectedNotice:
+      "代理服務未運行。啟動連線後，將在此即時擷取並展示所有應用的網路連線、目標網域名稱與分流鏈路。",
     keepClosed: "保留已關閉連線",
     empty: "暫無活動連線，新的連線會自動出現在這裡。",
     emptyAction: "檢查外部控制設定",
@@ -262,6 +281,8 @@ const HK = {
   },
   logs: {
     title: "日誌",
+    disconnectedNotice:
+      "代理服務未運行。啟動連線後，將在此即時輸出核心運行日誌、網路事件與診斷資訊。",
     levelLabel: "日誌等級",
     empty: "暫無日誌，有流量經過時會自動出現在這裡。",
     emptyAction: "切換至 Debug 等級",
@@ -279,6 +300,12 @@ const HK = {
     filterLogs: "搜尋日誌內容",
   },
   rules: {
+    disconnectedNotice:
+      "代理服務未運行。啟動連線後，將根據目前設定即時解析並展示分流規則清單與匹配策略。",
+    disconnectedProvidersNotice:
+      "代理服務未運行。啟動連線後即可查看並更新各外部規則集與其狀態。",
+    mixinDisconnectedHint:
+      "服務尚未連線。在此設定的分流增強與 DNS 規則將在下次啟動連線時生效。",
     updateDaemon: "更新並重啟本機 XBond 服務後，即可查看規則。",
     searchPlaceholder: "網域、規則類型或出口",
     reportedMatch: "連線回報的命中規則",

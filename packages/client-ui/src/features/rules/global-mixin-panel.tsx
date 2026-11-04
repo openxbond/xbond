@@ -20,6 +20,7 @@ interface FormProps {
   initial: GlobalMixin;
   isLoading: boolean;
   daemonState: string;
+  isConnected?: boolean;
   updateMixin: (mixin: GlobalMixin) => Promise<unknown>;
   refresh: () => Promise<unknown>;
 }
@@ -28,10 +29,12 @@ function GlobalMixinForm({
   initial,
   isLoading,
   daemonState,
+  isConnected,
   updateMixin,
   refresh,
 }: FormProps) {
   const { t } = useTranslation("configuration");
+  const { t: tr } = useTranslation("rules");
 
   const [bypassLan, setBypassLan] = useState(initial.bypassLan ?? false);
   const [rulesPrepend, setRulesPrepend] = useState(
@@ -104,6 +107,13 @@ function GlobalMixinForm({
           </div>
         </div>
       </header>
+
+      {!isConnected && (
+        <div className="flex items-center gap-2 rounded-control border border-border bg-inset px-4 py-2.5 text-xs text-muted-foreground">
+          <SlidersHorizontal className="size-4 shrink-0 text-brand" />
+          <span>{tr("mixinDisconnectedHint")}</span>
+        </div>
+      )}
 
       {saveError && (
         <div
@@ -258,7 +268,11 @@ function GlobalMixinForm({
   );
 }
 
-export default function GlobalMixinPanel() {
+export default function GlobalMixinPanel({
+  isConnected,
+}: {
+  isConnected?: boolean;
+}) {
   const { mixin, isLoading, updateMixin, refresh } = useGlobalMixin();
   const { daemonState } = useLocalAPI();
   const formKey = `${mixin.bypassLan}-${(mixin.rulesPrepend ?? []).join(",")}-${(mixin.rulesAppend ?? []).join(",")}-${mixin.dns ?? ""}`;
@@ -269,6 +283,7 @@ export default function GlobalMixinPanel() {
       initial={mixin}
       isLoading={isLoading}
       daemonState={daemonState}
+      isConnected={isConnected}
       updateMixin={updateMixin}
       refresh={refresh}
     />

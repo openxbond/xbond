@@ -83,6 +83,12 @@ const CN = {
     noConfigRemote: "订阅由此外部控制器管理。",
     manageController: "管理控制器",
     remoteNote: "远程控制器，不接管本机流量。",
+    goToConsole: "前往控制台",
+    noConfigTitle: "尚未选择配置",
+    noConfigDescription:
+      "请先在配置管理中添加或激活一个订阅/配置文件，即可开始使用代理服务。",
+    remoteDisconnectedDesc:
+      "无法连接到外部控制器，请确认目标控制器已启动且地址配置正确。",
     statusReadFailed: "无法读取本机状态，请重试。",
     currentNode: "当前节点",
     strategyGroups: "策略组",
@@ -130,7 +136,11 @@ const CN = {
     runningSysproxy: "系统代理已开启",
     coreRunning: "运行中",
     runningTun: "虚拟网卡已开启",
+    runningDual: "系统代理与虚拟网卡已开启",
     runningPort: "代理端口 {{port}} 已就绪，尚未接管系统流量",
+    dualTakeover: "双重接管",
+    portOnly: "仅端口",
+    portListeningHint: "混合代理端口常驻监听 ({{port}})",
     currentConfig: "当前配置",
     prefs: "连接偏好",
     nodeSelection: "节点选择",
@@ -166,6 +176,13 @@ const CN = {
   },
   proxies: {
     title: "代理",
+    disconnectedNotice:
+      "代理服务当前未运行。启动连接后即可在此查看和切换全部节点、策略组与延迟测速。",
+    noConfigNotice:
+      "尚未选择配置。请先在配置管理中添加或激活订阅，即可开始使用。",
+    emptyNodes: "暂无可用节点",
+    emptyNodesDesc: "当前配置中未包含可用的代理节点，请更新或检查订阅配置。",
+    manageConfig: "管理配置",
     groups: "策略组",
     parameters: "测速设置",
     providerTitle: "代理集",
@@ -206,6 +223,8 @@ const CN = {
   },
   connections: {
     title: "连接",
+    disconnectedNotice:
+      "代理服务未运行。启动连接后，将在此实时捕获并展示所有应用的网络连接、目标域名与分流链路。",
     keepClosed: "保留已关闭连接",
     empty: "暂无活动连接，新的连接会自动出现在这里。",
     emptyAction: "检查外部控制设置",
@@ -262,6 +281,8 @@ const CN = {
   },
   logs: {
     title: "日志",
+    disconnectedNotice:
+      "代理服务未运行。启动连接后，将在此实时输出核心运行日志、网络事件与诊断信息。",
     levelLabel: "日志等级",
     empty: "暂无日志，有流量经过时会自动出现在这里。",
     emptyAction: "切换到 Debug 等级",
@@ -279,6 +300,12 @@ const CN = {
     filterLogs: "搜索日志内容",
   },
   rules: {
+    disconnectedNotice:
+      "代理服务未运行。启动连接后，将根据当前配置实时解析并展示分流规则列表与匹配策略。",
+    disconnectedProvidersNotice:
+      "代理服务未运行。启动连接后即可查看并更新各外部规则集与其状态。",
+    mixinDisconnectedHint:
+      "服务尚未连接。在此配置的分流增强与 DNS 规则将在下次启动连接时生效。",
     updateDaemon: "更新并重启本机 XBond 服务后，即可查看规则。",
     searchPlaceholder: "域名、规则类型或出口",
     reportedMatch: "连接报告的命中规则",

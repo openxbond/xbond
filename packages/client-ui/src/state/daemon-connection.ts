@@ -3,7 +3,8 @@ import {
   type LocalAPIConfig,
   type LocalAPIStatusResponse,
 } from "@xbond/client/localapi";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { atom, useAtom } from "jotai";
+import { useEffect, useMemo } from "react";
 import useSWR from "swr";
 
 import {
@@ -12,6 +13,17 @@ import {
   resolveDesktopLocalAPIConfig,
 } from "@/platform/local-api-bootstrap";
 
+/** Retain resolved daemon config globally so route changes don't re-probe IPC or drop clients. */
+export const daemonConfigAtom = atom<LocalAPIConfig | null>(
+  detectLocalAPIConfig(),
+);
+export const daemonConfigReadyAtom = atom<boolean>(
+  Boolean(detectLocalAPIConfig()) || !isDesktopApp(),
+);
+export const daemonStatusAtom = atom<LocalAPIStatusResponse | null>(null);
+
+let globalLastReresolveAt = 0;
+
 /**
  * Connection core for the daemon that owns this window: config resolution
  * (desktop IPC with self-heal), the LocalAPI client, and the status poll.
@@ -19,15 +31,9 @@ import {
  * (random clash port + secret) are consumed from status, never persisted.
  */
 export function useDaemonConnection() {
-  const [config, setConfig] = useState<LocalAPIConfig | null>(() =>
-    detectLocalAPIConfig(),
-  );
-  // Desktop resolves its injected config over IPC asynchronously. Until that
-  // settles, "no client" means connecting, not a down daemon.
-  const [configReady, setConfigReady] = useState(
-    () => Boolean(detectLocalAPIConfig()) || !isDesktopApp(),
-  );
-  const lastReresolveAt = useRef(0);
+  const [config, setConfig] = useAtom(daemonConfigAtom);
+  const [configReady, setConfigReady] = useAtom(daemonConfigReadyAtom);
+  const [cachedStatus, setCachedStatus] = useAtom(daemonStatusAtom);
 
   useEffect(() => {
     if (!config && isDesktopApp()) {
@@ -61,7 +67,7 @@ export function useDaemonConnection() {
         if (timer) clearTimeout(timer);
       };
     }
-  }, [config]);
+  }, [config, setConfig, setConfigReady]);
 
   const client = useMemo(() => {
     if (!config) return null;
@@ -72,13 +78,18 @@ export function useDaemonConnection() {
     client ? ["/localapi/v0/status", config?.token] : null,
     async () => {
       if (!client) throw new Error("No LocalAPI client");
-      return client.getStatus();
+      const res = await client.getStatus();
+      setCachedStatus(res);
+      return res;
     },
     {
       refreshInterval: 4000,
       shouldRetryOnError: false,
+      fallbackData: cachedStatus ?? undefined,
     },
   );
+
+  const effectiveStatus = data ?? cachedStatus;
 
   // Self-heal: the daemon may have been restarted (or reinstalled) with a
   // fresh addr/token since this window resolved its config. Re-read it from
@@ -86,8 +97,8 @@ export function useDaemonConnection() {
   // the SWR key and reconnects. Throttled so a down daemon doesn't poll IPC.
   useEffect(() => {
     if (!isDesktopApp() || !config || !error) return;
-    if (Date.now() - lastReresolveAt.current < 10_000) return;
-    lastReresolveAt.current = Date.now();
+    if (Date.now() - globalLastReresolveAt < 10_000) return;
+    globalLastReresolveAt = Date.now();
     const timer = setTimeout(() => {
       void resolveDesktopLocalAPIConfig().then((next) => {
         if (
@@ -99,20 +110,20 @@ export function useDaemonConnection() {
       });
     }, 1500);
     return () => clearTimeout(timer);
-  }, [error, config]);
+  }, [error, config, setConfig]);
 
   const daemonState = !configReady
     ? ("connecting" as const)
     : !config || error
       ? ("offline" as const)
-      : !data
+      : !effectiveStatus
         ? ("connecting" as const)
         : ("ready" as const);
 
   return {
     client,
     config,
-    data: data ?? null,
+    data: effectiveStatus ?? null,
     error: error ?? null,
     mutateStatus: mutate,
     hasDaemon: daemonState === "ready",

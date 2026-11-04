@@ -14,7 +14,9 @@ import (
 )
 
 type RuntimePreferences struct {
-	TakeoverMode engine.TakeoverMode `json:"takeoverMode"`
+	SystemProxy  bool                `json:"systemProxy"`
+	Tun          bool                `json:"tun"`
+	TakeoverMode engine.TakeoverMode `json:"takeoverMode,omitempty"`
 	RoutingMode  engine.RoutingMode  `json:"routingMode"`
 	MixedPort    int                 `json:"mixedPort"`
 	AllowLan     bool                `json:"allowLan"`
@@ -47,11 +49,35 @@ const legacyClashPort = 9090
 // cannot be parsed is an error, not a silent default (daemon-runtime spec:
 // 不静默降级).
 func applyEnvOverrides(prefs *RuntimePreferences) error {
+	if raw := os.Getenv("XBOND_SYSTEM_PROXY"); raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("XBOND_SYSTEM_PROXY %q is invalid (want true or false)", raw)
+		}
+		prefs.SystemProxy = v
+	}
+	if raw := os.Getenv("XBOND_TUN"); raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("XBOND_TUN %q is invalid (want true or false)", raw)
+		}
+		prefs.Tun = v
+	}
 	if mode := os.Getenv("XBOND_TAKEOVER_MODE"); mode != "" {
 		takeover := engine.TakeoverMode(mode)
 		switch takeover {
-		case engine.ModeSysproxy, engine.ModeTun, engine.ModePort:
+		case engine.ModeSysproxy:
 			prefs.TakeoverMode = takeover
+			prefs.SystemProxy = true
+			prefs.Tun = false
+		case engine.ModeTun:
+			prefs.TakeoverMode = takeover
+			prefs.SystemProxy = false
+			prefs.Tun = true
+		case engine.ModePort:
+			prefs.TakeoverMode = takeover
+			prefs.SystemProxy = false
+			prefs.Tun = false
 		default:
 			return fmt.Errorf("XBOND_TAKEOVER_MODE %q is invalid (want sysproxy, tun or port)", mode)
 		}
@@ -77,6 +103,8 @@ func applyEnvOverrides(prefs *RuntimePreferences) error {
 
 func DefaultPreferences() RuntimePreferences {
 	return RuntimePreferences{
+		SystemProxy:  true,
+		Tun:          false,
 		TakeoverMode: engine.ModeSysproxy,
 		RoutingMode:  engine.RoutingRule,
 		MixedPort:    defaultMixedPort,
@@ -115,6 +143,25 @@ func LoadPreferences() (RuntimePreferences, error) {
 	if _, ok := legacy["portOverride"]; !ok {
 		prefs.PortOverride = prefs.MixedPort
 		prefs.PortSource = PortSourceOverride
+	}
+	if _, ok := legacy["systemProxy"]; !ok {
+		if prefs.TakeoverMode == engine.ModeTun {
+			prefs.Tun = true
+			prefs.SystemProxy = false
+		} else if prefs.TakeoverMode == engine.ModePort {
+			prefs.Tun = false
+			prefs.SystemProxy = false
+		} else {
+			prefs.SystemProxy = true
+			prefs.Tun = false
+		}
+	}
+	if prefs.Tun {
+		prefs.TakeoverMode = engine.ModeTun
+	} else if prefs.SystemProxy {
+		prefs.TakeoverMode = engine.ModeSysproxy
+	} else {
+		prefs.TakeoverMode = engine.ModePort
 	}
 	if err := applyEnvOverrides(&prefs); err != nil {
 		return RuntimePreferences{}, err

@@ -25,13 +25,10 @@ func EvaluateThreeTier(
 	mixedPort int,
 ) ThreeTierStatus {
 	st := ThreeTierStatus{
-		TakeoverMode: mode,
-		RoutingMode:  routing,
-	}
-
-	if mode == engine.ModePort {
-		st.TrafficIntercepted = false
-		st.InterceptNote = "port mode only, whole-system not intercepted"
+		TakeoverMode:       mode,
+		RoutingMode:        routing,
+		TrafficIntercepted: false,
+		InterceptNote:      "port mode only, whole-system not intercepted",
 	}
 
 	if mgr == nil || !mgr.IsRunning() {
@@ -46,19 +43,21 @@ func EvaluateThreeTier(
 		}
 	}
 
-	// 2. Tier 2: Traffic Intercepted
-	switch mode {
-	case engine.ModeSysproxy:
-		snap, err := sysproxy.Get()
-		if err == nil && snap.Enabled && strings.Contains(snap.Server, fmt.Sprintf("%d", mixedPort)) {
-			st.TrafficIntercepted = true
-		}
-	case engine.ModeTun:
-		// When in TUN mode and engine is running, sing-tun is active
-		if st.CoreReachable {
-			st.TrafficIntercepted = true
-		}
-	case engine.ModePort:
+	// 2. Tier 2: Traffic Intercepted (System Proxy and/or TUN)
+	if snap, err := sysproxy.Get(); err == nil && snap.Enabled && (mixedPort <= 0 || strings.Contains(snap.Server, fmt.Sprintf("%d", mixedPort))) {
+		st.SystemProxyActive = true
+	}
+	if (mode == engine.ModeTun || (mgr != nil && mgr.Status().TakeoverMode == engine.ModeTun)) && st.CoreReachable {
+		st.TunActive = true
+	}
+	st.TrafficIntercepted = st.SystemProxyActive || st.TunActive
+	if st.SystemProxyActive && st.TunActive {
+		st.InterceptNote = "dual takeover (system proxy + tun active)"
+	} else if st.SystemProxyActive {
+		st.InterceptNote = "system proxy active"
+	} else if st.TunActive {
+		st.InterceptNote = "tun interface active"
+	} else {
 		st.TrafficIntercepted = false
 		st.InterceptNote = "port mode only, whole-system not intercepted"
 	}

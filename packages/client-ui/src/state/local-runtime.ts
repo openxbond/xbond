@@ -58,6 +58,8 @@ export function useLocalAPI() {
 
   const setMode = useCallback(
     async (options: {
+      systemProxy?: boolean;
+      tun?: boolean;
       mode?: TakeoverMode;
       routing?: RoutingMode;
       port?: number;

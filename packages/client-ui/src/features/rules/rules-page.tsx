@@ -5,6 +5,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import useSWR from "swr";
 
 import { CopyIconButton } from "@/components/copy-button";
+import {
+  DisconnectedState,
+  useIsServiceConnected,
+} from "@/components/disconnected-state";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/page-header";
 import { RequestStatus } from "@/components/request-status";
@@ -23,12 +27,21 @@ import { useGlobalMixin } from "./use-global-mixin";
 
 const pageSize = 50;
 
-function RuleProviders() {
+function RuleProviders({ isConnected }: { isConnected: boolean }) {
   const { providers, error, update, isLoading } = useRuleProviders();
   const { t } = useTranslation("rules");
   const { t: common } = useTranslation("common");
   const { t: runtime } = useTranslation("runtime");
   const capabilities = useCapabilities();
+
+  if (!isConnected) {
+    return (
+      <DisconnectedState
+        description={t("disconnectedProvidersNotice")}
+        onConnected={() => void update()}
+      />
+    );
+  }
 
   return (
     <>
@@ -114,7 +127,13 @@ function RuleRows({ rules }: Pick<RulePage, "rules">) {
   );
 }
 
-function RuleBrowser({ local }: { local: ReturnType<typeof useLocalAPI> }) {
+function RuleBrowser({
+  local,
+  isConnected,
+}: {
+  local: ReturnType<typeof useLocalAPI>;
+  isConnected: boolean;
+}) {
   const { t } = useTranslation("rules");
   const { t: common } = useTranslation("common");
   const navigate = useNavigate();
@@ -229,6 +248,15 @@ function RuleBrowser({ local }: { local: ReturnType<typeof useLocalAPI> }) {
     if (nextPage === 1) next.delete("rulePage");
     else next.set("rulePage", String(nextPage));
     setParams(next);
+  }
+
+  if (!isConnected) {
+    return (
+      <DisconnectedState
+        description={t("disconnectedNotice")}
+        onConnected={() => void retry()}
+      />
+    );
   }
 
   return (
@@ -363,6 +391,7 @@ function RuleBrowser({ local }: { local: ReturnType<typeof useLocalAPI> }) {
 export default function Rules() {
   const { t, i18n } = useTranslation("rules");
   const local = useLocalAPI();
+  const { isConnected } = useIsServiceConnected();
   const { mixin } = useGlobalMixin();
   const [params, setParams] = useSearchParams();
   const selected = params.get("tab");
@@ -401,14 +430,14 @@ export default function Rules() {
         )}
       </TabsList>
       <TabsContent value="rules">
-        <RuleBrowser local={local} />
+        <RuleBrowser local={local} isConnected={isConnected} />
       </TabsContent>
       <TabsContent value="providers">
-        <RuleProviders />
+        <RuleProviders isConnected={isConnected} />
       </TabsContent>
       {local.isLocalTarget && (
         <TabsContent value="mixin">
-          <GlobalMixinPanel />
+          <GlobalMixinPanel isConnected={isConnected} />
         </TabsContent>
       )}
     </Tabs>

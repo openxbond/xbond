@@ -66,7 +66,6 @@ import {
 } from "./proxy-terminal-command";
 
 type TerminalFormat = ProxyTerminalFormat;
-const takeoverModes = ["sysproxy", "tun", "port"] as const;
 
 interface SettingRowProps {
   title: string;
@@ -114,7 +113,6 @@ export default function Settings() {
   const { lang, setLang } = useLanguage();
   const { t, i18n } = useTranslation("settings");
   const { t: tc } = useTranslation("common");
-  const { t: c } = useTranslation("connect");
   const navigate = useNavigate();
 
   const controller = useAPIInfo();
@@ -336,56 +334,6 @@ export default function Settings() {
           </CardHeader>
           <Separator className="mb-5" />
           <CardContent className="flex flex-col gap-1 divide-y divide-border/40 [&>*:not(:first-child)]:pt-3.5">
-            {/* Mobile Takeover (when hasLocalAPI) */}
-            {hasLocalAPI && (
-              <div className="hidden max-md:flex flex-col gap-2.5 pb-2">
-                <strong className="text-body font-semibold text-foreground">
-                  {t("takeover.title")}
-                </strong>
-                <SegmentedControl
-                  ariaLabel={t("takeover.title")}
-                  value={status?.preferences.takeoverMode}
-                  disabled={pending}
-                  className="grid w-full grid-cols-3"
-                  itemClassName="flex-col items-start justify-start gap-1 px-2 text-start whitespace-normal"
-                  onChange={(mode) => void run(() => setMode({ mode }))}
-                  options={takeoverModes.map((mode) => {
-                    const tunUnavailable =
-                      mode === "tun" && status?.capabilities?.tun === false;
-                    return {
-                      value: mode,
-                      disabled: tunUnavailable,
-                      disabledReason: tunUnavailable
-                        ? status?.capabilities?.tunReason
-                        : undefined,
-                      label: (
-                        <>
-                          <strong>{c(mode)}</strong>
-                          <span className="text-label leading-snug">
-                            {t(`takeover.${mode}Desc` as const)}
-                          </span>
-                        </>
-                      ),
-                    };
-                  })}
-                />
-                {!status?.capabilities?.tun &&
-                  status?.capabilities?.tunReasonCode && (
-                    <p className="mt-1 text-sm text-warning-text">
-                      {t(
-                        `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
-                      )}
-                    </p>
-                  )}
-                {status?.preferences.takeoverMode === "tun" &&
-                  status?.capabilities?.tun && (
-                    <p className="mt-1 text-sm text-warning-text">
-                      {t("takeover.tunPrivilegeNotice")}
-                    </p>
-                  )}
-              </div>
-            )}
-
             {/* Mixed Port */}
             <div className="-mx-3 flex flex-col gap-2.5 rounded-xl p-3 transition-colors duration-150 hover:bg-row-hover/50">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">

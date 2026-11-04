@@ -84,6 +84,12 @@ const EN = {
     noConfigRemote: "This controller manages its own subscription.",
     manageController: "Manage controller",
     remoteNote: "Remote controller. Local traffic takeover is unavailable.",
+    goToConsole: "Go to Dashboard",
+    noConfigTitle: "No Profile Selected",
+    noConfigDescription:
+      "Please add or activate a subscription profile in Configuration before connecting.",
+    remoteDisconnectedDesc:
+      "Cannot connect to external controller. Please check if it is running and the address is correct.",
     statusReadFailed: "Could not read local status. Retry to check again.",
     currentNode: "Current node",
     strategyGroups: "Strategy groups",
@@ -133,8 +139,12 @@ const EN = {
     runningSysproxy: "System proxy is on",
     coreRunning: "Running",
     runningTun: "TUN interface is on",
+    runningDual: "System proxy and TUN interface are both on",
     runningPort:
       "Proxy port {{port}} is ready; system traffic is not taken over",
+    dualTakeover: "Dual Takeover",
+    portOnly: "Port only",
+    portListeningHint: "Mixed proxy port listening at {{port}}",
     currentConfig: "Current configuration",
     prefs: "Connection preferences",
     nodeSelection: "Node selection",
@@ -170,6 +180,14 @@ const EN = {
   },
   proxies: {
     title: "Proxies",
+    disconnectedNotice:
+      "Proxy service is stopped. Connect to view and switch nodes, strategy groups, and test latencies.",
+    noConfigNotice:
+      "No profile selected. Please add or activate a subscription in Configuration to get started.",
+    emptyNodes: "No Available Nodes",
+    emptyNodesDesc:
+      "No proxy nodes found in the current profile. Please update or check subscription.",
+    manageConfig: "Manage Configuration",
     groups: "Policy groups",
     parameters: "Test settings",
     providerTitle: "Providers",
@@ -211,6 +229,8 @@ const EN = {
   },
   connections: {
     title: "Connections",
+    disconnectedNotice:
+      "Proxy service is not running. Connect to inspect active connections, domains, and routing chains in real time.",
     keepClosed: "Keep closed connections",
     empty: "No active connections. New connections appear here automatically.",
     emptyAction: "Check external controller settings",
@@ -269,6 +289,8 @@ const EN = {
   },
   logs: {
     title: "Logs",
+    disconnectedNotice:
+      "Proxy service is not running. Connect to view core runtime logs, events, and diagnostics in real time.",
     levelLabel: "Log level",
     empty: "No logs yet. Entries appear here as traffic flows.",
     emptyAction: "Switch to debug level",
@@ -286,6 +308,12 @@ const EN = {
     filterLogs: "Search log messages",
   },
   rules: {
+    disconnectedNotice:
+      "Proxy service is not running. Connect to inspect routing rules and matching policies in real time.",
+    disconnectedProvidersNotice:
+      "Proxy service is not running. Connect to view and update rule providers.",
+    mixinDisconnectedHint:
+      "Service is not connected. Mixin rules configured here will apply on next connect.",
     updateDaemon: "Update and restart the local XBond service to browse rules.",
     searchPlaceholder: "Domain, type, or outbound",
     reportedMatch: "Connection reported this rule",

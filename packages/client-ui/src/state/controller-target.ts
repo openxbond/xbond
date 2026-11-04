@@ -72,21 +72,23 @@ export function useSelectController() {
     [location, navigate, set],
   );
 }
-const clashxConfigAtom = atom(async () => {
-  if (!isClashX()) return null;
-  const info = await jsBridge!.getAPIInfo();
-  return {
-    id: "clashx",
-    name: "ClashX",
-    url: normalizeControllerURL(`http://${info.host}:${info.port}`),
-    secret: info.secret,
-  };
-});
+const clashxConfigAtom = atom<Controller | null>(null);
 // The page's injected metadata is static; the daemon's endpoint is not.
 // Keep a successfully verified binding in memory across daemon restarts.
 const verifiedDaemonMetaAtom = atom<string | undefined>(undefined);
 export function useAPIInfo() {
-  const clashx = useAtomValue(clashxConfigAtom);
+  const [clashx, setClashx] = useAtom(clashxConfigAtom);
+  useEffect(() => {
+    if (!isClashX() || !jsBridge || clashx) return;
+    void jsBridge.getAPIInfo().then((info) => {
+      setClashx({
+        id: "clashx",
+        name: "ClashX",
+        url: normalizeControllerURL(`http://${info.host}:${info.port}`),
+        secret: info.secret,
+      });
+    });
+  }, [clashx, setClashx]);
   const { data, config } = useDaemonConnection();
   const [verifiedMeta, setVerifiedMeta] = useAtom(verifiedDaemonMetaAtom);
   const location = useLocation();

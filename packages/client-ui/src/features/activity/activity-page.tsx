@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { useIsServiceConnected } from "@/components/disconnected-state";
 import { Header } from "@/components/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
@@ -18,6 +20,8 @@ export default function Activity() {
   const { t: sb, i18n } = useTranslation("sidebar");
   const { t: r } = useTranslation("runtime");
   const { t: ov } = useTranslation("overview");
+  const { t: tc } = useTranslation("common");
+  const { isConnected, isLoading } = useIsServiceConnected();
   const caps = useCapabilities();
   const [params, setParams] = useSearchParams();
   const activeTab =
@@ -68,7 +72,12 @@ export default function Activity() {
       className="page gap-[22px]"
     >
       <Header title={sb("activity")}>
-        <output>{r(state)}</output>
+        <Badge
+          variant={isConnected ? "default" : "outline"}
+          className="tabular-nums font-normal"
+        >
+          {isLoading ? tc("loading") : isConnected ? r(state) : tc("stopped")}
+        </Badge>
       </Header>
       <dl className="flex flex-wrap gap-x-10 gap-y-7 rounded-card border border-border bg-card p-6 max-md:gap-x-7 max-md:gap-y-[22px]">
         <div className="flex flex-col gap-2.5">

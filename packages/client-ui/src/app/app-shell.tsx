@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   Route,
   Navigate,
@@ -28,14 +28,29 @@ import { useTheme } from "@/state/user-preferences";
 
 import SideBar from "./navigation/app-navigation";
 
+// Mobile bottom navigation targets (4 core destinations)
+const mobileRoutes = [
+  { path: "/connect", name: "Connect" },
+  { path: "/proxies", name: "Proxies" },
+  { path: "/activity", name: "Activity" },
+  { path: "/config", name: "Config" },
+];
+
 export default function App() {
   useTheme();
 
-  const { status, daemonState } = useLocalAPI();
+  const { status } = useLocalAPI();
   const [identity, setIdentity] = useAtom(identityAtom);
   const target = useAPIInfo();
   const location = useLocation();
   const navigate = useNavigate();
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Instant scroll-to-top on route change to prevent jump flickering
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [location.pathname]);
+
   const initialPage =
     hasDaemonConfig() && status?.activeSub ? "/connect" : "/config";
   // Pages ask for controller management by clearing the identity flag; send
@@ -60,14 +75,6 @@ export default function App() {
     setIdentity,
   ]);
 
-  // Mobile bottom navigation targets (4 core destinations)
-  const mobileRoutes = [
-    { path: "/connect", name: "Connect" },
-    { path: "/proxies", name: "Proxies" },
-    { path: "/activity", name: "Activity" },
-    { path: "/config", name: "Config" },
-  ];
-
   const layout = (
     <div
       className={cn(
@@ -78,7 +85,10 @@ export default function App() {
       )}
     >
       <SideBar routes={mobileRoutes} />
-      <div className="h-full w-full min-w-0 overflow-y-auto max-md:px-3 max-md:[&::-webkit-scrollbar]:hidden">
+      <div
+        ref={contentRef}
+        className="h-full w-full min-w-0 overflow-y-auto max-md:px-3 max-md:[&::-webkit-scrollbar]:hidden"
+      >
         <ControllerPage />
       </div>
       <Toaster />
@@ -91,19 +101,13 @@ export default function App() {
         <Route
           path="/"
           element={
-            daemonState === "connecting" ? (
-              <div role="status" className="p-6">
-                XBond…
-              </div>
-            ) : (
-              <Navigate
-                to={{
-                  pathname: initialPage,
-                  search: location.search,
-                }}
-                replace
-              />
-            )
+            <Navigate
+              to={{
+                pathname: initialPage,
+                search: location.search,
+              }}
+              replace
+            />
           }
         />
 

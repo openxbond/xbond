@@ -8,6 +8,10 @@ import {
 } from "react-window";
 import useSWR from "swr";
 
+import {
+  DisconnectedState,
+  useIsServiceConnected,
+} from "@/components/disconnected-state";
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -70,6 +74,7 @@ export default function Logs() {
     set,
   } = useConfig();
   const { general } = useGeneral();
+  const { isConnected } = useIsServiceConnected();
   const level = logLevel || general.logLevel || "info";
   const silent = level === "silent" || general.logLevel === "silent";
   const {
@@ -181,6 +186,16 @@ export default function Logs() {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+
+  if (!isConnected) {
+    return (
+      <div className="page logs-page">
+        <Header title={t("title")} />
+        <DisconnectedState description={t("disconnectedNotice")} />
+      </div>
+    );
+  }
+
   return (
     <div className="page logs-page">
       <Header title={t("title")}>

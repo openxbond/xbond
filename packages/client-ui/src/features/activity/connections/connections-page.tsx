@@ -13,12 +13,15 @@ import {
 } from "@tanstack/react-table";
 import { basePath, formatTraffic } from "@xbond/client/helper";
 import type * as API from "@xbond/client/request";
-import { useSetAtom } from "jotai";
 import { useMemo, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { groupBy } from "remeda";
 import { toast } from "sonner";
 
+import {
+  DisconnectedState,
+  useIsServiceConnected,
+} from "@/components/disconnected-state";
 import { EmptyState } from "@/components/empty-state";
 import { Icon } from "@/components/icon-font";
 import { Header } from "@/components/page-header";
@@ -45,7 +48,7 @@ import {
 } from "@/hooks/use-core-stream";
 import { fromNow } from "@/i18n/relative-time";
 import { cn } from "@/lib/utils";
-import { useClient, identityAtom } from "@/state/controller-target";
+import { useClient } from "@/state/controller-target";
 import { useLanguage } from "@/state/user-preferences";
 
 import { ConnectionInfo } from "./connection-details";
@@ -118,7 +121,7 @@ export default function Connections() {
     chains: "",
   });
   const client = useClient();
-  const setIdentity = useSetAtom(identityAtom);
+  const { isConnected } = useIsServiceConnected();
 
   // total
   const [traffic, setTraffic] = useObject({
@@ -502,6 +505,15 @@ export default function Connections() {
       : instance.getRowModel().rows
   ).filter((row) => !row.original.completed).length;
 
+  if (!isConnected) {
+    return (
+      <div className="page connections-page">
+        <Header title={t("title")} />
+        <DisconnectedState description={t("disconnectedNotice")} />
+      </div>
+    );
+  }
+
   return (
     <div className="page connections-page">
       <Header title={t("title")}>
@@ -645,8 +657,6 @@ export default function Connections() {
             <EmptyState
               className="connections-empty absolute inset-x-0 bottom-0 top-8"
               message={
-                // 篩選無結果、串流中斷與「真的沒有連線」是三種事實，
-                // 各自給對應的下一步。
                 streamState !== "open"
                   ? r(streamState)
                   : instance.getCoreRowModel().rows.length > 0
@@ -654,8 +664,7 @@ export default function Connections() {
                     : t("empty")
               }
               action={
-                streamState !== "open" ? undefined : instance.getCoreRowModel()
-                    .rows.length > 0 ? (
+                instance.getCoreRowModel().rows.length > 0 ? (
                   <button
                     className="empty-state-action"
                     onClick={() => {
@@ -670,14 +679,7 @@ export default function Connections() {
                   >
                     {tc("clear")}
                   </button>
-                ) : (
-                  <button
-                    className="empty-state-action"
-                    onClick={() => setIdentity(false)}
-                  >
-                    {t("emptyAction")}
-                  </button>
-                )
+                ) : undefined
               }
             />
           )}

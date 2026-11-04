@@ -12,9 +12,11 @@ type ThreeTierStatus struct {
 	CoreReachable      bool                `json:"coreReachable"`
 	TrafficIntercepted bool                `json:"trafficIntercepted"`
 	InterceptNote      string              `json:"interceptNote,omitempty"`
+	SystemProxyActive  bool                `json:"systemProxyActive"`
+	TunActive          bool                `json:"tunActive"`
 	EgressVerified     bool                `json:"egressVerified"`
 	EgressLatencyMs    int                 `json:"egressLatencyMs"`
-	TakeoverMode       engine.TakeoverMode `json:"takeoverMode"`
+	TakeoverMode       engine.TakeoverMode `json:"takeoverMode,omitempty"`
 	RoutingMode        engine.RoutingMode  `json:"routingMode"`
 	FocusStrategy      string              `json:"focusStrategy,omitempty"`
 	StrategyChain      []string            `json:"strategyChain,omitempty"`

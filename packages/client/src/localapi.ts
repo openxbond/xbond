@@ -26,7 +26,9 @@ export type RoutingMode = "rule" | "global" | "direct";
 export type PortSource = "override" | "subscription" | "default";
 
 export interface LocalAPIPreferences {
-  takeoverMode: TakeoverMode;
+  systemProxy: boolean;
+  tun: boolean;
+  takeoverMode?: TakeoverMode;
   routingMode: RoutingMode;
   mixedPort: number;
   allowLan: boolean;
@@ -41,9 +43,11 @@ export interface ThreeTierStatus {
   coreReachable: boolean;
   trafficIntercepted: boolean;
   interceptNote?: string;
+  systemProxyActive?: boolean;
+  tunActive?: boolean;
   egressVerified: boolean;
   egressLatencyMs: number;
-  takeoverMode: TakeoverMode;
+  takeoverMode?: TakeoverMode;
   routingMode: RoutingMode;
   focusStrategy?: string;
   strategyChain?: string[];
@@ -395,6 +399,8 @@ export class LocalAPIClient {
   }
 
   async setMode(options: {
+    systemProxy?: boolean;
+    tun?: boolean;
     mode?: TakeoverMode;
     routing?: RoutingMode;
     port?: number;
