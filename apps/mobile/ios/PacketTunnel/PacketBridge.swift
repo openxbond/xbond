@@ -44,6 +44,19 @@ final class PacketBridge {
         reader = nil
     }
 
+    /// Hands the core a duplicate of the adapter socket. sing-tun closes the
+    /// fd it adopts when the core stops, while this side keeps the original
+    /// and closes it in deinit — the same ownership split the Android side
+    /// applies (XBondVpnService dup comment); without it, a stop closes the
+    /// number once and deinit closes it again, killing whatever reused it.
+    func coreHandoff() throws -> Int32 {
+        let duplicate = dup(coreDescriptor)
+        guard duplicate != -1 else {
+            throw MobileFailure("Could not hand the packet adapter to the core.")
+        }
+        return duplicate
+    }
+
     deinit {
         Darwin.close(coreDescriptor)
         Darwin.close(peer)

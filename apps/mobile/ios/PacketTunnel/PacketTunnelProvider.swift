@@ -32,7 +32,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
                         throw MobileFailure("Could not create the XBond tunnel.")
                     }
                     do {
-                        try tunnel.startActive(bridge.coreDescriptor)
+                        try tunnel.startActive(bridge.coreHandoff())
                         _ = try MobileSupport.webEndpoint(for: tunnel)
                     } catch {
                         try? tunnel.close()
