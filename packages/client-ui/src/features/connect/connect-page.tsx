@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useProxy, useProxyMapping } from "@/features/proxies/proxy-data";
 import { useNodeSelection } from "@/features/proxies/use-node-selection";
@@ -332,11 +331,16 @@ export default function Connect() {
       const timer = setInterval(() => {
         elapsed += 1000;
         void refresh().then((updated) => {
-          if (updated?.capabilities?.tun || elapsed >= 15000) {
+          const ready = Boolean(
+            updated?.capabilities?.serviceInstalled ||
+            updated?.capabilities?.tun,
+          );
+          if (ready || elapsed >= 15000) {
             clearInterval(timer);
             setInstallingService(false);
-            if (updated?.capabilities?.tun) {
+            if (ready) {
               toast.success(st("takeover.installServiceSuccess"));
+              void run(() => setMode({ tun: true }), false);
             }
           }
         });
@@ -346,7 +350,7 @@ export default function Connect() {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(st("takeover.installServiceFailed", { error: msg }));
     }
-  }, [installService, refresh, st]);
+  }, [installService, refresh, run, setMode, st]);
 
   const available = general.mode.toLowerCase() === "global" ? [global] : groups;
   const focusKey = controllerIdentity(controller.id, controller.url);
@@ -407,6 +411,11 @@ export default function Connect() {
     : false;
   const isTun = hasLocalAPI
     ? (status?.preferences.tun ?? status?.preferences.takeoverMode === "tun")
+    : false;
+  const isTunCapable = hasLocalAPI
+    ? Boolean(
+        status?.capabilities?.serviceInstalled || status?.capabilities?.tun,
+      )
     : false;
   const currentMode = (
     hasLocalAPI ? status?.preferences.routingMode : general.mode
@@ -978,9 +987,20 @@ export default function Connect() {
             <h2 className="text-subtitle font-semibold">{t("prefs")}</h2>
             {hasLocalAPI && (
               <div className="flex flex-col gap-3 border-t border-border/70 pt-3">
-                <span className="text-label font-semibold text-muted-foreground">
-                  {t("takeoverMode")}
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-label font-semibold text-muted-foreground">
+                    {t("takeoverMode")}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    <span className="font-sans text-[11px] text-muted-foreground">
+                      {t("port")}
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {mixedPort}
+                    </span>
+                  </span>
+                </div>
 
                 {/* System Proxy */}
                 <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
@@ -1006,76 +1026,72 @@ export default function Connect() {
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
                     <div className="flex min-w-0 flex-col gap-0.5">
-                      <strong className="text-body font-semibold text-foreground">
-                        {t("tun")}
-                      </strong>
+                      <div className="flex items-center gap-1.5">
+                        <strong className="text-body font-semibold text-foreground">
+                          {t("tun")}
+                        </strong>
+                        {hasLocalAPI && !isTunCapable && (
+                          <div className="group/tun-hint relative inline-flex items-center">
+                            <button
+                              type="button"
+                              onClick={() => setPrivilegeDialogOpen(true)}
+                              aria-label={
+                                status?.capabilities?.tunReasonCode
+                                  ? st(
+                                      `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                                    )
+                                  : st("takeover.tunPrivilegeHint")
+                              }
+                              title={
+                                status?.capabilities?.tunReasonCode
+                                  ? st(
+                                      `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                                    )
+                                  : st("takeover.tunPrivilegeHint")
+                              }
+                              className="inline-flex size-4 cursor-pointer items-center justify-center text-amber-500 hover:text-amber-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="size-3.5"
+                              >
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                              </svg>
+                            </button>
+                            <div className="pointer-events-none absolute top-full left-0 z-50 mt-1.5 w-60 rounded-md border border-border/80 bg-popover p-2.5 text-xs font-normal text-popover-foreground shadow-elevation-raised opacity-0 transition-opacity duration-150 group-hover/tun-hint:opacity-100 group-focus-within/tun-hint:opacity-100 leading-relaxed text-left">
+                              {status?.capabilities?.tunReasonCode
+                                ? st(
+                                    `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                                  )
+                                : st("takeover.tunPrivilegeHint")}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       <span className="text-label text-muted-foreground leading-tight">
                         {st("takeover.tunDesc")}
                       </span>
                     </div>
-                    <div
-                      className="inline-flex cursor-pointer"
-                      onClick={(e) => {
-                        if (status?.capabilities?.tun === false) {
-                          e.preventDefault();
-                          e.stopPropagation();
+                    <Switch
+                      checked={isTun}
+                      disabled={pending || installingService}
+                      onCheckedChange={(checked: boolean) => {
+                        if (checked && !isTunCapable) {
                           setPrivilegeDialogOpen(true);
+                          return;
                         }
+                        void run(() => setMode({ tun: checked }), false);
                       }}
-                    >
-                      <Switch
-                        checked={isTun}
-                        disabled={
-                          pending ||
-                          installingService ||
-                          status?.capabilities?.tun === false
-                        }
-                        onCheckedChange={(checked: boolean) =>
-                          void run(() => setMode({ tun: checked }), false)
-                        }
-                        aria-label={t("tun")}
-                      />
-                    </div>
+                      aria-label={t("tun")}
+                    />
                   </div>
-                  {status?.capabilities?.tun === false && (
-                    <div className="flex items-center justify-between gap-2.5 rounded-lg border border-warning/25 bg-warning/10 p-2 text-xs">
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="font-semibold text-warning-text leading-tight">
-                          {st("takeover.tunPrivilegeRequired")}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground leading-tight">
-                          {status?.capabilities?.tunReasonCode
-                            ? st(
-                                `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
-                              )
-                            : st("takeover.tunPrivilegeHint")}
-                        </span>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-7 shrink-0 px-2.5 text-xs font-medium border-warning/30 hover:bg-warning/20 hover:text-warning-text"
-                        disabled={pending || installingService}
-                        onClick={() => void handleInstallService()}
-                      >
-                        {installingService ? (
-                          <>
-                            <Spinner className="mr-1.5 size-3" />
-                            {st("takeover.installingService")}
-                          </>
-                        ) : (
-                          st("takeover.installService")
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Inbound mixed port info */}
-                <div className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
-                  <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
-                  <span>{t("portListeningHint", { port: mixedPort })}</span>
                 </div>
               </div>
             )}

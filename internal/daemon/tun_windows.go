@@ -28,14 +28,14 @@ var (
 func tunCapability() TUNCapability {
 	svcInstalled := service.InstalledScope(service.ScopeSystem)
 	elevated, err := isElevated()
-	if err != nil {
+	if err != nil && !svcInstalled {
 		return TUNCapability{
 			ServiceInstalled: svcInstalled,
 			ReasonCode:       "not_elevated",
 			Reason:           fmt.Sprintf("could not determine elevation: %v", err),
 		}
 	}
-	if !elevated {
+	if !elevated && !svcInstalled {
 		return TUNCapability{
 			ServiceInstalled: svcInstalled,
 			ReasonCode:       "not_elevated",

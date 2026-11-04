@@ -14,7 +14,7 @@ import (
 // keeps the daemon in the user session; a privileged helper is future work).
 func tunCapability() TUNCapability {
 	svcInstalled := service.InstalledScope(service.ScopeSystem)
-	if os.Geteuid() != 0 {
+	if os.Geteuid() != 0 && !svcInstalled {
 		return TUNCapability{
 			ServiceInstalled: svcInstalled,
 			ReasonCode:       "not_root",
