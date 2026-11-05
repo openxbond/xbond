@@ -4,6 +4,9 @@ inputs:
   go:
     description: Install the Go toolchain
     default: "false"
+  install:
+    description: Run pnpm install --frozen-lockfile
+    default: "true"
 runs:
   using: composite
   steps:
@@ -11,10 +14,11 @@ runs:
     - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
         node-version: 24
-        cache: pnpm
+        cache: ${{ inputs.install == 'true' && 'pnpm' || '' }}
     - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
       if: inputs.go == 'true'
       with:
         go-version-file: go.mod
     - run: pnpm install --frozen-lockfile
+      if: inputs.install == 'true'
       shell: bash

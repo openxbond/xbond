@@ -7,7 +7,6 @@ import {
   mkdtempSync,
   readdirSync,
   rmSync,
-  rmdirSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -39,34 +38,9 @@ if (!publicKey || !process.env.TAURI_SIGNING_PRIVATE_KEY) {
 }
 const macIdentity = process.env.APPLE_SIGNING_IDENTITY;
 const macRehearsal = process.env.XBOND_DESKTOP_REHEARSAL === "1";
-const appleKey = process.env.APPLE_API_KEY_PATH;
-const appleKeyID = process.env.APPLE_API_KEY;
-const appleIssuer = process.env.APPLE_API_ISSUER;
 const appleID = process.env.APPLE_ID;
 const applePassword = process.env.APPLE_PASSWORD;
 const appleTeam = process.env.APPLE_TEAM_ID;
-const notaryArgs =
-  appleKey && appleKeyID && appleIssuer
-    ? ["--key", appleKey, "--key-id", appleKeyID, "--issuer", appleIssuer]
-    : appleID && applePassword && appleTeam
-      ? [
-          "--apple-id",
-          appleID,
-          "--password",
-          applePassword,
-          "--team-id",
-          appleTeam,
-        ]
-      : null;
-if (
-  os === "darwin" &&
-  !macRehearsal &&
-  (!macIdentity || macIdentity === "-" || !notaryArgs)
-) {
-  throw new Error(
-    "Set APPLE_SIGNING_IDENTITY and Apple notarization credentials for a macOS release",
-  );
-}
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const tauriDirectory = join(root, "apps", "desktop", "src-tauri");
@@ -90,6 +64,46 @@ const output = resolve(outputDirectory);
 const prefix = `xbond-desktop-${tag}-${releaseOS}-${arch}`;
 const configDir = mkdtempSync(join(tmpdir(), "xbond-desktop-"));
 const config = join(configDir, "tauri.release.json");
+
+// Notarization accepts an App Store Connect API key (ASC_KEY with its id and
+// issuer) or the legacy Apple ID credentials. The key is materialized into
+// the temporary config directory, which is removed in the finally block.
+const notaryKeyPath = join(configDir, "asc.p8");
+let notaryArgs: string[] | null = null;
+if (os === "darwin" && process.env.ASC_KEY) {
+  const appleKeyID = process.env.ASC_KEY_ID;
+  const appleIssuer = process.env.ASC_ISSUER_ID;
+  if (appleKeyID && appleIssuer) {
+    writeFileSync(notaryKeyPath, process.env.ASC_KEY, { mode: 0o600 });
+    notaryArgs = [
+      "--key",
+      notaryKeyPath,
+      "--key-id",
+      appleKeyID,
+      "--issuer",
+      appleIssuer,
+    ];
+  }
+} else if (appleID && applePassword && appleTeam) {
+  notaryArgs = [
+    "--apple-id",
+    appleID,
+    "--password",
+    applePassword,
+    "--team-id",
+    appleTeam,
+  ];
+}
+if (
+  os === "darwin" &&
+  !macRehearsal &&
+  (!macIdentity || macIdentity === "-" || !notaryArgs)
+) {
+  throw new Error(
+    "Set APPLE_SIGNING_IDENTITY and Apple notarization credentials for a macOS release",
+  );
+}
+
 const targetDirectory = resolve(
   process.env.CARGO_TARGET_DIR ?? join(tauriDirectory, "target"),
 );
@@ -201,7 +215,6 @@ try {
     }
   }
 } finally {
-  rmSync(config, { force: true });
-  rmdirSync(configDir);
+  rmSync(configDir, { recursive: true, force: true });
   if (copiedSidecar) rmSync(sidecar);
 }

@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -78,6 +78,32 @@ for (const [osName, arch] of releaseTargets) {
   );
   if (res.status !== 0) process.exit(res.status ?? 1);
   checksums.push(`${checksum(out)}  ${name}`);
+}
+
+// The host binary must report exactly the version it was built for; this is
+// the release smoke check that used to live in the workflow.
+const hostOS = process.platform === "win32" ? "windows" : process.platform;
+const hostArch =
+  process.arch === "x64" ? "amd64" : process.arch === "arm64" ? "arm64" : "";
+if (releaseTargets.some(([os, arch]) => os === hostOS && arch === hostArch)) {
+  const info = JSON.parse(
+    execFileSync(
+      path.join(outDir, cliAsset(tag, hostOS, hostArch)),
+      ["version", "--json"],
+      {
+        encoding: "utf8",
+      },
+    ),
+  ) as { clientVersion: string; os: string; arch: string };
+  if (
+    info.clientVersion !== version ||
+    info.os !== hostOS ||
+    info.arch !== hostArch
+  )
+    throw new Error(`Host CLI smoke check mismatch: ${JSON.stringify(info)}`);
+  console.log(
+    `smoke check ok: ${hostOS}-${hostArch} reports ${info.clientVersion}`,
+  );
 }
 
 const dashboardZip = path.join(outDir, "dashboard.zip");

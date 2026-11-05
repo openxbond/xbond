@@ -46,9 +46,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: ./.github/actions/release-toolchain
         with:
-          node-version: 24
+          install: "false"
       - id: candidate
         run: |
           set -euo pipefail
@@ -60,23 +60,20 @@ jobs:
           gh release view "$TAG" --json isDraft,isPrerelease --jq 'if .isPrerelease then error("Prerelease cannot be promoted") else "draft=" + (.isDraft | tostring) end' >> "$GITHUB_OUTPUT"
           gh release download "$TAG" --dir release/assets
           node scripts/release-ci.ts verify-evidence "$TAG" release/assets/release-evidence.json
+          # The pages command appends pages_digest to GITHUB_OUTPUT.
           node scripts/release-assets.ts pages "$TAG" release/assets release/pages "$APP_STORE_URL" "$CHROME_STORE_URL" "$EDGE_STORE_URL" "$IOS_TESTFLIGHT_URL"
-          pages_digest=$(cd release/pages && sha256sum --binary index.html download/index.html release.json desktop.json | sha256sum | cut -d' ' -f1)
-          echo "pages_digest=$pages_digest" >> "$GITHUB_OUTPUT"
       - id: registry
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
         run: |
           sudo apt-get update
           sudo apt-get install -y skopeo
-          printf '%s' "$GH_TOKEN" | skopeo login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
-          image="docker://ghcr.io/openxbond/xbond:$TAG"
-          if skopeo inspect --raw "$image" > registry.json; then
-            test "sha256:$(sha256sum registry.json | cut -d' ' -f1)" = "$IMAGE_DIGEST"
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          fi
+          node scripts/release-registry.ts check "$TAG" "$IMAGE_DIGEST"
+      - name: Require the prepare artifacts
+        if: steps.registry.outputs.present == 'false'
+        env:
+          RUN_ID: ${{ steps.candidate.outputs.run }}
+        run: node scripts/release-ci.ts require-artifact "$RUN_ID" release-image
       - if: steps.registry.outputs.present == 'false'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -87,26 +84,11 @@ jobs:
       - if: steps.registry.outputs.present == 'false'
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
-        run: |
-          set -euo pipefail
-          archive=oci-archive:release/oci/xbond-image.tar
-          skopeo inspect --raw "$archive" > image-index.json
-          test "sha256:$(sha256sum image-index.json | cut -d' ' -f1)" = "$IMAGE_DIGEST"
-          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64","arm64"]' image-index.json
-          skopeo copy --all --preserve-digests "$archive" "docker://ghcr.io/openxbond/xbond:$TAG"
+        run: node scripts/release-registry.ts push "$TAG" "$IMAGE_DIGEST" release/oci/xbond-image.tar
       - name: Verify anonymous GHCR access
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
-        run: |
-          set -euo pipefail
-          if ! skopeo inspect --no-creds --raw "docker://ghcr.io/openxbond/xbond:$TAG" > public-image.json; then
-            echo "::error::The image is not publicly readable. Check the GHCR package visibility, then rerun this release."
-            exit 1
-          fi
-          if [ "sha256:$(sha256sum public-image.json | cut -d' ' -f1)" != "$IMAGE_DIGEST" ]; then
-            echo "::error::The public GHCR digest differs from the verified release."
-            exit 1
-          fi
+        run: node scripts/release-registry.ts verify-public "$TAG" "$IMAGE_DIGEST"
       - name: Publish GitHub Release
         if: steps.candidate.outputs.draft == 'true'
         run: gh release edit "$TAG" --draft=false --latest
@@ -125,6 +107,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/release-toolchain
+        with:
+          install: "false"
       - id: deploy
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
       - name: Verify deployed pages and update feeds
@@ -132,26 +120,4 @@ jobs:
           PAGES_URL: ${{ steps.deploy.outputs.page_url }}
           TAG: ${{ inputs.tag }}
           EXPECTED_DIGEST: ${{ needs.publish.outputs.pages_digest }}
-        run: |
-          set -euo pipefail
-          verification=$(mktemp -d)
-          trap 'rm -rf -- "$verification"' EXIT
-          cd "$verification"
-          mkdir download
-          files=(index.html download/index.html release.json desktop.json)
-
-          verify_pages() {
-            local file digest
-            for file in "${files[@]}"; do
-              curl -fSs --compressed --max-time 15 "${PAGES_URL%/}/${file%index.html}?v=$TAG" -o "$file" || return 1
-            done
-            digest=$(sha256sum --binary "${files[@]}" | sha256sum | cut -d' ' -f1)
-            [ "$digest" = "$EXPECTED_DIGEST" ]
-          }
-
-          for attempt in {1..6}; do
-            if verify_pages; then exit 0; fi
-            if [ "$attempt" -lt 6 ]; then sleep 5; fi
-          done
-          echo "::error::GitHub Pages did not serve the verified Dashboard, download page and both update feeds."
-          exit 1
+        run: node scripts/release-assets.ts pages-verify "$TAG" "$PAGES_URL" "$EXPECTED_DIGEST"

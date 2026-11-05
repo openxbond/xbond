@@ -1,5 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  sign,
+  verify,
+} from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -8,6 +14,26 @@ import { buildZipBuffer, checksum, validateArchive } from "./artifact.ts";
 import { cliAsset, releaseTargets, releaseVersion } from "./release-version.ts";
 
 const repo = "https://github.com/openxbond/xbond";
+
+// The Pages deployment carries exactly these files; the deployment digest is
+// sha256 over a sha256sum --binary listing of them (the "*name" marker is
+// part of that listing format).
+const PAGES_FILES = [
+  "index.html",
+  "download/index.html",
+  "release.json",
+  "desktop.json",
+];
+
+function pagesDigest(files: Map<string, Buffer>): string {
+  const listing = PAGES_FILES.map(
+    (name) =>
+      `${createHash("sha256")
+        .update(files.get(name) ?? Buffer.alloc(0))
+        .digest("hex")} *${name}\n`,
+  ).join("");
+  return createHash("sha256").update(listing).digest("hex");
+}
 
 function verifyTauriSignature(
   file: string,
@@ -330,6 +356,44 @@ ${platforms}
 <section><h2>Release information</h2><ul><li><a href="${repo}/releases/tag/${tag}">GitHub Release</a><a href="../SHA256SUMS">SHA-256 checksums</a></li></ul>
 <details><summary>Release notes</summary><pre>${escape(notes)}</pre></details></section></main></html>\n`,
   );
+  const pages = new Map<string, Buffer>(
+    PAGES_FILES.map((name) => [name, fs.readFileSync(path.join(output, name))]),
+  );
+  if (process.env.GITHUB_OUTPUT)
+    fs.appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `pages_digest=${pagesDigest(pages)}\n`,
+    );
+}
+
+async function pagesVerify(pagesUrl: string, tag: string, expected: string) {
+  const base = pagesUrl.replace(/\/+$/, "");
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const files = new Map<string, Buffer>();
+    try {
+      for (const name of PAGES_FILES) {
+        // Mirror the curl cache-buster: index pages are fetched as directories.
+        const target = `${base}/${name.replace("index.html", "")}?v=${tag}`;
+        const response = await fetch(target);
+        if (!response.ok)
+          throw new Error(`${target} returned ${response.status}`);
+        files.set(name, Buffer.from(await response.arrayBuffer()));
+      }
+      if (pagesDigest(files) === expected) {
+        console.log(`Pages serve the verified release (${expected})`);
+        return;
+      }
+      throw new Error("the served digest differs from the deployment");
+    } catch (error) {
+      if (attempt === 6)
+        throw new Error(
+          `GitHub Pages did not serve the verified Dashboard, download page and both update feeds: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
 }
 
 const [command, tag, directory, argument, ...rest] = process.argv.slice(2);
@@ -352,6 +416,8 @@ else if (command === "assemble") {
     rest,
     process.env.XBOND_RELEASE_PUBLIC_KEY ?? "",
   );
+else if (command === "pages-verify")
+  await pagesVerify(directory, tag, argument ?? "");
 else if (command === "verify")
   verifyManifestAsset(
     directory,

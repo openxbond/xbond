@@ -15,7 +15,7 @@ if ($LASTEXITCODE -ne 0) { throw '建立 Tag 失敗' }
 git push origin "refs/tags/$ReleaseTag"
 ```
 
-**Prepare XBond release** 由推 Tag 觸發。等 `draft` 成功，從該 run 的摘要進入 Release 草稿，再使用草稿的安裝包及同一 run 的 IPA、OCI 鏡像。提交 SHA、run ID 和兩份摘要可在 `release-evidence.json` 核對。
+**Prepare XBond release** 由推 Tag 觸發，依序是 preflight（版本、模式與 Apple 簽名旗標單點派生）、check（TS 與 Go 門禁）、cli（CLI 六目標編譯與 dashboard 打包），其後六個桌面目標、Android、iOS、瀏覽器擴充與 OCI 鏡像並行建置，最後 assemble 匯整為一份帶 evidence 的候選並寫入草稿。等 `draft` 成功，從該 run 的摘要進入 Release 草稿，再使用草稿的安裝包及同一 run 的 IPA、OCI 鏡像。提交 SHA、run ID 和兩份摘要可在 `release-evidence.json` 核對。
 
 ## 2. 驗收同版產物
 

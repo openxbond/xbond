@@ -45,9 +45,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: ./.github/actions/release-toolchain
         with:
-          node-version: 24
+          install: "false"
       - name: Verify staged store ZIP
         if: inputs.operation == 'submit'
         run: |
@@ -68,7 +68,7 @@ jobs:
         run: node scripts/release-store.ts "$STORE" "$OPERATION" "$TAG" "xbond-extension-$TAG.zip"
 
   ios:
-    if: github.repository == 'openxbond/xbond' && github.ref == 'refs/heads/main' && inputs.store == 'ios' && inputs.operation == 'submit'
+    if: github.repository == 'openxbond/xbond' && github.ref == 'refs/heads/main' && inputs.store == 'ios'
     runs-on: macos-26
     timeout-minutes: 25
     environment: release-store-ios
@@ -80,19 +80,28 @@ jobs:
       TAG: ${{ inputs.tag }}
       XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
     steps:
+      - name: Reject unsupported operations
+        if: inputs.operation != 'submit'
+        run: |
+          echo "::error::The iOS store supports operation=submit only. Browser stores also support operation=status."
+          exit 1
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: ./.github/actions/release-toolchain
         with:
-          node-version: 24
+          install: "false"
       - id: candidate
         run: |
           node scripts/release-ci.ts preflight "$TAG" store
           gh release download "$TAG" --pattern release-evidence.json --pattern release.json
           node scripts/release-assets.ts verify "$TAG" . release-evidence
           node scripts/release-ci.ts verify-evidence "$TAG" release-evidence.json
+      - name: Require the prepare artifacts
+        env:
+          RUN_ID: ${{ steps.candidate.outputs.run }}
+        run: node scripts/release-ci.ts require-artifact "$RUN_ID" app-store-build
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: app-store-build

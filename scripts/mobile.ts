@@ -7,11 +7,84 @@ import { BUILD_TAGS } from "./go.ts";
 
 const MOBILE_PKG = "github.com/openxbond/xbond/mobile";
 
+const root = fileURLToPath(new URL("..", import.meta.url));
+
 export function checkGomobileInstalled(): boolean {
   const res = spawnSync("gomobile", ["version"], {
     stdio: "pipe",
   });
   return res.status === 0;
+}
+
+function checkGobindInstalled(): boolean {
+  // gobind exits non-zero without arguments, so detect the binary itself.
+  return spawnSync("gobind", [], { stdio: "pipe" }).error === undefined;
+}
+
+function gomobileVersion(): string {
+  const res = spawnSync(
+    "go",
+    ["list", "-m", "-f", "{{.Version}}", "golang.org/x/mobile"],
+    { cwd: root, encoding: "utf8", stdio: "pipe" },
+  );
+  if (res.status !== 0) {
+    throw new Error(
+      `Cannot resolve the golang.org/x/mobile version from go.mod: ${res.stderr?.toString() || res.stdout?.toString()}`,
+    );
+  }
+  return res.stdout.trim();
+}
+
+// Installs gomobile and gobind at the version go.mod pins, so CI and local
+// builds never drift from the module graph.
+export function ensureGomobile(): void {
+  const missing = [
+    ...(checkGomobileInstalled() ? [] : ["gomobile"]),
+    ...(checkGobindInstalled() ? [] : ["gobind"]),
+  ];
+  if (missing.length === 0) return;
+  const version = gomobileVersion();
+  for (const tool of missing) {
+    const res = spawnSync(
+      "go",
+      ["install", `golang.org/x/mobile/cmd/${tool}@${version}`],
+      { cwd: root, stdio: "inherit" },
+    );
+    if (res.status !== 0)
+      throw new Error(`go install golang.org/x/mobile/cmd/${tool} failed`);
+  }
+}
+
+function compareVersionsDesc(a: string, b: string): number {
+  const aParts = a.split(".").map(Number);
+  const bParts = b.split(".").map(Number);
+  for (let index = 0; index < 3; index += 1) {
+    if (aParts[index] !== bParts[index])
+      return (bParts[index] ?? 0) - (aParts[index] ?? 0);
+  }
+  return 0;
+}
+
+// Single source for the NDK gomobile binds against: an explicit
+// ANDROID_NDK_HOME wins, otherwise the newest SDK-installed NDK.
+export function resolveAndroidNdk(): string {
+  const configured = process.env.ANDROID_NDK_HOME;
+  if (configured) return configured;
+  const home = process.env.ANDROID_HOME;
+  if (!home)
+    throw new Error(
+      "Set ANDROID_HOME (the Android SDK root) or ANDROID_NDK_HOME for the Android bind",
+    );
+  const ndkRoot = path.join(home, "ndk");
+  const versions = fs.existsSync(ndkRoot)
+    ? fs
+        .readdirSync(ndkRoot)
+        .filter((name) => /^\d+\.\d+\.\d+$/.test(name))
+        .sort(compareVersionsDesc)
+    : [];
+  if (versions.length === 0)
+    throw new Error(`No Android NDK found under ${ndkRoot}`);
+  return path.join(ndkRoot, versions[0]);
 }
 
 export function runMobileCheck(): { ok: boolean; message: string } {
@@ -52,8 +125,7 @@ export function buildAndroidAAR(
   if (!checkGomobileInstalled()) {
     return {
       ok: false,
-      message:
-        "gomobile is not installed in PATH. Install with: go install golang.org/x/mobile/cmd/gomobile@latest && gomobile init",
+      message: "gomobile is not installed in PATH. Run: pnpm mobile:ensure",
     };
   }
 
@@ -75,6 +147,7 @@ export function buildAndroidAAR(
     ],
     {
       stdio: "inherit",
+      env: { ...process.env, ANDROID_NDK_HOME: resolveAndroidNdk() },
     },
   );
 
@@ -102,8 +175,7 @@ export function buildIOSFramework(
   if (!checkGomobileInstalled()) {
     return {
       ok: false,
-      message:
-        "gomobile is not installed in PATH. Install with: go install golang.org/x/mobile/cmd/gomobile@latest && gomobile init",
+      message: "gomobile is not installed in PATH. Run: pnpm mobile:ensure",
     };
   }
 
@@ -163,9 +235,12 @@ function main(): void {
       console.error(`[mobile:bind:ios] Error: ${res.message}`);
       process.exit(1);
     }
+  } else if (command === "ensure") {
+    ensureGomobile();
+    console.log("[mobile:ensure] gomobile and gobind match go.mod");
   } else {
     console.error(
-      "Usage: node scripts/mobile.ts [check|bind:android|bind:ios]",
+      "Usage: node scripts/mobile.ts [check|ensure|bind:android|bind:ios]",
     );
     process.exit(1);
   }

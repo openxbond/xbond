@@ -15,22 +15,21 @@ concurrency:
 permissions:
   contents: read
 
-# Actions are pinned by major tag; the cloud repository pins commit SHAs –
-# adopt that (plus Dependabot) here when this repo wants the same hardening.
-# The commands mirror docs/agents/verification.md: this file only reuses what
-# `pnpm` already provides locally.
+# Actions are pinned to the commit SHAs the release workflows use; dependabot
+# keeps the pins fresh. The commands mirror docs/agents/verification.md: this
+# file only reuses what `pnpm` already provides locally.
 jobs:
   web:
     name: "Web"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           # Checkout otherwise leaves its token behind for later Git commands.
           persist-credentials: false
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           # Node >= 24: scripts/*.ts run on default type stripping (no
           # --experimental-strip-types), matching the engines floor.
@@ -53,14 +52,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
 

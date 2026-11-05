@@ -1,10 +1,42 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { releaseVersion } from "./release-version.ts";
 
 type Release = { tag_name: string; draft: boolean; prerelease: boolean };
+
+// Release gates for the Actions workflows. Subcommands:
+// - preflight <tag> <prepare|publish|store>  resolves the release commit,
+//   enforces version ordering, and emits tag/version/build/commit plus the
+//   derived mode and Apple signing flag. Raw event context arrives through
+//   RELEASE_EVENT / RELEASE_REHEARSAL / RELEASE_REHEARSAL_APPLE so no
+//   conditional logic lives in the workflow YAML.
+// - evidence <tag> <dir>                      writes release-evidence.json.
+// - verify-evidence <tag> <file>              re-validates evidence and emits
+//   run/digest/ios_sha256 for cross-run artifact downloads.
+// - require-artifact <run-id> <name>          fails with a clear message when
+//   a prepare artifact is gone (90-day retention).
+
+const repository = process.env.GITHUB_REPOSITORY ?? "openxbond/xbond";
+
+export function deriveReleaseMode(
+  event: string | undefined,
+  rehearsal: string | undefined,
+): "release" | "rehearsal" {
+  return event === "workflow_dispatch" && rehearsal === "true"
+    ? "rehearsal"
+    : "release";
+}
+
+export function deriveAppleSigning(
+  event: string | undefined,
+  mode: "release" | "rehearsal",
+  rehearsalApple: string | undefined,
+): boolean {
+  return event === "push" || mode === "release" || rehearsalApple === "true";
+}
 
 function git(...args: string[]) {
   return execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -18,19 +50,39 @@ function releases(): Release[] {
         "api",
         "--paginate",
         "--slurp",
-        "repos/openxbond/xbond/releases?per_page=100",
+        `repos/${repository}/releases?per_page=100`,
       ],
       { encoding: "utf8" },
     ),
   ).flat();
 }
 
-const [command, tag, argument] = process.argv.slice(2);
-const { version, build } = releaseVersion(tag);
-if (command === "preflight") {
+function writeOutputs(entries: Record<string, string>) {
+  fs.appendFileSync(
+    process.env.GITHUB_OUTPUT ?? "",
+    Object.entries(entries)
+      .map(([name, value]) => `${name}=${value}`)
+      .join("\n") + "\n",
+  );
+}
+
+function preflightContext(
+  value: string | undefined,
+): "prepare" | "publish" | "store" {
+  if (value === "prepare" || value === "publish" || value === "store")
+    return value;
+  throw new Error("Expected preflight context: prepare, publish or store");
+}
+
+function preflight(tag: string, context: "prepare" | "publish" | "store") {
+  const { version, build } = releaseVersion(tag);
   const ref = `refs/tags/${tag}`;
+  const mode = deriveReleaseMode(
+    process.env.RELEASE_EVENT,
+    process.env.RELEASE_REHEARSAL,
+  );
   const rehearsalWithoutTag =
-    argument === "rehearsal" &&
+    mode === "rehearsal" &&
     spawnSync("git", ["show-ref", "--verify", "--quiet", ref]).status === 1;
   const commit = git(
     "rev-parse",
@@ -40,7 +92,7 @@ if (command === "preflight") {
   git("merge-base", "--is-ancestor", commit, "refs/remotes/origin/main");
   // The stores have independent release schedules. Verify their candidate
   // commit here, then let the store enforce its own version ordering.
-  if (argument === "store") process.exit(0);
+  if (context === "store") process.exit(0);
   const list = releases();
   let previous: { tag: string; build: number } | undefined;
   for (const entry of list) {
@@ -53,7 +105,7 @@ if (command === "preflight") {
     }
     if (
       candidate.build > build ||
-      (candidate.build === build && argument !== "publish")
+      (candidate.build === build && context !== "publish")
     ) {
       throw new Error(`Release ${tag} must follow ${candidate.tag}`);
     }
@@ -63,10 +115,20 @@ if (command === "preflight") {
     )
       previous = candidate;
   }
-  fs.appendFileSync(
-    process.env.GITHUB_OUTPUT ?? "",
-    `tag=${tag}\nversion=${version}\nbuild=${build}\ncommit=${commit}\n`,
-  );
+  writeOutputs({
+    tag,
+    version,
+    build: String(build),
+    commit,
+    mode,
+    apple_signing: String(
+      deriveAppleSigning(
+        process.env.RELEASE_EVENT,
+        mode,
+        process.env.RELEASE_REHEARSAL_APPLE,
+      ),
+    ),
+  });
   const log = git(
     "log",
     "--first-parent",
@@ -74,7 +136,9 @@ if (command === "preflight") {
     previous ? `${previous.tag}..${commit}` : commit,
   );
   fs.writeFileSync("release-notes.md", `# XBond ${version}\n\n${log}\n`);
-} else if (command === "evidence") {
+}
+
+function evidence(tag: string, directory: string) {
   const commit = git("rev-parse", "HEAD");
   const mode = process.env.RELEASE_MODE;
   const run = process.env.GITHUB_RUN_ID;
@@ -90,10 +154,12 @@ if (command === "preflight") {
   )
     throw new Error("Missing candidate evidence");
   fs.writeFileSync(
-    path.join(argument, "release-evidence.json"),
+    path.join(directory, "release-evidence.json"),
     JSON.stringify({ tag, commit, run, digest, iosSHA256, mode }) + "\n",
   );
-} else if (command === "verify-evidence") {
+}
+
+function verifyEvidence(tag: string, file: string) {
   const {
     tag: candidate,
     commit,
@@ -101,7 +167,7 @@ if (command === "preflight") {
     digest,
     iosSHA256,
     mode,
-  } = JSON.parse(fs.readFileSync(argument, "utf8"));
+  } = JSON.parse(fs.readFileSync(file, "utf8"));
   if (
     mode !== "release" ||
     candidate !== tag ||
@@ -114,10 +180,47 @@ if (command === "preflight") {
       "Candidate evidence is not a complete release for the requested Tag",
     );
   }
-  fs.appendFileSync(
-    process.env.GITHUB_OUTPUT ?? "",
-    `run=${run}\ndigest=${digest}\nios_sha256=${iosSHA256}\n`,
-  );
-} else {
-  throw new Error(`Unknown release CI command: ${command}`);
+  writeOutputs({
+    run: String(run),
+    digest,
+    ios_sha256: iosSHA256,
+  });
+}
+
+function requireArtifact(runId: string, name: string) {
+  if (!/^\d+$/.test(runId))
+    throw new Error("Expected the prepare run id from the release evidence");
+  const list = JSON.parse(
+    execFileSync(
+      "gh",
+      [
+        "api",
+        `repos/${repository}/actions/runs/${runId}/artifacts?per_page=100`,
+      ],
+      { encoding: "utf8" },
+    ),
+  ) as { artifacts: { name: string; expired: boolean }[] };
+  const artifact = list.artifacts.find((entry) => entry.name === name);
+  if (!artifact || artifact.expired)
+    throw new Error(
+      `Artifact ${name} of prepare run ${runId} is missing or expired (retention is 90 days). Rerun Prepare XBond release for this tag.`,
+    );
+}
+
+function main() {
+  const [command, first, second] = process.argv.slice(2);
+  if (command === "preflight") {
+    if (first === undefined || first === "") throw new Error("Expected a tag");
+    preflight(first, preflightContext(second));
+  } else if (command === "evidence") evidence(first, second);
+  else if (command === "verify-evidence") verifyEvidence(first, second);
+  else if (command === "require-artifact") requireArtifact(first, second);
+  else throw new Error(`Unknown release CI command: ${command}`);
+}
+
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+) {
+  main();
 }

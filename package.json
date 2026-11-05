@@ -51,6 +51,7 @@
     "desktop:fmt": "cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "desktop:fmt:check": "cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check",
     "mobile:check": "node scripts/mobile.ts check",
+    "mobile:ensure": "node scripts/mobile.ts ensure",
     "mobile:bind:android": "node scripts/mobile.ts bind:android",
     "mobile:bind:ios": "node scripts/mobile.ts bind:ios",
     "release:package": "node scripts/artifact.ts package",
