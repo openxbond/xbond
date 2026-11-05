@@ -269,7 +269,7 @@ func (d *delegateManager) Status() (engine.EngineStatus, bool) {
 	if fresh {
 		return status, true
 	}
-	st, err := d.fetchStatus()
+	st, err := d.fetchStatus(context.Background())
 	if err != nil {
 		d.noteFailure(fmt.Errorf("delegated takeover unreachable: %w", err))
 		return status, false
@@ -301,7 +301,7 @@ func (d *delegateManager) Available() error {
 		}
 		return errors.New("system service unreachable")
 	}
-	st, err := d.fetchStatus()
+	st, err := d.fetchStatus(context.Background())
 	d.mu.Lock()
 	d.probeAt = time.Now()
 	d.probeOK = err == nil
@@ -339,8 +339,17 @@ func (d *delegateManager) Adopt(st engine.EngineStatus) {
 	d.errLogged = false
 }
 
-func (d *delegateManager) fetchStatus() (engine.EngineStatus, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), privilegedProbeTimeout())
+// CheckMachineService checks that this account can use the system service's
+// delegation transport after the supervisor starts the process.
+func CheckMachineService(ctx context.Context) error {
+	manager := newDelegateManager(nil)
+	defer manager.http.CloseIdleConnections()
+	_, err := manager.fetchStatus(ctx)
+	return err
+}
+
+func (d *delegateManager) fetchStatus(ctx context.Context) (engine.EngineStatus, error) {
+	ctx, cancel := context.WithTimeout(ctx, privilegedProbeTimeout())
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://xbond-system/localapi/v0/remote/status", nil)
 	if err != nil {
@@ -357,6 +366,9 @@ func (d *delegateManager) fetchStatus() (engine.EngineStatus, error) {
 	var reply remoteReply
 	if err := json.NewDecoder(resp.Body).Decode(&reply); err != nil {
 		return engine.EngineStatus{}, err
+	}
+	if !reply.Ok {
+		return engine.EngineStatus{}, fmt.Errorf("machine service rejected the status request: %s", reply.Error)
 	}
 	return reply.Status, nil
 }

@@ -172,7 +172,7 @@ var daemonInstallCmd = &cobra.Command{
 			return err
 		}
 		if scope == service.ScopeSystem {
-			if err := waitMachineSupervisor(20*time.Second, machineRunning); err != nil {
+			if err := waitMachineReady(cmd.Context()); err != nil {
 				return err
 			}
 			fmt.Println("XBond machine service installed and started.")
@@ -240,7 +240,7 @@ var daemonStartCmd = &cobra.Command{
 			return err
 		}
 		if scope == service.ScopeSystem {
-			if err := waitMachineSupervisor(20*time.Second, machineRunning); err != nil {
+			if err := waitMachineReady(cmd.Context()); err != nil {
 				return err
 			}
 			fmt.Println("XBond machine service is running.")
@@ -416,6 +416,27 @@ var versionCmd = &cobra.Command{
 		fmt.Println(version.String())
 		return nil
 	},
+}
+
+func waitMachineReady(ctx context.Context) error {
+	if err := waitMachineSupervisor(20*time.Second, machineRunning); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		err := daemon.CheckMachineService(ctx)
+		if err == nil {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("the supervisor reports the machine service started, but its delegation endpoint is unavailable: %w", err)
+		case <-ticker.C:
+		}
+	}
 }
 
 func waitDaemonReady(ctx context.Context) (*daemon.Client, error) {

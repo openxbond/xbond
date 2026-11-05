@@ -257,6 +257,16 @@ func TestDelegateReportsUnreachableSession(t *testing.T) {
 	}
 }
 
+func TestDelegateProbeRequiresSuccessfulStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, remoteReply{Error: "service unavailable"})
+	}))
+	defer srv.Close()
+	if err := newTestDelegate(srv).Available(); err == nil {
+		t.Fatal("an unsuccessful status reply passed the delegation probe")
+	}
+}
+
 func TestDelegateApplyRefusesNonTUNConfig(t *testing.T) {
 	session := &fakeMachineSession{}
 	srv := httptest.NewServer(session.mux())
