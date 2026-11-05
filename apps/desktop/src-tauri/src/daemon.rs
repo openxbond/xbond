@@ -305,6 +305,13 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
         // window: back off lifecycle commands — the frontend self-heal may
         // re-invoke much sooner than a retry would be worth.
         record_failed_spawn();
+    } else {
+        // A silent skip here reads as "XBond is broken" in the UI: the shell
+        // has no way to register or start the local daemon without the CLI.
+        eprintln!(
+            "[XBond Desktop] no xbond CLI found next to the app or at the workspace root; \
+             build it with `pnpm cli:build` so the daemon can be registered and started"
+        );
     }
 
     Ok(resolve_config())
