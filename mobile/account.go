@@ -157,12 +157,18 @@ func (a *mobileAccount) login(origin string, device, noBrowser bool) AccountStat
 		}
 		var meta *sub.SubscriptionMeta
 		if credentials.SubscriptionToken != "" {
-			name := "XBond"
-			bound, bindErr := svc.subMgr.AddXBond(
+			// 與桌面 bindCredentials 一致：登入即賬號綁定（issuer + kind=cloud），
+			// 讓登出刪除、更新走賬號重綁的語義在三端一致。
+			issuer := credentials.Issuer
+			if issuer == "" {
+				issuer = credentials.Origin
+			}
+			bound, bindErr := svc.subMgr.BindAccount(
 				credentials.SubscriptionToken,
+				issuer,
 				credentials.Origin,
 				credentials.FallbackOrigins,
-				"", a.lang, name, 24, true,
+				"", a.lang, "",
 			)
 			if bindErr != nil {
 				updateError = bindErr.Error()
@@ -281,6 +287,11 @@ func (a *mobileAccount) bindLink(link *clientapi.SubscriptionLink) (*sub.Subscri
 	if link.SubscriptionToken == "" {
 		return nil, ""
 	}
+	// 恢復鏈接來自控制台，第一個回退域名即賬號來源，用作 issuer。
+	fallback := ""
+	if len(link.FallbackDomains) > 0 {
+		fallback = link.FallbackDomains[0]
+	}
 	existing := ""
 	for _, item := range a.svc.subMgr.List() {
 		if item.Type == sub.SubTypeXBond {
@@ -298,16 +309,32 @@ func (a *mobileAccount) bindLink(link *clientapi.SubscriptionLink) (*sub.Subscri
 		// recovery dies exactly when it is needed.
 		if _, err := a.svc.subMgr.RetokenXBond(link.SubscriptionToken); err != nil {
 			updateError = err.Error()
+		} else if fallback != "" {
+			// 恢復的訂閱補上賬號綁定（issuer + kind=cloud），與登入產出一致；
+			// 綁定後再更新，讓抓取使用新憑據與綁定的來源。
+			if _, err := a.svc.subMgr.BindAccount(link.SubscriptionToken, fallback, fallback, nil, "", a.lang, ""); err != nil {
+				updateError = err.Error()
+			} else if res, err := a.svc.subMgr.Update(existing, true, ""); err != nil {
+				updateError = err.Error()
+			} else if res != nil && res.Meta != nil {
+				meta = res.Meta
+			}
 		} else if res, err := a.svc.subMgr.Update(existing, true, ""); err != nil {
 			updateError = err.Error()
 		} else if res != nil && res.Meta != nil {
 			meta = res.Meta
 		}
-	} else {
-		fallback := ""
-		if len(link.FallbackDomains) > 0 {
-			fallback = link.FallbackDomains[0]
+	} else if fallback != "" {
+		bound, err := a.svc.subMgr.BindAccount(link.SubscriptionToken, fallback, fallback, nil, "", a.lang, "")
+		if err != nil {
+			updateError = err.Error()
+		} else {
+			meta = bound
+			if useErr := a.svc.subMgr.Use(bound.ID); useErr != nil {
+				updateError = useErr.Error()
+			}
 		}
+	} else {
 		bound, err := a.svc.subMgr.AddXBond(link.SubscriptionToken, fallback, nil, "", a.lang, "XBond", 24, true)
 		if err != nil {
 			updateError = err.Error()

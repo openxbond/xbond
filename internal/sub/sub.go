@@ -83,6 +83,11 @@ func (m *Manager) loadStore() error {
 		return fmt.Errorf("decode subscription store (bytes preserved as %s): %w", corrupt, err)
 	}
 	for i := range store.Subscriptions {
+		if store.Subscriptions[i].Type == "" {
+			// 舊存儲沒有 type 字段：保守回填為 universal（登出不刪、更新走
+			// URL），不猜測原始來源。
+			store.Subscriptions[i].Type = SubTypeUniversal
+		}
 		if !store.Subscriptions[i].NameCustomized && strings.Contains(store.Subscriptions[i].Name, ";") {
 			parts := strings.Split(store.Subscriptions[i].Name, ";")
 			name := strings.Trim(parts[0], `"' `)

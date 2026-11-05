@@ -109,18 +109,31 @@ export interface SubscriptionMeta {
   sourcePinned?: boolean;
 }
 
-/** An account-bound source takes precedence over manually imported Cloud links. */
+/**
+ * 賬號管理的訂閱：登入同步產出（type=xbond 且帶 accountIssuer），登出會
+ * 刪除、更新走賬號重綁。手動粘貼 token 建立的 xbond 訂閱不在此列——它
+ * 歸入普通訂閱組（登出保留、更新不走賬號）。
+ */
+export function isAccountManaged(
+  sub?: Pick<SubscriptionMeta, "type" | "accountIssuer"> | null,
+): boolean {
+  return sub?.type === "xbond" && Boolean(sub.accountIssuer);
+}
+
+/**
+ * 當前代表 XBond Cloud 的訂閱：列表中與賬號快照匹配的賬號管理條目優先
+ * （列表元數據可能比快照新），否則用快照本身（列表尚未同步時）。
+ */
 export function cloudSubscription(
   subscriptions: readonly SubscriptionMeta[],
   accountSource?: SubscriptionMeta | null,
 ): SubscriptionMeta | undefined {
   return (
     subscriptions.find(
-      (item) => item.type === "xbond" && item.id === accountSource?.id,
+      (item) => isAccountManaged(item) && item.id === accountSource?.id,
     ) ??
-    (accountSource?.type === "xbond" ? accountSource : undefined) ??
-    subscriptions.find((item) => item.type === "xbond" && item.accountIssuer) ??
-    subscriptions.find((item) => item.type === "xbond")
+    (isAccountManaged(accountSource) ? accountSource : undefined) ??
+    subscriptions.find(isAccountManaged)
   );
 }
 

@@ -1,3 +1,4 @@
+import { isAccountManaged } from "@xbond/client/localapi";
 import { workspaceLink } from "@xbond/client/workspace";
 import { Check, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -28,22 +29,6 @@ export function ConfigMenu() {
   const { run, pending } = useAction();
   const [externals] = useExternals();
 
-  const isCloudSub = (
-    sub?: {
-      id?: string;
-      type?: string;
-      kind?: string;
-      accountIssuer?: string;
-    } | null,
-  ) =>
-    Boolean(
-      sub &&
-      (sub.type === "xbond" ||
-        sub.kind === "cloud" ||
-        Boolean(sub.accountIssuer) ||
-        (cloudProfile && sub.id === cloudProfile.id)),
-    );
-
   // 外部控制器條目：存儲列表 + 當前瞬態目標（啟動參數／橋接，尚未保存）。
   const external = [...externals];
   if (
@@ -53,7 +38,7 @@ export function ConfigMenu() {
     external.push(target.controller);
   }
 
-  const universalSubs = subscriptions.filter((item) => !isCloudSub(item));
+  const universalSubs = subscriptions.filter((item) => !isAccountManaged(item));
 
   const select = useSelectTarget();
   const location = useLocation();

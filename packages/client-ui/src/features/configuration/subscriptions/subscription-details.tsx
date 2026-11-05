@@ -1,5 +1,6 @@
 import { formatTraffic } from "@xbond/client/helper";
 import {
+  isAccountManaged,
   subscriptionQuota,
   subscriptionQuotaStatus,
 } from "@xbond/client/localapi";
@@ -223,14 +224,11 @@ export default function SubscriptionDetail({
   const quota = subscriptionQuota(sub);
   const quotaStatus = subscriptionQuotaStatus(sub);
   const isActive = isLocalTarget && sub.id === activeId;
-  const isRemote =
-    sub.kind === "remote" ||
-    (!sub.kind && /^https?:/.test(sub.urlOrFile || ""));
-  const isLocal =
-    sub.kind === "local" ||
-    (!sub.kind && !/^https?:/.test(sub.urlOrFile || ""));
+  // daemon 端 loadStore 保證 kind 回填，前端不再用 URL 正則猜測載體。
+  const isRemote = sub.kind === "remote";
+  const isLocal = sub.kind === "local";
   const isInline = sub.kind === "inline";
-  const isCloud = sub.kind === "cloud" || sub.type === "xbond";
+  const isCloud = sub.kind === "cloud";
 
   return (
     <div className="flex flex-col w-full gap-6">
@@ -297,7 +295,7 @@ export default function SubscriptionDetail({
               className="gap-2"
               onClick={() =>
                 void run(async () => {
-                  if (sub.accountIssuer) {
+                  if (isAccountManaged(sub)) {
                     const result = await resync();
                     if (result.updateError) throw new Error(result.updateError);
                   } else {

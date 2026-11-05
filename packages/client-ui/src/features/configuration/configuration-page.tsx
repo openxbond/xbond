@@ -1,3 +1,4 @@
+import { isAccountManaged } from "@xbond/client/localapi";
 import { ArrowLeft, Check, Plus, Search } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -90,22 +91,6 @@ export default function Config() {
     }
   }
 
-  const isCloudSub = (
-    sub?: {
-      id?: string;
-      type?: string;
-      kind?: string;
-      accountIssuer?: string;
-    } | null,
-  ) =>
-    Boolean(
-      sub &&
-      (sub.type === "xbond" ||
-        sub.kind === "cloud" ||
-        Boolean(sub.accountIssuer) ||
-        (cloudProfile && sub.id === cloudProfile.id)),
-    );
-
   // 外部控制器列表：存儲內容即列表；當前瞬態目標（啟動參數／橋接）補入展示。
   const controllers = [...savedControllers];
   if (
@@ -115,7 +100,7 @@ export default function Config() {
     controllers.push(target.controller);
   const defaultItem = supported
     ? activeId
-      ? isCloudSub(subscriptions.find((item) => item.id === activeId))
+      ? isAccountManaged(subscriptions.find((item) => item.id === activeId))
         ? "cloud"
         : `sub:${activeId}`
       : "cloud"
@@ -128,7 +113,7 @@ export default function Config() {
   const selected =
     (requested.startsWith("sub:") &&
       subscriptions.some(
-        (item) => item.id === requested.slice(4) && isCloudSub(item),
+        (item) => item.id === requested.slice(4) && isAccountManaged(item),
       )) ||
     (requested.startsWith("controller:") &&
       !controllers.some((item) => item.id === requested.slice(11)))
@@ -142,7 +127,7 @@ export default function Config() {
     : undefined;
   const filteredSubs = subscriptions.filter(
     (item) =>
-      !isCloudSub(item) &&
+      !isAccountManaged(item) &&
       item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
   );
   const filteredControllers = controllers.filter((item) =>

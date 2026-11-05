@@ -66,3 +66,33 @@ func TestMigrateLegacySourcesBackfillsFormat(t *testing.T) {
 		t.Fatalf("migration must not convert source bytes, got: %s", stored)
 	}
 }
+
+// Stores written before the source-type field existed carry no type: the
+// loader backfills "universal" — the conservative source whose logout keeps
+// the entry and whose updates go through the URL — instead of guessing the
+// original source.
+func TestLoadStoreBackfillsMissingTypeAsUniversal(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	if err := paths.EnsureDirs(); err != nil {
+		t.Fatal(err)
+	}
+	store := `{"subscriptions": [{"id": "legacy", "name": "Old", "sourceUrl": "https://old.example.invalid/sub", "autoUpdate": true}]}`
+	if err := os.WriteFile(paths.SubListPath(), []byte(store), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	m, err := NewManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	list := m.List()
+	if len(list) != 1 {
+		t.Fatalf("expected the legacy entry to survive, got %d entries", len(list))
+	}
+	if list[0].Type != SubTypeUniversal {
+		t.Fatalf("missing type must backfill to universal, got %q", list[0].Type)
+	}
+	if list[0].Kind != KindRemote {
+		t.Fatalf("kind backfill should follow the http source, got %q", list[0].Kind)
+	}
+}
