@@ -50,10 +50,12 @@ export function DisconnectedState({
   const { t: tc } = useTranslation("common");
   const { t: tconn } = useTranslation("connect");
   const navigate = useNavigate();
-  const { isLocalTarget, up } = useLocalAPI();
+  const { isLocalTarget, hasDaemon, daemonState, reconnect, up } =
+    useLocalAPI();
   const { isLoading, hasSub } = useIsServiceConnected();
   const target = useAPIInfo();
   const [connecting, setConnecting] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   async function handleConnect() {
     if (connecting) return;
@@ -66,6 +68,16 @@ export function DisconnectedState({
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
       setConnecting(false);
+    }
+  }
+
+  async function handleRetry() {
+    if (retrying) return;
+    setRetrying(true);
+    try {
+      await reconnect();
+    } finally {
+      setRetrying(false);
     }
   }
 
@@ -89,7 +101,25 @@ export function DisconnectedState({
   let defaultAction: ReactNode;
 
   if (isLocalTarget) {
-    if (!hasSub) {
+    if (!hasDaemon) {
+      // 本機 daemon 離線：身份保留為本機（control-targets 邊界#2），交代的
+      // 是服務連通事實，不是「未導入配置」或遠端控制器。
+      defaultTitle =
+        daemonState === "connecting"
+          ? tconn("daemonConnecting")
+          : tconn("daemonOffline");
+      defaultDescription =
+        description ??
+        (daemonState === "connecting"
+          ? tconn("daemonConnectingDesc")
+          : tconn("daemonOfflineDesc"));
+      defaultAction = (
+        <Button disabled={retrying} onClick={() => void handleRetry()}>
+          {retrying ? <Spinner className="mr-1.5 size-4" /> : null}
+          {tc("retry")}
+        </Button>
+      );
+    } else if (!hasSub) {
       defaultTitle = tconn("noConfigTitle");
       defaultDescription = description ?? tconn("noConfigDescription");
       defaultAction = (

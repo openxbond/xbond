@@ -7,8 +7,9 @@ const emptyVersion = { version: "", premium: false, meta: false };
 export function useVersion() {
   const client = useClient();
   const result = useSWR(
-    ["/version", client],
+    client ? ["/version", client] : null,
     async () => {
+      if (!client) throw new Error("No core client");
       const { data } = await client.getVersion();
       return {
         version: data.version || "",
@@ -32,7 +33,8 @@ const emptyGeneral = {
 };
 export function useGeneral() {
   const client = useClient();
-  const result = useSWR(["/configs", client], async () => {
+  const result = useSWR(client ? ["/configs", client] : null, async () => {
+    if (!client) throw new Error("No core client");
     const { data } = await client.getConfig();
     return {
       port: data.port,

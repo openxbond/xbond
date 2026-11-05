@@ -8,8 +8,9 @@ export function useRuleProviders() {
   const client = useClient();
   const capabilities = useCapabilities();
   const { data, mutate, error, isLoading } = useSWR(
-    capabilities.ruleProviders ? ["/providers/rules", client] : null,
+    capabilities.ruleProviders && client ? ["/providers/rules", client] : null,
     async () => {
+      if (!client) throw new Error("No core client");
       try {
         return Object.values(
           (await client.getRuleProviders()).data.providers ?? {},
@@ -30,8 +31,11 @@ export function useRuleProviders() {
 export function useRule(enabled: boolean) {
   const client = useClient();
   const { data, mutate, error } = useSWR(
-    enabled ? ["/rules", client] : null,
-    async () => (await client.getRules()).data.rules ?? [],
+    enabled && client ? ["/rules", client] : null,
+    async () => {
+      if (!client) throw new Error("No core client");
+      return (await client.getRules()).data.rules ?? [];
+    },
     { revalidateOnFocus: false },
   );
   // 首次載入與「真的沒有規則」必須可分，否則空態會在載入期間誤報。

@@ -103,6 +103,11 @@ const CN = {
     remoteDisconnectedDesc:
       "无法连接到外部控制器，请确认目标控制器已启动且地址配置正确。",
     statusReadFailed: "无法读取本机状态，请重试。",
+    daemonConnecting: "正在连接本机服务",
+    daemonConnectingDesc: "XBond 后台服务正在启动，连上后即可继续。",
+    daemonOffline: "本机服务未连接",
+    daemonOfflineDesc:
+      "无法连接本机 XBond 服务，可能尚未安装、已停止或正在重启。应用会自动重试，也可以立即重试。",
     currentNode: "当前节点",
     strategyGroups: "策略组",
     allStrategies: "全部策略",

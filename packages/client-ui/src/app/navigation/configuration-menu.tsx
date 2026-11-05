@@ -16,6 +16,7 @@ import {
   useControllers,
   useSelectController,
 } from "@/state/controller-target";
+import { useLocalAPI } from "@/state/local-runtime";
 
 export function ConfigMenu() {
   const { t } = useTranslation("configuration");
@@ -83,6 +84,7 @@ export function ConfigMenu() {
   const isCloudActive =
     local && Boolean(cloudProfile) && activeId === cloudProfile?.id;
   const activeSub = subscriptions.find((item) => item.id === activeId);
+  const { hasDaemon } = useLocalAPI();
 
   const activeName = local
     ? isCloudActive
@@ -93,9 +95,11 @@ export function ConfigMenu() {
   const activeSubtitle = local
     ? isCloudActive
       ? t("activeLocal")
-      : activeSub?.format
-        ? `${activeSub.format} · ${t("activeLocal")}`
-        : t("activeLocal")
+      : !hasDaemon
+        ? t("localOffline")
+        : activeSub?.format
+          ? `${activeSub.format} · ${t("activeLocal")}`
+          : t("activeLocal")
     : t("controllers");
 
   const activeTooltip =

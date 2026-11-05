@@ -105,6 +105,12 @@ const KO = {
     remoteDisconnectedDesc:
       "외부 컨트롤러에 연결할 수 없습니다. 실행 상태와 주소 설정을 확인하세요.",
     statusReadFailed: "로컬 상태를 읽을 수 없습니다. 다시 시도하세요.",
+    daemonConnecting: "로컬 서비스에 연결 중",
+    daemonConnectingDesc:
+      "XBond 백그라운드 서비스가 시작 중입니다. 곧 연결됩니다.",
+    daemonOffline: "로컬 서비스 미연결",
+    daemonOfflineDesc:
+      "로컬 XBond 서비스에 연결할 수 없습니다. 설치되지 않았거나 중지되었거나 재시작 중일 수 있습니다. 앱이 자동으로 재시도하며, 지금 바로 재시도할 수도 있습니다.",
     currentNode: "현재 노드",
     strategyGroups: "전략 그룹",
     allStrategies: "전체 전략",

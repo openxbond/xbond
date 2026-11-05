@@ -38,6 +38,7 @@ export function Provider(props: ProvidersProps) {
 
   function handleHealthCheck() {
     void run(async () => {
+      if (!client) throw new Error("LocalAPI not available");
       await client.healthCheckProvider(provider.name);
       await update();
       invalidate(provider.proxies.map((p) => p.name));
@@ -45,6 +46,7 @@ export function Provider(props: ProvidersProps) {
   }
   function handleUpdate() {
     void run(async () => {
+      if (!client) throw new Error("LocalAPI not available");
       await client.updateProvider(provider.name);
       await update();
       invalidate(provider.proxies.map((p) => p.name));

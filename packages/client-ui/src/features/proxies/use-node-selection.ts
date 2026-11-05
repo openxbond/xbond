@@ -20,6 +20,7 @@ export function useNodeSelection() {
     let applied = false;
     setResult("idle");
     const ok = await run(async () => {
+      if (!client) throw new Error("LocalAPI not available");
       if (hasLocalAPI) await selectNode(group, name);
       else await client.changeProxySelected(group, name);
       applied = true;

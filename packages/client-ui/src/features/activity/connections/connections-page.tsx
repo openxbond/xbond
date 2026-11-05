@@ -134,6 +134,7 @@ export default function Connections() {
   const closeTrigger = useRef<HTMLButtonElement>(null);
   function handleCloseConnections() {
     void run(async () => {
+      if (!client) throw new Error("LocalAPI not available");
       if (closeFiltered) {
         const ids = instance
           .getFilteredRowModel()
@@ -363,6 +364,7 @@ export default function Connections() {
   });
   function handleConnectionClosed() {
     void run(async () => {
+      if (!client) throw new Error("LocalAPI not available");
       await client.closeConnection(drawerState.selectedID);
     }, false);
   }

@@ -214,6 +214,7 @@ export default function Settings() {
         await setMode({ port: parsed });
         await refresh();
       } else {
+        if (!client) throw new Error("LocalAPI not available");
         await client.updateConfig({ "mixed-port": parsed });
         await update();
       }
@@ -497,6 +498,7 @@ export default function Settings() {
                   void run(async () => {
                     if (hasLocalAPI) await setMode({ allowLan });
                     else {
+                      if (!client) throw new Error("LocalAPI not available");
                       await client.updateConfig({ "allow-lan": allowLan });
                       await update();
                     }
@@ -618,6 +620,7 @@ export default function Settings() {
                 ]}
                 onChange={(level) =>
                   void run(async () => {
+                    if (!client) throw new Error("LocalAPI not available");
                     await client.updateConfig({ "log-level": level });
                     await update();
                   })

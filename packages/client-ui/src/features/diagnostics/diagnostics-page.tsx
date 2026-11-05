@@ -187,6 +187,7 @@ export default function Diagnostics() {
   async function testSite(site: BenchmarkSite) {
     setSiteTesting((prev) => ({ ...prev, [site.id]: true }));
     try {
+      if (!client) throw new Error("LocalAPI not available");
       const res = await client.getProxyDelay(targetProxy, site.url, 5000);
       setSiteDelays((prev) => ({ ...prev, [site.id]: res.data.delay }));
     } catch {
@@ -208,6 +209,7 @@ export default function Diagnostics() {
     }
     setValidation("");
     void run(async () => {
+      if (!client) throw new Error("LocalAPI not available");
       const start = performance.now();
       // Keep the previous result mounted while the new query runs: clearing it
       // first collapsed the card and made the whole section flicker.
@@ -856,6 +858,7 @@ export default function Diagnostics() {
               onClick={() => {
                 if (clear)
                   void run(async () => {
+                    if (!client) throw new Error("LocalAPI not available");
                     await client.flushCache(clear);
                     setClear(null);
                   });

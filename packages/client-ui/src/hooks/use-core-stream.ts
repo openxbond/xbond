@@ -12,7 +12,8 @@ export function useStreamReader<T>(path: string | null, bufferLength = 0) {
   const connection = useMemo(
     () => ({
       stream: new StreamReader<T>({ bufferLength }),
-      endpoint: path ? streamURL(url, path, secret) : null,
+      // 無端點（本機 daemon 離線）時不連接，也不對佔位地址重試。
+      endpoint: path && url ? streamURL(url, path, secret) : null,
     }),
     [url, secret, path, bufferLength],
   );

@@ -76,16 +76,19 @@ function useLatencyRunner() {
           }));
           let result: LatencyResult;
           try {
+            // 無端點（本機 daemon 離線）時測試直接判失敗，不對佔位地址發請求。
             const delay = isClashX()
               ? ((await jsBridge?.getProxyDelay(name)) ?? 0)
-              : (
-                  await client.getProxyDelay(
-                    name,
-                    url,
-                    timeout,
-                    controller.signal,
-                  )
-                ).data.delay;
+              : client
+                ? (
+                    await client.getProxyDelay(
+                      name,
+                      url,
+                      timeout,
+                      controller.signal,
+                    )
+                  ).data.delay
+                : 0;
             result = delay > 0 ? { status: "ok", delay } : { status: "failed" };
           } catch (err) {
             result = {

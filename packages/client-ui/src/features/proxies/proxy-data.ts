@@ -11,8 +11,11 @@ export function useProxyProviders() {
   const client = useClient();
   const capabilities = useCapabilities();
   const { data, mutate, error } = useSWR(
-    capabilities.proxyProviders ? ["/providers/proxies", client] : null,
+    capabilities.proxyProviders && client
+      ? ["/providers/proxies", client]
+      : null,
     async () => {
+      if (!client) throw new Error("No core client");
       return Object.values(
         (await client.getProxyProviders()).data.providers ?? {},
       ).filter((p) => p.name !== "default" && p.vehicleType !== "Compatible");
@@ -33,30 +36,34 @@ const emptyProxies: ProxyState = {
 };
 export function useProxy() {
   const client = useClient();
-  const { data, mutate, error } = useSWR(["/proxies", client], async () => {
-    const mapping = (await client.getProxies()).data.proxies ?? {};
-    const global = {
-      ...emptyProxies.global,
-      ...mapping.GLOBAL,
-      name: "GLOBAL",
-    } as API.Group;
-    const entries = (global.all.length ? global.all : Object.keys(mapping))
-      .filter(
-        (name) =>
-          !["GLOBAL", "DIRECT", "REJECT"].includes(name) && mapping[name],
-      )
-      .map((name) => ({
-        ...mapping[name],
-        name,
-        history: mapping[name].history ?? [],
-      }));
-    const [proxies, groups] = partition(entries, (p) => !("all" in p));
-    return {
-      proxies: proxies as API.Proxy[],
-      groups: groups as API.Group[],
-      global,
-    };
-  });
+  const { data, mutate, error } = useSWR(
+    client ? ["/proxies", client] : null,
+    async () => {
+      if (!client) throw new Error("No core client");
+      const mapping = (await client.getProxies()).data.proxies ?? {};
+      const global = {
+        ...emptyProxies.global,
+        ...mapping.GLOBAL,
+        name: "GLOBAL",
+      } as API.Group;
+      const entries = (global.all.length ? global.all : Object.keys(mapping))
+        .filter(
+          (name) =>
+            !["GLOBAL", "DIRECT", "REJECT"].includes(name) && mapping[name],
+        )
+        .map((name) => ({
+          ...mapping[name],
+          name,
+          history: mapping[name].history ?? [],
+        }));
+      const [proxies, groups] = partition(entries, (p) => !("all" in p));
+      return {
+        proxies: proxies as API.Proxy[],
+        groups: groups as API.Group[],
+        global,
+      };
+    },
+  );
   const set = useCallback(
     (update: (draft: ProxyState) => void) => {
       void mutate((current) => produce(current ?? emptyProxies, update), {

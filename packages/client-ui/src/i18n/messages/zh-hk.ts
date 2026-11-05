@@ -103,6 +103,11 @@ const HK = {
     remoteDisconnectedDesc:
       "無法連線至外部控制器，請確認目標控制器已啟動且位址設定正確。",
     statusReadFailed: "未能讀取本機狀態，請再試一次。",
+    daemonConnecting: "正在連接本機服務",
+    daemonConnectingDesc: "XBond 後台服務正在啟動，連上後即可繼續。",
+    daemonOffline: "本機服務未連線",
+    daemonOfflineDesc:
+      "無法連接本機 XBond 服務，可能尚未安裝、已停止或正在重新啟動。應用程式會自動重試，也可以立即重試。",
     currentNode: "目前節點",
     strategyGroups: "策略組",
     allStrategies: "全部策略",

@@ -22,6 +22,7 @@ const configuration = {
     search: "Search configs or controllers",
     back: "All configurations",
     localService: "This device",
+    localOffline: "Not connected",
     viewing: "Currently in use",
     localProfile: "Device configuration",
     serviceUnavailable:
@@ -118,6 +119,7 @@ const configuration = {
     search: "查找配置或控制器",
     back: "返回配置列表",
     localService: "此设备",
+    localOffline: "未连接",
     viewing: "当前使用",
     localProfile: "设备配置",
     serviceUnavailable: "XBond 服务不可用，重新连接后可管理已保存的配置。",
@@ -208,6 +210,7 @@ const configuration = {
     search: "尋找配置或控制器",
     back: "返回配置列表",
     localService: "此裝置",
+    localOffline: "未連線",
     viewing: "目前使用",
     localProfile: "裝置配置",
     serviceUnavailable: "XBond 服務不可用，重新連線後可管理已儲存的配置。",
@@ -298,6 +301,7 @@ const configuration = {
     search: "구성 또는 컨트롤러 검색",
     back: "구성 목록으로",
     localService: "이 기기",
+    localOffline: "연결 안 됨",
     viewing: "현재 사용 중",
     localProfile: "기기 구성",
     serviceUnavailable:
@@ -392,6 +396,7 @@ const configuration = {
     search: "جستجوی پیکربندی یا کنترل‌کننده",
     back: "بازگشت به فهرست",
     localService: "این دستگاه",
+    localOffline: "متصل نیست",
     viewing: "در حال استفاده",
     localProfile: "پیکربندی دستگاه",
     serviceUnavailable:

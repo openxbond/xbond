@@ -106,6 +106,12 @@ const EN = {
     remoteDisconnectedDesc:
       "Cannot connect to external controller. Please check if it is running and the address is correct.",
     statusReadFailed: "Could not read local status. Retry to check again.",
+    daemonConnecting: "Connecting to the local service",
+    daemonConnectingDesc:
+      "The XBond background service is starting; it will be available shortly.",
+    daemonOffline: "Local service not connected",
+    daemonOfflineDesc:
+      "The local XBond service is unreachable — it may not be installed, has stopped, or is restarting. The app keeps retrying automatically; you can also retry now.",
     currentNode: "Current node",
     strategyGroups: "Strategy groups",
     allStrategies: "All strategies",

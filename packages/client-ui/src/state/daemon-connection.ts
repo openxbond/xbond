@@ -4,7 +4,7 @@ import {
   type LocalAPIStatusResponse,
 } from "@xbond/client/localapi";
 import { atom, useAtom } from "jotai";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import useSWR from "swr";
 
 import {
@@ -120,12 +120,25 @@ export function useDaemonConnection() {
         ? ("connecting" as const)
         : ("ready" as const);
 
+  /** Manual retry entry: re-resolve the desktop config, then re-read status. */
+  const reconnect = useCallback(async () => {
+    if (!config && isDesktopApp()) {
+      const desktopCfg = await resolveDesktopLocalAPIConfig();
+      if (desktopCfg) {
+        setConfig(desktopCfg);
+        setConfigReady(true);
+      }
+    }
+    if (client) await mutate();
+  }, [config, client, setConfig, setConfigReady, mutate]);
+
   return {
     client,
     config,
     data: effectiveStatus ?? null,
     error: error ?? null,
     mutateStatus: mutate,
+    reconnect,
     hasDaemon: daemonState === "ready",
     daemonState,
   };

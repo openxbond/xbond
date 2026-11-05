@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { CountryFlag } from "@/components/country-flag";
 import { nodeFlagCode, stripFlagEmoji } from "@/components/country-flag";
+import { DisconnectedState } from "@/components/disconnected-state";
 import { SegmentedControl } from "@/components/segmented-control";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -582,6 +583,7 @@ export default function Connect() {
       if (hasLocalAPI) {
         await setMode({ routing: mode });
       } else {
+        if (!client) throw new Error("LocalAPI not available");
         await client.updateConfig({ mode });
         await update();
       }
@@ -613,6 +615,9 @@ export default function Connect() {
 
       {hasLocalAPI && !sub ? (
         <OnboardingGuide className="my-auto py-6" />
+      ) : isLocalTarget && !hasLocalAPI ? (
+        // 本機 daemon 離線：保留本機身份與重試入口，不顯示遠端控制器視圖。
+        <DisconnectedState className="my-auto py-6" />
       ) : !hasDaemonConfig() && !active ? (
         <ExternalControllerOnboarding className="my-auto py-6" />
       ) : (
@@ -710,9 +715,11 @@ export default function Connect() {
                   <span className="text-sm font-semibold text-foreground">
                     {controller.name || "Controller"}
                   </span>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    {controller.url}
-                  </span>
+                  {controller.url && (
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {controller.url}
+                    </span>
+                  )}
                 </div>
               </div>
             )}

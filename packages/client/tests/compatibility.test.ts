@@ -91,6 +91,44 @@ test("fallback controller is not duplicated when user adds a controller", () => 
   assert.equal(hosts.length, 1);
   assert.equal(hosts[0].url, "http://192.168.10.1:19090");
 });
+test("a persisted built-in entry keeps the daemon identity after migration", () => {
+  // 持久化過的內建條目必須歸位回 fallback：此前它被重新賦予隨機 id，daemon
+  // 關聯斷裂後以外部控制器身份復活（幽靈目標，恢復對佔位端點的請求）。
+  const desktopFallback = {
+    id: "default",
+    name: "XBond",
+    url: "http://127.0.0.1:9090",
+    secret: "",
+  };
+  assert.deepEqual(
+    migrateControllers(
+      [
+        {
+          id: "default",
+          name: "XBond",
+          url: "http://127.0.0.1:9090",
+          secret: "",
+        },
+      ],
+      desktopFallback,
+    ),
+    [desktopFallback],
+  );
+  assert.deepEqual(
+    migrateControllers(
+      [
+        {
+          id: "stale-random",
+          name: "XBond",
+          url: "http://127.0.0.1:9090",
+          secret: "",
+        },
+      ],
+      desktopFallback,
+    ),
+    [desktopFallback],
+  );
+});
 test("HTTPS launch parameters and reverse proxy paths survive REST/WS URL construction", () => {
   const controller = controllerFromQuery(
     "?protocol=https:&host=example.com&port=9443&secret=a%26b",

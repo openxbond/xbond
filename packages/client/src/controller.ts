@@ -8,8 +8,12 @@ export interface Controller {
 export interface ControlTarget {
   kind: "daemon" | "controller";
   controller: Controller;
-  /** The daemon's live endpoint can rotate independently of its identity. */
-  endpoint: Pick<Controller, "url" | "secret">;
+  /**
+   * The daemon's live endpoint can rotate independently of its identity.
+   * Null while a daemon target has no verified endpoint: a missing LocalAPI
+   * status must not send requests to the saved placeholder address.
+   */
+  endpoint: Pick<Controller, "url" | "secret"> | null;
 }
 
 /** Resolve the effective target before granting local runtime operations. */
@@ -62,8 +66,13 @@ export function resolveControlTarget(
   return {
     kind,
     controller,
+    // A daemon endpoint is real only when the daemon advertised it (core) or
+    // injected it via meta. Until then the local target has no endpoint, so
+    // offline transport waits instead of guessing the saved placeholder.
     endpoint:
-      kind === "daemon" ? (launch.daemon?.core ?? controller) : controller,
+      kind === "daemon"
+        ? (launch.daemon?.core ?? (launch.meta ? controller : null))
+        : controller,
   };
 }
 
@@ -133,9 +142,18 @@ export function migrateControllers(
           item.id === "default") &&
         (url === fallback.url ||
           url === "http://127.0.0.1:9090" ||
-          url === "http://localhost:9090") &&
+          url === "http://localhost:9090" ||
+          url === "") &&
         !item.secret;
       if (isFallbackDuplicate && value.length > 1) {
+        // 存在其他真实条目时丢弃过期的内置副本。
+        continue;
+      }
+      if (isFallbackDuplicate) {
+        // 唯一条目即内置 daemon 身份：归位到 fallback，绝不改名换姓——
+        // 否则持久化过的内置项在下次启动时丢失 daemon 关联，变成幽灵控制器。
+        ids.add(fallback.id);
+        controllers.push({ ...fallback });
         continue;
       }
       const id =

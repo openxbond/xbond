@@ -272,6 +272,7 @@ export default function ProxyPage() {
     if (hasLocalAPI) {
       await setMode({ routing: mode });
     } else {
+      if (!client) throw new Error("LocalAPI not available");
       await client.updateConfig({ mode });
       await updateGeneral();
     }

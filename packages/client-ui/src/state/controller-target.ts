@@ -11,6 +11,7 @@ import { useMemo, useCallback, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { isClashX, jsBridge } from "@/platform/clashx-bridge";
+import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
 
 import { useDaemonConnection } from "./daemon-connection";
 
@@ -25,9 +26,10 @@ const fallback: Controller = {
   id: "default",
   name: "XBond",
   secret: "",
-  url: window.location.pathname.startsWith("/ui")
-    ? window.location.origin
-    : "http://127.0.0.1:9090",
+  // 純 Web 表單（daemon 服務的 /ui）以本源為預填。桌面宿主的真實端點由
+  // daemon 提供（隨機端口 + 密鑰），佔位地址不得存在：空 URL = 沒有端點，
+  // 內建條目只作「本機 daemon」的身份錨點，永不展示或請求佔位地址。
+  url: window.location.pathname.startsWith("/ui") ? window.location.origin : "",
 };
 /** The built-in controller backed by this window's own daemon. */
 export const DAEMON_CONTROLLER_ID = fallback.id;
@@ -89,7 +91,7 @@ export function useAPIInfo() {
       });
     });
   }, [clashx, setClashx]);
-  const { data, config } = useDaemonConnection();
+  const { data } = useDaemonConnection();
   const [verifiedMeta, setVerifiedMeta] = useAtom(verifiedDaemonMetaAtom);
   const location = useLocation();
   const selected = useAtomValue(selectedControllerAtom);
@@ -100,36 +102,35 @@ export function useAPIInfo() {
     const meta = document.querySelector<HTMLMetaElement>(
       'meta[name="external-controller"]',
     );
+    const daemonCore = data
+      ? {
+          url: `http://127.0.0.1:${data.preferences.clashPort}`,
+          secret: data.preferences.clashSecret ?? "",
+        }
+      : undefined;
     const { controller, kind, endpoint } = resolveControlTarget(
       savedController,
       {
         meta: meta?.content,
         search: location.search,
         bridge: clashx,
-        daemon: config
-          ? {
-              id: DAEMON_CONTROLLER_ID,
-              verifiedMeta,
-              core: data
-                ? {
-                    url: `http://127.0.0.1:${data.preferences.clashPort}`,
-                    secret: data.preferences.clashSecret ?? "",
-                  }
-                : undefined,
-            }
+        // 宿主聲明了 daemon 身份：LocalAPI 尚未連通時內建目標仍保留本機身份
+        // （供離線處理），端點可信度由 resolveControlTarget 判定。
+        daemon: hasDaemonConfig()
+          ? { id: DAEMON_CONTROLLER_ID, verifiedMeta, core: daemonCore }
           : null,
       },
     );
-    const url = new URL(controller.url);
+    const url = controller.url ? new URL(controller.url) : null;
     return {
       ...controller,
-      endpoint,
+      endpoint: endpoint ?? { url: "", secret: "" },
       targetKind: kind,
-      hostname: url.hostname,
-      port: url.port || (url.protocol === "https:" ? "443" : "80"),
-      protocol: url.protocol,
+      hostname: url?.hostname ?? "",
+      port: url?.port || (url?.protocol === "https:" ? "443" : "80"),
+      protocol: url?.protocol ?? "",
     };
-  }, [clashx, hosts, selected, location.search, data, config, verifiedMeta]);
+  }, [clashx, hosts, selected, location.search, data, verifiedMeta]);
   useEffect(() => {
     if (info.targetKind !== "daemon" || !data) return;
     const meta = document.querySelector<HTMLMetaElement>(
@@ -139,11 +140,15 @@ export function useAPIInfo() {
   }, [info.targetKind, data, setVerifiedMeta]);
   return info;
 }
+/** Core API client; null while the target has no verified endpoint (offline daemon). */
 export function useClient() {
   const {
     endpoint: { url, secret },
   } = useAPIInfo();
-  return useMemo(() => Client.forController(url, secret), [url, secret]);
+  return useMemo(
+    () => (url ? Client.forController(url, secret) : null),
+    [url, secret],
+  );
 }
 
 export const identityAtom = atom(true);

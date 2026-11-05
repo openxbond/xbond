@@ -28,6 +28,7 @@ export function Provider(props: ProvidersProps) {
 
   function handleUpdate() {
     void run(async () => {
+      if (!client) throw new Error("LocalAPI not available");
       await client.updateRuleProvider(provider.name);
       await update();
     });

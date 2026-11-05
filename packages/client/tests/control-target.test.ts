@@ -33,6 +33,7 @@ test("the built-in target is identified only when its daemon is configured", () 
 test("desktop traffic and logs use the core advertised by LocalAPI", () => {
   const { controller, endpoint } = resolveControlTarget(saved, { daemon });
   assert.deepEqual(controller, saved);
+  assert.ok(endpoint);
   assert.equal(
     streamURL(endpoint.url, "traffic", endpoint.secret),
     "ws://127.0.0.1:49152/traffic?token=daemon-fixture",
@@ -41,6 +42,21 @@ test("desktop traffic and logs use the core advertised by LocalAPI", () => {
     streamURL(endpoint.url, "logs?level=info", endpoint.secret),
     "ws://127.0.0.1:49152/logs?level=info&token=daemon-fixture",
   );
+});
+
+test("an unreachable daemon keeps its local identity without a guessed endpoint", () => {
+  // LocalAPI 尚未取得首次狀態：身份留在本機（供離線處理），但不對佔位地址發請求。
+  const offline = resolveControlTarget(saved, { daemon: { id: saved.id } });
+  assert.equal(offline.kind, "daemon");
+  assert.equal(offline.endpoint, null);
+  // daemon 注入的 metadata 是真實端點：離線期間仍可用於載入與失敗處理。
+  const injected = resolveControlTarget(saved, {
+    daemon: { id: saved.id },
+    meta: "http://:daemon-fixture@127.0.0.1:49152",
+  });
+  assert.equal(injected.kind, "daemon");
+  assert.ok(injected.endpoint);
+  assert.equal(injected.endpoint.url, "http://127.0.0.1:49152");
 });
 
 test("configured daemon identity survives injected metadata awaiting its first status", () => {
