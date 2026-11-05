@@ -37,18 +37,18 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 
 ## 首次設定
 
-從組織的 `openxbond/automation` 倉庫執行 `pnpm release-setup`，再補齊當次所需的設定。Secrets 放私密內容，Variables 放公鑰、網址和識別碼。
+按組織的 `openxbond/automation` 倉庫 README 將 Apple 及商店材料放入 Git 忽略的 `release-private/`，再在該倉庫執行 `pnpm release-setup` 和 `pnpm release-setup --check`。下表供查找 GitHub 欄位。 [Automation 設定](https://github.com/openxbond/automation#發佈密鑰與-xbond-設定)
 
 | 位置 | 設定 |
 | --- | --- |
 | Repository Variables | `XBOND_RELEASE_PUBLIC_KEY`（32-byte Ed25519 公鑰的 Base64）、`XBOND_TAURI_PUBLIC_KEY`（Tauri 公鑰檔內容）、`APPLE_TEAM_ID`。有可用條目後才填 `APP_STORE_URL`、`CHROME_STORE_URL`、`EDGE_STORE_URL`。有可用的 TestFlight 公開邀請時可填 `IOS_TESTFLIGHT_URL`。 |
 | `release-manifest-signing` | Secret `XBOND_RELEASE_PRIVATE_KEY`（配對的 PKCS#8 PEM）。 |
-| `release-desktop-signing` | Secrets `TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（如有）。macOS 另需 `APPLE_CERTIFICATE`（Developer ID Application P12 的 Base64）、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_ID`、`APPLE_PASSWORD`，以及 Variable `APPLE_SIGNING_IDENTITY`。Windows Authenticode 可用 `WINDOWS_PFX` 和 `WINDOWS_PFX_PASSWORD`。 |
-| `release-android-signing` | Secrets `ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_PASSWORD`。Variables `ANDROID_KEY_ALIAS`、`ANDROID_SIGNER_SHA256`（小寫十六進位，無冒號）。後續更新沿用同一簽名身份。 |
+| `release-desktop-signing` | Secrets `TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（如有）。macOS 另需 `APPLE_CERTIFICATE`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY` 及 Apple 團隊 API Key `ASC_KEY`。公證與 TestFlight 共用 Repository Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。Windows Authenticode 可用 `WINDOWS_PFX` 和 `WINDOWS_PFX_PASSWORD`。 |
+| `release-android-signing` | Secrets `ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`。若金鑰密碼與 keystore 密碼不同，設定 `ANDROID_KEY_PASSWORD_OVERRIDE`。Variables `ANDROID_KEY_ALIAS`、`ANDROID_SIGNER_SHA256`（小寫十六進位，無冒號）。後續更新沿用同一簽名身份。 |
 | `release-ios-signing` | Apple Developer 組織帳號。為 `net.xbond.app` 和 `net.xbond.app.PacketTunnel` 建立 App Store Connect 發行用 profiles，配置 Network Extension 及 App Group `group.net.xbond.app`。Secrets `IOS_DISTRIBUTION_P12`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE` 用 Base64，另設 `IOS_DISTRIBUTION_PASSWORD`。 |
 | `release-store-ios` | Secret `ASC_KEY`（App Store Connect P8 原文），Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。 |
 
-確認 Pages 的 Source 為 GitHub Actions，`v*` 受 Tag 規則集保護，`release-production` 限 `main` 且需要審核人。管理者在正式發佈前開啟 Release immutability。 [GitHub 不可變 Release](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
+設定指令會建立必要環境、配置 Pages 使用 GitHub Actions、啟用不可變 Release，並保留現有的 `v*` Tag 保護與 `release-production` 審核人。 [GitHub 不可變 Release](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
 
 ## 演練與故障恢復
 

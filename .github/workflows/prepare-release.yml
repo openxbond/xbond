@@ -149,12 +149,26 @@ jobs:
           APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.APPLE_CERTIFICATE || '' }}
           APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
           APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && vars.APPLE_SIGNING_IDENTITY || '' }}
+          ASC_KEY: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.ASC_KEY || '' }}
+          APPLE_API_KEY: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && vars.ASC_KEY_ID || '' }}
+          APPLE_API_ISSUER: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && vars.ASC_ISSUER_ID || '' }}
           APPLE_ID: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.APPLE_ID || '' }}
           APPLE_PASSWORD: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.APPLE_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && vars.APPLE_TEAM_ID || '' }}
           XBOND_DESKTOP_REHEARSAL: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'false' && '1' || '' }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
-        run: node scripts/build-desktop-release.ts "$TAG" "$TARGET_OS" "$TARGET_ARCH" release/core release/desktop
+        run: |
+          set -euo pipefail
+          if [[ -n "$ASC_KEY" ]]; then
+            : "${APPLE_API_KEY:?Set ASC_KEY_ID}"
+            : "${APPLE_API_ISSUER:?Set ASC_ISSUER_ID}"
+            APPLE_API_KEY_PATH=$(mktemp)
+            trap 'rm -f "$APPLE_API_KEY_PATH"' EXIT
+            (umask 077; printf '%s' "$ASC_KEY" > "$APPLE_API_KEY_PATH")
+            export APPLE_API_KEY_PATH
+            unset ASC_KEY
+          fi
+          node scripts/build-desktop-release.ts "$TAG" "$TARGET_OS" "$TARGET_ARCH" release/core release/desktop
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-${{ matrix.os }}-${{ matrix.arch }}
@@ -203,7 +217,7 @@ jobs:
         env:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD_OVERRIDE || secrets.ANDROID_STORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
           ANDROID_SIGNER_SHA256: ${{ vars.ANDROID_SIGNER_SHA256 }}
         run: |
