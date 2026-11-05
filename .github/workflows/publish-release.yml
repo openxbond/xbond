@@ -25,6 +25,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     environment: release-production
+    outputs:
+      pages_digest: ${{ steps.candidate.outputs.pages_digest }}
     permissions:
       actions: read
       contents: write
@@ -54,6 +56,8 @@ jobs:
           gh release download "$TAG" --dir release/assets
           node scripts/release-ci.ts verify-evidence "$TAG" release/assets/release-evidence.json
           node scripts/release-assets.ts pages "$TAG" release/assets release/pages "$APP_STORE_URL" "$CHROME_STORE_URL" "$EDGE_STORE_URL"
+          pages_digest=$(cd release/pages && sha256sum --binary index.html download/index.html release.json desktop.json | sha256sum | cut -d' ' -f1)
+          echo "pages_digest=$pages_digest" >> "$GITHUB_OUTPUT"
       - id: registry
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
@@ -85,7 +89,20 @@ jobs:
           test "sha256:$(sha256sum image-index.json | cut -d' ' -f1)" = "$IMAGE_DIGEST"
           jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64","arm64"]' image-index.json
           skopeo copy --all --preserve-digests "$archive" "docker://ghcr.io/openxbond/xbond:$TAG"
-      - name: Publish immutable Release
+      - name: Verify anonymous GHCR access
+        env:
+          IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if ! skopeo inspect --no-creds --raw "docker://ghcr.io/openxbond/xbond:$TAG" > public-image.json; then
+            echo "::error::The image is not publicly readable. Check the GHCR package visibility, then rerun this release."
+            exit 1
+          fi
+          if [ "sha256:$(sha256sum public-image.json | cut -d' ' -f1)" != "$IMAGE_DIGEST" ]; then
+            echo "::error::The public GHCR digest differs from the verified release."
+            exit 1
+          fi
+      - name: Publish GitHub Release
         if: steps.candidate.outputs.draft == 'true'
         run: gh release edit "$TAG" --draft=false --latest
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
@@ -95,6 +112,7 @@ jobs:
   pages:
     needs: publish
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
@@ -104,11 +122,31 @@ jobs:
     steps:
       - id: deploy
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
-      - name: Verify deployed version
+      - name: Verify deployed pages and update feeds
         env:
           PAGES_URL: ${{ steps.deploy.outputs.page_url }}
           TAG: ${{ inputs.tag }}
+          EXPECTED_DIGEST: ${{ needs.publish.outputs.pages_digest }}
         run: |
           set -euo pipefail
-          curl -fSs --retry 5 --retry-all-errors "${PAGES_URL%/}/desktop.json?v=$TAG" | jq -e --arg version "${TAG#v}" '.version == $version'
-          curl -fSs --retry 5 "${PAGES_URL%/}/download/" > /dev/null
+          verification=$(mktemp -d)
+          trap 'rm -rf -- "$verification"' EXIT
+          cd "$verification"
+          mkdir download
+          files=(index.html download/index.html release.json desktop.json)
+
+          verify_pages() {
+            local file digest
+            for file in "${files[@]}"; do
+              curl -fSs --compressed --max-time 15 "${PAGES_URL%/}/${file%index.html}?v=$TAG" -o "$file" || return 1
+            done
+            digest=$(sha256sum --binary "${files[@]}" | sha256sum | cut -d' ' -f1)
+            [ "$digest" = "$EXPECTED_DIGEST" ]
+          }
+
+          for attempt in {1..6}; do
+            if verify_pages; then exit 0; fi
+            if [ "$attempt" -lt 6 ]; then sleep 5; fi
+          done
+          echo "::error::GitHub Pages did not serve the verified Dashboard, download page and both update feeds."
+          exit 1

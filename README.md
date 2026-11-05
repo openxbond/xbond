@@ -20,7 +20,7 @@ Web 可作遠端控制器介面；完整本機能力依賴本機服務及權限�
 - [任務記錄](docs/tasks/README.md)：功能與跨會話工作；小修可直接使用 diff 與交付摘要。
 - [Code-first 決策](docs/adr/001-dev-pipeline.md)：理念及取捨。
 
-命令入口是根 `package.json`。目前倉庫沒有提交 GitHub Actions 工作流；上述命令需由開發者或 Agent 執行，不能視為已自動執行的 CI。
+命令入口是根 `package.json`。GitHub Actions 在推送與 PR 上執行 CI 檢查。演練、平台簽名、商店審核及正式發佈按 [發佈手冊](docs/release.md) 操作。
 
 ## 工程與擴展
 

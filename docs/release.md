@@ -1,37 +1,105 @@
-# XBond 發佈與更新
+# XBond 發佈手冊
 
-正式版本以 `main` 歷史上的 `vX.Y.Z` Tag 為準。三段數值均為 0–99，整體版本大於 0。CI 把 `X.Y.Z` 注入 CLI、Dashboard、桌面、Android、iOS、擴充功能與容器，Android `versionCode` 和 iOS build number 為 `X × 10000 + Y × 100 + Z`。依賴的代理核心各有自己的版本。
+一次正式發佈以 `vX.Y.Z` 和一個已在遠端 `main` 的提交為準。維護者推送 Tag 後，Actions 會準備產物及建立 GitHub Release 草稿。待 iOS、Chrome 和 Edge 的同版已可安裝，才執行公開工作流。公開順序是 GHCR 鏡像、GitHub Release、GitHub Pages 和更新入口。
 
-## 一次性設定
+| 要做的事 | Actions 工作流 | 完成時會看到 |
+| --- | --- | --- |
+| 驗證發佈矩陣 | **Prepare XBond release**，勾選 `rehearsal` | Actions 有驗證過的候選產物，沒有 Release 草稿 |
+| 暫存正式版 | 推送 Tag 觸發 **Prepare XBond release** | GitHub 有草稿，Actions 保留該次的 IPA 和 OCI 鏡像 |
+| 提交商店 | **XBond store operations** 或首次上架的商店後台 | 三個商店都能安裝指定版本 |
+| 對外公開 | **Publish XBond release** | 鏡像可匿名讀取，Release 已公開，Pages 提供同版下載與更新清單 |
 
-- GitHub Pages 的 Source 選 GitHub Actions。開啟 Release immutability，限制 `v*` 的建立與修改。為 `release-production` 設必要審核人、限制從 `main` 發佈並禁止自行批准。簽名及商店環境各自只存該工作需要的密鑰。允許 GitHub Actions 向 `ghcr.io/openxbond/xbond` 寫入，正式套件使用公開可讀的權限。
-- 設儲存庫變數 `XBOND_RELEASE_PUBLIC_KEY`，值是 Ed25519 原始 32-byte 公鑰的標準 Base64。在 `release-manifest-signing` 設匹配的 PKCS#8 PEM `XBOND_RELEASE_PRIVATE_KEY`。用 `pnpm tauri signer generate` 另產生 Tauri 金鑰，在 `XBOND_TAURI_PUBLIC_KEY` 放公鑰文件內容，在 `release-desktop-signing` 設 `TAURI_SIGNING_PRIVATE_KEY` 及其密碼。備份兩套私鑰。密鑰輪換需要用仍受信任的舊密鑰發佈帶新公鑰的過渡版本。
-- macOS 桌面環境使用 Developer ID Application 憑證及公證帳號。設定 `APPLE_CERTIFICATE`（Base64 P12）、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY`、`APPLE_ID`、`APPLE_PASSWORD`、`APPLE_TEAM_ID`。Windows 可在同環境設 `WINDOWS_PFX` 和 `WINDOWS_PFX_PASSWORD`，有配置時安裝包額外用 Authenticode 簽名。
-- `release-android-signing` 使用長期 APK 發行密鑰。設定 `ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_PASSWORD`、`ANDROID_KEY_ALIAS` 和預期的 `ANDROID_SIGNER_SHA256`。更新包須保留同一簽署身份，應保管密鑰的離線備份。
-- `release-ios-signing` 使用組織 Apple Developer 帳號。為 `net.xbond.app` 和 `net.xbond.app.PacketTunnel` 建立含 Network Extension 與 `group.net.xbond.app` App Group 的 App Store provisioning profile。設定 `APPLE_TEAM_ID`、`IOS_DISTRIBUTION_P12`、`IOS_DISTRIBUTION_PASSWORD`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE`。憑證與 profile 用 Base64。設定 `APP_STORE_URL`、`CHROME_STORE_URL`、`EDGE_STORE_URL` 為正式條目網址。
-- `release-store-ios` 設 `ASC_KEY`（P8 內容）、`ASC_KEY_ID`、`ASC_ISSUER_ID`。首次上架 Chrome 與 Edge 用商店後台建立條目，提交同版本 ZIP。後續在 `release-store-chrome` 設 `CHROME_SERVICE_ACCOUNT`（獲商店授權的服務帳號 JSON）、`CHROME_PUBLISHER_ID`、`CHROME_ITEM_ID`，在 `release-store-edge` 設 `EDGE_API_KEY`、`EDGE_CLIENT_ID`、`EDGE_PRODUCT_ID`。
+## 1. 確認發佈環境
 
-變數可放對應 GitHub Environment，跨多個 job 使用的公鑰、商店連結及 Team ID 放 repository Variables。設定階段用臨時金鑰或受控平台測試，正式環境的操作由維護者執行。
+在 [GitHub Actions](https://github.com/openxbond/xbond/actions) 確認上述三條工作流可從遠端 `main` 執行。以下操作用有相應倉庫或組織權限的 GitHub 身份執行。範例命令使用 PowerShell。
 
-## 發佈流程
+首次設定或輪換憑據時，從組織的 `openxbond/automation` 倉庫執行 `pnpm release-setup`，再對照下表補齊本次需要的設定。環境的 Secrets 輸入私密內容，Variables 放公開資料及識別碼。
 
-1. 確認 `main` 的檢查、版本號和目標提交後推送 Tag。**Prepare XBond release** 產生六種 CLI、六種桌面安裝包、簽署的 Android APK、App Store IPA、MV3 ZIP、`dashboard.zip` 和兩架構 OCI 鏡像，驗證產物後建立 GitHub Release 草稿。開啟 `rehearsal` 可在推送 Tag 前用擬定版本演練本次 `main` 提交，也可指定已有 Tag。預設使用臨時 macOS 簽名並跳過 iOS 歸檔，Apple 憑證備妥後可開啟 `rehearsal_apple_signing` 演練簽名與歸檔。簽名證據記錄候選類型，正式草稿、商店提交與公開發佈只接受完整正式構建。
-2. 從同一草稿與工作流下載或提交商店包。**XBond store operations** 可上傳 iOS IPA 至 App Store Connect。維護者在 TestFlight 確認隧道後送審。首次 Chrome／Edge 上架使用同 Tag 的 MV3 ZIP，後續可執行商店工作流的 `submit` 和 `status`。Edge status 使用提交輸出的 operation ID。提交成功只代表接收，公開前要在三個商店核對實際可安裝版本。提供商店要求的隱私資料、測試帳號及地區資訊。
-3. 核對 [RELEASE-01](./tasks/README.md) 的平台演練與三個商店版本後，從 `main` 執行 **Publish XBond release**，兩個 Tag 輸入填同一版本，由生產環境審核人核對。工作流以原始 digest 發佈 GHCR，公開 GitHub Release，再部署 [Dashboard](https://openxbond.github.io/xbond/) 與 [下載頁](https://openxbond.github.io/xbond/download/)。二進位只由 Release 提供，Pages 提供下載連結、更新清單及校驗值。
+| 位置 | 設定 |
+| --- | --- |
+| Repository Variables | `XBOND_RELEASE_PUBLIC_KEY`（原始 32-byte Ed25519 公鑰的 Base64）、`XBOND_TAURI_PUBLIC_KEY`（Tauri 公鑰檔的內容）、`APPLE_TEAM_ID`。正式公開前補 `APP_STORE_URL`、`CHROME_STORE_URL`、`EDGE_STORE_URL`，填實際商店條目網址。 |
+| `release-manifest-signing` | Secret `XBOND_RELEASE_PRIVATE_KEY`，與倉庫公鑰配對的 PKCS#8 PEM。 |
+| `release-desktop-signing` | Secrets `TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（如有）。macOS 正式簽名另需 `APPLE_CERTIFICATE`（Developer ID Application P12 的 Base64）、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_ID`、`APPLE_PASSWORD`，以及 Variable `APPLE_SIGNING_IDENTITY`。Windows Authenticode 可選用 `WINDOWS_PFX`（Base64）及 `WINDOWS_PFX_PASSWORD`。 |
+| `release-android-signing` | Secrets `ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_PASSWORD`。Variables `ANDROID_KEY_ALIAS`、`ANDROID_SIGNER_SHA256`（小寫十六進位，無冒號）。每版使用同一發行身份。 |
+| `release-ios-signing` | Apple Developer 組織帳號及 App Store profiles，Bundle ID 為 `net.xbond.app` 與 `net.xbond.app.PacketTunnel`。設定 Network Extension 和 App Group `group.net.xbond.app`。Secrets `IOS_DISTRIBUTION_P12`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE` 用 Base64，另設 `IOS_DISTRIBUTION_PASSWORD`。 |
+| `release-store-ios` | Secret `ASC_KEY`（App Store Connect P8 原文），Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。 |
+| `release-store-chrome`、`release-store-edge` | 首次上架使用商店後台。已有條目後才設定 Chrome Secret `CHROME_SERVICE_ACCOUNT` 及 Variables `CHROME_PUBLISHER_ID`、`CHROME_ITEM_ID`，或 Edge Secret `EDGE_API_KEY` 及 Variables `EDGE_CLIENT_ID`、`EDGE_PRODUCT_ID`。 |
 
-草稿的部分上傳可重跑原 workflow 的失敗 job，會比較已上傳的內容並只補齊缺項。準備階段的 IPA 與 OCI 產物保留最多 90 天，以儲存庫的 Actions 保留上限為準。已送審的 Tag 應沿用同一批位元組。Pages 部署失敗後，重跑同一 Tag 的公開工作流，已確認 digest 的鏡像與已公開的 Release 會被重用。修正已公開版本時發佈更高版本。
+確認 Pages 的發佈來源為 GitHub Actions，`v*` Tag 受規則集保護，`release-production` 限 `main` 且需要審核人。首次正式發佈前，在倉庫設定開啟 Release immutability。用管理身份執行下列查詢，確認回傳 `true`。GitHub Release 草稿會先上傳全部資產，再公開。 [GitHub 不可變 Release 設定](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
 
-## 用戶操作
+```powershell
+gh api repos/openxbond/xbond/immutable-releases --jq '.enabled'
+```
 
-- **CLI**：下載對應 Windows、macOS 或 Linux 的 `amd64`／`arm64` 檔案，Unix 需賦予執行權限。`xbond upgrade --check` 只檢查版本，`xbond upgrade` 在確認後更新，`--yes` 用於無人值守。CLI 與桌面依安裝歸屬更新自己的 daemon。正在運行的受管服務會短暫斷線並接受健康檢查，失敗時嘗試恢復上一版。`xbond update` 管理訂閱。
-- **系統隧道服務**：新版以管理員受保護的固定路徑安裝系統級 daemon。更新由同一安裝來源發起，系統級服務使用原生提權，`--yes` 仍可能需要管理員操作。用戶級更新和系統級更新分別回報結果。若開發版本曾把系統服務直接指向 CLI 或桌面附帶檔案，請由管理員在可短暫斷線時，用原安裝來源卸載系統服務，再用新版執行 `xbond daemon install --scope system`。
-- **桌面**：Windows 使用 NSIS、macOS 使用 DMG、Linux 使用 AppImage。在設定頁檢查及安裝更新。獨立 CLI 管理的 daemon 由其安裝來源更新。
-- **手機及擴充功能**：Android 從下載頁或應用內更新，系統會要求批准安裝。iOS、Chrome、Edge 透過對應商店更新。
-- **Web 和 Docker**：Dashboard 發現待啟用的新版時會提示重新載入。`dashboard.zip` 可另行解壓並交給 daemon 的 `--web-dir` 使用。Docker 用指定 Tag 或 digest 拉取新鏡像並重建容器，保留 `/data` 卷。
-- **完整性**：`SHA256SUMS` 核對 GitHub Release 產物。CLI 和 Android 另驗證 Ed25519 簽名的 `release.json`，並拒絕不匹配的下載。桌面使用 Tauri 簽名的更新產物。
+## 2. 先演練，確認版本與提交
 
-## 本機演練
+選擇大於上一個正式版本的 `vX.Y.Z`。每段介於 0–99，禁止前置零，整體版本大於零。CI 把 `X.Y.Z` 注入各端，Android 和 iOS 的 build number 使用 `X × 10000 + Y × 100 + Z`。
 
-安裝專案工具鏈後執行 `node scripts/build-release.ts vX.Y.Z`，會用指定版本建 Dashboard 和六種 CLI，輸出到新的 `release/vX.Y.Z/`。沒有注入正式公鑰的二進位僅用於開發演練。完整的簽名安裝包與商店流程以目標平台 CI 和實機結果為準。
+在 **Prepare XBond release** 選擇 `main`，輸入擬定的 Tag 並勾選 `rehearsal`。遠端尚未有該 Tag 時，演練使用這次從 `main` 選中的提交。預設以臨時 macOS 程式碼簽名演練並跳過 iOS。Apple 憑據齊備時勾選 `rehearsal_apple_signing`，同時驗證 Developer ID、公證及 App Store 歸檔。Tauri、Android 和發佈清單的簽名材料在兩種演練中都需要配置。
 
-發佈附帶原始碼與依賴授權資訊。mihomo、vendored sing-box、wintun.dll 等依賴按各自授權條款分發。
+確認 `assemble` 成功、Actions 有 `verified-release`、`release-image`，啟用 Apple 簽名演練時另有 `app-store-build`。下載 `verified-release`，從 `release-evidence.json` 記下提交 SHA、Tag 和 run ID，再核對矩陣與校驗值。
+
+```powershell
+$RunId = '<Actions run ID>'
+gh run download $RunId -R openxbond/xbond -n verified-release -D release/rehearsal
+Get-Content release/rehearsal/release-evidence.json
+```
+
+| 產物 | 驗收 |
+| --- | --- |
+| CLI | Windows、macOS、Linux 各有 amd64／arm64。目標機執行 `xbond version --json` 核對版本與架構。演練舊版升級、拒絕提權、受管服務健康檢查與失敗恢復。 |
+| 桌面 | 兩種架構各有 Windows NSIS、macOS DMG、Linux AppImage。安裝後可啟動同版本 daemon。用已簽名的測試來源演練設定頁的檢查、安裝與重啟。 |
+| Android | 通用 APK 包含四種 ABI，大小不得超過 512 MiB。核對包名、版本與發行簽名，再用同簽名的舊版實機測試覆蓋安裝及資料保留。 |
+| iOS、擴充功能 | Apple 簽名演練檢查 IPA 歸檔，正式草稿階段再經 TestFlight 驗收。Chrome／Edge 先測 MV3 ZIP，正式上架後再從兩個商店驗證安裝。 |
+| Dashboard、Docker | 確認 `dashboard.zip` 可解壓使用。用 `release-image` 驗證 Linux amd64／arm64，並確認換版重建容器後 `/data` 資料仍可讀。 |
+
+演練證據帶有 `rehearsal` 標記。演練不部署更新入口，候選客戶端仍以正式 Pages 網址為更新來源。對照舊版的端到端更新需另備隔離測試環境和可驗證的更新來源，不能把打包成功記作升級驗收。
+
+## 3. 推送正式 Tag 並核對草稿
+
+以下命令在演練和必要的實機驗收完成後執行。把範例值換成此次的版本和已驗證提交。若這個版本已存在於本機或遠端，先核對它指向的提交。Tag 一旦推送便以該提交繼續發佈。
+
+```powershell
+$ReleaseTag = 'v0.4.3'
+$ReleaseCommit = '<已驗證的提交 SHA>'
+git fetch origin --tags
+git merge-base --is-ancestor $ReleaseCommit origin/main
+if ($LASTEXITCODE -ne 0) { throw '提交不在遠端 main 歷史中' }
+git tag -a $ReleaseTag $ReleaseCommit -m "XBond $ReleaseTag"
+if ($LASTEXITCODE -ne 0) { throw '建立 Tag 失敗' }
+git push origin "refs/tags/$ReleaseTag"
+```
+
+查看 Tag 觸發的 **Prepare XBond release**。正式 run 必須包含 Apple 簽名。等 `draft` 成功後，核對草稿的 `SHA256SUMS`、`release.json`、`desktop.json`、`release-evidence.json` 及全部平台檔案。`release-evidence.json` 須記錄 `mode: release`、相同 Tag 和提交、OCI digest、IPA SHA-256 及原始 run ID。IPA 和 OCI 只存於該 Actions run，保留期最多 90 天，受倉庫保留上限約束。
+
+## 4. 送商店，等到同版可安裝
+
+- **iOS**：從 `main` 執行 **XBond store operations**，填 Tag，選 `ios` 和 `submit`。工作流驗證原始 IPA 後上傳 App Store Connect。維護者在 TestFlight 驗收，再在 App Store Connect 提交審核並發佈。
+- **Chrome 和 Edge**：首發從草稿下載同一份 `xbond-extension-<tag>.zip`，在兩家後台建立條目並送審。已有條目後，可選 `chrome` 或 `edge` 執行 `submit`。用 `status` 查狀態，Edge 另需填入提交日誌中的 `edge_operation_id`。
+- **交接給審核人**：實際打開三個公開商店條目並確認可安裝指定版本。記下版本、條目連結和核對結果。API 接收成功、提交進入審核或 TestFlight 可裝，各自是不同狀態。
+
+## 5. 公開並驗證
+
+從 `main` 執行 **Publish XBond release**，`tag` 與 `store_verified_tag` 均填此次 Tag。生產環境審核人核對商店證據、草稿和 Release immutability 設定後批准。
+
+工作流先把已驗證的 OCI 鏡像推到 `ghcr.io/openxbond/xbond:<tag>` 並檢查匿名存取及 digest，再公開 Release 和部署 Pages。GHCR 首推預設為私有。首次執行可能停在匿名讀取檢查，這時到 Package settings 將該套件設為公開，再重跑同一 Tag。 [GHCR 可見性與權限](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
+
+等 Pages 工作完成。它會比對線上 Dashboard、下載頁、`release.json` 和 `desktop.json` 的內容與已驗證的發佈產物。再確認 GitHub Release 已公開且標示 Immutable，打開 Dashboard 與下載頁，下載一個檔案核對 `SHA256SUMS`。有上一個可更新版本時，用 CLI 或桌面設定頁確認能找到新版本。在發佈記錄貼上正式 Tag、提交、run、Release、鏡像 digest 與商店條目。 [Dashboard](https://openxbond.github.io/xbond/) · [下載頁](https://openxbond.github.io/xbond/download/)
+
+## 失敗時從哪裡重跑
+
+| 當前狀態 | 下一步 |
+| --- | --- |
+| 演練失敗 | 修復後從最新遠端 `main` 重新演練同一擬定版本，記錄新的提交與 run。 |
+| 正式 run 失敗，草稿沒有完整產物 | 先重跑原 run 的失敗工作。草稿上傳會比較已存在的檔案，只補缺失項。若修復需要改 Tag 對應的源碼，用更高版本走一次新流程。 |
+| 草稿已送審，IPA 或 OCI artifact 到期 | 從原本保存的已校驗產物處理。若缺少原檔，停止推進這個 Tag，按新版本重建及重新送審。 |
+| GHCR 的同名 Tag 已存在 | 若 digest 相同，重跑會沿用。若 digest 不同，停止發佈並核對鏡像來源。 |
+| Release 已公開，Pages 失敗 | 檢查線上下載頁及兩個更新清單目前的版本，再重跑同一 Tag 的 **Publish XBond release**。 |
+| 已發佈版本有缺陷 | 使用更高版本發佈修正。容器部署可按原 digest 重建，保留 `/data`。CLI、桌面與 Android 的更新入口維持只向更高版本更新。 |
+
+## 用戶端如何更新
+
+- **CLI**：`xbond upgrade --check` 只檢查，`xbond upgrade` 經確認後安裝。`--yes` 跳過 CLI 的確認，系統級服務仍可能要求原生提權。Windows 由 helper 等 CLI 結束後完成替換，留意 helper 的結果。`xbond update` 用於更新訂閱。
+- **桌面**：在設定頁檢查及安裝 Tauri 簽名更新。受管 daemon 隨包更新，系統隧道服務有獨立結果。曾用開發版直接註冊 CLI 檔案的系統服務，安排可斷線的時間，由管理員用原安裝來源卸載該 scope，再以新版執行 `xbond daemon install --scope system`。
+- **Android、iOS、瀏覽器**：Android 下載簽名 APK 並由系統要求確認。iOS、Chrome 和 Edge 透過原商店更新。
+- **Web 與 Docker**：Dashboard 提示重新載入新版。自管 daemon 可解壓 `dashboard.zip` 並指定 `--web-dir`。Docker 拉取指定 Tag 或 digest 並重建，保留 `/data`。
