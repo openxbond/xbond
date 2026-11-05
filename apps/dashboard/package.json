@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@xbond/client-ui": "workspace:*"
+    "@xbond/client-ui": "workspace:*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   }
 }

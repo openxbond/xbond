@@ -236,12 +236,24 @@ importers:
       '@xbond/client-ui':
         specifier: workspace:*
         version: link:../../packages/client-ui
+      react:
+        specifier: ^19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.3.0
+        version: 19.3.0(react@19.3.0)
 
   apps/desktop:
     dependencies:
       '@xbond/client-ui':
         specifier: workspace:*
         version: link:../../packages/client-ui
+      react:
+        specifier: ^19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.3.0
+        version: 19.3.0(react@19.3.0)
 
   apps/extension:
     dependencies:
