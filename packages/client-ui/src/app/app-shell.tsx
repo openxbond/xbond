@@ -10,7 +10,11 @@ import {
 } from "react-router-dom";
 
 import { CommandPalette } from "@/components/command-palette";
-import { TitleBar } from "@/components/title-bar";
+import {
+  IS_MACOS,
+  TitleBar,
+  useMainWindowMaximized,
+} from "@/components/title-bar";
 import { Toaster } from "@/components/ui/sonner";
 import Activity from "@/features/activity/activity-page";
 import Connections from "@/features/activity/connections/connections-page";
@@ -47,6 +51,7 @@ export default function App() {
   const target = useAPIInfo();
   const location = useLocation();
   const navigate = useNavigate();
+  const maximized = useMainWindowMaximized();
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Instant scroll-to-top on route change to prevent jump flickering
@@ -88,6 +93,17 @@ export default function App() {
           "bg-[image:radial-gradient(ellipse_at_top_left,var(--surface-inset),transparent_65%)] bg-background",
       )}
     >
+      {/* Frameless Windows/Linux windows get no compositor shadow (tao drops
+          it with decorations), so the webview edge disappears on light
+          desktops. A hairline inset frame marks the boundary; maximized
+          fills the screen, leaving no edge to mark. macOS keeps its native
+          chrome (titleBarStyle Overlay). */}
+      {isDesktopApp() && !IS_MACOS && !maximized && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-40 shadow-window-frame"
+        />
+      )}
       <TitleBar />
       <SideBar routes={mobileRoutes} />
       <div

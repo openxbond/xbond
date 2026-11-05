@@ -128,6 +128,9 @@
   --topbar-height: 56px;
   /* Desktop frameless window: custom titlebar band height (title-bar.tsx). */
   --titlebar-height: 40px;
+  /* Frameless Windows/Linux windows get no compositor shadow; a 1px inset
+     outline keeps the window boundary readable on any desktop backdrop. */
+  --window-frame: inset 0 0 0 1px oklch(0 0 0 / 20%);
 }
 .dark {
   color-scheme: dark;
@@ -231,4 +234,5 @@
   );
   --orb-off-inset-shadow:
     inset 0 2px 2px oklch(1 0 0 / 7%), inset 0 -2px 4px oklch(0 0 0 / 20%);
+  --window-frame: inset 0 0 0 1px oklch(1 0 0 / 12%);
 }

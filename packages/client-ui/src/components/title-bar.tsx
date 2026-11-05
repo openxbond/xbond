@@ -36,7 +36,8 @@ function CaptionIcon(props: { children: React.ReactNode }) {
   );
 }
 
-function useMainWindowMaximized(): boolean {
+/** True while the main window is maximized or edge-tiled (fills the screen). */
+export function useMainWindowMaximized(): boolean {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {

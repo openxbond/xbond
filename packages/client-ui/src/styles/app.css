@@ -111,6 +111,7 @@
 
   --shadow-elevation-card: var(--elevation-card);
   --shadow-elevation-raised: var(--elevation-raised);
+  --shadow-window-frame: var(--window-frame);
 
   /* Structure switches per DESIGN.md: compact <768 (md), standard 768–1439,
      wide ≥1440 (xl). 2xl keeps the legacy 1600px step. */
