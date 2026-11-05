@@ -8,7 +8,7 @@
 
 ### 瀏覽器登入
 
-登入默認走 PKCE 授權碼流：守護進程在本機回環隨機端口開回調監聽，經系統瀏覽器完成授權（RFC 8252：授權服務器允許回跳端口可變），換到的令牌集合落盤後再解析訂閱鏈路。回環監聽打不開或以 `device` 顯式請求時降級為 RFC 8628 設備流（Docker／SSH／無瀏覽器輸入面）。流程進度以 `method`、`authUrl`／`verificationUri`／`userCode` 暴露在狀態裡：pending 態的 UI 必須呈現可點的登入連結或設備碼——瀏覽器未自動打開（被攔截、遠端守護進程的 Web 管理）時這是唯一入口。取消端點（`POST /localapi/v0/account/cancel`）中止進行中的流程並復位 signed_out；守護進程在流程 pending 時拒絕重啟，UI 切換登入方式必須先取消。
+登入默認走 PKCE 授權碼流：守護進程在本機回環隨機端口開回調監聽，經系統瀏覽器完成授權（RFC 8252：授權服務器允許回跳端口可變），換到的令牌集合落盤後再解析訂閱鏈路。回環監聽打不開或以 `device` 顯式請求時降級為 RFC 8628 設備流（Docker／SSH／無瀏覽器輸入面）。流程進度以 `method`、`authUrl`／`verificationUri`／`userCode` 暴露在狀態裡：pending 態的 UI 必須呈現可點的登入連結或設備碼——瀏覽器未自動打開（被攔截、遠端守護進程的 Web 管理）時這是唯一入口。取消端點（`POST /localapi/v0/account/cancel`）中止進行中的流程並復位 signed_out；守護進程在流程 pending 時拒絕重啟，UI 切換登入方式必須先取消。登入產生的訂閱在三端一致：`type=xbond`、`accountIssuer`、`kind=cloud`（桌面與移動都經 `BindAccount`）；粘貼 token 手動建立的 xbond 訂閱不帶 issuer，歸普通訂閱語義。
 
 ### 概覽讀取
 
@@ -24,7 +24,7 @@
 
 ### 登出與緩存清理
 
-登出按 RFC 7009 對刷新令牌調用發行方的 revocation 端點（盡力而為：網絡失敗不阻止本地登出），隨後刪除會話文件、概覽緩存與全部 xbond 型訂閱；普通訂閱保留。遠端會話的剩餘授權（PKCE sid 綁定的瀏覽器會話）由控制台管理，客戶端登出不等於遠端全面吊銷。
+登出按 RFC 7009 對刷新令牌調用發行方的 revocation 端點（盡力而為：網絡失敗不阻止本地登出），隨後刪除會話文件、概覽緩存與賬號綁定的訂閱（`type=xbond` 且帶 `accountIssuer`）；手動導入的訂閱（含粘貼 token 的 xbond 訂閱）保留。遠端會話的剩餘授權（PKCE sid 綁定的瀏覽器會話）由控制台管理，客戶端登出不等於遠端全面吊銷。
 
 ## 驗收條件
 
