@@ -5,75 +5,175 @@ export interface Controller {
   secret: string;
 }
 
-export interface ControlTarget {
-  kind: "daemon" | "controller";
-  controller: Controller;
-  /**
-   * The daemon's live endpoint can rotate independently of its identity.
-   * Null while a daemon target has no verified endpoint: a missing LocalAPI
-   * status must not send requests to the saved placeholder address.
-   */
-  endpoint: Pick<Controller, "url" | "secret"> | null;
+export type Endpoint = Pick<Controller, "url" | "secret">;
+
+/**
+ * 用戶選中的控制目標。本機 daemon 是宿主身份，不佔用外部控制器列表的條目；
+ * 選擺了不存在的跨界 id 時由解析回落。
+ */
+export type TargetSelection =
+  | { kind: "daemon" }
+  | { kind: "controller"; id: string };
+
+/**
+ * 解析後的控制目標。daemon 分支沒有 controller 欄位——佔位地址不存在於
+ * 類型上；endpoint 只有 daemon 廣播（status）或注入 meta 時才可信，離線為
+ * null。"none" 表示沒有任何可用目標（純 Web 且未保存外部控制器）。
+ */
+export type ControlTarget =
+  | { kind: "daemon"; endpoint: Endpoint | null }
+  | { kind: "controller"; controller: Controller; endpoint: Endpoint }
+  | { kind: "none" };
+
+export interface ControlLaunch {
+  /** daemon 服務頁注入的 `external-controller` meta（含憑據）。 */
+  meta?: string;
+  /** 啟動參數：host 必須存在才視為指定外部控制器。 */
+  search?: string;
+  /** ClashX 等宿主橋接，優先於啟動參數。 */
+  bridge?: Controller | null;
+  /** 宿主聲明的本機 daemon；core 來自 LocalAPI status 的隨機端點。 */
+  daemon?: { core?: Endpoint } | null;
 }
 
-/** Resolve the effective target before granting local runtime operations. */
+/**
+ * 解析有效控制目標。順序：宿主橋接 > 啟動參數 > 用戶選擇 > 回落。
+ * 規格見 docs/specs/control-targets.md「有效目標解析」。
+ */
 export function resolveControlTarget(
-  saved: Controller,
-  launch: {
-    meta?: string;
-    search?: string;
-    bridge?: Controller | null;
-    daemon?: {
-      id: string;
-      core?: Pick<Controller, "url" | "secret">;
-      verifiedMeta?: string;
-    } | null;
-  } = {},
+  externals: Controller[],
+  selection: TargetSelection,
+  launch: ControlLaunch = {},
 ): ControlTarget {
-  let controller = saved;
-  let kind: ControlTarget["kind"] =
-    launch.daemon && saved.id === launch.daemon.id ? "daemon" : "controller";
-  if (launch.meta) {
-    try {
-      controller = controllerFromMeta(launch.meta, controller);
-      kind =
-        kind === "daemon" &&
-        (launch.meta === launch.daemon?.verifiedMeta ||
-          !launch.daemon?.core ||
-          (controller.url === launch.daemon.core.url &&
-            controller.secret === launch.daemon.core.secret))
-          ? "daemon"
-          : "controller";
-    } catch {
-      // Invalid launch metadata does not replace a usable saved target.
-    }
-  }
   if (launch.bridge)
     return {
       kind: "controller",
       controller: launch.bridge,
       endpoint: launch.bridge,
     };
+
+  // 啟動參數指定外部核心控制器：即使當前選本機，也不繼承本機能力與憑據。
   const query = new URLSearchParams(launch.search);
-  if (["host", "port", "protocol", "secret"].some((key) => query.has(key))) {
+  if (query.has("host")) {
     try {
-      controller = controllerFromQuery(launch.search ?? "", controller);
-      kind = "controller";
+      const controller = controllerFromQuery(query);
+      return {
+        kind: "controller",
+        controller,
+        endpoint: controller,
+      };
     } catch {
-      // Preserve the preceding target when launch parameters are invalid.
+      // 無效啟動參數保留原目標。
     }
   }
+
+  if (selection.kind === "controller") {
+    const controller = externals.find((item) => item.id === selection.id);
+    if (controller)
+      return { kind: "controller", controller, endpoint: controller };
+  }
+
+  // 本機身份：宿主聲明 daemon 時，選本機或選中項缺失都落回本機。endpoint
+  // 只有 status 廣播或注入 meta 才可信，兩者都缺席（離線）時為 null。
+  if (launch.daemon) {
+    if (launch.meta) {
+      try {
+        return { kind: "daemon", endpoint: metaEndpoint(launch.meta) };
+      } catch {
+        // 無效 meta 視同缺席。
+      }
+    }
+    return { kind: "daemon", endpoint: launch.daemon.core ?? null };
+  }
+
+  // 純 Web：沒有 daemon 身份，回落到已保存的外部控制器，否則無目標。
+  const fallback = externals[0];
+  if (fallback)
+    return { kind: "controller", controller: fallback, endpoint: fallback };
+  return { kind: "none" };
+}
+
+/** 啟動參數目標的確定性 id：頁面內穩定，且不與真實保存的 id 衝突。 */
+const LAUNCH_CONTROLLER_ID = "launch";
+
+function controllerFromQuery(query: URLSearchParams): Controller {
+  const host = query.get("host")?.trim();
+  if (!host) throw new Error("host is required");
+  const rawPort = query.get("port") ?? "";
+  const port = validPort(rawPort) ? Number(rawPort) : 9090;
+  const protocol =
+    query.get("protocol")?.replace(/:$/, "") === "https" ? "https" : "http";
+  const bracketed =
+    host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
   return {
-    kind,
-    controller,
-    // A daemon endpoint is real only when the daemon advertised it (core) or
-    // injected it via meta. Until then the local target has no endpoint, so
-    // offline transport waits instead of guessing the saved placeholder.
-    endpoint:
-      kind === "daemon"
-        ? (launch.daemon?.core ?? (launch.meta ? controller : null))
-        : controller,
+    id: LAUNCH_CONTROLLER_ID,
+    name: "",
+    url: normalizeControllerURL(`${protocol}://${bracketed}:${port}`),
+    // 端點改變而沒有明確提供新憑據時，不繼承上一目標的憑據。
+    secret: query.get("secret") ?? "",
   };
+}
+
+function metaEndpoint(content: string): Endpoint {
+  const url = new URL(content);
+  // daemon 注入 `http://:<secret>@host`；其他面板把 secret 放用戶名位。都收。
+  const secret = decodeURIComponent(url.password || url.username);
+  url.username = "";
+  url.password = "";
+  return { url: normalizeControllerURL(url.toString()), secret };
+}
+
+/**
+ * 清洗外部控制器列表：丟棄壞記錄與混入的本機身份副本（舊版把它種進列表，
+ * 且改過 id 的副本會以幽靈姿態復活）。
+ */
+export function migrateExternals(value: unknown): Controller[] {
+  if (!Array.isArray(value)) return [];
+  const ids = new Set<string>();
+  const controllers: Controller[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    try {
+      const record = item as Record<string, unknown>;
+      const rawURL =
+        typeof record.url === "string" && record.url
+          ? record.url
+          : typeof record.hostname === "string" && record.hostname
+            ? `http://${
+                record.hostname.includes(":") &&
+                !record.hostname.startsWith("[")
+                  ? `[${record.hostname}]`
+                  : record.hostname
+              }:${validPort(String(record.port ?? "")) ? Number(record.port) : 9090}`
+            : "";
+      if (!rawURL) continue;
+      const url = normalizeControllerURL(rawURL);
+      // 內建種子的形態（無密鑰 + XBond/空名 + 佔位端口）：直接丟棄，不復活。
+      const builtInSeed =
+        !record.secret &&
+        (record.name === "XBond" || record.name === "") &&
+        (url === "http://127.0.0.1:9090" || url === "http://localhost:9090");
+      if (builtInSeed) continue;
+      // 佔用內建 id 的真實記錄保留，但重新賦 id——"default" 只屬於本機身份。
+      const id =
+        typeof record.id === "string" &&
+        record.id &&
+        record.id !== "default" &&
+        !ids.has(record.id)
+          ? record.id
+          : createControllerId();
+      ids.add(id);
+      controllers.push({
+        id,
+        name: String(record.name ?? ""),
+        url,
+        secret: String(record.secret ?? ""),
+      });
+    } catch {
+      /* 壞記錄不阻斷啟動。 */
+    }
+  }
+  return controllers;
 }
 
 let sequence = 0;
@@ -100,109 +200,6 @@ export function normalizeControllerURL(value: string): string {
   )
     throw new Error("Invalid controller URL");
   return url.toString().replace(/\/+$/, "");
-}
-
-export function controllerFromMeta(
-  content: string,
-  fallback: Controller,
-): Controller {
-  const url = new URL(content);
-  // The daemon injects `http://:<secret>@host`, which URL parses as an empty
-  // username and the secret as the password; other dashboards put the secret
-  // in the username position. Accept both.
-  const secret = decodeURIComponent(url.password || url.username);
-  url.username = "";
-  url.password = "";
-  return {
-    ...fallback,
-    url: normalizeControllerURL(url.toString()),
-    secret,
-  };
-}
-
-export function migrateControllers(
-  value: unknown,
-  fallback: Controller,
-): Controller[] {
-  if (!Array.isArray(value)) return [fallback];
-  const ids = new Set<string>();
-  const controllers: Controller[] = [];
-  for (const item of value) {
-    if (!item || typeof item !== "object") continue;
-    try {
-      const host = String(item.hostname ?? "");
-      const hostname =
-        host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
-      const url = normalizeControllerURL(
-        item.url ?? `http://${hostname}:${item.port ?? 9090}`,
-      );
-      const isFallbackDuplicate =
-        (item.name === fallback.name ||
-          item.id === fallback.id ||
-          item.id === "default") &&
-        (url === fallback.url ||
-          url === "http://127.0.0.1:9090" ||
-          url === "http://localhost:9090" ||
-          url === "") &&
-        !item.secret;
-      if (isFallbackDuplicate && value.length > 1) {
-        // 存在其他真实条目时丢弃过期的内置副本。
-        continue;
-      }
-      if (isFallbackDuplicate) {
-        // 唯一条目即内置 daemon 身份：归位到 fallback，绝不改名换姓——
-        // 否则持久化过的内置项在下次启动时丢失 daemon 关联，变成幽灵控制器。
-        ids.add(fallback.id);
-        controllers.push({ ...fallback });
-        continue;
-      }
-      const id =
-        typeof item.id === "string" &&
-        item.id !== fallback.id &&
-        !ids.has(item.id)
-          ? item.id
-          : createControllerId();
-      ids.add(id);
-      controllers.push({
-        id,
-        name: String(item.name ?? ""),
-        url,
-        secret: String(item.secret ?? ""),
-      });
-    } catch {
-      /* A corrupt profile must not prevent startup. */
-    }
-  }
-  return controllers.length ? controllers : [fallback];
-}
-
-export function controllerFromQuery(
-  search: string,
-  fallback: Controller,
-): Controller {
-  const qs = new URLSearchParams(search);
-  const url = new URL(fallback.url);
-  if (qs.has("host")) {
-    const host = qs.get("host")!.trim();
-    url.hostname =
-      host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
-  }
-  if (qs.has("port")) url.port = qs.get("port")!;
-  const protocol = qs.get("protocol")?.replace(/:$/, "");
-  if (protocol === "http" || protocol === "https")
-    url.protocol = `${protocol}:`;
-  const resolvedURL = normalizeControllerURL(url.toString());
-  return {
-    ...fallback,
-    url: resolvedURL,
-    // A launch URL that changes targets cannot borrow the previous target's
-    // credential, including a private daemon credential injected by meta.
-    secret:
-      qs.get("secret") ??
-      (resolvedURL === normalizeControllerURL(fallback.url)
-        ? fallback.secret
-        : ""),
-  };
 }
 
 export function streamURL(base: string, path: string, secret: string) {

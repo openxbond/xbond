@@ -1,11 +1,7 @@
 import { formatUptimeClock } from "@xbond/client/helper";
 import { subscriptionQuota } from "@xbond/client/localapi";
 import type { Snapshot } from "@xbond/client/request";
-import {
-  focusedGroup,
-  strategyPath,
-  controllerIdentity,
-} from "@xbond/client/workspace";
+import { focusedGroup, strategyPath } from "@xbond/client/workspace";
 import { useAtom, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { AlertCircle } from "lucide-react";
@@ -372,7 +368,7 @@ export default function Connect() {
   };
 
   const available = general.mode.toLowerCase() === "global" ? [global] : groups;
-  const focusKey = controllerIdentity(controller.id, controller.url);
+  const focusKey = controller.focusKey;
   const group =
     (focus[focusKey]
       ? available.find((g) => g.name === focus[focusKey])
@@ -713,13 +709,16 @@ export default function Connect() {
                 </button>
                 <div className="flex flex-col items-center gap-0.5">
                   <span className="text-sm font-semibold text-foreground">
-                    {controller.name || "Controller"}
+                    {controller.targetKind === "controller"
+                      ? controller.controller.name || "Controller"
+                      : "Controller"}
                   </span>
-                  {controller.url && (
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {controller.url}
-                    </span>
-                  )}
+                  {controller.targetKind === "controller" &&
+                    controller.controller.url && (
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {controller.controller.url}
+                      </span>
+                    )}
                 </div>
               </div>
             )}

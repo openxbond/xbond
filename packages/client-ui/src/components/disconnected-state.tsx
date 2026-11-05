@@ -161,8 +161,8 @@ export function DisconnectedState({
           variant="outline"
           onClick={() =>
             navigate(
-              target.id
-                ? `/config?item=controller:${target.id}`
+              target.targetKind === "controller"
+                ? `/config?item=controller:${target.controller.id}`
                 : "/config?item=add-controller",
             )
           }

@@ -5,15 +5,6 @@ export function controllerIdentity(id: string, address: string): string {
   return JSON.stringify([id, url.origin, url.pathname]);
 }
 
-export function isDaemonController(address: string, port?: number): boolean {
-  if (!port) return false;
-  const url = new URL(address);
-  return (
-    ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) &&
-    Number(url.port || (url.protocol === "https:" ? 443 : 80)) === port
-  );
-}
-
 export function workspaceLink(
   search: string,
   pathname: string,

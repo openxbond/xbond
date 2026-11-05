@@ -105,9 +105,11 @@ export default function Overview() {
       <Header title={t("title")}>
         <output className="text-sm text-muted-foreground">{r(state)}</output>
       </Header>
-      <p className="my-3 break-all font-mono text-sm text-muted-foreground">
-        {api.name || api.url}
-      </p>
+      {api.targetKind === "controller" && (
+        <p className="my-3 break-all font-mono text-sm text-muted-foreground">
+          {api.controller.name || api.controller.url}
+        </p>
+      )}
       <RequestStatus error={error} retry={update} />
       <Card>
         <dl className="grid grid-cols-2 gap-x-8 gap-y-7 py-3 md:grid-cols-4">

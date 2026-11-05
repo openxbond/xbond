@@ -7,14 +7,9 @@ import {
   strategyPath,
   workspaceLink,
   controllerIdentity,
-  isDaemonController,
 } from "../src/workspace.ts";
 
-test("local capability belongs only to the daemon controller and focus identity excludes credentials", () => {
-  assert.equal(isDaemonController("http://127.0.0.1:9090", 9090), true);
-  assert.equal(isDaemonController("http://remote.example:9090", 9090), false);
-  assert.equal(isDaemonController("http://127.0.0.1:9091", 9090), false);
-  assert.equal(isDaemonController("http://127.0.0.1:9090"), false);
+test("focus identity excludes credentials", () => {
   const identity = controllerIdentity(
     "profile",
     "https://name:secret@core.example/prefix?token=hidden",

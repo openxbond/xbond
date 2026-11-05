@@ -67,19 +67,12 @@ export default function App() {
     next.set(
       "item",
       target.targetKind === "controller"
-        ? `controller:${target.id}`
+        ? `controller:${target.controller.id}`
         : "add-controller",
     );
     navigate({ pathname: "/config", search: next.toString() });
     setIdentity(true);
-  }, [
-    identity,
-    target.targetKind,
-    target.id,
-    location.search,
-    navigate,
-    setIdentity,
-  ]);
+  }, [identity, target, location.search, navigate, setIdentity]);
 
   const layout = (
     <div

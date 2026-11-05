@@ -17,11 +17,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import {
-  useControllers,
-  useSelectController,
-  DAEMON_CONTROLLER_ID,
-} from "@/state/controller-target";
+import { useExternals, useSelectTarget } from "@/state/controller-target";
 
 interface ExternalControllerOnboardingProps {
   className?: string;
@@ -32,8 +28,8 @@ export function ExternalControllerOnboarding({
 }: ExternalControllerOnboardingProps) {
   const { t } = useTranslation("onboarding");
   const { t: s } = useTranslation("settings");
-  const [controllers, setControllers] = useControllers();
-  const select = useSelectController();
+  const [controllers, setControllers] = useExternals();
+  const select = useSelectTarget();
 
   // Pure web default URL
   const defaultURL =
@@ -48,17 +44,8 @@ export function ExternalControllerOnboarding({
   const [error, setError] = useState("");
   const [showHelp, setShowHelp] = useState(false);
 
-  // Saved external controllers (excluding daemon default if empty)
-  const savedList = controllers.filter(
-    (item) =>
-      item.id !== "default" &&
-      item.id !== DAEMON_CONTROLLER_ID &&
-      !(
-        item.name === "XBond" &&
-        (item.url === "http://127.0.0.1:9090" ||
-          item.url === "http://localhost:9090")
-      ),
-  );
+  // 已保存的外部控制器：列表本身只含外部條目，無需再過濾。
+  const savedList = controllers;
 
   async function handleConnect(e?: React.FormEvent) {
     if (e) e.preventDefault();
@@ -81,23 +68,12 @@ export function ExternalControllerOnboarding({
 
       const resolvedName = name.trim() || new URL(normalized).host || "Core";
 
-      // Filter out any fallback / default controller before saving
-      const cleanControllers = controllers.filter(
-        (item) =>
-          item.id !== "default" &&
-          item.id !== DAEMON_CONTROLLER_ID &&
-          !(
-            item.name === "XBond" &&
-            (item.url === "http://127.0.0.1:9090" ||
-              item.url === "http://localhost:9090")
-          ),
-      );
-      const existing = cleanControllers.find((item) => item.url === normalized);
+      const existing = controllers.find((item) => item.url === normalized);
       let targetId = existing?.id;
 
       if (existing) {
         setControllers(
-          cleanControllers.map((item) =>
+          controllers.map((item) =>
             item.id === existing.id
               ? { ...item, name: resolvedName, secret: secret.trim() }
               : item,
@@ -111,11 +87,11 @@ export function ExternalControllerOnboarding({
           url: normalized,
           secret: secret.trim(),
         };
-        setControllers([...cleanControllers, newController]);
+        setControllers([...controllers, newController]);
       }
 
       if (targetId) {
-        select(targetId);
+        select({ kind: "controller", id: targetId });
       }
 
       toast.success(`${s("external.testOK")}${versionStr}`);
@@ -132,7 +108,7 @@ export function ExternalControllerOnboarding({
   }
 
   function handleSelectSaved(controller: Controller) {
-    select(controller.id);
+    select({ kind: "controller", id: controller.id });
     toast.success(`${s("external.testOK")}: ${controller.name}`);
   }
 

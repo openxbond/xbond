@@ -11,10 +11,9 @@ import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
 import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
 import {
-  DAEMON_CONTROLLER_ID,
   useAPIInfo,
-  useControllers,
-  useSelectController,
+  useExternals,
+  useSelectTarget,
 } from "@/state/controller-target";
 import { useLocalAPI } from "@/state/local-runtime";
 
@@ -27,20 +26,7 @@ export function ConfigMenu() {
   const { account, cloudProfile, activateCloud } = useAccount();
   const { subscriptions, activeId, selectSub, operation } = useSubscriptions();
   const { run, pending } = useAction();
-  const [controllers] = useControllers();
-
-  const isDaemonController = (
-    item?: { id?: string; url?: string; name?: string } | null,
-  ) =>
-    Boolean(
-      item &&
-      (item.id === DAEMON_CONTROLLER_ID ||
-        item.id === "default" ||
-        (target.targetKind === "daemon" && item.id === target.id) ||
-        (item.name === "XBond" &&
-          (item.url === "http://127.0.0.1:9090" ||
-            item.url === "http://localhost:9090"))),
-    );
+  const [externals] = useExternals();
 
   const isCloudSub = (
     sub?: {
@@ -58,24 +44,18 @@ export function ConfigMenu() {
         (cloudProfile && sub.id === cloudProfile.id)),
     );
 
-  const external = controllers
-    .filter((item) => !isDaemonController(item))
-    .map((item) =>
-      target.targetKind === "controller" && item.id === target.id
-        ? { ...target }
-        : item,
-    );
+  // 外部控制器條目：存儲列表 + 當前瞬態目標（啟動參數／橋接，尚未保存）。
+  const external = [...externals];
   if (
     target.targetKind === "controller" &&
-    !isDaemonController(target) &&
-    !external.some((item) => item.id === target.id)
+    !external.some((item) => item.id === target.controller.id)
   ) {
-    external.push({ ...target });
+    external.push(target.controller);
   }
 
   const universalSubs = subscriptions.filter((item) => !isCloudSub(item));
 
-  const select = useSelectController();
+  const select = useSelectTarget();
   const location = useLocation();
   const navigate = useNavigate();
   const root = useRef<HTMLDetailsElement>(null);
@@ -90,7 +70,9 @@ export function ConfigMenu() {
     ? isCloudActive
       ? "XBond Cloud"
       : activeSub?.name || t("localService")
-    : target.name || target.hostname;
+    : target.targetKind === "controller"
+      ? target.controller.name || target.hostname
+      : t("noActive");
 
   const activeSubtitle = local
     ? isCloudActive
@@ -254,7 +236,8 @@ export function ConfigMenu() {
             <p className="config-menu-heading">{t("controllers")}</p>
             {external.map((item) => {
               const isCtrlActive =
-                !local && target.id === item.id && target.url === item.url;
+                target.targetKind === "controller" &&
+                target.controller.id === item.id;
               return (
                 <button
                   key={item.id}
@@ -265,7 +248,7 @@ export function ConfigMenu() {
                   type="button"
                   disabled={Boolean(operation) || isCtrlActive}
                   onClick={() => {
-                    select(item.id);
+                    select({ kind: "controller", id: item.id });
                     close();
                   }}
                 >

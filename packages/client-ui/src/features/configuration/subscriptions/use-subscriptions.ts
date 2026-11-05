@@ -5,10 +5,7 @@ import {
 import { useCallback } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
-import {
-  DAEMON_CONTROLLER_ID,
-  useSelectController,
-} from "@/state/controller-target";
+import { useSelectTarget } from "@/state/controller-target";
 import { useDaemonConnection } from "@/state/daemon-connection";
 import { useLanguage } from "@/state/user-preferences";
 
@@ -18,7 +15,7 @@ export function useSubscriptions() {
   // Subscriptions are daemon-owned: they stay manageable regardless of which
   // controller the window is currently viewing.
   const { client, config } = useDaemonConnection();
-  const selectController = useSelectController();
+  const selectTarget = useSelectTarget();
   const { operation, run: runOperation } = useConfigurationOperation();
   const { lang } = useLanguage();
   const { mutate: mutateCache } = useSWRConfig();
@@ -63,7 +60,7 @@ export function useSubscriptions() {
             current ? { ...current, activeId: result.activeId } : current,
           { revalidate: false },
         );
-        selectController(DAEMON_CONTROLLER_ID);
+        selectTarget({ kind: "daemon" });
         // The server has committed the switch. Refresh errors remain visible in
         // their SWR queries; they must not turn a successful switch into a failure.
         await Promise.allSettled([
@@ -72,14 +69,7 @@ export function useSubscriptions() {
         ]);
         return result;
       }),
-    [
-      client,
-      config?.token,
-      mutate,
-      mutateCache,
-      runOperation,
-      selectController,
-    ],
+    [client, config?.token, mutate, mutateCache, runOperation, selectTarget],
   );
   const selectSub = useCallback(
     (id: string) =>

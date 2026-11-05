@@ -40,10 +40,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
 import {
-  DAEMON_CONTROLLER_ID,
   useAPIInfo,
-  useControllers,
-  useSelectController,
+  useExternals,
+  useSelectTarget,
 } from "@/state/controller-target";
 
 import { useConfigurationOperation } from "../configuration-operation";
@@ -61,9 +60,9 @@ export default function ControllerDetail({
   const { t } = useTranslation("settings");
   const { t: c } = useTranslation("configuration");
   const { t: common } = useTranslation("common");
-  const [controllers, setControllers] = useControllers();
+  const [controllers, setControllers] = useExternals();
   const target = useAPIInfo();
-  const select = useSelectController();
+  const select = useSelectTarget();
   const { operation } = useConfigurationOperation();
   const [name, setName] = useState(controller?.name || "");
   // 純 web 部署下頁面與核心同源，直接預填當前位址，省去查找位址與埠的步驟。
@@ -82,16 +81,11 @@ export default function ControllerDetail({
   const viewing =
     !!controller &&
     target.targetKind === "controller" &&
-    target.id === controller.id &&
-    target.url === controller.url;
+    target.controller.id === controller.id;
 
   function values() {
     return {
-      id:
-        controller?.id &&
-        !(hasDaemonConfig() && controller.id === DAEMON_CONTROLLER_ID)
-          ? controller.id
-          : createControllerId(),
+      id: controller?.id ?? createControllerId(),
       name: name.trim() || new URL(normalizeControllerURL(url)).host,
       url: normalizeControllerURL(url),
       secret: secret.trim(),
@@ -103,22 +97,12 @@ export default function ControllerDetail({
     setError("");
     try {
       const item = values();
-      const cleanControllers = controllers.filter(
-        (c) =>
-          c.id !== "default" &&
-          c.id !== DAEMON_CONTROLLER_ID &&
-          !(
-            c.name === "XBond" &&
-            (c.url === "http://127.0.0.1:9090" ||
-              c.url === "http://localhost:9090")
-          ),
-      );
       setControllers(
-        cleanControllers.some((existing) => existing.id === item.id)
-          ? cleanControllers.map((existing) =>
+        controllers.some((existing) => existing.id === item.id)
+          ? controllers.map((existing) =>
               existing.id === item.id ? item : existing,
             )
-          : [...cleanControllers, item],
+          : [...controllers, item],
       );
       setEditing(false);
       setNotice(c("saved"));
@@ -152,11 +136,14 @@ export default function ControllerDetail({
   function remove() {
     if (!controller) return;
     const remaining = controllers.filter((item) => item.id !== controller.id);
-    if (target.id === controller.id) {
-      const fallback =
-        remaining.find((item) => item.id !== DAEMON_CONTROLLER_ID) ||
-        remaining[0];
-      select(fallback ? fallback.id : DAEMON_CONTROLLER_ID);
+    if (
+      target.targetKind === "controller" &&
+      target.controller.id === controller.id
+    ) {
+      const fallback = remaining[0];
+      select(
+        fallback ? { kind: "controller", id: fallback.id } : { kind: "daemon" },
+      );
     }
     setControllers(remaining);
     onRemoved();
@@ -252,7 +239,9 @@ export default function ControllerDetail({
               <Button
                 variant="brand"
                 className="gap-1.5"
-                onClick={() => select(controller.id)}
+                onClick={() =>
+                  select({ kind: "controller", id: controller.id })
+                }
                 disabled={Boolean(operation)}
               >
                 <Zap className="size-4" />
@@ -342,28 +331,26 @@ export default function ControllerDetail({
           </div>
 
           {/* 3. Danger Zone Card (Bottom) */}
-          {controller.id !== DAEMON_CONTROLLER_ID && (
-            <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
-              <div>
-                <h3 className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
-                  <Trash2 className="size-4" />
-                  {c("removeController")}
-                </h3>
-                <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                  {c("controllerRemoveConfirm")}
-                </p>
-              </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="shrink-0"
-                ref={removeTrigger}
-                onClick={() => setConfirmRemove(true)}
-              >
+          <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
+            <div>
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
+                <Trash2 className="size-4" />
                 {c("removeController")}
-              </Button>
+              </h3>
+              <p className="mt-1 max-w-md text-xs text-muted-foreground">
+                {c("controllerRemoveConfirm")}
+              </p>
             </div>
-          )}
+            <Button
+              variant="destructive"
+              size="sm"
+              className="shrink-0"
+              ref={removeTrigger}
+              onClick={() => setConfirmRemove(true)}
+            >
+              {c("removeController")}
+            </Button>
+          </div>
 
           {/* Edit Dialog for Existing Controller */}
           <Dialog open={editing} onOpenChange={setEditing}>

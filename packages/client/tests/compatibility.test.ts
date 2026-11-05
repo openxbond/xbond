@@ -4,10 +4,9 @@ import { test } from "node:test";
 import { coreCapabilities } from "../src/capabilities.ts";
 import { ConnectionStore } from "../src/connection-store.ts";
 import {
-  controllerFromMeta,
-  controllerFromQuery,
-  migrateControllers,
+  migrateExternals,
   normalizeControllerURL,
+  resolveControlTarget,
   streamURL,
   validPort,
   createControllerId,
@@ -15,12 +14,6 @@ import {
 import { runLatencyTests, validLatencyOptions } from "../src/latency.ts";
 import type { Connections } from "../src/request.ts";
 
-const fallback = {
-  id: "default",
-  name: "",
-  url: "http://127.0.0.1:9090",
-  secret: "",
-};
 test("HTTP LAN deployments generate profile IDs without secure-context randomUUID", (t) => {
   const original = Object.getOwnPropertyDescriptor(
     globalThis.crypto,
@@ -36,106 +29,65 @@ test("HTTP LAN deployments generate profile IDs without secure-context randomUUI
     else Reflect.deleteProperty(globalThis.crypto, "randomUUID");
   });
   assert.notEqual(createControllerId(), createControllerId());
-  const hosts = migrateControllers(
-    [
-      { hostname: "192.168.1.1", port: 9090, secret: "one" },
-      { hostname: "192.168.1.2", port: 9090, secret: "two" },
-    ],
-    fallback,
-  );
+  const hosts = migrateExternals([
+    { hostname: "192.168.1.1", port: 9090, secret: "one" },
+    { hostname: "192.168.1.2", port: 9090, secret: "two" },
+  ]);
   assert.equal(hosts.length, 2);
   assert.equal(hosts[0].secret, "one");
 });
-test("controller migration preserves multiple profiles and repairs invalid records", () => {
-  const hosts = migrateControllers(
-    [
-      { hostname: "localhost", port: 9090, secret: "one" },
-      { hostname: "::1", port: 9091, secret: "two" },
-      { url: "file:///secret" },
-    ],
-    fallback,
-  );
+test("external migration preserves multiple profiles and repairs invalid records", () => {
+  const hosts = migrateExternals([
+    { hostname: "localhost", port: 9090, secret: "one" },
+    { hostname: "::1", port: 9091, secret: "two" },
+    { url: "file:///secret" },
+  ]);
   assert.equal(hosts.length, 2);
   assert.notEqual(hosts[0].id, hosts[1].id);
   assert.equal(hosts[1].url, "http://[::1]:9091");
   assert.equal(hosts[0].secret, "one");
-  assert.deepEqual(migrateControllers(null, fallback), [fallback]);
+  assert.deepEqual(migrateExternals(null), []);
 });
 test("persisted records cannot claim the built-in controller id", () => {
   // A stored record holding the daemon's reserved id is hidden by every
   // "is daemon" guard and becomes an undeletable ghost target.
-  const hosts = migrateControllers(
-    [
-      {
-        id: "default",
-        name: "nan-of",
-        hostname: "nan-of",
-        port: 9090,
-        secret: "x",
-      },
-      { id: "default", hostname: "192.168.1.1", port: 9090 },
-    ],
-    fallback,
-  );
+  const hosts = migrateExternals([
+    {
+      id: "default",
+      name: "nan-of",
+      hostname: "nan-of",
+      port: 9090,
+      secret: "x",
+    },
+    { id: "default", hostname: "192.168.1.1", port: 9090 },
+  ]);
   assert.equal(hosts.length, 2);
   for (const host of hosts) assert.notEqual(host.id, "default");
   assert.equal(hosts[0].name, "nan-of");
   assert.equal(hosts[0].secret, "x");
   assert.notEqual(hosts[0].id, hosts[1].id);
 });
-test("fallback controller is not duplicated when user adds a controller", () => {
-  const hosts = migrateControllers(
-    [fallback, { hostname: "192.168.10.1", port: 19090, secret: "" }],
-    fallback,
-  );
+test("built-in daemon copies never survive external migration", () => {
+  const hosts = migrateExternals([
+    { id: "default", name: "XBond", url: "http://127.0.0.1:9090", secret: "" },
+    { id: "stale", name: "XBond", url: "http://127.0.0.1:9090", secret: "" },
+    { id: "kept", hostname: "192.168.10.1", port: 19090, secret: "" },
+  ]);
   assert.equal(hosts.length, 1);
   assert.equal(hosts[0].url, "http://192.168.10.1:19090");
 });
-test("a persisted built-in entry keeps the daemon identity after migration", () => {
-  // 持久化過的內建條目必須歸位回 fallback：此前它被重新賦予隨機 id，daemon
-  // 關聯斷裂後以外部控制器身份復活（幽靈目標，恢復對佔位端點的請求）。
-  const desktopFallback = {
-    id: "default",
-    name: "XBond",
-    url: "http://127.0.0.1:9090",
-    secret: "",
-  };
-  assert.deepEqual(
-    migrateControllers(
-      [
-        {
-          id: "default",
-          name: "XBond",
-          url: "http://127.0.0.1:9090",
-          secret: "",
-        },
-      ],
-      desktopFallback,
-    ),
-    [desktopFallback],
-  );
-  assert.deepEqual(
-    migrateControllers(
-      [
-        {
-          id: "stale-random",
-          name: "XBond",
-          url: "http://127.0.0.1:9090",
-          secret: "",
-        },
-      ],
-      desktopFallback,
-    ),
-    [desktopFallback],
-  );
-});
 test("HTTPS launch parameters and reverse proxy paths survive REST/WS URL construction", () => {
-  const controller = controllerFromQuery(
-    "?protocol=https:&host=example.com&port=9443&secret=a%26b",
-    fallback,
+  const target = resolveControlTarget(
+    [],
+    { kind: "daemon" },
+    {
+      daemon: {},
+      search: "?protocol=https:&host=example.com&port=9443&secret=a%26b",
+    },
   );
-  assert.equal(controller.url, "https://example.com:9443");
-  assert.equal(controller.secret, "a&b");
+  assert.ok(target.kind === "controller");
+  assert.equal(target.controller.url, "https://example.com:9443");
+  assert.equal(target.controller.secret, "a&b");
   const ws = new URL(
     streamURL("https://example.com/core", "logs?level=debug", "a&b"),
   );
@@ -149,17 +101,29 @@ test("HTTPS launch parameters and reverse proxy paths survive REST/WS URL constr
   );
 });
 test("daemon meta carries the controller secret in the password or username slot", () => {
-  const injected = controllerFromMeta("http://:a%26b@127.0.0.1:9090", fallback);
-  assert.equal(injected.url, "http://127.0.0.1:9090");
-  assert.equal(injected.secret, "a&b");
-  assert.equal(injected.id, fallback.id);
-
-  const usernameLayout = controllerFromMeta(
-    "http://a%26b@127.0.0.1:9090",
-    fallback,
+  const passwordSlot = resolveControlTarget(
+    [],
+    { kind: "daemon" },
+    {
+      daemon: {},
+      meta: "http://:a%26b@127.0.0.1:9090",
+    },
   );
-  assert.equal(usernameLayout.url, "http://127.0.0.1:9090");
-  assert.equal(usernameLayout.secret, "a&b");
+  assert.ok(passwordSlot.kind === "daemon" && passwordSlot.endpoint);
+  assert.equal(passwordSlot.endpoint.url, "http://127.0.0.1:9090");
+  assert.equal(passwordSlot.endpoint.secret, "a&b");
+
+  const usernameSlot = resolveControlTarget(
+    [],
+    { kind: "daemon" },
+    {
+      daemon: {},
+      meta: "http://a%26b@127.0.0.1:9090",
+    },
+  );
+  assert.ok(usernameSlot.kind === "daemon" && usernameSlot.endpoint);
+  assert.equal(usernameSlot.endpoint.url, "http://127.0.0.1:9090");
+  assert.equal(usernameSlot.endpoint.secret, "a&b");
 });
 test("sing-box compatibility flags do not advertise Clash Premium mutations", () => {
   const sing = coreCapabilities(
