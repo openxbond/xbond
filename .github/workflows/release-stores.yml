@@ -51,8 +51,7 @@ jobs:
       - name: Verify staged store ZIP
         if: inputs.operation == 'submit'
         run: |
-          node scripts/release-ci.ts preflight "$TAG" publish
-          gh release view "$TAG" --json isDraft --jq '.isDraft' | grep -Fx true
+          node scripts/release-ci.ts preflight "$TAG" store
           gh release download "$TAG" --pattern "xbond-extension-$TAG.zip" --pattern release.json --pattern release-evidence.json
           node scripts/release-assets.ts verify "$TAG" . extension
           node scripts/release-assets.ts verify "$TAG" . release-evidence
@@ -90,8 +89,7 @@ jobs:
           node-version: 24
       - id: candidate
         run: |
-          node scripts/release-ci.ts preflight "$TAG" publish
-          gh release view "$TAG" --json isDraft --jq '.isDraft' | grep -Fx true
+          node scripts/release-ci.ts preflight "$TAG" store
           gh release download "$TAG" --pattern release-evidence.json --pattern release.json
           node scripts/release-assets.ts verify "$TAG" . release-evidence
           node scripts/release-ci.ts verify-evidence "$TAG" release-evidence.json
@@ -101,18 +99,18 @@ jobs:
           run-id: ${{ steps.candidate.outputs.run }}
           github-token: ${{ github.token }}
           path: release/ios
-      - name: Upload the staged IPA to App Store Connect
+      - name: Verify the staged IPA
         env:
           IOS_SHA256: ${{ steps.candidate.outputs.ios_sha256 }}
-          ASC_KEY: ${{ secrets.ASC_KEY }}
-          ASC_KEY_ID: ${{ vars.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ vars.ASC_ISSUER_ID }}
         run: |
-          set -euo pipefail
           printf '%s  %s\n' "$IOS_SHA256" release/ios/xbond.ipa | shasum -a 256 -c -
-          [[ "$ASC_KEY_ID" =~ ^[A-Za-z0-9]+$ ]]
-          mkdir -p "$HOME/.appstoreconnect/private_keys"
-          keyfile="$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
-          trap 'rm -f "$keyfile"' EXIT
-          (umask 077; printf '%s' "$ASC_KEY" > "$keyfile")
-          xcrun altool --upload-app --type ios --file release/ios/xbond.ipa --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Upload the verified IPA to TestFlight
+        uses: Apple-Actions/upload-testflight-build@665328adbecbc3ad929d3da710696d928b8a7ba9 # v5
+        with:
+          app-path: release/ios/xbond.ipa
+          app-type: ios
+          backend: altool
+          wait-for-processing: "false"
+          issuer-id: ${{ vars.ASC_ISSUER_ID }}
+          api-key-id: ${{ vars.ASC_KEY_ID }}
+          api-private-key: ${{ secrets.ASC_KEY }}

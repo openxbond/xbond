@@ -378,7 +378,7 @@ jobs:
           sudo apt-get install -y minisign
           node scripts/release-ci.ts evidence "$TAG" release/assets
           node scripts/release-assets.ts assemble "$TAG" release/assets release-notes.md
-          node scripts/release-assets.ts pages "$TAG" release/assets release/pages https://apps.apple.com/ https://chromewebstore.google.com/ https://microsoftedge.microsoft.com/
+          node scripts/release-assets.ts pages "$TAG" release/assets release/pages
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: verified-release

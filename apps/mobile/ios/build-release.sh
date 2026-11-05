@@ -7,14 +7,14 @@ if [[ $# != 1 ]]; then
 fi
 : "${XBOND_VERSION:?Set the release version}"
 : "${XBOND_BUILD_NUMBER:?Set the release build number}"
-: "${XBOND_APP_STORE_URL:?Set the public App Store URL}"
 : "${APPLE_TEAM_ID:?Set the Apple Developer team ID}"
 : "${APPLE_APP_PROFILE:?Set the installed app provisioning profile name}"
 : "${APPLE_TUNNEL_PROFILE:?Set the installed tunnel provisioning profile name}"
 export APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-Apple Distribution}"
 [[ "$XBOND_VERSION" =~ ^(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)$ ]]
 [[ "$XBOND_BUILD_NUMBER" =~ ^[1-9][0-9]{0,5}$ ]]
-[[ "$XBOND_APP_STORE_URL" == https://apps.apple.com/* ]]
+XBOND_APP_STORE_URL="${XBOND_APP_STORE_URL:-}"
+[[ -z "$XBOND_APP_STORE_URL" || "$XBOND_APP_STORE_URL" == https://apps.apple.com/* ]]
 sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
 if [[ "${sdk_version%%.*}" -lt 26 ]]; then
   echo "App Store archives require the iOS 26 SDK or newer. Found $sdk_version." >&2

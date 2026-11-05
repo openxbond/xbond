@@ -25,3 +25,14 @@ for asset in "$directory"/*; do
     gh release upload "$tag" "$asset"
   fi
 done
+
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  draft_url=$(gh release view "$tag" --json url --jq '.url')
+  {
+    printf '### %s is ready for installation checks\n\n' "$tag"
+    printf '[Release draft](%s)\n\n' "$draft_url"
+    printf '1. Verify the installers and the Chrome and Edge ZIP.\n'
+    printf '2. Run **XBond store operations** for this tag with `ios` / `submit`, then verify installation through TestFlight.\n'
+    printf '3. Run **Publish XBond release** for this tag and confirm installation verification. Use the same candidate for later store submissions.\n'
+  } >> "$GITHUB_STEP_SUMMARY"
+fi

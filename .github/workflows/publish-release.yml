@@ -7,10 +7,11 @@ on:
         description: Prepared stable Tag
         required: true
         type: string
-      store_verified_tag:
-        description: Same Tag verified installable in App Store, Chrome and Edge after platform acceptance
+      install_verified:
+        description: Confirm that the candidate can be installed on all supported platforms
         required: true
-        type: string
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,11 +35,12 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ inputs.tag }}
-      STORE_VERIFIED_TAG: ${{ inputs.store_verified_tag }}
+      INSTALL_VERIFIED: ${{ inputs.install_verified }}
       XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
       APP_STORE_URL: ${{ vars.APP_STORE_URL }}
       CHROME_STORE_URL: ${{ vars.CHROME_STORE_URL }}
       EDGE_STORE_URL: ${{ vars.EDGE_STORE_URL }}
+      IOS_TESTFLIGHT_URL: ${{ vars.IOS_TESTFLIGHT_URL }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -50,12 +52,15 @@ jobs:
       - id: candidate
         run: |
           set -euo pipefail
-          test "$STORE_VERIFIED_TAG" = "$TAG"
+          if [ "$INSTALL_VERIFIED" != "true" ]; then
+            echo "::error::Verify installation on all supported platforms before publishing."
+            exit 1
+          fi
           node scripts/release-ci.ts preflight "$TAG" publish
           gh release view "$TAG" --json isDraft,isPrerelease --jq 'if .isPrerelease then error("Prerelease cannot be promoted") else "draft=" + (.isDraft | tostring) end' >> "$GITHUB_OUTPUT"
           gh release download "$TAG" --dir release/assets
           node scripts/release-ci.ts verify-evidence "$TAG" release/assets/release-evidence.json
-          node scripts/release-assets.ts pages "$TAG" release/assets release/pages "$APP_STORE_URL" "$CHROME_STORE_URL" "$EDGE_STORE_URL"
+          node scripts/release-assets.ts pages "$TAG" release/assets release/pages "$APP_STORE_URL" "$CHROME_STORE_URL" "$EDGE_STORE_URL" "$IOS_TESTFLIGHT_URL"
           pages_digest=$(cd release/pages && sha256sum --binary index.html download/index.html release.json desktop.json | sha256sum | cut -d' ' -f1)
           echo "pages_digest=$pages_digest" >> "$GITHUB_OUTPUT"
       - id: registry

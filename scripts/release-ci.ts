@@ -38,6 +38,9 @@ if (command === "preflight") {
     `${rehearsalWithoutTag ? "HEAD" : ref}^{commit}`,
   );
   git("merge-base", "--is-ancestor", commit, "refs/remotes/origin/main");
+  // The stores have independent release schedules. Verify their candidate
+  // commit here, then let the store enforce its own version ordering.
+  if (argument === "store") process.exit(0);
   const list = releases();
   let previous: { tag: string; build: number } | undefined;
   for (const entry of list) {

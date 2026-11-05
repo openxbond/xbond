@@ -111,6 +111,29 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
   assert.match(downloads, /&lt;script&gt;/);
   assert.match(downloads, /xbond-desktop-v0\.4\.2-linux-arm64\.AppImage/);
   assert.match(downloads, /App Store/);
+  buildPages(directory, pages, tag, [], key);
+  const directDownloads = fs.readFileSync(
+    path.join(pages, "download/index.html"),
+    "utf8",
+  );
+  assert.match(directDownloads, /xbond-extension-v0\.4\.2\.zip/);
+  assert.match(directDownloads, /Load unpacked/);
+  assert.doesNotMatch(
+    directDownloads,
+    /App Store|Chrome Web Store|Edge Add-ons/,
+  );
+  assert.match(directDownloads, /TestFlight invitation/);
+  buildPages(
+    directory,
+    pages,
+    tag,
+    ["", "", "", "https://testflight.apple.com/join/Example1"],
+    key,
+  );
+  assert.match(
+    fs.readFileSync(path.join(pages, "download/index.html"), "utf8"),
+    /href="https:\/\/testflight\.apple\.com\/join\/Example1">TestFlight/,
+  );
   const sumFile = path.join(directory, "SHA256SUMS");
   const originalSum = checksum(path.join(directory, "desktop.json"));
   put("desktop.json", "{}");

@@ -278,20 +278,31 @@ export function buildPages(
     "apps.apple.com",
     "chromewebstore.google.com",
     "microsoftedge.microsoft.com",
+    "testflight.apple.com",
   ];
-  const stores = ["App Store", "Chrome Web Store", "Edge Add-ons"].map(
-    (label, index) => {
-      const link = new URL(storeLinks[index]);
-      if (
-        link.protocol !== "https:" ||
-        link.host !== storeHosts[index] ||
-        link.username ||
-        link.password
-      )
-        throw new Error(`Invalid ${label} URL`);
-      return `<li><a href="${escape(link.href)}">${label}</a></li>`;
-    },
-  );
+  const stores = [
+    "App Store",
+    "Chrome Web Store",
+    "Edge Add-ons",
+    "TestFlight",
+  ].map((label, index) => {
+    const value = storeLinks[index]?.trim();
+    if (!value) return "";
+    const link = new URL(value);
+    if (
+      link.protocol !== "https:" ||
+      link.host !== storeHosts[index] ||
+      link.username ||
+      link.password ||
+      (label === "TestFlight" &&
+        !/^\/join\/[a-zA-Z0-9]+\/?$/.test(link.pathname))
+    )
+      throw new Error(`Invalid ${label} URL`);
+    return `<li><a href="${escape(link.href)}">${label}</a></li>`;
+  });
+  const iosInstall =
+    stores[0] + stores[3] ||
+    "<li>Contact the release maintainer for a TestFlight invitation.</li>";
   fs.mkdirSync(path.join(output, "download"), { recursive: true });
   fs.writeFileSync(
     path.join(output, "download/index.html"),
@@ -312,8 +323,9 @@ summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inhe
 <main><nav><a href="../">XBond Dashboard</a></nav><h1>Download XBond</h1>
 <p>Version ${version}. Choose an installer or download the standalone CLI.</p>
 ${platforms}
-<section><h2>Android and iOS</h2><ul><li><a href="${escape(assets["android-universal"].url)}">Android APK</a></li>${stores[0]}</ul></section>
-<section><h2>Browser extensions</h2><ul>${stores.slice(1).join("")}</ul></section>
+<section><h2>Android and iOS</h2><ul><li><a href="${escape(assets["android-universal"].url)}">Android APK</a></li>${iosInstall}</ul></section>
+<section><h2>Browser extensions</h2><ul><li><a href="${escape(assets.extension.url)}">Chrome and Edge extension ZIP</a></li>${stores.slice(1, 3).join("")}</ul>
+<p>Extract the ZIP, enable Developer mode on the browser's Extensions page, and select Load unpacked.</p></section>
 <section><h2>Docker</h2><p><code>docker pull ghcr.io/openxbond/xbond:${tag}</code></p></section>
 <section><h2>Release information</h2><ul><li><a href="${repo}/releases/tag/${tag}">GitHub Release</a><a href="../SHA256SUMS">SHA-256 checksums</a></li></ul>
 <details><summary>Release notes</summary><pre>${escape(notes)}</pre></details></section></main></html>\n`,
