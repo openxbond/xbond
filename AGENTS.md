@@ -24,7 +24,7 @@
 
 - shadcn 更新現有原語前先跑 `pnpm ui:add <component> --dry-run` 和 `--diff`，合併既有的主題變體。新組件使用 `@/lib/utils` 的 `cn()`，保留 XBond 自訂 Tailwind 字級的合併規則。
 
-- 安裝：`pnpm install --frozen-lockfile`；Node ≥ 24（`scripts/*.ts` 直接執行，不帶 `--experimental-strip-types`）。版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準。
+- 安裝：`pnpm install --frozen-lockfile`；Node ≥ 24（`scripts/*.ts` 直接執行，不帶 `--experimental-strip-types`）。版本以 `package.json`、`go.mod`、`apps/desktop/src-tauri/Cargo.toml` 為準；桌面與移動端的平台系統依賴見 [開發環境](docs/dev-env.md)。
 - Web：`pnpm dev`（預設 3000）；`pnpm check` 一次跑 typecheck、lint（含架構檢查）、format、test；交付前另跑 `pnpm build`；`pnpm test:watch` 進入 watch 迴圈。
 - Go：`pnpm cli:run [args]` 本機執行 CLI；`pnpm cli:daemon` 前景運行 daemon；`pnpm cli:fmt`／`cli:fmt:check`（gofmt）；`pnpm cli:check` 為 vet、test、build。build tags 的單一來源在 `scripts/go.ts`；包路徑、`-run`、CLI 參數等額外參數直接附在命令後（如 `pnpm cli:test ./internal/sub -run TestX`）。
 - daemon 生命週期（契約見 [daemon-runtime 規格](docs/specs/daemon-runtime.md)）：`xbond daemon install`（`--scope user` 默認；`--scope system` 經原生提權安裝機器級特權隧道宿主——Windows SCM／macOS LaunchDaemon，UAC／osascript 拒絕即如實報告）把受監督的 daemon 註冊到平台 supervisor，`daemon stop` 經 LocalAPI shutdown 端點優雅退出並等待確認。CLI 不 spawn daemon、不隱式註冊：未安裝且未運行時報錯並給出指引。TUN 接管分層委託：普通權限的用戶會話 daemon 把 TUN 下發給機器級服務執行，能力門驗證「本進程提升或委託通道可達」，註冊狀態不算數。同一資料目錄由實例鎖保證單一 daemon。`xbond run --config <file>` 前台運行獨立核心，與 daemon 的接管資源互斥、衝突即報錯，不觸碰 daemon 發現文件與狀態。
