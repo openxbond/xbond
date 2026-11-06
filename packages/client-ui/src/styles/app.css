@@ -395,6 +395,26 @@
       var(--glass-surface);
   }
 
+  /* Running-state hero: the brand wash brightens only while the engine
+     actually runs — presence follows fact, nothing animates. Both radials
+     stay brand-only (the system's single gradient hue), ≤18% alpha, and
+     corner-placed so no wash sits under text. */
+  .bento-hero-live {
+    border-color: color-mix(in oklab, var(--brand) 18%, var(--glass-border));
+    background:
+      radial-gradient(
+        46% 56% at 88% 0%,
+        color-mix(in oklab, var(--brand) 15%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        36% 44% at 8% 100%,
+        color-mix(in oklab, var(--brand) 8%, transparent),
+        transparent 70%
+      ),
+      var(--glass-surface);
+  }
+
   .bento-inset {
     border: 1px solid var(--glass-border);
     border-radius: calc(var(--radius-card) - 6px);

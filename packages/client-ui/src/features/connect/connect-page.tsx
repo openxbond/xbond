@@ -393,7 +393,7 @@ export default function Connect() {
     },
     {
       kind: "takeover" as const,
-      tone: hasLocalAPI ? (isSysproxy || isTun ? "ok" : "muted") : "muted",
+      tone: hasLocalAPI ? (isSysproxy || isTun ? "ok" : "muted") : "unknown",
       label: t("takeoverMode"),
       value: hasLocalAPI
         ? isSysproxy && isTun
@@ -407,7 +407,7 @@ export default function Connect() {
     },
     {
       kind: "egress" as const,
-      tone: egress?.egressVerified ? "ok" : "muted",
+      tone: egress?.egressVerified ? "ok" : "unknown",
       label: t("tiers.egress"),
       value: egress?.egressVerified
         ? egress.egressLatencyMs > 0
@@ -477,20 +477,23 @@ export default function Connect() {
       ) : !hasDaemonConfig() && !active ? (
         <ExternalControllerOnboarding className="my-auto py-6" />
       ) : (
-        <div className="mx-auto grid w-full min-w-0 flex-1 grid-cols-1 gap-4 [grid-template-areas:'control'_'strategy'_'live'_'prefs'] lg:max-h-[44rem] lg:max-w-6xl lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-3 lg:[grid-template-areas:'control_strategy'_'live_prefs'] xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <div className="mx-auto grid w-full min-w-0 flex-1 grid-cols-1 gap-4 [grid-template-areas:'control'_'strategy'_'live'_'prefs'] lg:max-h-[44rem] lg:max-w-6xl lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:grid-rows-[minmax(auto,1.4fr)_auto] lg:gap-3 lg:[grid-template-areas:'control_strategy'_'live_prefs'] xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <section
-            className="bento bento-hero [grid-area:control] flex min-w-0 flex-col gap-3 p-4 lg:gap-2"
+            className={cn(
+              "bento bento-hero [grid-area:control] flex min-w-0 flex-col gap-3 p-4 lg:gap-3 lg:p-5",
+              running && "bento-hero-live",
+            )}
             aria-label={t("connect")}
           >
             <div
               className={cn(
-                "grid min-w-0 flex-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-4",
+                "grid min-w-0 flex-1 items-start gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-4",
                 remote && "grid-cols-[minmax(0,1fr)_auto]",
               )}
             >
               <div className="flex min-w-0 flex-col gap-1.5">
                 <h2
-                  className="flex items-center gap-2.5 text-headline leading-tight font-semibold tracking-tight text-foreground xl:text-display"
+                  className="flex flex-wrap items-baseline gap-x-3 text-headline leading-tight font-semibold tracking-tight text-foreground lg:text-display"
                   aria-live="polite"
                 >
                   {remote && (
@@ -505,6 +508,14 @@ export default function Connect() {
                     />
                   )}
                   {stateWord}
+                  {uptimeClock && (
+                    <span
+                      className="font-mono text-label font-medium tabular-nums tracking-normal text-muted-foreground max-md:hidden"
+                      aria-label={t("uptime", { duration: uptimeClock })}
+                    >
+                      {uptimeClock}
+                    </span>
+                  )}
                 </h2>
                 {remote && (
                   <div className="flex w-full min-w-0 flex-wrap gap-x-2 text-label">
@@ -527,14 +538,6 @@ export default function Connect() {
                 <p className="max-w-[40ch] text-body text-muted-foreground">
                   {stateNote}
                 </p>
-                {uptimeClock && (
-                  <p
-                    className="font-mono text-label font-medium tabular-nums text-muted-foreground max-md:hidden"
-                    aria-label={t("uptime", { duration: uptimeClock })}
-                  >
-                    {uptimeClock}
-                  </p>
-                )}
               </div>
               {hasLocalAPI ? (
                 <Button
@@ -542,7 +545,7 @@ export default function Connect() {
                   ref={connectButtonRef}
                   variant={running ? "outline" : "brand"}
                   className={cn(
-                    "h-auto min-h-12 w-full gap-2 rounded-control px-4 py-2.5 text-body leading-tight whitespace-normal max-md:min-h-12 lg:min-h-11 lg:w-auto",
+                    "h-auto min-h-12 w-full gap-2 rounded-control px-4 py-2.5 text-body leading-tight whitespace-normal max-md:min-h-12 lg:min-h-13 lg:w-auto lg:px-5",
                     running && "border-brand/35 bg-brand-soft text-brand-text",
                   )}
                   disabled={pending || (!running && !sub)}
@@ -570,39 +573,6 @@ export default function Connect() {
                 )
               )}
             </div>
-
-            <ul
-              className={cn(
-                "bento-inset grid list-none gap-2 p-2.5",
-                remote ? "grid-cols-2" : "grid-cols-3",
-              )}
-            >
-              {facts
-                .filter((fact) => !remote || fact.kind !== "core")
-                .map((fact) => (
-                  <li
-                    key={fact.kind}
-                    className="flex min-w-0 flex-col gap-1 text-label"
-                  >
-                    <span className="flex items-center gap-1 text-muted-foreground [&>svg]:size-3.5 [&>svg]:shrink-0">
-                      <FactIcon kind={fact.kind} />
-                      {fact.label}
-                    </span>
-                    <b
-                      className={cn(
-                        "font-semibold tabular-nums [overflow-wrap:anywhere]",
-                        fact.tone === "brand"
-                          ? "text-brand-text"
-                          : fact.tone === "ok"
-                            ? "text-success-text"
-                            : "text-foreground",
-                      )}
-                    >
-                      {fact.value}
-                    </b>
-                  </li>
-                ))}
-            </ul>
 
             {remote ? (
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -651,6 +621,44 @@ export default function Connect() {
                 </div>
               )
             )}
+
+            {/* 狀態軌道：三層事實以髮絲線分欄貼底，與流量卡速率欄同構，
+                值用等寬/狀態色表達「儀表讀數」。 */}
+            <ul
+              className={cn(
+                "mt-auto grid list-none gap-x-0 border-t border-border pt-3",
+                remote ? "grid-cols-2" : "grid-cols-3",
+                "divide-x divide-border",
+              )}
+            >
+              {facts
+                .filter((fact) => !remote || fact.kind !== "core")
+                .map((fact) => (
+                  <li
+                    key={fact.kind}
+                    className="flex min-w-0 flex-col gap-1 px-3 text-label first:ps-0 last:pe-0"
+                  >
+                    <span className="flex items-center gap-1 text-muted-foreground [&>svg]:size-3.5 [&>svg]:shrink-0">
+                      <FactIcon kind={fact.kind} />
+                      {fact.label}
+                    </span>
+                    <b
+                      className={cn(
+                        "truncate font-semibold tabular-nums [overflow-wrap:anywhere]",
+                        fact.tone === "brand"
+                          ? "text-brand-text"
+                          : fact.tone === "ok"
+                            ? "text-success-text"
+                            : fact.tone === "unknown"
+                              ? "text-muted-foreground"
+                              : "text-foreground",
+                      )}
+                    >
+                      {fact.value}
+                    </b>
+                  </li>
+                ))}
+            </ul>
           </section>
 
           <section
@@ -675,68 +683,68 @@ export default function Connect() {
 
             {group && (
               <div className="flex flex-col gap-1.5">
-                <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5 text-label text-muted-foreground">
-                  {available.length > 1 ? (
+                {available.length > 1 ? (
+                  <>
                     <label htmlFor="home-policy-group" className="sr-only">
                       {t("chooseGroup")}
                     </label>
-                  ) : (
-                    <span className="sr-only">{t("chooseGroup")}</span>
-                  )}
-                  <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-                    <span className="font-mono [overflow-wrap:anywhere]">
-                      {group.type}
-                    </span>
-                    {group.all && (
-                      <span className="tabular-nums">
-                        {group.all.length} {t("strategyMembers")}
-                      </span>
-                    )}
-                  </span>
-                </div>
-                {available.length > 1 ? (
-                  <NativeSelect
-                    id="home-policy-group"
-                    size="sm"
-                    wrapperClassName="w-full"
-                    className="truncate border-border bg-inset/70 max-md:min-h-11"
-                    value={group.name}
-                    title={group.name}
-                    onChange={(event) => setFocusGroup(event.target.value)}
-                  >
-                    {available.map((item) => (
-                      <NativeSelectOption key={item.name} value={item.name}>
-                        {item.name}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
+                    <NativeSelect
+                      id="home-policy-group"
+                      size="sm"
+                      wrapperClassName="w-full"
+                      className="truncate border-border bg-inset/70 max-md:min-h-11"
+                      value={group.name}
+                      title={group.name}
+                      onChange={(event) => setFocusGroup(event.target.value)}
+                    >
+                      {available.map((item) => (
+                        <NativeSelectOption key={item.name} value={item.name}>
+                          {item.name}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </>
                 ) : (
-                  <p
-                    className="truncate text-body font-medium text-foreground"
-                    title={group.name}
-                  >
-                    {group.name}
-                  </p>
+                  <>
+                    <span className="sr-only">{t("chooseGroup")}</span>
+                    <p
+                      className="truncate text-body font-medium text-foreground"
+                      title={group.name}
+                    >
+                      {group.name}
+                    </p>
+                  </>
                 )}
+                {/* 群組說明緊跟選擇器，作其 quiet 註解，不再懸浮成孤兒行。 */}
+                <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-label text-muted-foreground">
+                  <span className="font-mono [overflow-wrap:anywhere]">
+                    {group.type}
+                  </span>
+                  {group.all && (
+                    <span className="tabular-nums">
+                      · {group.all.length} {t("strategyMembers")}
+                    </span>
+                  )}
+                </p>
               </div>
             )}
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
               <button
                 type="button"
-                className="bento-inset group flex w-full cursor-pointer items-center gap-3 rounded-control px-3 py-2 text-start text-foreground transition-colors hover:border-brand/35 hover:bg-brand-soft/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+                className="bento-inset group flex w-full cursor-pointer items-center gap-3.5 rounded-control px-3.5 py-2.5 text-start text-foreground transition-colors hover:border-brand/35 hover:bg-brand-soft/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
                 onClick={() => setPickerOpen(true)}
                 aria-haspopup="dialog"
               >
-                {/* 节点图标头像 (40px 圆角国旗 / 直连 / 拦截 / 服务器图标) */}
+                {/* 节点图标头像 (48px 圆角国旗 / 直连 / 拦截 / 服务器图标) */}
                 <span
-                  className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-control bg-card"
+                  className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-control bg-card"
                   aria-hidden="true"
                 >
                   {isDirect ? (
                     <svg
                       viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
+                      width="22"
+                      height="22"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
@@ -748,8 +756,8 @@ export default function Connect() {
                   ) : isReject ? (
                     <svg
                       viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
+                      width="22"
+                      height="22"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
@@ -764,8 +772,8 @@ export default function Connect() {
                   ) : (
                     <svg
                       viewBox="0 0 24 24"
-                      width="18"
-                      height="18"
+                      width="22"
+                      height="22"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.7"
@@ -780,52 +788,57 @@ export default function Connect() {
                   )}
                 </span>
 
-                {/* 节点名称、延迟与策略链路 */}
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-label font-medium text-muted-foreground">
-                    {t("currentNode")}
-                  </span>
-                  <span
-                    className="truncate text-subtitle font-semibold"
-                    title={
-                      leafNodeName
+                {/* 节点名称与延迟分列：左侧身份，右侧测量读数，减少纵向堆叠。 */}
+                <span className="flex min-w-0 flex-1 items-center justify-between gap-x-3">
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-label font-medium text-muted-foreground">
+                      {t("currentNode")}
+                    </span>
+                    <span
+                      className="truncate text-title font-semibold"
+                      title={
+                        leafNodeName
+                          ? leafFlag
+                            ? stripFlagEmoji(leafNodeName)
+                            : leafNodeName
+                          : undefined
+                      }
+                    >
+                      {leafNodeName
                         ? leafFlag
                           ? stripFlagEmoji(leafNodeName)
                           : leafNodeName
-                        : undefined
-                    }
-                  >
-                    {leafNodeName
-                      ? leafFlag
-                        ? stripFlagEmoji(leafNodeName)
-                        : leafNodeName
-                      : t("strategy.noNodeSelected")}
+                        : t("strategy.noNodeSelected")}
+                    </span>
                   </span>
-
-                  <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-label tabular-nums text-muted-foreground">
+                  <span className="flex shrink-0 flex-col items-end gap-0.5 text-label tabular-nums">
                     {leafDelay ? (
                       <>
                         <b
                           className={cn(
-                            "shrink-0 font-mono text-label font-semibold tabular-nums",
+                            "font-mono text-subtitle font-semibold tabular-nums",
                             latencyClass(leafDelay),
                           )}
                         >
                           {leafDelay} ms
                         </b>
-                        <span>{t("lastMeasured")}</span>
+                        <span className="text-muted-foreground">
+                          {t("lastMeasured")}
+                        </span>
                       </>
                     ) : leafNodeName ? (
-                      px("untested")
+                      <span className="text-muted-foreground">
+                        {px("untested")}
+                      </span>
                     ) : null}
                   </span>
                 </span>
 
                 <span
                   aria-hidden="true"
-                  className="grid size-8 shrink-0 place-items-center rounded-control bg-card group-hover:bg-brand-soft group-hover:text-brand-text"
+                  className="grid size-9 shrink-0 place-items-center rounded-control bg-card group-hover:bg-brand-soft group-hover:text-brand-text"
                 >
-                  <ChevronRight className="size-4 rtl:rotate-180" />
+                  <ChevronRight className="size-4.5 rtl:rotate-180" />
                 </span>
               </button>
               {chain.length > 2 && (
@@ -847,9 +860,20 @@ export default function Connect() {
             className="bento [grid-area:live] flex min-w-0 flex-col gap-3 p-4 lg:gap-2"
             aria-label={t("trafficStats")}
           >
-            <h2 className="text-subtitle font-semibold text-foreground">
-              {t("trafficStats")}
-            </h2>
+            {/* 卡头右侧同欄放時間窗讀數，與策略卡「全部策略」同一視覺詞彙。 */}
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <h2 className="text-subtitle font-semibold text-foreground">
+                {t("trafficStats")}
+              </h2>
+              {trafficState === "open" && (
+                <span
+                  className="text-label tabular-nums text-muted-foreground"
+                  aria-hidden="true"
+                >
+                  {t("recentWindow")}
+                </span>
+              )}
+            </div>
             <dl className="grid grid-cols-2 divide-x divide-border">
               {(
                 [
@@ -889,29 +913,28 @@ export default function Connect() {
                 empty={t("collectingSamples")}
                 stale={trafficState !== "open"}
                 staleLabel={t("streamStopped")}
-                windowLabel={t("recentWindow")}
               />
             </div>
 
             <dl className="grid grid-cols-2 gap-3 border-t border-border pt-2">
-              <div className="min-w-0">
+              <div className="flex min-w-0 flex-col gap-0.5">
                 <dt className="text-label text-muted-foreground">
                   {t("sessionTotal")}
                 </dt>
-                <dd className="mt-0.5 text-subtitle font-semibold tabular-nums text-foreground">
+                <dd className="truncate text-subtitle font-semibold tabular-nums text-foreground">
                   {sessionTotal !== null
                     ? formatDisplayTraffic(sessionTotal)
                     : "—"}
                 </dd>
               </div>
-              <div className="min-w-0">
+              <div className="flex min-w-0 flex-col gap-0.5">
                 <dt className="text-label text-muted-foreground">
                   {t("quota.remaining")}
                 </dt>
-                <dd className="mt-0.5">
+                <dd className="min-w-0">
                   {sub && quota ? (
                     <>
-                      <b className="text-subtitle font-semibold tabular-nums text-foreground">
+                      <b className="block truncate text-subtitle font-semibold tabular-nums text-foreground">
                         {formatDisplayTraffic(quota.remaining)}{" "}
                         <span className="text-label font-normal text-muted-foreground">
                           / {formatDisplayTraffic(sub.total)}
@@ -932,7 +955,7 @@ export default function Connect() {
                       </span>
                     </>
                   ) : (
-                    <span className="text-label text-muted-foreground">
+                    <span className="block truncate text-subtitle font-medium tabular-nums text-muted-foreground">
                       {sub
                         ? t("quota.unknown")
                         : hasLocalAPI
@@ -978,17 +1001,16 @@ export default function Connect() {
             </div>
             {hasLocalAPI && (
               <div className="flex flex-col divide-y divide-border border-t border-border pt-2">
+                {/* 端口是读数不是控件：安静等宽呈现，不与下方开关抢形。 */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
                   <span className="text-label font-medium text-muted-foreground">
                     {t("takeoverMode")}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-control bg-inset px-2 py-0.5 text-label text-muted-foreground">
-                    <span className="font-sans text-[11px] text-muted-foreground">
-                      {t("port")}
-                    </span>
-                    <span className="font-semibold text-foreground">
+                  <span className="text-label tabular-nums text-muted-foreground">
+                    {t("port")}{" "}
+                    <b className="font-mono font-semibold text-foreground">
                       {mixedPort}
-                    </span>
+                    </b>
                   </span>
                 </div>
 

@@ -87,7 +87,7 @@ export function TrafficChart({
   samples: TrafficSample[];
   title: string;
   empty: string;
-  windowLabel: string;
+  windowLabel?: string;
   stale?: boolean;
   staleLabel?: string;
 }) {
@@ -251,13 +251,15 @@ export function TrafficChart({
         </div>
       </div>
 
-      {/* 右下角时间窗标签 */}
-      <span
-        className="mt-1 self-end text-label text-muted-foreground select-none"
-        aria-hidden="true"
-      >
-        {windowLabel}
-      </span>
+      {/* 右下角时间窗标签（当未在卡片头部展示时渲染） */}
+      {windowLabel ? (
+        <span
+          className="mt-1 self-end text-label text-muted-foreground select-none"
+          aria-hidden="true"
+        >
+          {windowLabel}
+        </span>
+      ) : null}
     </div>
   );
 }
