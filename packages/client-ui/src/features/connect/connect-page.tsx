@@ -25,7 +25,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   HoverCard,
@@ -618,10 +617,10 @@ export default function Connect() {
       ) : !hasDaemonConfig() && !active ? (
         <ExternalControllerOnboarding className="my-auto py-6" />
       ) : (
-        /* 48rem（768px）起分行兩欄：桌面默認視窗 1140px 扣側欄與頁邊距後的
-           內容盒是 ~797px，52rem 檻位讓默認窗口反而落回單列（DESIGN.md
-           「標準 768–1439px：2×2 Bento」）。 */
-        <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-4 [grid-template-areas:'control'_'strategy'_'prefs'_'live'] @min-[48rem]/connect:grid-cols-[minmax(0,1.32fr)_minmax(0,1fr)] @min-[48rem]/connect:grid-rows-[auto_auto] @min-[48rem]/connect:[grid-template-areas:'control_strategy'_'live_prefs']">
+        /* 兩欄檻位 = 44rem（704px 容器內容盒）：桌面默認視窗 1140px 扣側欄、
+           頁邊距後內容盒 ~782px 一定能兩欄；容器再小（~1042px 視口以下）
+           落回單列堆疊。52rem 時默認視窗的內容盒只有 ~797px 太窄。 */
+        <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-4 [grid-template-areas:'control'_'strategy'_'prefs'_'live'] @min-[44rem]/connect:grid-cols-[minmax(0,1.32fr)_minmax(0,1fr)] @min-[44rem]/connect:grid-rows-[auto_auto] @min-[44rem]/connect:[grid-template-areas:'control_strategy'_'live_prefs']">
           <section
             className={cn(
               cardSurface,
@@ -933,16 +932,9 @@ export default function Connect() {
           >
             {/* Header: 标题 + 策略组数量 + 全部策略跳转 */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h2 className="text-[14px] font-semibold tracking-tight text-foreground">
-                  {t("strategyGroups")}
-                </h2>
-                {available.length > 0 && (
-                  <Badge variant="secondary" className="tabular-nums">
-                    {available.length} {t("strategyMembers")}
-                  </Badge>
-                )}
-              </div>
+              <h2 className="text-[14px] font-semibold tracking-tight text-foreground">
+                {t("strategyGroups")}
+              </h2>
               <Link
                 to="/proxies"
                 className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground no-underline transition-colors hover:text-brand-text"
@@ -964,38 +956,40 @@ export default function Connect() {
               </Link>
             </div>
 
-            {/* 策略组横排胶囊切换标签 (支持桌面端鼠标拖拽横向滚动、滚轮横向滚动与微型翻页箭头) */}
-            {available.length > 1 && (
-              <ScrollablePills>
-                {available.map((item) => {
-                  const isCurrent = item.name === group?.name;
-                  return (
-                    <button
-                      key={item.name}
-                      type="button"
-                      onClick={() => setFocusGroup(item.name)}
-                      className={cn(
-                        "shrink-0 cursor-pointer rounded-control border px-2.5 py-1 text-[12px] font-medium transition-colors duration-150 select-none max-md:min-h-11 max-md:px-3.5",
-                        isCurrent
-                          ? "border-brand/25 bg-brand-soft/80 font-semibold text-brand-text"
-                          : "border-[var(--glass-border)] bg-white/35 text-muted-foreground hover:bg-white/60 hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15",
-                      )}
-                    >
-                      {item.name}
-                    </button>
-                  );
-                })}
-              </ScrollablePills>
-            )}
+            {/* 加头之后的整体内容板块：策略组胶囊 + 出站节点，作为一组在剩余空间居中 */}
+            <div className="my-auto flex flex-col gap-2.5 border-t border-border/70 pt-3">
+              {/* 策略组横排胶囊切换标签 (支持桌面端鼠标拖拽横向滚动、滚轮横向滚动与微型翻页箭头) */}
+              {available.length > 1 && (
+                <ScrollablePills>
+                  {available.map((item) => {
+                    const isCurrent = item.name === group?.name;
+                    return (
+                      <button
+                        key={item.name}
+                        type="button"
+                        onClick={() => setFocusGroup(item.name)}
+                        className={cn(
+                          "shrink-0 cursor-pointer rounded-control border px-2.5 py-1 text-[12px] font-medium transition-colors duration-150 select-none max-md:min-h-11 max-md:px-3.5",
+                          isCurrent
+                            ? "border-brand/25 bg-brand-soft/80 font-semibold text-brand-text"
+                            : "border-[var(--glass-border)] bg-white/35 text-muted-foreground hover:bg-white/60 hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15",
+                        )}
+                      >
+                        {item.name}
+                      </button>
+                    );
+                  })}
+                </ScrollablePills>
+              )}
 
-            {/* 当前选中策略组的出站详情：卡内以发丝分隔线成组，不再套卡 */}
-            <div className="flex flex-col gap-2 border-t border-border/70 pt-3">
               {/* 组信息小标头：组名、类型 (Selector/URLTest/Fallback)、成员总数 */}
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-foreground">
-                    {group ? group.name : t("strategy.title")}
-                  </span>
+                  {available.length > 1 && group?.type ? null : (
+                    <span className="font-semibold text-foreground">
+                      {group ? group.name : t("strategy.title")}
+                    </span>
+                  )}
                   {group?.type && (
                     <span className="rounded-[4px] bg-inset px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                       {group.type}
@@ -1142,24 +1136,6 @@ export default function Connect() {
                   </span>
                 </span>
               </button>
-            </div>
-            <div className="mt-auto grid grid-cols-2 gap-2 pt-1">
-              <div className="bento-inset px-3 py-2.5">
-                <span className="block text-[10px] text-muted-foreground">
-                  {t("strategyMembers")}
-                </span>
-                <b className="mt-1 block font-mono text-[16px] font-semibold tabular-nums text-foreground">
-                  {group?.all?.length ?? 0}
-                </b>
-              </div>
-              <div className="bento-inset px-3 py-2.5">
-                <span className="block text-[10px] text-muted-foreground">
-                  {t("lastMeasured")}
-                </span>
-                <b className="mt-1 block font-mono text-[16px] font-semibold tabular-nums text-foreground">
-                  {leafDelay ? `${leafDelay} ms` : "—"}
-                </b>
-              </div>
             </div>
           </section>
 
