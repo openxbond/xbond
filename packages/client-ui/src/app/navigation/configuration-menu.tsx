@@ -256,8 +256,10 @@ export function ConfigMenu() {
           </div>
         )}
 
-        {/* Footer Quick Links */}
-        <div className="config-menu-divider" />
+        {/* Footer Quick Links；上方无任何分组时不画分隔线 */}
+        {(supported || external.length > 0) && (
+          <div className="config-menu-divider" />
+        )}
         <div className="flex items-center justify-between pt-0.5">
           <Link
             className="config-menu-link"
