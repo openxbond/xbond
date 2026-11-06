@@ -76,7 +76,7 @@ export default function App() {
   }, [identity, target, location.search, navigate, setIdentity]);
 
   const layout = (
-    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-background">
+    <div className="flex h-[100dvh] min-h-0 gap-3 overflow-hidden bg-transparent p-3 max-md:gap-0 max-md:p-0">
       {/* Frameless Windows/Linux windows get no compositor shadow (tao drops
           it with decorations), so the webview edge disappears on light
           desktops. A hairline inset frame marks the boundary; maximized
@@ -96,8 +96,8 @@ export default function App() {
         <main
           ref={contentRef}
           className={cn(
-            "min-h-0 flex-1 overflow-y-auto",
-            "max-md:px-0 max-md:pt-[calc(var(--topbar-height)+env(safe-area-inset-top))] max-md:pb-[calc(64px+env(safe-area-inset-bottom))] max-md:[&::-webkit-scrollbar]:hidden",
+            "min-h-0 flex-1 overflow-y-auto rounded-[20px] max-md:rounded-none",
+            "max-md:px-0 max-md:pt-[calc(var(--topbar-height)+env(safe-area-inset-top))] max-md:pb-[calc(68px+env(safe-area-inset-bottom))] max-md:[&::-webkit-scrollbar]:hidden",
           )}
         >
           <ControllerPage />

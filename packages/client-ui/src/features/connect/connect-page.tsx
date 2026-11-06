@@ -80,14 +80,15 @@ function formatDisplayTraffic(bytes: number): string {
 }
 
 /* 工作面：實色、髮線邊，不用常駐陰影。 */
-const cardSurface = "panel";
+const cardSurface = "bento";
 
 /* 連線主操作：品牌橙圓形電源鍵，深色電源符號，無光暈。 */
 const orbBase =
-  "relative grid size-[128px] max-md:size-[104px] shrink-0 cursor-pointer place-items-center rounded-full outline-none transition-[background-color,border-color,color,transform] duration-[120ms] ease-[var(--ease-out-expo)] focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-55 enabled:active:scale-[0.985] motion-reduce:transition-none motion-reduce:enabled:active:scale-100";
-const orbOn = "bg-brand text-brand-foreground hover:bg-brand-strong";
+  "relative grid size-[124px] max-md:size-[104px] shrink-0 cursor-pointer place-items-center rounded-full outline-none transition-[background-color,border-color,color,transform,box-shadow] duration-200 ease-[var(--ease-out-expo)] focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-55 enabled:hover:-translate-y-0.5 enabled:active:translate-y-0 enabled:active:scale-[0.98] motion-reduce:transition-none motion-reduce:enabled:hover:translate-y-0";
+const orbOn =
+  "gradient-brand text-brand-foreground shadow-[0_22px_48px_-16px_oklch(0.7_0.19_45/65%),inset_0_1px_0_oklch(1_0_0/35%)] hover:brightness-105";
 const orbOff =
-  "border border-border-strong bg-card text-muted-foreground hover:border-brand/70 hover:text-brand-text";
+  "field-glass text-muted-foreground shadow-[0_18px_40px_-24px_oklch(0.2_0.03_265/35%)] hover:border-brand/60 hover:text-brand-text";
 
 function FactIcon({ kind }: { kind: "core" | "takeover" | "egress" }) {
   const common = {
@@ -592,10 +593,12 @@ export default function Connect() {
     <div className="page @container/connect w-full">
       {localConfig && !status && (
         <div
-          className="flex items-center justify-between gap-3 rounded-control border border-border bg-card px-4 py-3 text-sm"
+          className="bento flex items-center justify-between gap-3 p-4 text-[13px]"
           role={localError ? "alert" : "status"}
         >
-          <span>{localError ? t("statusReadFailed") : tc("loading")}</span>
+          <span className="text-muted-foreground">
+            {localError ? t("statusReadFailed") : tc("loading")}
+          </span>
           {localError && (
             <Button
               disabled={pending}
@@ -615,26 +618,28 @@ export default function Connect() {
       ) : !hasDaemonConfig() && !active ? (
         <ExternalControllerOnboarding className="my-auto py-6" />
       ) : (
-        <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-4 [grid-template-areas:'control'_'aside'_'live'] @min-[46rem]/connect:grid-cols-[minmax(0,1.35fr)_minmax(0,0.9fr)] @min-[46rem]/connect:grid-rows-[minmax(0,1fr)_auto] @min-[46rem]/connect:[grid-template-areas:'control_aside'_'live_live']">
+        <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-4 [grid-template-areas:'control'_'strategy'_'prefs'_'live'] @min-[52rem]/connect:grid-cols-[minmax(0,1.32fr)_minmax(0,1fr)] @min-[52rem]/connect:grid-rows-[auto_auto] @min-[52rem]/connect:[grid-template-areas:'control_strategy'_'live_prefs']">
           <section
             className={cn(
               cardSurface,
-              "relative flex min-h-[430px] flex-col items-center justify-start gap-2 overflow-hidden px-6 pt-10 pb-0 text-center max-md:min-h-0 max-md:px-4 max-md:pt-8",
+              "bento-hero bento-interactive relative flex min-h-[380px] flex-col items-center justify-start gap-2 overflow-hidden px-6 pt-12 pb-0 text-center max-md:min-h-0 max-md:px-4 max-md:pt-10",
             )}
             aria-label={t("connect")}
           >
-            <div className="absolute inset-x-0 top-0 z-10 flex h-10 items-center justify-between border-b border-border/70 px-4 text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
+            <div className="absolute inset-x-4 top-4 z-10 flex items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--glass-border)] bg-white/45 px-2.5 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-md dark:bg-white/10">
                 <span
                   aria-hidden="true"
                   className={cn(
                     "size-1.5 rounded-full",
-                    active ? "bg-success" : "bg-muted-foreground/45",
+                    active
+                      ? "bg-success shadow-[0_0_0_3px_color-mix(in_oklab,var(--success)_18%,transparent)]"
+                      : "bg-muted-foreground/45",
                   )}
                 />
                 {t("connect")}
               </span>
-              <span className="max-w-[55%] truncate font-mono text-[10px] tracking-tight text-muted-foreground">
+              <span className="max-w-[55%] truncate rounded-full border border-[var(--glass-border)] bg-white/35 px-2.5 py-1 font-mono text-[10px] tracking-tight text-muted-foreground backdrop-blur-md dark:bg-white/10">
                 {controller.targetKind === "daemon"
                   ? `127.0.0.1:${mixedPort}`
                   : controller.hostname}
@@ -820,12 +825,12 @@ export default function Connect() {
               )}
             </div>
 
-            <ul className="mt-6 grid w-full list-none grid-cols-3 border-t border-border/70 pt-4">
+            <ul className="mt-5 grid w-full list-none grid-cols-3 gap-2">
               {facts.map((fact) => (
                 <li
                   key={fact.kind}
                   className={cn(
-                    "flex min-w-0 flex-col items-center gap-1.5 border-border/70 px-2 text-[11px] text-muted-foreground not-first:border-l",
+                    "bento-inset flex min-w-0 flex-col items-center gap-1.5 rounded-[14px] px-2 py-3 text-[11px] text-muted-foreground",
                     fact.tone === "brand" && "text-brand-text",
                     fact.tone === "ok" && "text-success-text",
                   )}
@@ -863,7 +868,7 @@ export default function Connect() {
               ))}
             </ul>
 
-            <div className="mt-5 flex w-full items-center gap-2.5 self-stretch border-t border-border/70 px-0 pt-3.5 pb-4 text-[12px] text-muted-foreground max-md:hidden">
+            <div className="bento-inset mt-3 flex w-full items-center gap-2.5 self-stretch px-3 py-2.5 text-[12px] text-muted-foreground max-md:hidden">
               <span
                 className="grid size-7 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground"
                 aria-hidden="true"
@@ -917,420 +922,434 @@ export default function Connect() {
             </div>
           </section>
 
-          <div className="[grid-area:aside] flex min-w-0 flex-col overflow-hidden rounded-card border border-border bg-card">
-            <section
-              className="flex flex-col gap-3 px-4 py-4"
-              aria-label={t("strategyGroups")}
-            >
-              {/* Header: 标题 + 策略组数量 + 全部策略跳转 */}
-              <div className="flex items-center justify-between">
+          <section
+            className="bento bento-interactive [grid-area:strategy] flex min-w-0 flex-col gap-3 p-4"
+            aria-label={t("strategyGroups")}
+          >
+            {/* Header: 标题 + 策略组数量 + 全部策略跳转 */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="text-[14px] font-semibold tracking-tight text-foreground">
+                  {t("strategyGroups")}
+                </h2>
+                {available.length > 0 && (
+                  <Badge variant="secondary" className="tabular-nums">
+                    {available.length} {t("strategyMembers")}
+                  </Badge>
+                )}
+              </div>
+              <Link
+                to="/proxies"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground no-underline transition-colors hover:text-brand-text"
+              >
+                {t("allStrategies")}
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* 策略组横排胶囊切换标签 (支持桌面端鼠标拖拽横向滚动、滚轮横向滚动与微型翻页箭头) */}
+            {available.length > 1 && (
+              <ScrollablePills>
+                {available.map((item) => {
+                  const isCurrent = item.name === group?.name;
+                  return (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => setFocusGroup(item.name)}
+                      className={cn(
+                        "shrink-0 cursor-pointer rounded-control border px-2.5 py-1 text-[12px] font-medium transition-colors duration-150 select-none max-md:min-h-11 max-md:px-3.5",
+                        isCurrent
+                          ? "border-brand/25 bg-brand-soft/80 font-semibold text-brand-text"
+                          : "border-[var(--glass-border)] bg-white/35 text-muted-foreground backdrop-blur-md hover:bg-white/60 hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15",
+                      )}
+                    >
+                      {item.name}
+                    </button>
+                  );
+                })}
+              </ScrollablePills>
+            )}
+
+            {/* 当前选中策略组的出站详情：卡内以发丝分隔线成组，不再套卡 */}
+            <div className="flex flex-col gap-2 border-t border-border/70 pt-3">
+              {/* 组信息小标头：组名、类型 (Selector/URLTest/Fallback)、成员总数 */}
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[13px] font-semibold text-foreground">
-                    {t("strategyGroups")}
-                  </h2>
-                  {available.length > 0 && (
-                    <Badge variant="secondary" className="tabular-nums">
-                      {available.length} {t("strategyMembers")}
-                    </Badge>
+                  <span className="font-semibold text-foreground">
+                    {group ? group.name : t("strategy.title")}
+                  </span>
+                  {group?.type && (
+                    <span className="rounded-[4px] bg-inset px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      {group.type}
+                    </span>
                   )}
                 </div>
-                <Link
-                  to="/proxies"
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground no-underline transition-colors hover:text-brand-text"
-                >
-                  {t("allStrategies")}
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="13"
-                    height="13"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="m9 6 6 6-6 6" />
-                  </svg>
-                </Link>
+                {group?.all && (
+                  <span className="tabular-nums text-label">
+                    {group.all.length} {t("strategyMembers")}
+                  </span>
+                )}
               </div>
 
-              {/* 策略组横排胶囊切换标签 (支持桌面端鼠标拖拽横向滚动、滚轮横向滚动与微型翻页箭头) */}
-              {available.length > 1 && (
-                <ScrollablePills>
-                  {available.map((item) => {
-                    const isCurrent = item.name === group?.name;
-                    return (
-                      <button
-                        key={item.name}
-                        type="button"
-                        onClick={() => setFocusGroup(item.name)}
-                        className={cn(
-                          "shrink-0 cursor-pointer rounded-control border px-2.5 py-1 text-[12px] font-medium transition-colors duration-150 select-none max-md:min-h-11 max-md:px-3.5",
-                          isCurrent
-                            ? "border-brand bg-brand text-brand-foreground font-semibold"
-                            : "border-transparent bg-inset text-muted-foreground hover:border-border hover:bg-card hover:text-foreground",
-                        )}
-                      >
-                        {item.name}
-                      </button>
-                    );
-                  })}
-                </ScrollablePills>
-              )}
-
-              {/* 当前选中策略组的出站详情：卡内以发丝分隔线成组，不再套卡 */}
-              <div className="flex flex-col gap-2 border-t border-border/70 pt-3">
-                {/* 组信息小标头：组名、类型 (Selector/URLTest/Fallback)、成员总数 */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">
-                      {group ? group.name : t("strategy.title")}
-                    </span>
-                    {group?.type && (
-                      <span className="rounded-[4px] bg-inset px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                        {group.type}
-                      </span>
-                    )}
-                  </div>
-                  {group?.all && (
-                    <span className="tabular-nums text-label">
-                      {group.all.length} {t("strategyMembers")}
-                    </span>
-                  )}
-                </div>
-
-                {/* 真实出站节点选择按钮 */}
-                <button
-                  type="button"
-                  className="group flex w-full cursor-pointer items-center gap-3 text-left text-foreground pt-0.5"
-                  onClick={() => setPickerOpen(true)}
-                  aria-haspopup="dialog"
+              {/* 真实出站节点选择按钮 */}
+              <button
+                type="button"
+                className="bento-inset group mt-1 flex w-full cursor-pointer items-center gap-3 p-2.5 text-left text-foreground"
+                onClick={() => setPickerOpen(true)}
+                aria-haspopup="dialog"
+              >
+                {/* 节点图标头像 (40px 圆角国旗 / 直连 / 拦截 / 服务器图标) */}
+                <span
+                  className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-[var(--glass-border)] bg-white/40 text-muted-foreground dark:bg-white/10"
+                  aria-hidden="true"
                 >
-                  {/* 节点图标头像 (40px 圆角国旗 / 直连 / 拦截 / 服务器图标) */}
-                  <span
-                    className="flex size-9 max-md:size-9 shrink-0 items-center justify-center overflow-hidden rounded-control border border-border bg-inset text-muted-foreground"
-                    aria-hidden="true"
-                  >
-                    {isDirect ? (
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="18"
-                        height="18"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                      </svg>
-                    ) : isReject ? (
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="18"
-                        height="18"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                      </svg>
-                    ) : leafFlag ? (
-                      <CountryFlag
-                        code={leafFlag}
-                        avatar
-                        className="size-full"
-                      />
-                    ) : (
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="18"
-                        height="18"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="3" y="4" width="18" height="7" rx="2" />
-                        <rect x="3" y="13" width="18" height="7" rx="2" />
-                        <line x1="7" y1="7.5" x2="7.01" y2="7.5" />
-                        <line x1="7" y1="16.5" x2="7.01" y2="16.5" />
-                      </svg>
-                    )}
-                  </span>
-
-                  {/* 节点名称、延迟与策略链路 */}
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span
-                      className="truncate text-[14px] font-semibold text-foreground tracking-tight"
-                      title={
-                        leafNodeName
-                          ? leafFlag
-                            ? stripFlagEmoji(leafNodeName)
-                            : leafNodeName
-                          : undefined
-                      }
+                  {isDirect ? (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="18"
+                      height="18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
-                      {leafNodeName
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                  ) : isReject ? (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="18"
+                      height="18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                    </svg>
+                  ) : leafFlag ? (
+                    <CountryFlag code={leafFlag} avatar className="size-full" />
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="18"
+                      height="18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="4" width="18" height="7" rx="2" />
+                      <rect x="3" y="13" width="18" height="7" rx="2" />
+                      <line x1="7" y1="7.5" x2="7.01" y2="7.5" />
+                      <line x1="7" y1="16.5" x2="7.01" y2="16.5" />
+                    </svg>
+                  )}
+                </span>
+
+                {/* 节点名称、延迟与策略链路 */}
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span
+                    className="truncate text-[14px] font-semibold text-foreground tracking-tight"
+                    title={
+                      leafNodeName
                         ? leafFlag
                           ? stripFlagEmoji(leafNodeName)
                           : leafNodeName
-                        : t("strategy.noNodeSelected")}
-                    </span>
+                        : undefined
+                    }
+                  >
+                    {leafNodeName
+                      ? leafFlag
+                        ? stripFlagEmoji(leafNodeName)
+                        : leafNodeName
+                      : t("strategy.noNodeSelected")}
+                  </span>
 
-                    <span className="flex items-center gap-1.5 text-label tabular-nums text-muted-foreground">
-                      {leafDelay ? (
-                        <>
-                          <b
-                            className={cn(
-                              "shrink-0 font-mono text-xs tabular-nums",
-                              latencyClass(leafDelay),
-                            )}
-                          >
-                            {leafDelay} ms
-                          </b>
-                          <span className="text-muted-foreground">
-                            · {t("lastMeasured")}
-                          </span>
-                        </>
-                      ) : leafNodeName ? (
-                        px("untested")
-                      ) : (
-                        t("strategy.title")
-                      )}
-                    </span>
-
-                    {/* 策略链路由链路 (若存在嵌套多级) */}
-                    {chain.length > 2 && (
-                      <span
-                        className="mt-0.5 truncate text-label text-muted-foreground/75"
-                        title={chain.join(" → ")}
-                      >
-                        {chain.join(" → ")}
-                      </span>
+                  <span className="flex items-center gap-1.5 text-label tabular-nums text-muted-foreground">
+                    {leafDelay ? (
+                      <>
+                        <b
+                          className={cn(
+                            "shrink-0 font-mono text-xs tabular-nums",
+                            latencyClass(leafDelay),
+                          )}
+                        >
+                          {leafDelay} ms
+                        </b>
+                        <span className="text-muted-foreground">
+                          · {t("lastMeasured")}
+                        </span>
+                      </>
+                    ) : leafNodeName ? (
+                      px("untested")
+                    ) : (
+                      t("strategy.title")
                     )}
                   </span>
 
-                  {/* 右侧进入箭头 */}
-                  <span className="flex shrink-0 items-center text-muted-foreground group-hover:text-brand-text transition-colors">
+                  {/* 策略链路由链路 (若存在嵌套多级) */}
+                  {chain.length > 2 && (
                     <span
-                      className="grid size-6 place-items-center rounded-control bg-inset text-muted-foreground transition-colors group-hover:bg-brand-soft group-hover:text-brand-text"
-                      aria-hidden="true"
+                      className="mt-0.5 truncate text-label text-muted-foreground/75"
+                      title={chain.join(" → ")}
                     >
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="15"
-                        height="15"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="m9 18 6-6-6-6" />
-                      </svg>
+                      {chain.join(" → ")}
+                    </span>
+                  )}
+                </span>
+
+                {/* 右侧进入箭头 */}
+                <span className="flex shrink-0 items-center text-muted-foreground group-hover:text-brand-text transition-colors">
+                  <span
+                    className="grid size-7 place-items-center rounded-[9px] border border-[var(--glass-border)] bg-white/40 text-muted-foreground transition-colors group-hover:bg-brand-soft group-hover:text-brand-text dark:bg-white/10"
+                    aria-hidden="true"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="15"
+                      height="15"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </span>
+                </span>
+              </button>
+            </div>
+            <div className="mt-auto grid grid-cols-2 gap-2 pt-1">
+              <div className="bento-inset px-3 py-2.5">
+                <span className="block text-[10px] text-muted-foreground">
+                  {t("strategyMembers")}
+                </span>
+                <b className="mt-1 block font-mono text-[16px] font-semibold tabular-nums text-foreground">
+                  {group?.all?.length ?? 0}
+                </b>
+              </div>
+              <div className="bento-inset px-3 py-2.5">
+                <span className="block text-[10px] text-muted-foreground">
+                  {t("lastMeasured")}
+                </span>
+                <b className="mt-1 block font-mono text-[16px] font-semibold tabular-nums text-foreground">
+                  {leafDelay ? `${leafDelay} ms` : "—"}
+                </b>
+              </div>
+            </div>
+          </section>
+
+          <section
+            className="bento bento-interactive [grid-area:prefs] flex min-w-0 flex-col gap-3 p-4"
+            aria-label={t("prefs")}
+          >
+            <h2 className="text-[14px] font-semibold tracking-tight">
+              {t("prefs")}
+            </h2>
+            {hasLocalAPI && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-muted-foreground">
+                    {t("takeoverMode")}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono">
+                    <span className="size-1.5 rounded-full bg-success" />
+                    <span className="font-sans text-[11px] text-muted-foreground">
+                      {t("port")}
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {mixedPort}
                     </span>
                   </span>
-                </button>
-              </div>
-            </section>
-
-            <section
-              className="flex flex-1 flex-col gap-4 border-t border-border px-4 py-4"
-              aria-label={t("prefs")}
-            >
-              <h2 className="text-[13px] font-semibold">{t("prefs")}</h2>
-              {hasLocalAPI && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-muted-foreground">
-                      {t("takeoverMode")}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono">
-                      <span className="size-1.5 rounded-full bg-success" />
-                      <span className="font-sans text-[11px] text-muted-foreground">
-                        {t("port")}
-                      </span>
-                      <span className="font-semibold text-foreground">
-                        {mixedPort}
-                      </span>
-                    </span>
-                  </div>
-
-                  {/* System Proxy */}
-                  <div className="-mx-2 flex items-center justify-between gap-3 rounded-control px-2 py-2 transition-colors hover:bg-row-hover">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <strong className="text-[13px] font-semibold text-foreground">
-                        {t("sysproxy")}
-                      </strong>
-                      <span className="text-[11px] leading-4 text-muted-foreground">
-                        {st("takeover.sysproxyDesc")}
-                      </span>
-                    </div>
-                    <Switch
-                      checked={isSysproxy}
-                      disabled={pending}
-                      onCheckedChange={(checked: boolean) =>
-                        void run(() => setMode({ systemProxy: checked }), false)
-                      }
-                      aria-label={t("sysproxy")}
-                    />
-                  </div>
-
-                  {/* Virtual NIC (TUN) */}
-                  <div className="-mx-2 flex items-center justify-between gap-3 rounded-control px-2 py-2 transition-colors hover:bg-row-hover">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <strong className="text-[13px] font-semibold text-foreground">
-                          {t("tun")}
-                        </strong>
-                        {hasLocalAPI && (
-                          <HoverCard openDelay={150} closeDelay={200}>
-                            <HoverCardTrigger asChild>
-                              <button
-                                type="button"
-                                className={cn(
-                                  "inline-flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                                  isServiceInstalled
-                                    ? "text-muted-foreground/60 hover:text-foreground"
-                                    : "text-warning-text hover:text-foreground",
-                                )}
-                                aria-label={
-                                  isServiceInstalled
-                                    ? st("takeover.serviceInstalled")
-                                    : st("takeover.tunPrivilegeHint")
-                                }
-                              >
-                                <AlertCircle className="size-3.5" />
-                              </button>
-                            </HoverCardTrigger>
-                            <HoverCardContent
-                              align="start"
-                              side="top"
-                              className="flex flex-col gap-2.5 w-68 p-3 text-xs"
-                            >
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-1.5 font-medium text-foreground">
-                                  <AlertCircle
-                                    className={cn(
-                                      "size-3.5 shrink-0",
-                                      isServiceInstalled
-                                        ? "text-success-text"
-                                        : "text-warning-text",
-                                    )}
-                                  />
-                                  <span>
-                                    {isServiceInstalled
-                                      ? st("takeover.serviceInstalled")
-                                      : st("takeover.tunPrivilegeRequired")}
-                                  </span>
-                                </div>
-                                <p className="text-muted-foreground leading-relaxed text-[11px]">
-                                  {isServiceInstalled
-                                    ? st("takeover.serviceInstalledDesc")
-                                    : status?.capabilities?.tunReasonCode
-                                      ? st(
-                                          `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
-                                        )
-                                      : st("takeover.tunPrivilegeHint")}
-                                </p>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant={
-                                  isServiceInstalled ? "outline" : "default"
-                                }
-                                disabled={changingService}
-                                className={cn(
-                                  "h-7 w-full text-xs font-medium cursor-pointer",
-                                  !isServiceInstalled &&
-                                    "bg-brand-action text-brand-action-foreground hover:bg-brand-action-hover",
-                                )}
-                                onClick={() =>
-                                  isServiceInstalled
-                                    ? void handleChangeService(false)
-                                    : setPrivilegeDialogOpen(true)
-                                }
-                              >
-                                {changingService
-                                  ? st("takeover.installingService")
-                                  : isServiceInstalled
-                                    ? st("takeover.uninstallService")
-                                    : st("takeover.installService")}
-                              </Button>
-                            </HoverCardContent>
-                          </HoverCard>
-                        )}
-                      </div>
-                      <span className="text-[11px] leading-4 text-muted-foreground">
-                        {st("takeover.tunDesc")}
-                      </span>
-                    </div>
-                    <Switch
-                      checked={isTun}
-                      disabled={pending || changingService}
-                      onCheckedChange={(checked: boolean) => {
-                        if (checked && !isTunCapable) {
-                          setPrivilegeDialogOpen(true);
-                          return;
-                        }
-                        void run(() => setMode({ tun: checked }), false);
-                      }}
-                      aria-label={t("tun")}
-                    />
-                  </div>
                 </div>
-              )}
-              <div className="flex flex-col gap-2 border-t border-border pt-3">
-                <span className="text-[11px] font-semibold text-muted-foreground">
-                  {tc("routingMode.title")}
-                </span>
-                <SegmentedControl
-                  ariaLabel={tc("routingMode.title")}
-                  options={routingOptions}
-                  value={routingValue ?? null}
-                  disabled={pending}
-                  className="grid w-full grid-cols-3"
-                  itemClassName="px-2 whitespace-normal"
-                  onChange={(mode) => void switchRouting(mode)}
-                />
-                {currentMode === "rule" ||
-                currentMode === "global" ||
-                currentMode === "direct" ? (
-                  <p className="m-0 text-[11px] leading-4 text-muted-foreground">
-                    {t(`routingHint.${currentMode}`)}
-                  </p>
-                ) : null}
+
+                {/* System Proxy */}
+                <div className="bento-inset flex items-center justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-white/45 dark:hover:bg-white/10">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <strong className="text-[13px] font-semibold text-foreground">
+                      {t("sysproxy")}
+                    </strong>
+                    <span className="text-[11px] leading-4 text-muted-foreground">
+                      {st("takeover.sysproxyDesc")}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={isSysproxy}
+                    disabled={pending}
+                    onCheckedChange={(checked: boolean) =>
+                      void run(() => setMode({ systemProxy: checked }), false)
+                    }
+                    aria-label={t("sysproxy")}
+                  />
+                </div>
+
+                {/* Virtual NIC (TUN) */}
+                <div className="bento-inset flex items-center justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-white/45 dark:hover:bg-white/10">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <strong className="text-[13px] font-semibold text-foreground">
+                        {t("tun")}
+                      </strong>
+                      {hasLocalAPI && (
+                        <HoverCard openDelay={150} closeDelay={200}>
+                          <HoverCardTrigger asChild>
+                            <button
+                              type="button"
+                              className={cn(
+                                "inline-flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                isServiceInstalled
+                                  ? "text-muted-foreground/60 hover:text-foreground"
+                                  : "text-warning-text hover:text-foreground",
+                              )}
+                              aria-label={
+                                isServiceInstalled
+                                  ? st("takeover.serviceInstalled")
+                                  : st("takeover.tunPrivilegeHint")
+                              }
+                            >
+                              <AlertCircle className="size-3.5" />
+                            </button>
+                          </HoverCardTrigger>
+                          <HoverCardContent
+                            align="start"
+                            side="top"
+                            className="flex flex-col gap-2.5 w-68 p-3 text-xs"
+                          >
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5 font-medium text-foreground">
+                                <AlertCircle
+                                  className={cn(
+                                    "size-3.5 shrink-0",
+                                    isServiceInstalled
+                                      ? "text-success-text"
+                                      : "text-warning-text",
+                                  )}
+                                />
+                                <span>
+                                  {isServiceInstalled
+                                    ? st("takeover.serviceInstalled")
+                                    : st("takeover.tunPrivilegeRequired")}
+                                </span>
+                              </div>
+                              <p className="text-muted-foreground leading-relaxed text-[11px]">
+                                {isServiceInstalled
+                                  ? st("takeover.serviceInstalledDesc")
+                                  : status?.capabilities?.tunReasonCode
+                                    ? st(
+                                        `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                                      )
+                                    : st("takeover.tunPrivilegeHint")}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={
+                                isServiceInstalled ? "outline" : "default"
+                              }
+                              disabled={changingService}
+                              className={cn(
+                                "h-7 w-full text-xs font-medium cursor-pointer",
+                                !isServiceInstalled &&
+                                  "bg-brand-action text-brand-action-foreground hover:bg-brand-action-hover",
+                              )}
+                              onClick={() =>
+                                isServiceInstalled
+                                  ? void handleChangeService(false)
+                                  : setPrivilegeDialogOpen(true)
+                              }
+                            >
+                              {changingService
+                                ? st("takeover.installingService")
+                                : isServiceInstalled
+                                  ? st("takeover.uninstallService")
+                                  : st("takeover.installService")}
+                            </Button>
+                          </HoverCardContent>
+                        </HoverCard>
+                      )}
+                    </div>
+                    <span className="text-[11px] leading-4 text-muted-foreground">
+                      {st("takeover.tunDesc")}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={isTun}
+                    disabled={pending || changingService}
+                    onCheckedChange={(checked: boolean) => {
+                      if (checked && !isTunCapable) {
+                        setPrivilegeDialogOpen(true);
+                        return;
+                      }
+                      void run(() => setMode({ tun: checked }), false);
+                    }}
+                    aria-label={t("tun")}
+                  />
+                </div>
               </div>
-              <div className="mt-auto grid grid-cols-3 gap-1.5 border-t border-border pt-3">
-                {(
-                  [
-                    ["/connections", t("quickLinks.connections")],
-                    ["/rules", t("quickLinks.rules")],
-                    ["/logs", t("quickLinks.logs")],
-                  ] as const
-                ).map(([path, label]) => (
-                  <Link
-                    key={path}
-                    to={path}
-                    className="truncate rounded-control border border-border bg-card px-2 py-1.5 text-center text-[11px] font-medium text-foreground no-underline transition-colors hover:border-brand/50 hover:bg-brand-soft hover:text-brand-text"
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </section>
-          </div>
+            )}
+            <div className="flex flex-col gap-2 border-t border-border pt-3">
+              <span className="text-[11px] font-semibold text-muted-foreground">
+                {tc("routingMode.title")}
+              </span>
+              <SegmentedControl
+                ariaLabel={tc("routingMode.title")}
+                options={routingOptions}
+                value={routingValue ?? null}
+                disabled={pending}
+                className="grid w-full grid-cols-3"
+                itemClassName="px-2 whitespace-normal"
+                onChange={(mode) => void switchRouting(mode)}
+              />
+              {currentMode === "rule" ||
+              currentMode === "global" ||
+              currentMode === "direct" ? (
+                <p className="m-0 text-[11px] leading-4 text-muted-foreground">
+                  {t(`routingHint.${currentMode}`)}
+                </p>
+              ) : null}
+            </div>
+            <div className="mt-auto grid grid-cols-3 gap-1.5 border-t border-border pt-3">
+              {(
+                [
+                  ["/connections", t("quickLinks.connections")],
+                  ["/rules", t("quickLinks.rules")],
+                  ["/logs", t("quickLinks.logs")],
+                ] as const
+              ).map(([path, label]) => (
+                <Link
+                  key={path}
+                  to={path}
+                  className="bento-inset truncate rounded-[12px] px-2 py-2 text-center text-[11px] font-medium text-foreground no-underline transition-colors hover:bg-white/55 hover:text-brand-text dark:hover:bg-white/10"
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </section>
 
           <section
             className={cn(
               cardSurface,
-              "[grid-area:live] flex min-h-[190px] flex-col gap-4 px-5 py-4 max-md:min-h-0 max-md:px-4",
+              "[grid-area:live] flex min-h-[180px] flex-col gap-3 p-4 max-md:min-h-0",
             )}
             aria-label={t("trafficStats")}
           >
@@ -1340,7 +1359,7 @@ export default function Connect() {
               </h2>
             </div>
 
-            <div className="grid min-w-0 grid-cols-1 items-stretch gap-4 @min-[46rem]/connect:grid-cols-[auto_minmax(0,1fr)_auto] @min-[46rem]/connect:gap-6">
+            <div className="bento-inset grid min-w-0 grid-cols-1 items-stretch gap-4 rounded-[16px] p-4 @min-[46rem]/connect:grid-cols-[auto_minmax(0,1fr)_auto] @min-[46rem]/connect:gap-6">
               {/* Desktop Speeds: 左右横排，橙色箭头，中间发丝分割线 */}
               <div className="my-auto hidden items-center gap-6 pe-2 @min-[46rem]/connect:flex">
                 {/* 下载速率 */}
@@ -1376,7 +1395,7 @@ export default function Connect() {
                 <div className="flex flex-col gap-1">
                   <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                     <svg
-                      className="text-brand shrink-0"
+                      className="text-muted-foreground shrink-0"
                       viewBox="0 0 24 24"
                       width="14"
                       height="14"
@@ -1435,7 +1454,7 @@ export default function Connect() {
 
                 <div className="flex flex-1 items-center gap-3">
                   <div
-                    className="grid size-11 shrink-0 place-items-center rounded-full bg-brand/10 text-brand"
+                    className="grid size-11 shrink-0 place-items-center rounded-full bg-inset text-muted-foreground"
                     aria-hidden="true"
                   >
                     <svg

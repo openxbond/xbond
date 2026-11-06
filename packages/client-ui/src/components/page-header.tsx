@@ -18,7 +18,7 @@ export function Header(props: HeaderProps) {
       )}
       style={style}
     >
-      <h1 className="shrink-0 text-[18px] leading-tight font-semibold tracking-[-0.015em] text-foreground">
+      <h1 className="shrink-0 text-[24px] leading-tight font-semibold tracking-[-0.03em] text-foreground">
         {title}
       </h1>
       <div className="flex flex-auto flex-wrap items-center justify-end gap-y-1">

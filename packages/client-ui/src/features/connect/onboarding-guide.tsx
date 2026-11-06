@@ -105,11 +105,11 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
         {/* Option 1: XBond Cloud Account */}
         <Card
           onClick={() => navigate("/config?item=cloud")}
-          className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border bg-card p-5 transition-colors duration-150 hover:border-brand/60 hover:bg-brand-soft/20"
+          className="bento bento-interactive group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card p-5"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex size-9 items-center justify-center rounded-control bg-brand-soft text-brand-text">
+              <div className="grid size-10 place-items-center rounded-[12px] bg-brand/15 text-brand-text">
                 <Cloud className="size-5" />
               </div>
               <Badge
@@ -137,11 +137,11 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
         {/* Option 2: Universal Subscription / Paste */}
         <Card
           onClick={() => navigate("/config?item=add-profile")}
-          className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border bg-card p-5 transition-colors duration-150 hover:border-brand/60 hover:bg-brand-soft/20"
+          className="bento bento-interactive group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card p-5"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex size-9 items-center justify-center rounded-control bg-inset text-muted-foreground">
+              <div className="grid size-10 place-items-center rounded-[12px] border border-[var(--glass-border)] bg-inset text-muted-foreground">
                 <Download className="size-5" />
               </div>
             </div>
@@ -161,11 +161,11 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
         {/* Option 3: Remote Controller */}
         <Card
           onClick={() => navigate("/config?item=add-controller")}
-          className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border bg-card p-5 transition-colors duration-150 hover:border-brand/60 hover:bg-brand-soft/20"
+          className="bento bento-interactive group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card p-5"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex size-9 items-center justify-center rounded-control bg-inset text-muted-foreground">
+              <div className="grid size-10 place-items-center rounded-[12px] border border-[var(--glass-border)] bg-inset text-muted-foreground">
                 <Globe className="size-5" />
               </div>
             </div>

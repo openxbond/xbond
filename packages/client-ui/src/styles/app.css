@@ -52,6 +52,15 @@
   --color-brand-action: var(--brand-action);
   --color-brand-action-foreground: var(--brand-action-foreground);
   --color-brand-action-hover: var(--brand-action-hover);
+  --color-accent-mint: var(--accent-mint);
+  --color-accent-mint-text: var(--accent-mint-text);
+  --color-accent-mint-soft: var(--accent-mint-soft);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-blue-text: var(--accent-blue-text);
+  --color-accent-blue-soft: var(--accent-blue-soft);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-violet-text: var(--accent-violet-text);
+  --color-accent-violet-soft: var(--accent-violet-soft);
   --shadow-brand-action: var(--brand-action-shadow);
   --shadow-brand-action-hover: var(--brand-action-hover-shadow);
   --color-success: var(--success);
@@ -91,7 +100,7 @@
   --text-subtitle: 0.9375rem;
   --text-title: 1.25rem;
   --text-headline: 1.5rem;
-  --text-display: 1.75rem;
+  --text-display: 2rem;
 
   --color-latency-good: var(--latency-good-bg);
   --color-latency-good-text: var(--latency-good-text);
@@ -110,14 +119,15 @@
 
   /* Legacy radius utilities snap onto the new scale instead of keeping the
      old 12/24px glass radii. New code uses rounded-control / rounded-card. */
-  --radius-sm: 4px;
+  --radius-sm: 6px;
   --radius-md: var(--radius-control);
-  --radius-lg: 8px;
+  --radius-lg: 12px;
   --radius-xl: var(--radius-card);
   --radius-2xl: var(--radius-card);
-  --radius-3xl: 12px;
+  --radius-3xl: var(--radius-hero);
   --radius-control: var(--radius-control);
   --radius-card: var(--radius-card);
+  --radius-hero: var(--radius-hero);
 
   --shadow-elevation-card: var(--elevation-card);
   --shadow-elevation-raised: var(--elevation-raised);
@@ -140,12 +150,56 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  #root {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+  }
+
+  /* Slow aurora field: the colour actually sits behind the glass so the
+     frosted surfaces have something to refract. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -10%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        30rem 24rem at 14% 18%,
+        var(--aurora-peach),
+        transparent 68%
+      ),
+      radial-gradient(
+        26rem 22rem at 86% 14%,
+        var(--aurora-slate),
+        transparent 68%
+      );
+    filter: blur(44px);
+    animation: aurora-drift 40s ease-in-out infinite alternate;
+  }
+
+  @keyframes aurora-drift {
+    from {
+      transform: translate3d(-0.6%, -0.4%, 0) scale(1.01);
+    }
+    to {
+      transform: translate3d(0.8%, 1%, 0) scale(1.03);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body::before {
+      animation: none;
+    }
+  }
+
   body {
     font-family: var(--font-sans);
     font-size: 0.875rem;
     line-height: 1.5;
     color: var(--foreground);
-    background: var(--background);
+    background-color: var(--background);
     font-feature-settings: "tnum" off;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -269,23 +323,193 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 12px;
   }
 
   @media (max-width: 768px) {
     .page {
-      padding: 16px 16px 24px;
+      padding: 14px 14px 24px;
       height: auto;
-      gap: 16px;
+      gap: 14px;
     }
   }
 
-  /* Solid working surface: the default page group. Hairline instead of a
-     shadow; elevation belongs to floating layers only. */
-  .panel {
-    background: var(--card);
-    border: 1px solid var(--border);
+  /* Bento 2.0 card: frosted glass, generous radius, layered soft shadow. */
+  .bento {
+    position: relative;
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-card);
+    background: var(--glass-surface);
+    box-shadow:
+      0 0 0 1px oklch(0.2 0.03 265 / 5%),
+      var(--elevation-card);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur))
+      saturate(var(--glass-saturate));
+  }
+
+  .bento::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      oklch(1 0 0 / 60%),
+      oklch(1 0 0 / 12%) 45%,
+      color-mix(in oklab, var(--brand) 10%, transparent) 100%
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    pointer-events: none;
+  }
+
+  .dark .bento {
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 7%),
+      var(--elevation-card);
+  }
+
+  .dark .bento-inset {
+    border-color: oklch(1 0 0 / 12%);
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 12%),
+      0 1px 2px oklch(0 0 0 / 28%);
+  }
+
+  .dark .glass-bar {
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 8%),
+      var(--elevation-card);
+  }
+
+  .dark .bento::before {
+    background: linear-gradient(
+      135deg,
+      oklch(1 0 0 / 18%),
+      oklch(1 0 0 / 3%) 45%,
+      color-mix(in oklab, var(--brand) 8%, transparent) 100%
+    );
+  }
+
+  /* The single expressive gradient in the system: a restrained brand wash
+     reserved for the connect hero. Every other card stays neutral glass. */
+  .bento-hero {
+    border-radius: var(--radius-hero);
+    box-shadow:
+      0 0 0 1px oklch(0.2 0.03 265 / 5%),
+      inset 0 1px 0 oklch(1 0 0 / 55%),
+      0 2px 4px oklch(0.2 0.03 265 / 4%),
+      0 22px 48px -28px oklch(0.7 0.19 45 / 22%);
+    border-color: color-mix(in oklab, var(--brand) 14%, var(--glass-border));
+    background:
+      radial-gradient(
+        40% 50% at 88% 0%,
+        color-mix(in oklab, var(--brand) 10%, transparent),
+        transparent 72%
+      ),
+      var(--glass-surface);
+  }
+
+  .bento-inset {
+    border: 1px solid var(--glass-border);
+    border-radius: calc(var(--radius-card) - 6px);
+    background: var(--glass-inset);
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 48%);
+  }
+
+  .bento-interactive {
+    transition:
+      transform var(--duration-base) var(--ease-out-expo),
+      box-shadow var(--duration-base) var(--ease-out-expo),
+      border-color var(--duration-base) var(--ease-out-expo);
+  }
+
+  .bento-interactive:hover {
+    transform: translateY(-1px);
+    border-color: var(--glass-border-strong);
+    box-shadow: var(--elevation-card-hover);
+  }
+
+  .glass-bar {
+    border: 1px solid var(--glass-border);
+    background: var(--glass-sidebar);
+    box-shadow: var(--elevation-card);
+    backdrop-filter: blur(26px) saturate(1.5);
+    -webkit-backdrop-filter: blur(26px) saturate(1.5);
+  }
+
+  .glass-button {
+    border: 1px solid var(--glass-border);
+    background: var(--glass-inset);
+    backdrop-filter: blur(12px) saturate(1.25);
+    -webkit-backdrop-filter: blur(12px) saturate(1.25);
+  }
+
+  .glass-track {
+    background: color-mix(in oklab, var(--card) 36%, transparent);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(14px) saturate(1.3);
+    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  }
+
+  .field-glass {
+    border: 1px solid var(--border-strong);
+    background: color-mix(in oklab, var(--background) 54%, transparent);
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 42%);
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  }
+
+  .gradient-brand {
+    background-image: var(--gradient-brand);
+  }
+
+  .gradient-ink {
+    background-image: var(--gradient-ink);
+  }
+
+  /* One shared loading shimmer for cards, rows and inline placeholders. */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--foreground) 7%, transparent);
+  }
+
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklab, var(--card) 65%, transparent) 50%,
+      transparent 80%
+    );
+    transform: translateX(-100%);
+    animation: skeleton-sweep 1.4s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-sweep {
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  @supports not
+  ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .bento,
+    .glass-bar {
+      background: var(--card);
+    }
   }
 
   .section-link {
@@ -352,10 +576,12 @@
 
   .status-dot.online {
     background: var(--success);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--success) 14%, transparent);
   }
 
   .status-dot.info {
     background: var(--info);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--info) 14%, transparent);
   }
 
   /* Header strip above tabular lists (rules, logs, connections): quiet label
@@ -379,10 +605,14 @@
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 12px;
-    padding: 14px 16px;
-    background: var(--card);
-    border: 1px solid var(--border);
+    padding: 12px 14px;
+    background: var(--glass-surface);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-card);
+    box-shadow: var(--elevation-card);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur))
+      saturate(var(--glass-saturate));
   }
 }
 

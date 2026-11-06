@@ -189,7 +189,7 @@ export function TrafficChart({
                 x2="0"
                 y2="1"
               >
-                <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.28" />
+                <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.16" />
                 <stop
                   offset="100%"
                   stopColor="var(--brand)"
@@ -261,7 +261,7 @@ export function TrafficChart({
                 />
                 <path
                   d={downLine}
-                  className="fill-none stroke-brand [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:2.2] [vector-effect:non-scaling-stroke]"
+                  className="fill-none stroke-brand [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:2] [vector-effect:non-scaling-stroke]"
                 />
                 {upLine && (
                   <path

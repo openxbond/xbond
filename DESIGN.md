@@ -1,44 +1,41 @@
 ---
 name: XBond 用戶端設計系統
-description: 原生為先、信號為輔的跨端設計，適用桌面、流動 App、Web 與瀏覽器擴充功能。
+description: Bento Grid 2.0 風格的跨端設計：極光畫布、磨砂玻璃模組、柔和陰影與細膩漸變。
 colors:
-  brand: "oklch(0.716 0.171 53.4)"
-  brand-strong: "oklch(0.66 0.18 52)"
-  brand-foreground: "oklch(0.19 0.006 60)"
-  brand-text: "oklch(0.5 0.145 45)"
-  brand-soft: "oklch(0.935 0.045 68)"
-  background: "oklch(0.973 0.004 70)"
-  background-dark: "oklch(0.155 0.006 60)"
-  foreground: "oklch(0.19 0.008 60)"
-  foreground-dark: "oklch(0.955 0.004 70)"
-  card: "oklch(1 0 0)"
-  card-dark: "oklch(0.225 0.007 60)"
-  popover: "oklch(1 0 0)"
-  popover-dark: "oklch(0.255 0.008 60)"
-  surface-inset: "oklch(0.945 0.005 70)"
-  surface-inset-dark: "oklch(0.128 0.006 60)"
-  muted-foreground: "oklch(0.44 0.008 60)"
-  muted-foreground-dark: "oklch(0.75 0.008 65)"
-  border: "oklch(0.85 0.006 70)"
-  border-dark: "oklch(1 0 0 / 17%)"
-  border-strong: "oklch(0.76 0.009 70)"
-  border-strong-dark: "oklch(1 0 0 / 25%)"
-  sidebar: "oklch(0.943 0.007 70)"
-  sidebar-dark: "oklch(0.19 0.007 60)"
-  success: "oklch(0.55 0.135 155)"
-  success-text: "oklch(0.45 0.115 156)"
-  warning: "oklch(0.79 0.15 85)"
-  warning-text: "oklch(0.49 0.115 70)"
-  info: "oklch(0.54 0.15 247)"
-  destructive: "oklch(0.56 0.2 27)"
-  destructive-text: "oklch(0.49 0.18 27)"
+  brand: "oklch(0.7 0.19 45)"
+  brand-strong: "oklch(0.62 0.21 35)"
+  brand-foreground: "oklch(0.18 0.02 40)"
+  brand-text: "oklch(0.52 0.17 40)"
+  brand-soft: "oklch(0.94 0.045 55)"
+  accent-mint: "oklch(0.7 0.13 172)"
+  accent-mint-text: "oklch(0.42 0.1 175)"
+  accent-blue: "oklch(0.64 0.15 255)"
+  accent-blue-text: "oklch(0.48 0.14 258)"
+  accent-violet: "oklch(0.68 0.13 300)"
+  accent-violet-text: "oklch(0.5 0.13 300)"
+  background: "oklch(0.962 0.008 255)"
+  background-dark: "oklch(0.15 0.012 260)"
+  foreground: "oklch(0.19 0.018 265)"
+  foreground-dark: "oklch(0.96 0.006 255)"
+  card: "oklch(1 0 0 / 84% 到 62%)"
+  popover: "oklch(1 0 0 / 94%)"
+  muted-foreground: "oklch(0.47 0.018 265)"
+  muted-foreground-dark: "oklch(0.78 0.012 255)"
+  border: "oklch(0.2 0.02 265 / 9%)"
+  border-dark: "oklch(1 0 0 / 11%)"
+  sidebar: "oklch(1 0 0 / 52%)"
+  sidebar-dark: "oklch(0.21 0.016 260 / 58%)"
+  success: "oklch(0.66 0.14 168)"
+  warning: "oklch(0.8 0.15 85)"
+  info: "oklch(0.62 0.15 250)"
+  destructive: "oklch(0.57 0.2 25)"
 typography:
   display:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
-    fontSize: "1.75rem"
+    fontSize: "2rem"
     fontWeight: 600
-    lineHeight: 1.15
-    letterSpacing: "-0.03em"
+    lineHeight: 1.08
+    letterSpacing: "-0.04em"
   headline:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
     fontSize: "1.5rem"
@@ -80,8 +77,9 @@ typography:
     fontWeight: 400
     lineHeight: 1.5
 rounded:
-  control: "0.375rem"
-  card: "0.625rem"
+  control: "0.625rem"
+  card: "1.25rem"
+  hero: "1.5rem"
   pill: "9999px"
 spacing:
   xs: "0.25rem"
@@ -91,31 +89,32 @@ spacing:
   lg: "1.5rem"
   xl: "2rem"
 components:
-  button-primary:
-    backgroundColor: "{colors.foreground}"
-    textColor: "{colors.card}"
-    rounded: "{rounded.control}"
-    height: "2rem"
   button-brand:
     backgroundColor: "{colors.brand}"
+    backgroundImage: "linear-gradient(135deg, oklch(0.77 0.17 56), oklch(0.62 0.21 35))"
     textColor: "{colors.brand-foreground}"
     rounded: "{rounded.control}"
-    height: "2rem"
+    height: "2.125rem"
+  button-primary:
+    backgroundColor: "{colors.foreground}"
+    textColor: "oklch(0.985 0 0)"
+    rounded: "{rounded.control}"
+    height: "2.125rem"
   card:
     backgroundColor: "{colors.card}"
     textColor: "{colors.foreground}"
     rounded: "{rounded.card}"
     padding: "1.25rem"
   input:
-    backgroundColor: "{colors.surface-inset}"
-    textColor: "{colors.foreground}"
-    rounded: "{rounded.control}"
-    height: "2rem"
-  nav-item-active:
-    backgroundColor: "{colors.brand-soft}"
+    backgroundColor: "color-mix(in oklab, var(--background) 54%, transparent)"
     textColor: "{colors.foreground}"
     rounded: "{rounded.control}"
     height: "2.25rem"
+  nav-item-active:
+    backgroundColor: "oklch(1 0 0 / 45%)"
+    textColor: "{colors.foreground}"
+    rounded: "0.75rem"
+    height: "2.5rem"
 ---
 
 # XBond 設計系統
@@ -124,178 +123,174 @@ components:
 
 ## Overview
 
-**設計核心：「原生信號台」。**
+**設計核心：Bento Grid 2.0「有序的混亂」。**
 
-XBond 是每天都會打開的連線工具。介面先回答三件事：現在通不通、流量走哪裡、下一步能做甚麼。外觀像所在平台的原生應用，資訊編排像一台安靜的儀表：暖紙色畫布、石墨文字、實色工作面、髮絲分隔，品牌橙只留給連線主操作、選中與焦點。
+XBond 的畫面是一張冷瓷色極光畫布，功能拆成一塊塊磨砂玻璃便當卡：尺寸不等、靠柔和陰影與髮絲光邊浮起。品牌橙是唯一強調色，負責連線主操作、選中與焦點；薄荷、藍、紫只出現在數據圖例和狀態語義裡，不鋪卡面。整體要輕、透、安靜，但每張卡都清楚自己是一個任務。
 
-這不是把每個平台畫成不同產品。跨端共享同一套語義令牌、用語與能力含義；宿主只決定形狀、字體、材質與導覽慣例。首頁內容維持連線、當前節點、常用模式、配置與用量，逐頁互動見[跨端體驗設計](docs/design/client-experience-proposal.md)，產品能力以 [PRODUCT.md](PRODUCT.md) 為準。
+**UX 底線：一屏一件事、零學習成本、全狀態誠實反饋。**
 
-### 四條原則
-
-1. **先講事實，再談裝飾。** 核心運行、流量接管、出口驗證分開表達；未知就是未知，不以顏色、綠點或動畫代替結果。
-2. **一個畫面只有一個重心。** 首頁重心是連線主操作；設定頁重心是當前分組；列表頁重心是資料本身。次要資訊靠字重、間距與位置退後，不靠再加一層卡。
-3. **形狀跟隨宿主。** 控件高度、圓角、焦點、開關與選單按 macOS／Windows／iOS／Android／Web 各自的比例；令牌一處定義，不在頁面內寫死。
-4. **材質只用系統給的。** macOS vibrancy、Windows Mica、iOS 材質由原生殼提供；Web 一律實色，不用 `backdrop-filter` 模擬磨砂。
+- 一個畫面只有一個重心；首頁重心永遠是「現在通不通」。
+- 主要操作永遠明顯；「如果媽媽第一次打開也能看懂」是驗收標準。
+- 載入有微交互緩解等待；錯誤說清「哪裡錯、為甚麼、怎麼辦」；空狀態負責教育和促活。
+- 觸控目標、行高、對比度按無障礜標準校驗，並照顧神經多樣性使用者的低刺激閱讀。
 
 ### 宿主基準
 
-| 宿主 | 導覽 | 控件圓角 | 卡片圓角 | 字體 |
-| --- | --- | --- | --- | --- |
-| macOS | 左側 source list 側欄 | 6px | 10px | `-apple-system`（SF） |
-| Windows 11 | 左側導覽欄，選中帶左軌 | 4px | 8px | `Segoe UI Variable` |
-| iOS | 底部標籤欄、分組列表 | 8px | 12px | `-apple-system`（SF） |
-| Android | 底部導覽、Material 3 | 10px | 12px | `Roboto`／系統字體 |
-| Web | 與桌面同構，跟隨瀏覽器主題 | 6px | 10px | `system-ui` |
+| 宿主 | 導覽 | 控件圓角 | 卡片圓角 | Hero 圓角 | 字體 |
+| --- | --- | --- | --- | --- | --- |
+| macOS | 浮動玻璃側欄 | 10px | 20px | 24px | `-apple-system`（SF） |
+| Windows 11 | 浮動玻璃側欄 | 8px | 16px | 20px | `Segoe UI Variable` |
+| iOS | 底部標籤欄 | 12px | 24px | 28px | `-apple-system`（SF） |
+| Android | 底部導覽（M3） | 12px | 24px | 28px | `Roboto`／系統字體 |
+| Web | 與桌面同構 | 10px | 20px | 24px | `system-ui` |
 
-根節點的 `data-host` 由 `platform/host.ts` 在渲染前寫入；令牌在 `styles/tokens.css` 按宿主覆寫。
+根節點 `data-host` 由 `platform/host.ts` 在渲染前寫入；令牌在 `styles/tokens.css` 按宿主覆寫形狀與字體。
 
-## Colors
+## Colors & Aurora
 
-令牌單一來源是 `packages/client-ui/src/styles/tokens.css`，工具類經 `styles/app.css` 的 `@theme inline` 映射。元件只使用語義工具類（`bg-card`、`text-success-text` 等），不寫原始色板類（`bg-emerald-500` 之類）。
+令牌單一來源是 `packages/client-ui/src/styles/tokens.css`，工具類經 `styles/app.css` 的 `@theme inline` 映射；元件只用語義類，不用原始色板。
 
 | 角色 | 令牌 | 用途 |
 | --- | --- | --- |
-| 品牌 | `brand`、`brand-strong`、`brand-text`、`brand-soft` | 連線主操作、選中、焦點、少量品牌標記 |
-| 工作面 | `background`、`card`、`popover`、`surface-inset` | 畫布、任務面、浮層、凹面軌道 |
-| 文字與邊界 | `foreground`、`muted-foreground`、`border`、`border-strong` | 正文、補充說明、分組與可操作輪廓 |
-| 狀態 | `success`、`warning`、`info`、`destructive` 及相應文字色 | 已知成功、注意、處理中、錯誤 |
+| 極光 | `aurora-peach`、`aurora-slate` | 畫布後景，最多兩色、低透明、慢速漂移 |
+| 品牌 | `brand`、`brand-strong`、`brand-text`、`brand-soft` | 連線主操作、選中、焦點，唯一的漸變色 |
+| 數據點綴 | `accent-mint`、`accent-blue`、`accent-violet` 及文字版 | 只用於圖例、狀態點與延遲色階，不鋪卡面 |
+| 工作面 | `background`、`card`、`popover`、`surface-inset` | 畫布、玻璃卡、浮層、內凹面 |
+| 文字與邊界 | `foreground`、`muted-foreground`、`border`、`border-strong` | 正文、補充說明、輪廓 |
+| 狀態 | `success`、`warning`、`info`、`destructive` 及文字色 | 已知成功、注意、處理中、錯誤 |
 
-- 品牌橙是強調色，不是背景色。大面積橙底、橙底白字、常駐光暈都不用。
-- 橙面上的文字與圖示固定用深墨 `brand-foreground`；亮橙不配白字。
-- 主要文字至少 4.5:1，大字及必要功能圖形至少 3:1；半透明表面按最不利背景驗證。
-- 深淺色同構：新增語義令牌時同時補 `:root` 與 `.dark`，不讓頁面自行判斷主題。
+- 漸變全站只有一種：品牌橙的 `--gradient-brand`，用在主按鈕與連線鍵；其他一律實色。
+- 橙面上的文字固定用深墨 `brand-foreground`，保證 ≥ 4.5:1。
+- 極光最多兩色（暖橙＋冷灰藍）、低透明（≤18%），只出現在畫布與卡片縫隙，不壓文字。
+- 深淺色同構：新增令牌必須同時補 `:root` 與 `.dark`。
+
+## Glass Material & Elevation
+
+| 表面 | 材質 | 深度 |
+| --- | --- | --- |
+| 畫布 | 實色 + 固定極光層（`body::before`，28s 漂移，減少動態時停止） | 無 |
+| Bento 卡 `.bento` | `--glass-surface` 漸變 + `backdrop-filter: blur(26px) saturate(1.45)` | 內高光 + 外圈髮絲 + 大半徑柔影 |
+| Hero 卡 `.bento-hero` | 中性玻璃疊一層 16% 品牌橙徑向光暈 | 環境色投影略強於普通卡 |
+| 內凹面 `.bento-inset` | `--glass-inset` 漸變 | 內高光，用於卡內小模組 |
+| 浮層 | 玻璃 + `--elevation-raised`；遮罩帶 8–10px 背景模糊 | 最高層 |
+| 回退 | `@supports not (backdrop-filter…)` 回退實色 `card` | — |
+
+- 卡片描邊用漸變光邊（`mask-composite` 疊一圈白到品牌橙的 1px），不是純色邊框。
+- 懸浮微交互：`bento-interactive` 上移 2px、陰影加深；按鈕按壓回縮 0.98。
+- 骨架屏用 `.skeleton`（單一掃光動畫），減少動態時以靜態色塊替代。
 
 ## Typography
 
-共享介面使用各宿主系統字體，跟隨系統字體縮放。桌面正文用 `body`（14px），手機主要閱讀與輸入用 `body-touch`（16px）；頁面標題用 `title`，區塊標題用 `subtitle`，連線主狀態用 `display`，技術資料與數字用 `code` 或 `tabular-nums`。
+共享介面使用宿主系統字體，跟隨系統縮放。桌面正文 14px，手機閱讀/輸入 16px；頁名用 `title`，模組標題用 `subtitle`，連線主狀態用 `display`，數據用 `code` 或 `tabular-nums`。
 
-- 中文不加裝飾字距；大標題才用負字距，正文保持正常。
-- 數字附單位，速率與配額用等寬數字；網址、識別碼與命令保留完整查看或複製方式。
-- 11px 只用於標籤、單位與輔助計量，不承擔唯一操作或重要錯誤。
-- 首頁不重複大頁名，也不為填滿版面放大字。
+- 大標題才用負字距；正文正常，避免彩色玻璃上字形發糊。
+- 11px 只用於標籤、單位、計量；必填星號用 `brand-text`，錯誤文字保持紅色語義。
+- 輔助文字不得低於 4.5:1；深色模式 `muted-foreground` 維持 0.78 明度。
 
 ## Layout
 
 ### 外殼
 
-桌面及完整 Web 是全幅工作面：左側 240px 導覽軌，右側內容直接鋪在畫布上，兩者以髮絲邊分界，不再把內容包進一張懸浮大圓角卡。導覽分三組：日常（首頁、代理、配置）、排查（連線、規則、日誌、診斷）、底部設定與控制目標。控制目標、設備配置與 Cloud 身份收進側欄底部單一入口，分區呈現，不混成互斥選擇器。
+桌面與完整 Web：極光畫布外留 12px 呼吸，左側 248px 玻璃側欄為浮動圓角面板，內容區全幅工作面；兩者都折射畫布極光。側欄分三組：日常（首頁、代理、配置）、排查（連線、規則、日誌、診斷）、底部設定與控制目標。選中行是半透明白底 + 品牌左軌 + 品牌圖示。
 
-手機保留「首頁、節點、活動、配置」四項底部導覽，設定由頁頭齒輪進入；連線與日誌在活動內，規則及診斷有清楚次級入口。八入口及四入口由宿主決定，不由窗口寬度互相切換。
+手機：玻璃頂欄 + 「首頁、節點、活動、配置」底部標籤欄，設定由頁頭齒輪進入；內容單欄向下流動。
 
-### 頁面
+### Bento 網格
 
-- 頁面邊距 24px；手機 16px。區塊間距 20px；卡片內距 16–20px。
-- 一張卡處理一項任務；同類設定行共用一張卡，不逐行套卡。
-- 頁頭保留緊湊頁名、搜尋及唯一主操作；說明就近放在相關區域。
-- 首頁依「連線 → 當前節點 → 常用模式 → 配置與用量」排列，不放全量策略清單、匯入表單或日誌。
-- 表單按閱讀需要限寬；資料列表與詳情可用更多空間，不把整個產品鎖在同一最大寬度。
-- 一般頁面只有一個主要縱向捲動區；表格橫向捲動限制在自身區域。
+- 桌面首頁：2×2 網格 —— 左上連線 Hero（跨列）、右上策略、左下流量（跨列）、右下偏好；`grid-template-areas:'control strategy' 'live prefs'`。一行承載一個任務族，卡片尺寸與內容密度錯落。
+- 引導頁：7/5 欄 Bento —— 左側 Hero 說明卡、左下三張步驟小卡、右側縱向表單卡（跨兩行）；移動端順序為「Hero → 表單 → 步驟」，保證主操作先進首屏。
+- 卡片間距 12px，頁面邊距 18px，卡內邊距 16–28px。
+- 一屏盡量完整：1440×900 下首頁四張卡不滾出視口；更小高度按內容自然捲動，不在卡內再做滾動。
 
-### 三檔響應式
+### 響應式
 
-| 版面 | 可用 CSS 寬度 | 結構                                           |
-| ---- | ------------- | ---------------------------------------------- |
-| 緊湊 | < 768px       | 單欄、主操作優先；詳情單獨打開；底部導覽       |
-| 標準 | 768–1439px    | 側欄＋主內容；首頁主卡與右側輔助區             |
-| 寬屏 | ≥ 1440px      | 列表與詳情可同屏；首頁保持任務流，資料區可並列 |
+| 版面 | 可用 CSS 寬度 | 結構                               |
+| ---- | ------------- | ---------------------------------- |
+| 緊湊 | < 768px       | 單欄堆疊，主操作優先；底部導覽     |
+| 標準 | 768–1439px    | 2×2 Bento；側欄 + 工作面           |
+| 寬屏 | ≥ 1440px      | 同標準結構，數據卡獲得更多橫向空間 |
 
-只有兩處主要結構切換；檔內用彈性欄寬與自然換行，不為每張卡列額外閾值。2K／4K 共用寬屏檔，不等比例放大字體與控件。
+只有兩處主要結構切換；2K／4K 共用寬屏檔，不等比例放大字體與控件。
 
 ### 視口與操作連續性
 
-安全區只預留一次；軟鍵盤出現後欄位、錯誤及提交仍可見。低高度先減少裝飾留白，再正常捲動。詳情由並列轉抽屜或全屏時，保留草稿、焦點、搜尋、選中與捲動位置。Web 操作區至少 44 × 44 CSS px；iOS／Android 分別按 44pt／48dp 校驗。
-
-## Elevation & Depth
-
-層級用分組背景、髮絲邊與明度差表達。陰影只給脫離文檔流的浮層。
-
-| 表面 | 目標 | 深度 |
-| --- | --- | --- |
-| 畫布 | 實色 `background` | 無 |
-| 卡片／分組 | 實色 `card`，與畫布有清楚明度差 | 1px `border`，無陰影 |
-| 凹面控制 | `surface-inset` 軌道或輸入面 | 選中滑塊回到 `card` |
-| 浮層（選單、對話框） | 實色 `popover` | 一套共享 `--elevation-raised`；深色改為微亮邊界 |
-| 系統材質 | 僅宿主原生提供時 | 不可用或減少透明度時回退實色 |
-
-不為每列或每個子控制建立模糊層，也不讓材質做常駐動畫。
+安全區只預留一次；軟鍵盤出現後欄位與提交仍可見。詳情切換保留草稿、焦點與捲動位置。Web 操作區至少 44×44 CSS px；iOS／Android 按 44pt／48dp 校驗。無障礙：鍵盤焦點、減少動態、對比度為檢查項。
 
 ## Shapes
 
-- `rounded-control`：按鈕、輸入、分段、選單行、小頭像。
-- `rounded-card`：卡片、面板、對話框、浮層。
-- `rounded-full`：只給開關、狀態點、必要膠囊與圓形連線鍵。
-- 原有 `rounded-sm/md/lg/xl/2xl` 已映射到同一尺度；新程式碼用語義名，不以舊類名當作已完成新版的證據。
-- 圖示使用一致的線條與尺寸；功能圖示不用 emoji 代替。
+- `rounded-control`（10px）按鈕、輸入、分段、小圖示容器。
+- `rounded-card`（20px）模組卡、浮層、面板。
+- `rounded-hero`（24px）Hero 卡與引導大卡。
+- 舊 `rounded-sm/md/lg/xl/2xl/3xl` 已映射到同一尺度；新代碼用語義名。
+- 開關、狀態點、膠囊保留 `rounded-full`。
 
 ## Components
 
 ### 按鈕
 
-| 變體          | 用途                     | 外觀                       |
-| ------------- | ------------------------ | -------------------------- |
-| `default`     | 一般主操作               | 石墨底、紙白字             |
-| `brand`       | 連線、保存帳號等品牌時刻 | 品牌橙底、深墨字，無陰影   |
-| `outline`     | 次要操作                 | 卡片底、`border-strong` 邊 |
-| `secondary`   | 低強調操作               | 凹面色底                   |
-| `ghost`       | 工具列與行內操作         | 透明底，懸停才出現底色     |
-| `destructive` | 刪除、中斷               | 紅底、白字                 |
+| 變體                   | 用途           | 外觀                           |
+| ---------------------- | -------------- | ------------------------------ |
+| `default`              | 一般主操作     | 石墨漸變、紙白字、低投影       |
+| `brand`                | 連線、保存帳號 | 品牌橙漸變、深墨字、橙環境投影 |
+| `outline`／`secondary` | 次要操作       | 玻璃按鈕（`glass-button`）     |
+| `ghost`                | 工具列與行內   | 懸停才出現玻璃底               |
+| `success`              | 完成類操作     | 薄荷漸變、深墨字               |
+| `destructive`          | 刪除、中斷     | 紅底、白字                     |
 
-高度：預設 32px、`sm` 28px、`lg` 36px；手機主要操作至少 44px。焦點用 2px 品牌外框加 3px 低透明度內環，不靠陰影表示焦點。
+高度：預設 34px、`sm` 30px、`lg` 40px；手機主要操作 ≥ 44px。懸停上浮與陰影加深，按壓輕微回縮；焦點用 3px 品牌低透明內環。
 
 ### 輸入與設定行
 
-輸入框 32px 高、`rounded-control`、`surface-inset` 底、`border-strong` 邊；聚焦時邊框轉品牌色並加低透明度內環。標籤在控制項上方，錯誤緊跟欄位；不只用 Placeholder 或 Toast 表達錯誤。
+輸入框 36px、`field-glass`（54% 畫布色玻璃 + `border-strong` 邊 + 內高光），聚焦邊框轉品牌色。標籤在上方，錯誤緊跟欄位並給出解決方式；快捷填入用品牌文字按鈕而非灰框。開關 46×28，白色滑塊，開啟用品牌橙漸變。分段選擇用玻璃軌道，選中是白色浮起膠囊；Tabs 與分段同規則，不整塊鋪橙。
 
-設定行先標籤與解釋，再控制項；空間不足時換行。開關視覺軌道約 44 × 26px，白色滑塊，開啟用品牌橙配深墨勾選；觸控區仍符合宿主下限。切換內容用 Tabs，切換設定值用分段選擇；分段選中採卡片底加品牌文字，不整塊鋪橙。
+### 卡片與模組
 
-### 卡片與面板
+- `Card`／`.bento` 是任務容器：玻璃、光邊、柔影、大圓角。
+- 卡內再分組用 `.bento-inset` 小模組（數據、設定行、快捷入口），不套多層實色卡。
+- 卡面一律中性玻璃；模組身份靠內容、小圖示與狀態色表達，不用彩色卡面 wash。
 
-卡片是任務容器，不是裝飾。預設無陰影，靠 `border` 與畫布分開；卡內用髮絲線分段，不套子卡。只有浮層、拖拽中的物件與需要脫離文檔流的元素才加陰影。
+### 狀態反饋
 
-### 狀態與操作回應
-
-- 未知、載入中、未啟用、進行中、成功、部分完成、失敗、資料過期分別呈現。
-- 核心運行、流量接管、出口驗證、帳號登入、配置有效性是不同事實，不能合併成一個「已連線」。
-- 啟停、切節點與改模式顯示原位進度；成功才改變選中，失敗保留原選擇與恢復入口。
-- 複製在原處顯示「已複製」，失敗保留文字供手動選取。
-- 需行動的錯誤保留至處理；來源失聯不反覆彈通知。
-
-### 配額與流量
-
-配額同時有數值、總額與資料來源；未知、無總額、載入失敗、零餘額與超額分開。配額圖形不能取代文字。即時速率、核心累計與訂閱配額分別命名，到期日與重設日分開。只有真實樣本才畫走勢；失聯標明停止更新，不補假樣本。
+- 載入：模組內骨架 + 按鈕內 spinner；資料流重連顯示「重新連接中」。
+- 錯誤：紅色玻璃提示卡，包含標題、原因與一個明確動作；不用代碼原文對使用者。
+- 空/首次：用 Bento 小卡引導下一步，不做死胡同。
+- 成功：原位確認（如「已複製」），失敗保留原值與恢復入口。
+- 未知、未啟用、失敗、過期必須分開表述；不用綠點或動畫代替事實。
 
 ### 動畫
 
-動畫只交代按壓、選中、面板與真實狀態，沿用無超調緩動：按壓 120ms、滑塊 160ms、面板 200ms。減少動態時取消循環、旋轉與位移，以靜態文字保留資訊。背景及離屏圖表停止不必要繪製。
+- 極光背景 28s 緩慢漂移；減少動態時停住。
+- 按鈕 140–220ms 上浮/回縮；卡片懸停 220ms；彈層用淡入 + 輕縮放。
+- 骨架掃光 1.4s 循環；減少動態時靜止。
 
 ## Do's and Don'ts
 
 ### Do
 
-- 先呈現日常連線、當前節點、影響範圍與可處理的狀態。
-- 保留桌面八入口、手機四主入口，使用緊湊、標準、寬屏三檔。
-- 跟隨宿主的控件、形狀、字體與導覽慣例；材質只用系統提供者。
-- 讓詳情、草稿及操作狀態跨尺寸連續，重要回應就近可見。
-- 用髮絲邊、分組與字重建立層級，讓畫面保持安靜。
+- 用玻璃卡、柔和陰影和極光營造層次；讓每張卡只回答一個任務。
+- 漸變克制：只有品牌橙一種；極光最多兩色、低透明，不給每張卡配一種顏色。
+- 保證文字在彩色玻璃上對比充足；用等寬數字表達速率與配額。
+- 為每個操作路徑準備載入、空、錯誤、成功四態。
 
 ### Don't
 
-- 不用大面積橙色、橙底白字、層層卡片、常駐動畫或模擬磨砂。
-- 不用統一大圓角覆蓋平台差異，也不為每個尺寸和元件建立新檔位。
-- 不用綠點、光環、帳號登入或配置加入代替真實接管與連通結果。
-- 不把 2K／4K 當作放大版手機。
-- 不把設計規範、文件更新或 mock 當作已實作和原生平台驗證。
+- 不把極光或玻璃做成干擾閱讀的強圖案；不整頁鋪橙，也不做彩色卡片迷宮。
+- 不用多層實色卡疊加；不用硬陰影和強描邊；不疊加多種彩色漸變。
+- 不在首頁塞入全量策略、日誌或表單；不讓次要操作搶主操作。
+- 不用動畫代替狀態事實；不做長時間循環閃爍。
+- 不把 2K／4K 當放大版手機。
 
 ## 實作對照
 
 | 層 | 位置 |
 | --- | --- |
 | 令牌 | `packages/client-ui/src/styles/tokens.css` |
-| Tailwind 映射與全域樣式 | `packages/client-ui/src/styles/app.css` |
+| 極光/玻璃/骨架/陰影 | `packages/client-ui/src/styles/app.css` |
 | 基礎原語 | `packages/client-ui/src/components/ui/` |
-| 宿主形狀切換 | `packages/client-ui/src/platform/host.ts` + `tokens.css` 的 `[data-host]` |
-| 應用外殼與導覽 | `packages/client-ui/src/app/app-shell.tsx`、`app/navigation/` |
+| 外殼與導覽 | `packages/client-ui/src/app/app-shell.tsx`、`app/navigation/` |
+| 首頁 Bento 網格 | `packages/client-ui/src/features/connect/connect-page.tsx` |
+| 引導頁 Bento | `packages/client-ui/src/features/connect/external-controller-onboarding.tsx` |
 
-新增或修改原語後，至少檢查桌面與手機寬度、明暗主題、鍵盤焦點、減少動態、長文案，以及載入／空／錯誤／成功狀態。Web 與 mock 截圖不能代替 macOS、Windows、iOS、Android 的實際平台驗收。
+新增或修改原語後，至少檢查桌面與手機寬度、明暗主題、鍵盤焦點、減少動態、載入/空/錯誤/成功四態。Web 截圖不能代替 macOS、Windows、iOS、Android 的實際平台驗收。
 
 > AI生成

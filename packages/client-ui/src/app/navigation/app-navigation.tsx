@@ -86,15 +86,15 @@ function SidebarLink({ item }: { item: Route }) {
         to={to}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "relative flex min-h-9 items-center gap-2.5 rounded-control px-2.5 text-[13px] font-medium text-sidebar-foreground-muted no-underline transition-colors duration-[120ms] motion-reduce:transition-none",
+          "relative flex min-h-10 items-center gap-2.5 rounded-[12px] border border-transparent px-2.5 text-[13px] font-medium text-sidebar-foreground-muted no-underline transition-[background-color,color,box-shadow,border-color] duration-150 motion-reduce:transition-none",
           active
-            ? "bg-brand-soft text-foreground before:absolute before:inset-y-2 before:start-0 before:w-[2.5px] before:rounded-full before:bg-brand before:content-['']"
-            : "hover:bg-sidebar-accent hover:text-foreground",
+            ? "border border-[var(--glass-border)] bg-white/45 text-foreground shadow-[0_8px_20px_-14px_oklch(0.2_0.03_265/45%)] backdrop-blur-md before:absolute before:inset-y-2.5 before:start-0 before:w-[3px] before:rounded-full before:bg-brand before:content-[''] dark:bg-white/10"
+            : "hover:bg-white/45 hover:text-foreground dark:hover:bg-white/10",
         )}
       >
         <Icon
           aria-hidden
-          className={cn("size-[17px] shrink-0", active && "text-brand-text")}
+          className={cn("size-[17px] shrink-0", active && "text-foreground")}
           strokeWidth={1.8}
         />
         <span className="min-w-0 truncate">{text}</span>
@@ -152,7 +152,7 @@ function DesktopSidebar() {
   return (
     <nav
       aria-label={t("home")}
-      className="flex w-[var(--sidebar-width)] shrink-0 flex-col border-e border-sidebar-border bg-sidebar text-sidebar-foreground select-none max-md:hidden"
+      className="glass-bar flex w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden rounded-[22px] text-sidebar-foreground select-none max-md:hidden"
     >
       {isDesktopApp() && (
         <div
@@ -176,7 +176,10 @@ function DesktopSidebar() {
             <SidebarLink key={item.name} item={item} />
           ))}
         </ul>
-        <div className="mx-2 my-2 h-px bg-sidebar-border" aria-hidden="true" />
+        <div
+          className="mx-2 my-2 h-px bg-[var(--glass-border)]"
+          aria-hidden="true"
+        />
         <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
           {inspectRoutes.map((item) => (
             <SidebarLink key={item.name} item={item} />
@@ -186,7 +189,7 @@ function DesktopSidebar() {
           <SidebarLink item={settingsRoute} />
         </ul>
       </div>
-      <div className="border-t border-sidebar-border p-2.5">
+      <div className="border-t border-[var(--glass-border)] p-2.5">
         <ConfigMenu />
       </div>
     </nav>
@@ -198,7 +201,7 @@ function MobileTopBar() {
   const { t } = useTranslation("sidebar");
   const location = useLocation();
   return (
-    <header className="fixed inset-x-0 top-0 z-50 hidden h-[calc(var(--topbar-height)+env(safe-area-inset-top))] items-center gap-2.5 border-b border-sidebar-border bg-sidebar pt-[env(safe-area-inset-top)] ps-4 pe-2 max-md:flex">
+    <header className="glass-bar fixed inset-x-0 top-0 z-50 hidden h-[calc(var(--topbar-height)+env(safe-area-inset-top))] items-center gap-2.5 rounded-none border-x-0 border-t-0 pt-[env(safe-area-inset-top)] ps-4 pe-2 max-md:flex">
       <XBondIcon className="size-6 shrink-0" />
       <span className="text-subtitle font-semibold text-foreground">XBond</span>
       <Link
@@ -217,7 +220,7 @@ function MobileTabBar({ routes }: { routes: Route[] }) {
   return (
     <nav
       aria-label={t("home")}
-      className="fixed inset-x-0 bottom-0 z-50 hidden border-t border-sidebar-border bg-sidebar pb-[env(safe-area-inset-bottom)] max-md:block"
+      className="glass-bar fixed inset-x-0 bottom-0 z-50 hidden rounded-none border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] max-md:block"
     >
       <ul className="m-0 flex list-none items-stretch px-2">
         {routes.map((item) => (

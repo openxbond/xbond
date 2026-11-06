@@ -72,7 +72,7 @@ export function SegmentedControl<T extends string>({
             title={option.disabledReason}
             className={cn(
               segmentedItem,
-              "h-auto shrink data-[state=on]:bg-card data-[state=on]:font-semibold data-[state=on]:text-brand-text data-[state=on]:shadow-xs data-[state=on]:ring-1 data-[state=on]:ring-border aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+              "h-auto shrink data-[state=on]:bg-white/90 data-[state=on]:font-semibold data-[state=on]:text-brand-text data-[state=on]:shadow-[0_6px_14px_-10px_oklch(0.2_0.03_265/45%)] data-[state=on]:ring-1 data-[state=on]:ring-[var(--glass-border)] dark:data-[state=on]:bg-white/15 dark:data-[state=on]:ring-white/10 aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
               itemClassName,
             )}
           >

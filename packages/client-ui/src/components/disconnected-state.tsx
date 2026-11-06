@@ -182,7 +182,7 @@ export function DisconnectedState({
       )}
     >
       <Card className="flex w-full max-w-[460px] flex-col items-center justify-center rounded-card border border-border bg-card p-8 text-center">
-        <div className="mb-4 flex size-12 items-center justify-center rounded-control bg-brand-soft text-brand-text">
+        <div className="mb-4 grid size-14 place-items-center rounded-[16px] border border-brand/25 bg-brand/15 text-brand-text">
           {icon ?? <Power className="size-7" />}
         </div>
         <h3 className="mb-2 text-[18px] font-semibold tracking-tight text-foreground">

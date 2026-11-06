@@ -83,7 +83,7 @@ export function TitleBar() {
   return (
     <header
       data-tauri-drag-region="deep"
-      className="z-50 flex h-[var(--titlebar-height)] shrink-0 select-none border-b border-border bg-background max-md:hidden"
+      className="z-50 flex h-[var(--titlebar-height)] shrink-0 select-none bg-transparent max-md:hidden"
     >
       {!IS_MACOS && (
         <div className="ml-auto flex items-stretch">

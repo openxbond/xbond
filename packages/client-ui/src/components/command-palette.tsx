@@ -348,12 +348,12 @@ export function CommandPalette() {
     >
       <DialogContent
         showCloseButton={false}
-        className="fixed top-[15%] sm:top-[18%] left-[50%] translate-x-[-50%] translate-y-0 w-full max-w-xl p-0 overflow-hidden rounded-card border border-border bg-popover shadow-elevation-raised"
+        className="fixed top-[15%] left-[50%] w-full max-w-xl translate-x-[-50%] translate-y-0 overflow-hidden rounded-card p-0 shadow-elevation-raised sm:top-[18%]"
       >
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
 
         {/* Search Input Bar */}
-        <div className="flex items-center gap-3 border-b border-border/60 bg-surface-inset/30 px-4 py-3.5">
+        <div className="flex items-center gap-3 border-b border-border/60 bg-white/25 px-4 py-3.5 dark:bg-white/5">
           <Search className="size-4 shrink-0 text-muted-foreground transition-colors group-focus-within:text-brand" />
           <input
             ref={inputRef}
@@ -365,7 +365,7 @@ export function CommandPalette() {
             }}
             onKeyDown={onKeyDown}
             placeholder={t("searchPlaceholder")}
-            className="flex-1 bg-transparent text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/60"
+            className="flex-1 bg-transparent text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground"
           />
           <kbd className="hidden sm:inline-flex items-center rounded-md border border-border/80 bg-card px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shadow-xs">
             ESC
@@ -409,9 +409,9 @@ export function CommandPalette() {
                       onClick={() => void handleSelect(idx)}
                       onMouseEnter={() => setActiveIndex(idx)}
                       className={cn(
-                        "group relative flex w-full cursor-pointer items-center justify-between rounded-xl px-2.5 py-2 text-left transition-colors",
+                        "group relative flex w-full cursor-pointer items-center justify-between rounded-[12px] px-2.5 py-2 text-left transition-colors",
                         isSelected
-                          ? "bg-brand/10 text-foreground ring-1 ring-brand/20 dark:bg-brand/15"
+                          ? "bg-brand-soft text-foreground ring-1 ring-brand/25 dark:bg-brand-soft/70"
                           : "text-foreground/90 hover:bg-surface-inset/80 hover:text-foreground",
                       )}
                     >
@@ -420,8 +420,8 @@ export function CommandPalette() {
                           className={cn(
                             "flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
                             isSelected
-                              ? "bg-brand text-brand-foreground shadow-xs"
-                              : "bg-surface-inset text-muted-foreground border border-border/40 group-hover:bg-muted",
+                              ? "bg-brand text-brand-foreground shadow-sm"
+                              : "border border-[var(--glass-border)] bg-card/45 text-muted-foreground backdrop-blur-md group-hover:bg-muted",
                           )}
                         >
                           <Icon className="size-4" />

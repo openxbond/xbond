@@ -7,9 +7,9 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        // XBond task-card recipe (DESIGN.md): solid working surface, hairline
-        // border, no resting shadow. Elevation belongs to floating layers.
-        "rounded-card border border-border bg-card text-card-foreground p-5",
+        // Bento 2.0 card: frosted glass, hairline light edge and a soft
+        // layered shadow. `bento-interactive` is opt-in for clickable cards.
+        "bento rounded-card text-card-foreground p-5",
         className,
       )}
       {...props}

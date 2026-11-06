@@ -9,7 +9,10 @@ import {
   ArrowRight,
   Globe,
   HelpCircle,
+  KeyRound,
+  Link2,
   Server,
+  Tag,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -120,13 +123,17 @@ export function ExternalControllerOnboarding({
   return (
     <div
       className={cn(
-        "mx-auto grid w-full max-w-[980px] items-start gap-10 py-10 md:grid-cols-[minmax(0,0.9fr)_minmax(0,420px)] md:gap-16 md:py-12",
+        "mx-auto grid w-full max-w-[1120px] items-start gap-4 py-4 md:grid-cols-12 md:gap-5 md:py-6",
         className,
       )}
     >
-      <div className="flex flex-col items-start md:sticky md:top-10">
-        <div className="mb-5 flex items-center gap-2.5">
-          <span className="grid size-9 place-items-center rounded-control border border-border bg-card text-brand-text">
+      <section className="bento bento-hero relative order-1 flex flex-col items-start overflow-hidden rounded-hero p-6 md:col-span-7 md:row-start-1 md:p-10 md:order-none">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -end-20 -top-24 size-56 rounded-full bg-brand/12 blur-3xl"
+        />
+        <div className="relative mb-6 flex items-center gap-2.5">
+          <span className="grid size-10 place-items-center rounded-[12px] border border-[var(--glass-border)] bg-white/45 text-brand-text backdrop-blur-md dark:bg-white/10">
             <Globe
               aria-hidden="true"
               className="size-[18px]"
@@ -137,31 +144,57 @@ export function ExternalControllerOnboarding({
             {t("webModeBadge")}
           </span>
         </div>
-        <h2 className="max-w-[28rem] text-[34px] font-semibold leading-[1.12] tracking-[-0.035em] text-foreground sm:text-[40px]">
+        <h2 className="relative max-w-[28rem] text-[36px] font-semibold leading-[1.08] tracking-[-0.04em] text-foreground sm:text-[46px]">
           {t("webModeTitle")}
         </h2>
-        <p className="mt-4 max-w-[26rem] text-[13px] leading-6 text-muted-foreground">
+        <p className="relative mt-5 max-w-[28rem] text-[13px] leading-6 text-muted-foreground">
           {t("webModeDesc")}
         </p>
-        <div className="mt-8 grid w-full max-w-sm grid-cols-3 gap-px overflow-hidden rounded-card border border-border bg-border">
-          {[s("external.url"), s("external.secret"), s("external.name")].map(
-            (label, index) => (
-              <div key={label} className="bg-card px-3 py-3.5">
-                <span className="block font-mono text-[10px] text-brand-text">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <span className="mt-1 block truncate text-[11px] font-medium text-muted-foreground">
-                  {label}
-                </span>
-              </div>
-            ),
-          )}
-        </div>
+      </section>
+
+      <div className="order-3 grid grid-cols-3 gap-2.5 md:col-span-7 md:row-start-2 md:order-none md:gap-3">
+        {[
+          {
+            label: s("external.url"),
+            hint: "127.0.0.1:9090",
+            Icon: Link2,
+            tone: "",
+          },
+          {
+            label: s("external.secret"),
+            hint: "••••••••",
+            Icon: KeyRound,
+            tone: "",
+          },
+          {
+            label: s("external.name"),
+            hint: "My Core",
+            Icon: Tag,
+            tone: "",
+          },
+        ].map(({ label, hint, Icon, tone }, index) => (
+          <div key={label} className={cn("bento rounded-[16px] p-4", tone)}>
+            <div className="flex items-start justify-between gap-2">
+              <span className="grid size-8 place-items-center rounded-[10px] border border-[var(--glass-border)] bg-white/45 text-muted-foreground dark:bg-white/10">
+                <Icon aria-hidden="true" className="size-4" strokeWidth={1.8} />
+              </span>
+              <span className="font-mono text-[10px] font-semibold text-foreground/85">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+            </div>
+            <p className="mt-4 truncate text-[12px] font-medium text-foreground">
+              {label}
+            </p>
+            <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
+              {hint}
+            </p>
+          </div>
+        ))}
       </div>
 
-      <div className="flex min-w-0 flex-col gap-4 md:pt-14">
+      <div className="order-2 flex min-w-0 flex-col gap-4 md:col-span-5 md:col-start-8 md:row-span-2 md:row-start-1 md:gap-5 md:order-none">
         {/* Main Connection Card */}
-        <Card className="p-5 sm:p-6">
+        <Card className="p-6 shadow-elevation-raised sm:p-7">
           <form onSubmit={handleConnect} className="flex flex-col gap-4">
             {/* Controller URL */}
             <Field className="gap-1.5">
@@ -184,14 +217,14 @@ export function ExternalControllerOnboarding({
                 <button
                   type="button"
                   onClick={() => setURL("http://127.0.0.1:9090")}
-                  className="cursor-pointer rounded-[3px] px-1 py-0.5 font-mono text-[10px] text-brand-text transition-colors hover:bg-brand-soft"
+                  className="cursor-pointer rounded-[4px] border border-transparent px-1.5 py-0.5 font-mono text-[10px] font-medium text-brand-text transition-colors hover:border-brand/30 hover:bg-brand-soft"
                 >
                   127.0.0.1:9090
                 </button>
                 <button
                   type="button"
                   onClick={() => setURL("http://localhost:9090")}
-                  className="cursor-pointer rounded-[3px] px-1 py-0.5 font-mono text-[10px] text-brand-text transition-colors hover:bg-brand-soft"
+                  className="cursor-pointer rounded-[4px] border border-transparent px-1.5 py-0.5 font-mono text-[10px] font-medium text-brand-text transition-colors hover:border-brand/30 hover:bg-brand-soft"
                 >
                   localhost:9090
                 </button>
@@ -200,7 +233,7 @@ export function ExternalControllerOnboarding({
                     <button
                       type="button"
                       onClick={() => setURL(window.location.origin)}
-                      className="cursor-pointer rounded-[3px] px-1 py-0.5 font-mono text-[10px] text-brand-text transition-colors hover:bg-brand-soft"
+                      className="cursor-pointer rounded-[4px] border border-transparent px-1.5 py-0.5 font-mono text-[10px] font-medium text-brand-text transition-colors hover:border-brand/30 hover:bg-brand-soft"
                     >
                       {t("quickFillOrigin")}
                     </button>
@@ -272,15 +305,15 @@ export function ExternalControllerOnboarding({
 
         {/* Saved Controllers (if any) */}
         {savedList.length > 0 && (
-          <div className="overflow-hidden rounded-card border border-border bg-card">
-            <h4 className="border-b border-border px-4 py-2.5 text-[11px] font-semibold text-muted-foreground">
+          <div className="bento overflow-hidden rounded-card">
+            <h4 className="border-b border-[var(--glass-border)] px-4 py-2.5 text-[11px] font-semibold text-muted-foreground">
               {t("savedControllers")}
             </h4>
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-[var(--glass-border)]">
               {savedList.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-row-hover"
+                  className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/40 dark:hover:bg-white/10"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-control bg-inset text-muted-foreground">
@@ -310,7 +343,7 @@ export function ExternalControllerOnboarding({
         )}
 
         {/* Troubleshooting Tips */}
-        <div className="rounded-card border border-border bg-card p-4 text-[11px] leading-5 text-muted-foreground">
+        <div className="bento rounded-card p-4 text-[11px] leading-5 text-muted-foreground">
           <button
             type="button"
             className="flex w-full cursor-pointer items-center justify-between text-left text-[12px] font-medium text-foreground"
