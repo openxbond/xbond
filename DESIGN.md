@@ -152,7 +152,7 @@ XBond 的畫面是一張冷瓷色極光畫布，功能拆成一塊塊磨砂玻�
 
 | 角色 | 令牌 | 用途 |
 | --- | --- | --- |
-| 極光 | `aurora-peach`、`aurora-slate` | 畫布後景，最多兩色、低透明、慢速漂移 |
+| 極光 | `aurora-peach`、`aurora-slate` | 畫布後景，最多兩色、低透明、靜態不動 |
 | 品牌 | `brand`、`brand-strong`、`brand-text`、`brand-soft` | 連線主操作、選中、焦點，唯一的漸變色 |
 | 數據點綴 | `accent-mint`、`accent-blue`、`accent-violet` 及文字版 | 只用於圖例、狀態點與延遲色階，不鋪卡面 |
 | 工作面 | `background`、`card`、`popover`、`surface-inset` | 畫布、玻璃卡、浮層、內凹面 |
@@ -168,16 +168,27 @@ XBond 的畫面是一張冷瓷色極光畫布，功能拆成一塊塊磨砂玻�
 
 | 表面 | 材質 | 深度 |
 | --- | --- | --- |
-| 畫布 | 實色 + 固定極光層（`body::before`，28s 漂移，減少動態時停止） | 無 |
-| Bento 卡 `.bento` | `--glass-surface` 漸變 + `backdrop-filter: blur(26px) saturate(1.45)` | 內高光 + 外圈髮絲 + 大半徑柔影 |
-| Hero 卡 `.bento-hero` | 中性玻璃疊一層 16% 品牌橙徑向光暈 | 環境色投影略強於普通卡 |
+| 畫布 | 實色 + 靜態極光層（`body::before`，不加 blur、不動畫） | 無 |
+| Bento 卡 `.bento` | `--glass-surface` 半透漸變，不做背景採樣 | 內高光 + 外圈髮絲 + 柔影 |
+| Hero 卡 `.bento-hero` | 中性玻璃疊一層 10% 品牌橙徑向光暈 | 環境色投影略強於普通卡 |
 | 內凹面 `.bento-inset` | `--glass-inset` 漸變 | 內高光，用於卡內小模組 |
-| 浮層 | 玻璃 + `--elevation-raised`；遮罩帶 8–10px 背景模糊 | 最高層 |
+| 浮動導覽 `.glass-bar` | 玻璃 + `backdrop-filter: blur(16px)` | 內高光 + 柔影 |
+| 浮層／彈窗 | 玻璃 + `--elevation-raised`；遮罩 `backdrop-blur-sm` | 最高層 |
 | 回退 | `@supports not (backdrop-filter…)` 回退實色 `card` | — |
 
 - 卡片描邊用漸變光邊（`mask-composite` 疊一圈白到品牌橙的 1px），不是純色邊框。
-- 懸浮微交互：`bento-interactive` 上移 2px、陰影加深；按鈕按壓回縮 0.98。
+- 懸浮微交互：`bento-interactive` 上移 1px，只過渡 `transform` 與邊框色；陰影一律不做動畫。
 - 骨架屏用 `.skeleton`（單一掃光動畫），減少動態時以靜態色塊替代。
+
+### 性能預算（桌面端卡頓的教訓）
+
+`backdrop-filter` 在桌面 WebView（WebKitGTK／WKWebView）極其昂貴：每個帶模糊的元素都要每幀採樣並重新模糊背後內容，多層疊加會直接吃滿 GPU、拖垮滾動與懸停。因此：
+
+- 極光層靜態且不加 `filter: blur()`——徑向漸變本身已經柔和，全屏模糊純屬浪費。
+- `backdrop-filter` 只允許出現在真正浮動於內容之上的大表面：側欄／手機頂底欄（16px）、彈窗遮罩（`blur-sm`）、選單浮層（14px）。內容卡、輸入框、按鈕、徽章、開關、分段軌道一律用半透明面，不做背景採樣。
+- 一屏可見的 `backdrop-filter` 元素目標 ≤ 3 個；新增玻璃效果前先問「它背後是否真的有需要模糊的動態內容」。
+- hover／按壓只動 `transform`（合成器屬性）；`box-shadow`、`filter` 不進 transition 鏈。
+- 遮罩與浮層模糊值取小檔（`blur-sm`／14px），不用 2xl 級別。
 
 ## Typography
 
@@ -259,7 +270,7 @@ XBond 的畫面是一張冷瓷色極光畫布，功能拆成一塊塊磨砂玻�
 
 ### 動畫
 
-- 極光背景 28s 緩慢漂移；減少動態時停住。
+- 極光背景靜態不動，不佔每幀合成預算。
 - 按鈕 140–220ms 上浮/回縮；卡片懸停 220ms；彈層用淡入 + 輕縮放。
 - 骨架掃光 1.4s 循環；減少動態時靜止。
 
@@ -277,7 +288,7 @@ XBond 的畫面是一張冷瓷色極光畫布，功能拆成一塊塊磨砂玻�
 - 不把極光或玻璃做成干擾閱讀的強圖案；不整頁鋪橙，也不做彩色卡片迷宮。
 - 不用多層實色卡疊加；不用硬陰影和強描邊；不疊加多種彩色漸變。
 - 不在首頁塞入全量策略、日誌或表單；不讓次要操作搶主操作。
-- 不用動畫代替狀態事實；不做長時間循環閃爍。
+- 不用動畫代替狀態事實；不做長時間循環閃爍；不給小控件加背景模糊。
 - 不把 2K／4K 當放大版手機。
 
 ## 實作對照

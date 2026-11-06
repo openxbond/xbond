@@ -143,8 +143,7 @@
   );
   --glass-border: oklch(1 0 0 / 70%);
   --glass-border-strong: oklch(1 0 0 / 84%);
-  --glass-blur: 26px;
-  --glass-saturate: 1.45;
+  --glass-blur: 14px;
 
   /* Gradients */
   --gradient-brand: linear-gradient(

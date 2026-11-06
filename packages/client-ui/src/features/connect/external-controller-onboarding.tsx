@@ -130,10 +130,14 @@ export function ExternalControllerOnboarding({
       <section className="bento bento-hero relative order-1 flex flex-col items-start overflow-hidden rounded-hero p-6 md:col-span-7 md:row-start-1 md:p-10 md:order-none">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute -end-20 -top-24 size-56 rounded-full bg-brand/12 blur-3xl"
+          className="pointer-events-none absolute -end-24 -top-28 size-64 rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, color-mix(in oklab, var(--brand) 14%, transparent), transparent 68%)",
+          }}
         />
         <div className="relative mb-6 flex items-center gap-2.5">
-          <span className="grid size-10 place-items-center rounded-[12px] border border-[var(--glass-border)] bg-white/45 text-brand-text backdrop-blur-md dark:bg-white/10">
+          <span className="grid size-10 place-items-center rounded-[12px] border border-[var(--glass-border)] bg-white/45 text-brand-text dark:bg-white/10">
             <Globe
               aria-hidden="true"
               className="size-[18px]"

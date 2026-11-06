@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // a subtle ink/brand gradient and lift on hover; glass variants float on
 // the aurora canvas without competing with the hero connect action.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-control text-[13px] leading-none font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform,filter] duration-[160ms] ease-[var(--ease-out-expo)] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive aria-invalid:ring-destructive/20 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-control text-[13px] leading-none font-medium whitespace-nowrap transition-[background-color,border-color,color,transform,filter] duration-[160ms] ease-[var(--ease-out-expo)] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive aria-invalid:ring-destructive/20 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

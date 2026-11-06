@@ -627,7 +627,7 @@ export default function Connect() {
             aria-label={t("connect")}
           >
             <div className="absolute inset-x-4 top-4 z-10 flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--glass-border)] bg-white/45 px-2.5 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-md dark:bg-white/10">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--glass-border)] bg-white/45 px-2.5 py-1 text-[11px] font-medium text-muted-foreground dark:bg-white/10">
                 <span
                   aria-hidden="true"
                   className={cn(
@@ -639,7 +639,7 @@ export default function Connect() {
                 />
                 {t("connect")}
               </span>
-              <span className="max-w-[55%] truncate rounded-full border border-[var(--glass-border)] bg-white/35 px-2.5 py-1 font-mono text-[10px] tracking-tight text-muted-foreground backdrop-blur-md dark:bg-white/10">
+              <span className="max-w-[55%] truncate rounded-full border border-[var(--glass-border)] bg-white/35 px-2.5 py-1 font-mono text-[10px] tracking-tight text-muted-foreground dark:bg-white/10">
                 {controller.targetKind === "daemon"
                   ? `127.0.0.1:${mixedPort}`
                   : controller.hostname}
@@ -973,7 +973,7 @@ export default function Connect() {
                         "shrink-0 cursor-pointer rounded-control border px-2.5 py-1 text-[12px] font-medium transition-colors duration-150 select-none max-md:min-h-11 max-md:px-3.5",
                         isCurrent
                           ? "border-brand/25 bg-brand-soft/80 font-semibold text-brand-text"
-                          : "border-[var(--glass-border)] bg-white/35 text-muted-foreground backdrop-blur-md hover:bg-white/60 hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15",
+                          : "border-[var(--glass-border)] bg-white/35 text-muted-foreground hover:bg-white/60 hover:text-foreground dark:bg-white/10 dark:hover:bg-white/15",
                       )}
                     >
                       {item.name}

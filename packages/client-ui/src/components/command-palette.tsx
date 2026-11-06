@@ -421,7 +421,7 @@ export function CommandPalette() {
                             "flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
                             isSelected
                               ? "bg-brand text-brand-foreground shadow-sm"
-                              : "border border-[var(--glass-border)] bg-card/45 text-muted-foreground backdrop-blur-md group-hover:bg-muted",
+                              : "border border-[var(--glass-border)] bg-card/45 text-muted-foreground group-hover:bg-muted",
                           )}
                         >
                           <Icon className="size-4" />

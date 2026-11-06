@@ -88,7 +88,7 @@ function SidebarLink({ item }: { item: Route }) {
         className={cn(
           "relative flex min-h-10 items-center gap-2.5 rounded-[12px] border border-transparent px-2.5 text-[13px] font-medium text-sidebar-foreground-muted no-underline transition-[background-color,color,box-shadow,border-color] duration-150 motion-reduce:transition-none",
           active
-            ? "border border-[var(--glass-border)] bg-white/45 text-foreground shadow-[0_8px_20px_-14px_oklch(0.2_0.03_265/45%)] backdrop-blur-md before:absolute before:inset-y-2.5 before:start-0 before:w-[3px] before:rounded-full before:bg-brand before:content-[''] dark:bg-white/10"
+            ? "border border-[var(--glass-border)] bg-white/45 text-foreground shadow-[0_8px_20px_-14px_oklch(0.2_0.03_265/45%)] before:absolute before:inset-y-2.5 before:start-0 before:w-[3px] before:rounded-full before:bg-brand before:content-[''] dark:bg-white/10"
             : "hover:bg-white/45 hover:text-foreground dark:hover:bg-white/10",
         )}
       >
