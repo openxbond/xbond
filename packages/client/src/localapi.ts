@@ -8,14 +8,22 @@
 import type { Lang } from "./language.ts";
 import type { Rule } from "./request.ts";
 
+export type CoreFormat = "clash" | "sing-box";
+
+/** Mirrors the daemon's engine.EngineStatus JSON (internal/engine/types.go);
+ * the daemon reports lifetime as startedAt + uptimeSeconds, not a duration
+ * string. */
 export interface LocalAPIEngineStatus {
   running: boolean;
-  pid: number;
+  core?: CoreFormat;
+  takeoverMode?: TakeoverMode;
+  routingMode?: RoutingMode;
   mixedPort: number;
+  allowLan?: boolean;
   clashPort: number;
-  uptime: string;
-  configPath: string;
+  clashSecret?: string;
   startedAt?: string;
+  uptimeSeconds?: number;
 }
 
 export type TakeoverMode = "sysproxy" | "tun" | "port";

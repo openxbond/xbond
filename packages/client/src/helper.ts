@@ -19,21 +19,20 @@ export function basePath(path: string) {
   return path.replace(/.*[/\\]/, "");
 }
 
-/** LocalAPI 的 engine.uptime 是 Go duration 字串（如 "1h24m38.5s"）。
- * 转成首页计时器的 HH:MM:SS（小时可超过两位）；解析不出或为 0 时返回 null。 */
-export function formatUptimeClock(uptime: string | undefined): string | null {
-  if (!uptime) return null;
-  const hours = /(\d+(?:\.\d+)?)h/.exec(uptime)?.[1];
-  const minutes = /(\d+(?:\.\d+)?)m(?!s)/.exec(uptime)?.[1];
-  const seconds = /(\d+(?:\.\d+)?)s/.exec(uptime)?.[1];
-  if (hours === undefined && minutes === undefined && seconds === undefined)
+/** LocalAPI 的 engine.uptimeSeconds 是整數秒（internal/engine 的
+ * EngineStatus.UptimeSeconds）。轉成首頁計時器的 HH:MM:SS（小時可超過兩位）；
+ * 缺值或不足 1 秒時返回 null。 */
+export function formatUptimeClock(
+  uptimeSeconds: number | undefined,
+): string | null {
+  if (
+    !Number.isFinite(uptimeSeconds) ||
+    uptimeSeconds === undefined ||
+    uptimeSeconds < 1
+  ) {
     return null;
-  const total =
-    Number.parseFloat(hours ?? "0") * 3600 +
-    Number.parseFloat(minutes ?? "0") * 60 +
-    Number.parseFloat(seconds ?? "0");
-  if (!Number.isFinite(total) || total < 1) return null;
-  const whole = Math.floor(total);
+  }
+  const whole = Math.floor(uptimeSeconds);
   const hh = Math.floor(whole / 3600);
   const mm = Math.floor((whole % 3600) / 60);
   const ss = whole % 60;

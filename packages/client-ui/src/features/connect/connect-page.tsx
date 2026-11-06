@@ -347,7 +347,9 @@ export default function Connect() {
   const isDirect = leafNodeName.toLowerCase() === "direct";
   const isReject = leafNodeName.toLowerCase() === "reject";
 
-  const uptimeClock = running ? formatUptimeClock(status?.engine.uptime) : null;
+  const uptimeClock = running
+    ? formatUptimeClock(status?.engine.uptimeSeconds)
+    : null;
   const sessionTotal =
     connectionState === "open" && snapshot
       ? snapshot.downloadTotal + snapshot.uploadTotal
