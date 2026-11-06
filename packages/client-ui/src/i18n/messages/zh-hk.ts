@@ -742,17 +742,18 @@ const HK = {
   },
   onboarding: {
     title: "歡迎使用 XBond",
-    subtitle: "登入帳號、匯入配置，或連接已有的代理服務。",
+    subtitle: "先完成下面任何一步，就能連線並使用代理。",
     login: "登入 XBond",
     importOption: "匯入配置",
     remoteOption: "連接已有代理服務",
     skipToApp: "暫不配置，進入主介面",
+    recommended: "推薦",
     cloudCardTitle: "XBond Cloud 官方帳號",
     cloudCardDesc:
       "登入官方帳號，自動下發生效的訂閱線路，享有一鍵同步與狀態通知。",
     subCardTitle: "第三方訂閱連結",
     subCardDesc:
-      "支援匯入外部服務商提供的 Clash / sing-box 訂閱 URL 或本機設定檔。",
+      "支援匯入外部服務商提供的 Clash / sing‑box 訂閱 URL 或本機設定檔。",
     remoteCardTitle: "連接已有代理服務",
     remoteCardDesc:
       "已經在路由器、軟路由或電腦上運行代理？接入 XBond 統一管理。",

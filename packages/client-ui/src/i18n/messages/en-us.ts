@@ -783,18 +783,18 @@ const EN = {
   },
   onboarding: {
     title: "Welcome to XBond",
-    subtitle:
-      "Sign in, import a configuration, or connect a proxy you already run.",
+    subtitle: "Finish any one step below to connect and start using the proxy.",
     login: "Sign in to XBond",
     importOption: "Import configuration",
     remoteOption: "Connect an existing proxy",
     skipToApp: "Skip for now, go to app",
+    recommended: "Recommended",
     cloudCardTitle: "XBond Cloud Account",
     cloudCardDesc:
       "Sign in to your official account to auto-sync subscriptions and routes.",
     subCardTitle: "Third-party Subscription",
     subCardDesc:
-      "Import Clash / sing-box subscription URLs or local configuration files.",
+      "Import Clash / sing‑box subscription URLs or local configuration files.",
     remoteCardTitle: "Connect an existing proxy",
     remoteCardDesc:
       "Already running a proxy — on a router, a server, or this machine? Manage it here in XBond.",

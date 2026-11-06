@@ -769,18 +769,18 @@ const KO = {
   },
   onboarding: {
     title: "XBond에 오신 것을 환영합니다",
-    subtitle:
-      "로그인하거나, 구성을 가져오거나, 이미 쓰고 있는 프록시를 연결하세요.",
+    subtitle: "아래 단계 중 하나만 완료하면 프록시에 연결해 사용할 수 있어요.",
     login: "XBond 로그인",
     importOption: "설정 가져오기",
     remoteOption: "기존 프록시 연결",
     skipToApp: "지금 건너뛰고 앱으로 이동",
+    recommended: "추천",
     cloudCardTitle: "XBond Cloud 계정",
     cloudCardDesc:
       "공식 계정으로 로그인하여 구독과 노드를 자동으로 동기화합니다.",
     subCardTitle: "서드파티 구독 링크",
     subCardDesc:
-      "외부 제공업체의 Clash / sing-box 구독 URL 또는 로컬 설정 파일을 가져옵니다.",
+      "외부 제공업체의 Clash / sing‑box 구독 URL 또는 로컬 설정 파일을 가져옵니다.",
     remoteCardTitle: "기존 프록시 연결",
     remoteCardDesc:
       "공유기, 서버 또는 이 컴퓨터에서 이미 프록시가 돌고 있다면 XBond로 가져와 관리하세요.",

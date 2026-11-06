@@ -741,20 +741,21 @@ const CN = {
   },
   onboarding: {
     title: "欢迎使用 XBond",
-    subtitle: "登录账号、导入配置，或连接已有的代理服务。",
+    subtitle: "先完成下面任意一步，就能连接并使用代理。",
     login: "登录 XBond",
     importOption: "导入配置",
     remoteOption: "连接已有代理服务",
     skipToApp: "暂不配置，进入主界面",
+    recommended: "推荐",
     cloudCardTitle: "XBond Cloud 官方账号",
     cloudCardDesc:
       "登录官方账号，自动下发生效的订阅线路，享有一键同步与状态通知。",
     subCardTitle: "第三方订阅链接",
     subCardDesc:
-      "支持导入外部服务商提供的 Clash / sing-box 订阅 URL 或本地配置文件。",
+      "支持导入外部服务商提供的 Clash / sing‑box 订阅 URL 或本地配置文件。",
     remoteCardTitle: "连接已有代理服务",
     remoteCardDesc:
-      "已经在路由器、软路由或电脑上跑着代理？接入 XBond 统一管理。",
+      "已经在路由器、软路由或电脑上运行代理？接入 XBond 统一管理。",
     subReady: "官方订阅已成功同步（{{name}}），可以开始使用。",
     startUsing: "开始使用",
     importTitle: "导入配置",
