@@ -165,7 +165,7 @@ export function TrafficChart({
         </div>
 
         {/* 图表主区域 */}
-        <div className="relative min-h-[96px] flex-1">
+        <div className="relative min-h-[76px] flex-1">
           {stale && staleLabel && samples.length > 0 && (
             <span className="absolute top-0 right-0 z-10 rounded-full bg-inset px-2 py-0.5 text-label text-muted-foreground">
               {staleLabel}

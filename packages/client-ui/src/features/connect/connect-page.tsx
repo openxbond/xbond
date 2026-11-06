@@ -84,7 +84,7 @@ const cardSurface = "bento";
 
 /* 連線主操作：品牌橙圓形電源鍵，深色電源符號，無光暈。 */
 const orbBase =
-  "relative grid size-[124px] max-md:size-[104px] shrink-0 cursor-pointer place-items-center rounded-full outline-none transition-[background-color,border-color,color,transform,box-shadow] duration-200 ease-[var(--ease-out-expo)] focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-55 enabled:hover:-translate-y-0.5 enabled:active:translate-y-0 enabled:active:scale-[0.98] motion-reduce:transition-none motion-reduce:enabled:hover:translate-y-0";
+  "relative grid size-[112px] max-md:size-[104px] shrink-0 cursor-pointer place-items-center rounded-full outline-none transition-[background-color,border-color,color,transform,box-shadow] duration-200 ease-[var(--ease-out-expo)] focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-55 enabled:hover:-translate-y-0.5 enabled:active:translate-y-0 enabled:active:scale-[0.98] motion-reduce:transition-none motion-reduce:enabled:hover:translate-y-0";
 const orbOn =
   "gradient-brand text-brand-foreground shadow-[0_22px_48px_-16px_oklch(0.7_0.19_45/65%),inset_0_1px_0_oklch(1_0_0/35%)] hover:brightness-105";
 const orbOff =
@@ -618,11 +618,16 @@ export default function Connect() {
       ) : !hasDaemonConfig() && !active ? (
         <ExternalControllerOnboarding className="my-auto py-6" />
       ) : (
-        <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-4 [grid-template-areas:'control'_'strategy'_'prefs'_'live'] @min-[52rem]/connect:grid-cols-[minmax(0,1.32fr)_minmax(0,1fr)] @min-[52rem]/connect:grid-rows-[auto_auto] @min-[52rem]/connect:[grid-template-areas:'control_strategy'_'live_prefs']">
+        /* 48rem（768px）起分行兩欄：桌面默認視窗 1140px 扣側欄與頁邊距後的
+           內容盒是 ~797px，52rem 檻位讓默認窗口反而落回單列（DESIGN.md
+           「標準 768–1439px：2×2 Bento」）。 */
+        <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-4 [grid-template-areas:'control'_'strategy'_'prefs'_'live'] @min-[48rem]/connect:grid-cols-[minmax(0,1.32fr)_minmax(0,1fr)] @min-[48rem]/connect:grid-rows-[auto_auto] @min-[48rem]/connect:[grid-template-areas:'control_strategy'_'live_prefs']">
           <section
             className={cn(
               cardSurface,
-              "bento-hero bento-interactive relative flex min-h-[380px] flex-col items-center justify-start gap-2 overflow-hidden px-6 pt-12 pb-0 text-center max-md:min-h-0 max-md:px-4 max-md:pt-10",
+              // 默認視窗要能不出捲軸：hero 上緣收緊（晶片是絕對定位，36px 足夠），
+              // 兩欄後行高由內容決定，min-h 只在數據空時兜底。
+              "[grid-area:control] bento-hero bento-interactive relative flex min-h-[320px] flex-col items-center justify-start gap-2 overflow-hidden px-6 pt-9 pb-0 text-center max-md:min-h-0 max-md:px-4 max-md:pt-10",
             )}
             aria-label={t("connect")}
           >
@@ -683,7 +688,7 @@ export default function Connect() {
                 <div className="flex flex-col items-center gap-3">
                   <button
                     type="button"
-                    className="group relative flex size-24 cursor-pointer items-center justify-center rounded-card border border-border-strong bg-card p-0 transition-colors duration-150 hover:border-brand/70 hover:bg-brand-soft/40"
+                    className="group relative flex size-20 cursor-pointer items-center justify-center rounded-card border border-border-strong bg-card p-0 transition-colors duration-150 hover:border-brand/70 hover:bg-brand-soft/40"
                     aria-label={t("manageController")}
                     onClick={() => setIdentity(false)}
                   >
@@ -691,11 +696,11 @@ export default function Connect() {
                       aria-hidden="true"
                       className="pointer-events-none absolute -inset-1.5 rounded-control border border-brand/20 opacity-0 transition-opacity group-hover:opacity-100"
                     />
-                    <span className="grid size-14 place-items-center rounded-control bg-brand-soft text-brand-text">
+                    <span className="grid size-12 place-items-center rounded-control bg-brand-soft text-brand-text">
                       <svg
                         viewBox="0 0 24 24"
-                        width="32"
-                        height="32"
+                        width="28"
+                        height="28"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.8"
@@ -725,7 +730,7 @@ export default function Connect() {
                 </div>
               )}
 
-              <h2 className="m-0 mt-2 text-[28px] font-semibold leading-[1.15] tracking-[-0.03em] text-foreground max-md:text-[24px]">
+              <h2 className="m-0 mt-1.5 text-[28px] font-semibold leading-[1.15] tracking-[-0.03em] text-foreground max-md:text-[24px]">
                 {stateWord}
               </h2>
               <p className="m-0 max-w-[34ch] text-[13px] leading-5 text-muted-foreground [overflow-wrap:anywhere]">
@@ -825,12 +830,12 @@ export default function Connect() {
               )}
             </div>
 
-            <ul className="mt-5 grid w-full list-none grid-cols-3 gap-2">
+            <ul className="mt-4 grid w-full list-none grid-cols-3 gap-2">
               {facts.map((fact) => (
                 <li
                   key={fact.kind}
                   className={cn(
-                    "bento-inset flex min-w-0 flex-col items-center gap-1.5 rounded-[14px] px-2 py-3 text-[11px] text-muted-foreground",
+                    "bento-inset flex min-w-0 flex-col items-center gap-1.5 rounded-[14px] px-2 py-2.5 text-[11px] text-muted-foreground",
                     fact.tone === "brand" && "text-brand-text",
                     fact.tone === "ok" && "text-success-text",
                   )}
@@ -868,7 +873,7 @@ export default function Connect() {
               ))}
             </ul>
 
-            <div className="bento-inset mt-3 flex w-full items-center gap-2.5 self-stretch px-3 py-2.5 text-[12px] text-muted-foreground max-md:hidden">
+            <div className="bento-inset mt-2.5 flex w-full items-center gap-2.5 self-stretch px-3 py-2 text-[12px] text-muted-foreground max-md:hidden">
               <span
                 className="grid size-7 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground"
                 aria-hidden="true"
@@ -1327,29 +1332,15 @@ export default function Connect() {
                 </p>
               ) : null}
             </div>
-            <div className="mt-auto grid grid-cols-3 gap-1.5 border-t border-border pt-3">
-              {(
-                [
-                  ["/connections", t("quickLinks.connections")],
-                  ["/rules", t("quickLinks.rules")],
-                  ["/logs", t("quickLinks.logs")],
-                ] as const
-              ).map(([path, label]) => (
-                <Link
-                  key={path}
-                  to={path}
-                  className="bento-inset truncate rounded-[12px] px-2 py-2 text-center text-[11px] font-medium text-foreground no-underline transition-colors hover:bg-white/55 hover:text-brand-text dark:hover:bg-white/10"
-                >
-                  {label}
-                </Link>
-              ))}
-            </div>
           </section>
 
           <section
             className={cn(
               cardSurface,
-              "[grid-area:live] flex min-h-[180px] flex-col gap-3 p-4 max-md:min-h-0",
+              // 自建命名容器：兩欄佈局下此卡只有 ~440px 寬，內層「速率｜圖表｜
+              // 配額」三列排布按卡寬切換，不再依賴整頁容器（否則圖表被右側
+              // min-w 配額擠成幾十像素，軸標籤與空態文案豎排折行）。
+              "@container/live [grid-area:live] flex min-h-[180px] flex-col gap-3 p-4 max-md:min-h-0",
             )}
             aria-label={t("trafficStats")}
           >
@@ -1359,9 +1350,9 @@ export default function Connect() {
               </h2>
             </div>
 
-            <div className="bento-inset grid min-w-0 grid-cols-1 items-stretch gap-4 rounded-[16px] p-4 @min-[46rem]/connect:grid-cols-[auto_minmax(0,1fr)_auto] @min-[46rem]/connect:gap-6">
+            <div className="bento-inset grid min-w-0 grid-cols-1 items-stretch gap-3 rounded-[16px] p-3 @min-[36rem]/live:grid-cols-[auto_minmax(0,1fr)_auto] @min-[36rem]/live:gap-6">
               {/* Desktop Speeds: 左右横排，橙色箭头，中间发丝分割线 */}
-              <div className="my-auto hidden items-center gap-6 pe-2 @min-[46rem]/connect:flex">
+              <div className="my-auto hidden items-center gap-6 pe-2 @min-[36rem]/live:flex">
                 {/* 下载速率 */}
                 <div className="flex flex-col gap-1">
                   <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -1419,7 +1410,7 @@ export default function Connect() {
               </div>
 
               {/* Mobile Speeds */}
-              <div className="flex items-center justify-between gap-4 @min-[46rem]/connect:hidden">
+              <div className="flex items-center justify-between gap-4 @min-[36rem]/live:hidden">
                 <div className="flex flex-1 items-center gap-3">
                   <div
                     className="grid size-11 shrink-0 place-items-center rounded-full bg-success/10 text-success"
@@ -1494,7 +1485,7 @@ export default function Connect() {
               />
 
               {/* Desktop Totals & Quota: 本次累计与剩余配额 */}
-              <div className="hidden min-w-0 flex-wrap items-start justify-between gap-3.5 border-t border-border/80 pt-3 md:flex @min-[46rem]/connect:min-w-[190px] @min-[46rem]/connect:flex-col @min-[46rem]/connect:justify-center @min-[46rem]/connect:border-s @min-[46rem]/connect:border-t-0 @min-[46rem]/connect:pe-1 @min-[46rem]/connect:ps-6 @min-[46rem]/connect:pt-0">
+              <div className="hidden min-w-0 flex-wrap items-start justify-between gap-3.5 border-t border-border/80 pt-3 md:flex @min-[36rem]/live:min-w-[190px] @min-[36rem]/live:flex-col @min-[36rem]/live:justify-center @min-[36rem]/live:border-s @min-[36rem]/live:border-t-0 @min-[36rem]/live:pe-1 @min-[36rem]/live:ps-6 @min-[36rem]/live:pt-0">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-xs font-medium text-muted-foreground">
                     {t("sessionTotal")}

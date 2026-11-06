@@ -180,11 +180,6 @@ const KO = {
     via: "경유",
     memory: "메모리",
     copyProxyCommand: "프록시 명령 복사",
-    quickLinks: {
-      connections: "연결 상세",
-      rules: "라우팅 규칙",
-      logs: "코어 로그",
-    },
     egressVerified: "검증됨",
     tiers: {
       core: "코어 도달",
@@ -856,12 +851,11 @@ const KO = {
     cloudAccount: "Cloud 계정",
     signedOut: "로그인하지 않음",
     loginCta: "XBond 로그인",
+    loginFlowHint:
+      "클릭하면 기본 브라우저에서 인증 페이지가 열리고, 완료되면 자동으로 XBond로 돌아와요.",
     note: "현재 설정은 외부 소스입니다. 로그인하면 XBond 구독을 사용할 수 있습니다.",
     pending: "인증 대기 중…",
     openAuthPage: "로그인 페이지 열기",
-    deviceLogin: "기기 코드 로그인으로 변경",
-    browserLogin: "브라우저 로그인으로 변경",
-    deviceCode: "이 코드 입력",
     retry: "재시도",
     failed: "로그인 실패",
     serviceExpires: "만료: {{date}}",

@@ -183,11 +183,6 @@ const EN = {
     via: "Via",
     memory: "Memory",
     copyProxyCommand: "Copy proxy command",
-    quickLinks: {
-      connections: "Connection details",
-      rules: "Routing rules",
-      logs: "Core logs",
-    },
     egressVerified: "Verified",
     tiers: {
       core: "Core reachable",
@@ -873,12 +868,11 @@ const EN = {
     cloudAccount: "Cloud account",
     signedOut: "Not signed in",
     loginCta: "Sign in to XBond",
+    loginFlowHint:
+      "Opens the authorization page in your default browser, then returns here automatically.",
     note: "The active configuration comes from a third-party source; sign in to use your XBond subscription.",
     pending: "Waiting for authorization…",
     openAuthPage: "Open login page",
-    deviceLogin: "Use device code login",
-    browserLogin: "Use browser login",
-    deviceCode: "Enter this code",
     retry: "Retry",
     failed: "Sign-in failed",
     serviceExpires: "Expires {{date}}",

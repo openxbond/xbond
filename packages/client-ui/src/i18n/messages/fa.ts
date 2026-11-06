@@ -181,11 +181,6 @@ const FA = {
     via: "از طریق",
     memory: "حافظه",
     copyProxyCommand: "کپی فرمان پروکسی",
-    quickLinks: {
-      connections: "جزئیات اتصال‌ها",
-      rules: "قوانین مسیریابی",
-      logs: "لاگ هسته",
-    },
     egressVerified: "تأیید شده",
     tiers: {
       core: "دسترسی به هسته",
@@ -863,12 +858,11 @@ const FA = {
     cloudAccount: "حساب Cloud",
     signedOut: "وارد نشده‌اید",
     loginCta: "ورود به XBond",
+    loginFlowHint:
+      "با کلیک، صفحهٔ تأیید در مرورگر پیش‌فرض باز می‌شود و پس از پایان به‌طور خودکار به XBond برمی‌گردید.",
     note: "پیکربندی فعلی از منبع دیگری است؛ با ورود، اشتراک XBond خود را داشته باشید.",
     pending: "در انتظار تأیید…",
     openAuthPage: "باز کردن صفحه ورود",
-    deviceLogin: "ورود با کد دستگاه",
-    browserLogin: "ورود با مرورگر",
-    deviceCode: "این کد را وارد کنید",
     retry: "تلاش دوباره",
     failed: "ورود ناموفق بود",
     serviceExpires: "انقضا: {{date}}",

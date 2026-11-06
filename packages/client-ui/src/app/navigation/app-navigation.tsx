@@ -185,7 +185,11 @@ function DesktopSidebar() {
             <SidebarLink key={item.name} item={item} />
           ))}
         </ul>
-        <ul className="m-0 mt-auto flex list-none flex-col p-0">
+        <div
+          className="mx-2 my-2 h-px bg-[var(--glass-border)]"
+          aria-hidden="true"
+        />
+        <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
           <SidebarLink item={settingsRoute} />
         </ul>
       </div>

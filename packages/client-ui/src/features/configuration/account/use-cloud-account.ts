@@ -6,6 +6,7 @@ import {
 import { useCallback, useEffect } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
+import { isDesktopApp } from "@/platform/local-api-bootstrap";
 import { useDaemonConnection } from "@/state/daemon-connection";
 import { useLanguage } from "@/state/user-preferences";
 
@@ -53,11 +54,15 @@ export function useAccount() {
     mutateCache,
   ]);
 
+  // One login path: the system browser plus the shell-registered deep
+  // link. Desktop redirects back through its custom scheme; other hosts
+  // (web, extension) keep the loopback callback.
   const login = useCallback(
-    async (options?: { origin?: string; device?: boolean }) => {
+    async (options?: { origin?: string }) => {
       if (!client) throw new Error("LocalAPI not available");
       const status = await client.accountLogin({
         lang: subscriptionLang(lang),
+        callbackScheme: isDesktopApp() ? "xbond" : undefined,
         ...options,
       });
       await mutate();

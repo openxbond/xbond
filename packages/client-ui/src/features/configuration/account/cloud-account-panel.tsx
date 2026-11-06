@@ -71,7 +71,6 @@ export default function AccountPanel() {
   const authorizing = account?.status === "pending";
   const phase = account?.phase || (authorizing ? "authorizing" : undefined);
   const busy = pending || Boolean(phase) || Boolean(operation);
-  const device = account?.method === "device";
   const current =
     isLocalTarget && cloudProfile?.id === activeId && Boolean(cloudProfile);
 
@@ -82,21 +81,6 @@ export default function AccountPanel() {
     ) || pendingAction === "sync";
   const fetchProgress = useSubscriptionFetchProgress(isDownloading);
 
-  const phaseText = {
-    authorizing: t("pending"),
-    exchanging_token: t("phaseExchange"),
-    fetching_subscription: t("phaseFetch"),
-    syncing_subscription: t("phaseSync"),
-    loading_account: t("phaseOverview"),
-  };
-
-  const step =
-    phase === "authorizing" || phase === "exchanging_token"
-      ? 0
-      : phase === "loading_account"
-        ? 2
-        : 1;
-
   // 只有真實位元組樣本才顯示百分比；階段本身由步驟條與文案交代，
   // 不為填滿進度條發明數字（DESIGN.md：沒有真實進度不畫百分比）。
   const downloadPercent =
@@ -106,6 +90,22 @@ export default function AccountPanel() {
           Math.round((fetchProgress.bytes / fetchProgress.total) * 100),
         )
       : null;
+
+  const phaseText: Record<string, string> = {
+    authorizing: t("pending"),
+    exchanging_token: t("phaseExchange"),
+    fetching_subscription: t("phaseFetch"),
+    syncing_subscription: t("phaseSync"),
+    loading_account: t("phaseOverview"),
+  };
+
+  // 授權 → 訂閱同步 → 就緒：令牌兌換仍屬授權段，讀取帳號已是收尾段。
+  const step =
+    phase === "authorizing" || phase === "exchanging_token"
+      ? 0
+      : phase === "loading_account"
+        ? 2
+        : 1;
 
   const quota = subscriptionQuota(cloudProfile ?? null);
   const failure =
@@ -167,7 +167,9 @@ export default function AccountPanel() {
               <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                 {signedIn
                   ? account.name || account.email || t("signedIn")
-                  : t("cloudDesc")}
+                  : authorizing || phase
+                    ? phaseText[phase ?? "authorizing"]
+                    : t("signedOut")}
               </span>
               {signedIn && (
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2 py-0.5 text-xs font-medium text-success-text">
@@ -231,15 +233,7 @@ export default function AccountPanel() {
               )}
               {pendingAction === "use" ? t("applyingConfig") : c("use")}
             </Button>
-          ) : (
-            <Button
-              variant="brand"
-              disabled={busy}
-              onClick={() => void action(() => login())}
-            >
-              {t("loginCta")}
-            </Button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -270,14 +264,16 @@ export default function AccountPanel() {
           {common("loading")}
         </p>
       ) : authorizing || phase ? (
-        /* Enhanced Onboarding & Login Progress Stepper */
+        /* Onboarding & Login Progress Stepper — inline on the panel, the
+           flow's position and live bytes stay in one reading order with
+           the account context (DESIGN.md: one task per surface). */
         <section
           className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-xs gap-6"
           aria-label={t("loginProgress")}
         >
           {/* Connected Stepper */}
           <div className="relative">
-            <div className="absolute left-8 right-8 top-4 -z-0 h-0.5 bg-inset -translate-y-1/2">
+            <div className="absolute top-4 right-8 left-8 h-0.5 -translate-y-1/2 bg-inset">
               <div
                 className="h-full bg-brand transition-all duration-500 ease-out"
                 style={{
@@ -285,7 +281,7 @@ export default function AccountPanel() {
                 }}
               />
             </div>
-            <ol className="relative z-10 flex justify-between">
+            <ol className="relative flex justify-between">
               {[t("stepAuthorize"), t("stepSubscription"), t("stepReady")].map(
                 (label, index) => {
                   const isPast = index < step;
@@ -308,7 +304,7 @@ export default function AccountPanel() {
                         {isPast ? (
                           <Check className="size-4" strokeWidth={2.5} />
                         ) : isCurrent ? (
-                          <LoaderCircle className="size-4 animate-spin" />
+                          <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
                         ) : (
                           index + 1
                         )}
@@ -335,12 +331,14 @@ export default function AccountPanel() {
           {/* Progress Bar & Real-time Bytes Status */}
           <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-inset/60 p-4">
             <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="flex items-center gap-2 font-medium text-foreground">
-                <LoaderCircle className="size-4 animate-spin text-brand" />
-                {phase ? phaseText[phase] : common("loading")}
+              <span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
+                <LoaderCircle className="size-4 shrink-0 animate-spin text-brand motion-reduce:animate-none" />
+                <span className="truncate">
+                  {phase ? phaseText[phase] : common("loading")}
+                </span>
               </span>
               {downloadPercent !== null && (
-                <span className="font-mono text-xs font-medium text-muted-foreground tabular-nums">
+                <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground tabular-nums">
                   {downloadPercent}%
                 </span>
               )}
@@ -363,63 +361,29 @@ export default function AccountPanel() {
           </div>
 
           {phase === "authorizing" && (
-            <div className="flex flex-col gap-4 pt-2">
-              {account?.userCode && (
-                <div className="grid gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    {t("deviceCode")}
-                  </span>
-                  <code className="w-fit rounded-control bg-inset px-4 py-3 text-xl font-semibold tracking-wider">
-                    {account.userCode}
-                  </code>
-                </div>
-              )}
-              {(account?.authUrl ||
-                account?.verificationUriComplete ||
-                account?.verificationUri) && (
-                <a
-                  className="section-link inline-flex w-fit items-center gap-1.5 font-medium"
-                  href={
-                    account.authUrl ||
-                    account.verificationUriComplete ||
-                    account.verificationUri
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(event) =>
-                    openExternal(
-                      event,
-                      account?.authUrl ||
-                        account?.verificationUriComplete ||
-                        account?.verificationUri,
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {account?.authUrl && (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    void openExternalUrl(account.authUrl!).catch((err) =>
+                      setError(
+                        err instanceof Error ? err.message : String(err),
+                      ),
                     )
                   }
                 >
-                  {t("openAuthPage")}
                   <ExternalLink aria-hidden="true" className="size-3.5" />
-                </a>
+                  {t("openAuthPage")}
+                </Button>
               )}
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => void action(cancelLogin)}
-                >
-                  {common("cancel")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  disabled={pending}
-                  onClick={() =>
-                    void action(async () => {
-                      await cancelLogin();
-                      await login({ device: !device });
-                    })
-                  }
-                >
-                  {device ? t("browserLogin") : t("deviceLogin")}
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                disabled={pending}
+                onClick={() => void action(cancelLogin)}
+              >
+                {common("cancel")}
+              </Button>
             </div>
           )}
         </section>
@@ -634,12 +598,14 @@ export default function AccountPanel() {
         </>
       ) : (
         /* Signed-Out Landing Card */
-        <div className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-xs gap-4">
-          <div className="flex flex-col gap-1">
-            <h3 className="text-base font-semibold text-foreground">
-              {t("loginCta")}
-            </h3>
-            <p className="text-sm text-muted-foreground">{t("cloudDesc")}</p>
+        <div className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-xs gap-5">
+          <div className="flex items-start gap-4">
+            <ResourceIcon kind="cloud" className="size-11 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-semibold text-foreground">
+                {t("cloudDesc")}
+              </h3>
+            </div>
           </div>
           {account?.status === "error" && (
             <p className="config-error" role="alert">
@@ -648,20 +614,18 @@ export default function AccountPanel() {
                 : t("failed")}
             </p>
           )}
-          <div className="flex flex-wrap gap-3 pt-2">
+          <div className="flex flex-col gap-2.5 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-sm text-xs leading-5 text-muted-foreground">
+              {t("loginFlowHint")}
+            </p>
             <Button
               variant="brand"
+              size="lg"
+              className="shrink-0"
               disabled={busy}
               onClick={() => void action(() => login())}
             >
               {t("loginCta")}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() => void action(() => login({ device: true }))}
-            >
-              {t("deviceLogin")}
             </Button>
           </div>
         </div>

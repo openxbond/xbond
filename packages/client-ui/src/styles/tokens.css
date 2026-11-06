@@ -38,7 +38,7 @@
   --control-height-sm: 30px;
   --control-height: 34px;
   --control-height-lg: 40px;
-  --page-pad: 18px;
+  --page-pad: 16px;
   --sidebar-width: 248px;
   --topbar-height: 56px;
   --titlebar-height: 40px;
@@ -97,11 +97,11 @@
   --accent: oklch(1 0 0 / 60%);
   --accent-foreground: oklch(0.2 0.018 265);
   --border: oklch(0.2 0.02 265 / 9%);
-  --border-strong: oklch(0.2 0.02 265 / 16%);
+  --border-strong: oklch(0.2 0.02 265 / 24%);
   --input: oklch(0.2 0.02 265 / 14%);
   --ring: var(--brand);
   --row-hover: oklch(1 0 0 / 55%);
-  --overlay: oklch(0.16 0.02 265 / 38%);
+  --overlay: oklch(0.16 0.02 265 / 54%);
   --switch-thumb: oklch(1 0 0);
 
   /* Status */

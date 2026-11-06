@@ -173,7 +173,7 @@ XBond 的畫面是一張冷瓷色極光畫布，功能拆成一塊塊磨砂玻�
 | Hero 卡 `.bento-hero` | 中性玻璃疊一層 10% 品牌橙徑向光暈 | 環境色投影略強於普通卡 |
 | 內凹面 `.bento-inset` | `--glass-inset` 漸變 | 內高光，用於卡內小模組 |
 | 浮動導覽 `.glass-bar` | 玻璃 + `backdrop-filter: blur(16px)` | 內高光 + 柔影 |
-| 浮層／彈窗 | 玻璃 + `--elevation-raised`；遮罩 `backdrop-blur-sm` | 最高層 |
+| 浮層／彈窗 | 實色卡面（模態可讀性優先，不透出背後文字）+ `--elevation-raised`；遮罩 `--overlay` + `backdrop-blur-md` | 最高層 |
 | 回退 | `@supports not (backdrop-filter…)` 回退實色 `card` | — |
 
 - 卡片描邊用漸變光邊（`mask-composite` 疊一圈白到品牌橙的 1px），不是純色邊框。
@@ -185,7 +185,7 @@ XBond 的畫面是一張冷瓷色極光畫布，功能拆成一塊塊磨砂玻�
 `backdrop-filter` 在桌面 WebView（WebKitGTK／WKWebView）極其昂貴：每個帶模糊的元素都要每幀採樣並重新模糊背後內容，多層疊加會直接吃滿 GPU、拖垮滾動與懸停。因此：
 
 - 極光層靜態且不加 `filter: blur()`——徑向漸變本身已經柔和，全屏模糊純屬浪費。
-- `backdrop-filter` 只允許出現在真正浮動於內容之上的大表面：側欄／手機頂底欄（16px）、彈窗遮罩（`blur-sm`）、選單浮層（14px）。內容卡、輸入框、按鈕、徽章、開關、分段軌道一律用半透明面，不做背景採樣。
+- `backdrop-filter` 只允許出現在真正浮動於內容之上的大表面：側欄／手機頂底欄（16px）、彈窗遮罩（`blur-md`）、選單浮層（14px）。內容卡、輸入框、按鈕、徽章、開關、分段軌道一律用半透明面，不做背景採樣。模態彈窗的卡面用實色 `card`——半透明卡會讓背後文字透進彈窗正文，這是可讀性事故，不是玻璃質感。
 - 一屏可見的 `backdrop-filter` 元素目標 ≤ 3 個；新增玻璃效果前先問「它背後是否真的有需要模糊的動態內容」。
 - hover／按壓只動 `transform`（合成器屬性）；`box-shadow`、`filter` 不進 transition 鏈。
 - 遮罩與浮層模糊值取小檔（`blur-sm`／14px），不用 2xl 級別。

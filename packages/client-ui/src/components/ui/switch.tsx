@@ -19,7 +19,7 @@ function Switch({
         // checked; the component keeps its own hit area instead of a padded
         // wrapper. The ::before extends the touch target past the 44×44 CSS
         // px floor without moving the visual track.
-        "peer group/switch relative inline-flex shrink-0 items-center rounded-full border border-transparent transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] data-[size=default]:h-7 data-[size=default]:w-[46px] data-[size=sm]:h-5 data-[size=sm]:w-9 data-[state=checked]:bg-brand data-[state=checked]:shadow-[0_4px_12px_-6px_oklch(0.7_0.19_45/45%)] data-[state=unchecked]:bg-white/45 dark:data-[state=unchecked]:bg-white/10",
+        "peer group/switch relative inline-flex shrink-0 items-center rounded-full border border-transparent transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] data-[size=default]:h-7 data-[size=default]:w-[46px] data-[size=sm]:h-5 data-[size=sm]:w-9 data-[state=checked]:bg-brand data-[state=checked]:shadow-[0_4px_12px_-6px_oklch(0.7_0.19_45/45%)] data-[state=unchecked]:border-border-strong data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input",
         className,
       )}
       {...props}
