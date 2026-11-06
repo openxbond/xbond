@@ -1,238 +1,244 @@
+/*
+ * XBond design tokens — the single source of truth for colour, shape,
+ * elevation and layout (DESIGN.md). Components consume semantic tokens only;
+ * raw palette classes are not part of the system.
+ *
+ * Light theme is a warm paper desk; dark theme is graphite. Brand orange is
+ * an accent and the connect action, never a background wash.
+ */
+
 :root {
   color-scheme: light;
+
+  /* Type */
   --font-sans:
-    "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC",
-    sans-serif;
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI Variable",
+    "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans CJK SC", sans-serif;
   --font-mono:
     ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
+
+  /* Motion */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 120ms;
-  --duration-base: 200ms;
-  --duration-slow: 320ms;
-  --sidebar-foreground-muted: oklch(0.5 0 0);
-  --row-hover: oklch(0.145 0 0 / 3%);
-  --overlay: oklch(0 0 0 / 40%);
-  --brand-soft: oklch(0.965 0.035 60);
-  --brand-action: var(--foreground);
-  --brand-action-foreground: var(--brand);
-  --brand-action-hover: color-mix(
-    in oklab,
-    var(--brand-action) 90%,
-    transparent
-  );
-  --brand-action-shadow: 0 2px 8px oklch(0.66 0.18 52 / 28%);
-  --brand-action-hover-shadow: 0 4px 14px oklch(0.66 0.18 52 / 38%);
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
 
-  /* 延遲色階：交通燈狀態自成一族；深淺色各自成對，避免固定淺彩在深色下失配。 */
-  --latency-good-bg: oklch(0.92 0.08 145);
-  --latency-good-text: oklch(0.38 0.14 145);
-  --latency-good-dot: oklch(0.48 0.16 145);
-  --latency-medium-bg: oklch(0.94 0.1 85);
-  --latency-medium-text: oklch(0.48 0.14 85);
-  --latency-medium-dot: oklch(0.58 0.16 85);
-  --latency-slow-bg: oklch(0.92 0.09 45);
-  --latency-slow-text: oklch(0.48 0.15 45);
-  --latency-slow-dot: oklch(0.58 0.17 45);
-  --latency-failed-bg: oklch(0.92 0.08 25);
-  --latency-failed-text: oklch(0.49 0.2 26);
-  --latency-failed-dot: var(--destructive);
+  /* Shape — semantic, host-overridable. */
+  --radius: 8px;
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --radius-pill: 9999px;
 
-  --radius: 0.75rem;
-  --background: oklch(0.975 0.003 90);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --surface-inset: oklch(0.958 0.002 90);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --border: oklch(0.92 0 0);
-  --border-strong: oklch(0.86 0 0);
-  --input: oklch(0.86 0 0);
-  --ring: oklch(0.66 0.18 52);
-  --brand: oklch(0.7163 0.1706 53.45);
-  --brand-strong: oklch(0.66 0.18 52);
-  /* 亮橙底不配白字：橙面上的文字與功能符號在深淺色都用深墨。 */
-  --brand-foreground: oklch(0.205 0 0);
-  --brand-text: oklch(0.55 0.15 45);
-  --success: oklch(0.54 0.16 153);
-  --success-foreground: oklch(0.985 0 0);
-  --success-text: oklch(0.489 0.116 156.7);
-  --warning: oklch(0.78 0.16 85);
-  --warning-foreground: oklch(0.15 0 0);
-  --warning-text: oklch(0.52 0.125 72);
-  --info: oklch(0.53 0.16 247);
-  --info-foreground: oklch(0.985 0 0);
-  --info-text: oklch(0.53 0.16 247);
-  --destructive: oklch(0.57 0.22 26);
-  --destructive-foreground: oklch(0.985 0 0);
-  --destructive-text: oklch(0.523 0.203 26.4);
-  --chart-1: oklch(0.7163 0.1706 53.45);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.22 0.005 55);
-  --sidebar-accent: oklch(0 0 0 / 4%);
-  --sidebar-accent-foreground: oklch(0.12 0 0);
-  --sidebar-border: oklch(0 0 0 / 6%);
-  --sidebar-ring: oklch(0.7163 0.1706 53.45);
-  /* 柔和景深：環境陰影帶少許品牌暖調，貼近參考圖的乳白層次。 */
-  --elevation-card:
-    0 1px 3px rgba(0, 0, 0, 0.02), 0 10px 28px -6px oklch(0.5 0.06 60 / 0.08);
-  --elevation-raised:
-    0 4px 10px rgba(0, 0, 0, 0.03), 0 22px 48px -10px oklch(0.5 0.06 60 / 0.15);
-  --theme-color: #f7f7f7;
-
-  /* 原生客戶端視覺基準（DESIGN.md「原生客戶端视觉基准」；R3）。
-     玻璃只承擔導覽與浮層，工作卡保持乳白實面；形狀由控制 12px、
-     卡 24px 到浮島 28px 逐級柔化。 */
-  --radius-control: 12px;
-  --radius-card: 24px;
-  --radius-rail: 28px;
-  --glass-bg: color-mix(in srgb, var(--sidebar) 85%, transparent);
-  --glass-border: var(--sidebar-border);
-  --glass-blur: 20px;
-  --orb-gradient: radial-gradient(
-    circle at 36% 30%,
-    oklch(0.85 0.14 65) 0%,
-    var(--brand) 62%,
-    var(--brand-strong) 100%
-  );
-  --orb-glow:
-    0 16px 38px -4px oklch(0.66 0.18 52 / 0.48),
-    0 0 45px 8px oklch(0.72 0.17 53 / 0.22);
-  --orb-halo: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--brand) 22%, transparent) 0%,
-    color-mix(in srgb, var(--brand) 8%, transparent) 45%,
-    transparent 72%
-  );
-  --orb-off-gradient: linear-gradient(
-    145deg,
-    oklch(1 0 0) 0%,
-    var(--surface-inset) 100%
-  );
-  --orb-off-inset-shadow:
-    inset 0 2px 2px oklch(1 0 0 / 90%), inset 0 -2px 4px oklch(0 0 0 / 4%);
-  --topbar-height: 56px;
-  /* Desktop frameless window: custom titlebar band height (title-bar.tsx). */
+  /* Density */
+  --control-height-sm: 28px;
+  --control-height: 32px;
+  --control-height-lg: 38px;
+  --page-pad: 24px;
+  --sidebar-width: 240px;
+  --topbar-height: 52px;
   --titlebar-height: 40px;
-  /* Frameless Windows/Linux windows get no compositor shadow; a 1px inset
-     outline keeps the window boundary readable on any desktop backdrop. */
-  --window-frame: inset 0 0 0 1px oklch(0 0 0 / 20%);
-}
-.dark {
-  color-scheme: dark;
-  --sidebar-foreground-muted: oklch(0.72 0 0);
-  --row-hover: oklch(1 0 0 / 5%);
-  --overlay: oklch(0 0 0 / 60%);
-  --brand-soft: oklch(0.7163 0.1706 53.45 / 12%);
+  --content-max: 1440px;
+
+  /* Accent and interaction */
+  --brand: oklch(0.716 0.171 53.4);
+  --brand-strong: oklch(0.66 0.18 52);
+  --brand-foreground: oklch(0.19 0.006 60);
+  --brand-text: oklch(0.5 0.145 45);
+  --brand-soft: oklch(0.935 0.045 68);
   --brand-action: var(--brand);
   --brand-action-foreground: var(--brand-foreground);
   --brand-action-hover: var(--brand-strong);
-  --brand-action-shadow: 0 2px 8px oklch(0.66 0.18 52 / 32%);
-  --brand-action-hover-shadow: 0 4px 14px oklch(0.66 0.18 52 / 45%);
+  --brand-action-shadow: none;
+  --brand-action-hover-shadow: none;
 
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.185 0.004 55);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.22 0.005 55);
-  --popover-foreground: oklch(0.985 0 0);
-  --surface-inset: oklch(0.115 0.003 55);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.72 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.7 0.2 25);
-  --destructive-foreground: oklch(0.15 0 0);
-  --destructive-text: oklch(0.7 0.2 25);
-  --border: oklch(1 0 0 / 8%);
-  --border-strong: oklch(1 0 0 / 14%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.7163 0.1706 53.45);
-  --brand: oklch(0.7163 0.1706 53.45);
-  --brand-strong: oklch(0.66 0.18 52);
-  --brand-foreground: oklch(0.187 0 0);
-  --brand-text: oklch(0.78 0.13 58);
-  --success: oklch(0.72 0.16 150);
-  --success-foreground: oklch(0.15 0 0);
-  --success-text: oklch(0.72 0.16 150);
-  --warning: oklch(0.8 0.16 85);
-  --warning-foreground: oklch(0.15 0 0);
-  --warning-text: oklch(0.8 0.16 85);
-  --info: oklch(0.72 0.15 245);
-  --info-foreground: oklch(0.15 0 0);
-  --info-text: oklch(0.72 0.15 245);
-  --chart-1: oklch(0.7163 0.1706 53.45);
-  --chart-2: oklch(0.85 0 0);
-  --chart-3: oklch(0.68 0 0);
-  --chart-4: oklch(0.52 0 0);
-  --chart-5: oklch(0.38 0 0);
-  --sidebar: oklch(0.16 0.004 55);
-  --sidebar-foreground: oklch(0.93 0 0);
-  --sidebar-accent: oklch(1 0 0 / 7%);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.7163 0.1706 53.45);
-  --elevation-card:
-    inset 0 1px 0 oklch(1 0 0 / 6%), 0 2px 6px oklch(0 0 0 / 22%),
-    0 12px 32px -10px oklch(0 0 0 / 35%);
+  /* Surfaces */
+  --background: oklch(0.973 0.004 70);
+  --foreground: oklch(0.19 0.008 60);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.19 0.008 60);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.19 0.008 60);
+  --surface-inset: oklch(0.945 0.005 70);
+  --surface-raised: oklch(1 0 0);
+  --sidebar: oklch(0.943 0.007 70);
+  --sidebar-foreground: oklch(0.22 0.008 60);
+  --sidebar-foreground-muted: oklch(0.43 0.008 60);
+  --sidebar-accent: oklch(0.19 0.008 60 / 6%);
+  --sidebar-accent-foreground: oklch(0.19 0.008 60);
+  --sidebar-border: oklch(0.19 0.008 60 / 10%);
+  --sidebar-ring: var(--brand);
+
+  /* Controls */
+  --primary: oklch(0.21 0.008 60);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.955 0.004 70);
+  --secondary-foreground: oklch(0.21 0.008 60);
+  --muted: oklch(0.948 0.005 70);
+  --muted-foreground: oklch(0.44 0.008 60);
+  --accent: oklch(0.945 0.004 70);
+  --accent-foreground: oklch(0.21 0.008 60);
+  --border: oklch(0.85 0.006 70);
+  --border-strong: oklch(0.76 0.009 70);
+  --input: oklch(0.78 0.008 70);
+  --ring: var(--brand-strong);
+  --row-hover: oklch(0.19 0.008 60 / 4%);
+  --overlay: oklch(0.12 0.006 60 / 42%);
+  --switch-thumb: oklch(1 0 0);
+
+  /* Status */
+  --success: oklch(0.55 0.135 155);
+  --success-foreground: oklch(0.99 0 0);
+  --success-text: oklch(0.45 0.115 156);
+  --warning: oklch(0.79 0.15 85);
+  --warning-foreground: oklch(0.18 0.01 70);
+  --warning-text: oklch(0.49 0.115 70);
+  --info: oklch(0.54 0.15 247);
+  --info-foreground: oklch(0.99 0 0);
+  --info-text: oklch(0.47 0.14 247);
+  --destructive: oklch(0.52 0.2 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --destructive-text: oklch(0.47 0.18 27);
+
+  /* Data visualisation: brand first, then graphite steps. */
+  --chart-1: var(--brand);
+  --chart-2: oklch(0.55 0 0);
+  --chart-3: oklch(0.44 0 0);
+  --chart-4: oklch(0.34 0 0);
+  --chart-5: oklch(0.25 0 0);
+
+  /* Elevation: hairlines for structure, shadows only for floating layers. */
+  --elevation-card: 0 1px 2px oklch(0.2 0.01 60 / 4%);
   --elevation-raised:
-    inset 0 1px 0 oklch(1 0 0 / 9%), 0 6px 16px oklch(0 0 0 / 30%),
-    0 20px 48px -12px oklch(0 0 0 / 50%);
-  --theme-color: #0a0a0a;
+    0 1px 2px oklch(0.2 0.01 60 / 8%),
+    0 16px 40px -18px oklch(0.2 0.01 60 / 28%);
+  --window-frame: inset 0 0 0 1px oklch(0.2 0.01 60 / 18%);
+  --theme-color: #f8f6f2;
 
-  --latency-good-bg: oklch(0.3 0.06 150);
-  --latency-good-text: oklch(0.8 0.13 150);
-  --latency-good-dot: oklch(0.72 0.15 150);
-  --latency-medium-bg: oklch(0.32 0.07 85);
-  --latency-medium-text: oklch(0.85 0.12 85);
-  --latency-medium-dot: oklch(0.8 0.14 85);
-  --latency-slow-bg: oklch(0.33 0.08 45);
-  --latency-slow-text: oklch(0.82 0.12 45);
-  --latency-slow-dot: oklch(0.78 0.15 45);
-  --latency-failed-bg: oklch(0.3 0.08 25);
-  --latency-failed-text: oklch(0.78 0.13 25);
-  --latency-failed-dot: oklch(0.78 0.13 25);
+  /* Latency traffic-light family (paired light/dark). */
+  --latency-good-bg: oklch(0.93 0.06 150);
+  --latency-good-text: oklch(0.4 0.12 152);
+  --latency-good-dot: oklch(0.52 0.14 152);
+  --latency-medium-bg: oklch(0.95 0.07 88);
+  --latency-medium-text: oklch(0.45 0.12 74);
+  --latency-medium-dot: oklch(0.6 0.14 80);
+  --latency-slow-bg: oklch(0.94 0.07 50);
+  --latency-slow-text: oklch(0.47 0.14 45);
+  --latency-slow-dot: oklch(0.6 0.16 45);
+  --latency-failed-bg: oklch(0.94 0.06 27);
+  --latency-failed-text: oklch(0.5 0.18 27);
+  --latency-failed-dot: oklch(0.56 0.2 27);
+}
 
-  /* 深色玻璃維持石墨階梯：表面不透明度提高補償對比，形狀與淺色一致。 */
-  --glass-bg: color-mix(in srgb, var(--sidebar) 88%, transparent);
-  --glass-border: var(--sidebar-border);
-  --orb-gradient: linear-gradient(
-    145deg,
-    oklch(0.78 0.16 60) 0%,
-    var(--brand) 52%,
-    oklch(0.58 0.17 47) 100%
-  );
-  --orb-glow: 0 20px 44px -16px oklch(0.66 0.18 52 / 0.42);
-  --orb-halo: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--brand) 26%, transparent) 0%,
-    color-mix(in srgb, var(--brand) 10%, transparent) 45%,
-    transparent 72%
-  );
-  --orb-off-gradient: linear-gradient(
-    145deg,
-    oklch(0.26 0.005 55) 0%,
-    var(--surface-inset) 100%
-  );
-  --orb-off-inset-shadow:
-    inset 0 2px 2px oklch(1 0 0 / 7%), inset 0 -2px 4px oklch(0 0 0 / 20%);
+.dark {
+  color-scheme: dark;
+
+  --brand: oklch(0.735 0.165 55);
+  --brand-strong: oklch(0.79 0.15 60);
+  --brand-foreground: oklch(0.17 0.006 60);
+  --brand-text: oklch(0.81 0.135 62);
+  --brand-soft: oklch(0.295 0.052 55);
+  --brand-action: var(--brand);
+  --brand-action-foreground: var(--brand-foreground);
+  --brand-action-hover: var(--brand-strong);
+
+  --background: oklch(0.155 0.006 60);
+  --foreground: oklch(0.955 0.004 70);
+  --card: oklch(0.225 0.007 60);
+  --card-foreground: oklch(0.955 0.004 70);
+  --popover: oklch(0.255 0.008 60);
+  --popover-foreground: oklch(0.955 0.004 70);
+  --surface-inset: oklch(0.128 0.006 60);
+  --surface-raised: oklch(0.235 0.008 60);
+  --sidebar: oklch(0.19 0.007 60);
+  --sidebar-foreground: oklch(0.93 0.004 70);
+  --sidebar-foreground-muted: oklch(0.72 0.008 65);
+  --sidebar-accent: oklch(1 0 0 / 7%);
+  --sidebar-accent-foreground: oklch(0.97 0.004 70);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: var(--brand);
+
+  --primary: oklch(0.93 0.004 70);
+  --primary-foreground: oklch(0.18 0.006 60);
+  --secondary: oklch(0.265 0.008 60);
+  --secondary-foreground: oklch(0.955 0.004 70);
+  --muted: oklch(0.265 0.008 60);
+  --muted-foreground: oklch(0.75 0.008 65);
+  --accent: oklch(0.265 0.008 60);
+  --accent-foreground: oklch(0.965 0.004 70);
+  --border: oklch(1 0 0 / 17%);
+  --border-strong: oklch(1 0 0 / 25%);
+  --input: oklch(1 0 0 / 22%);
+  --ring: var(--brand);
+  --row-hover: oklch(1 0 0 / 6%);
+  --overlay: oklch(0 0 0 / 62%);
+  --switch-thumb: oklch(0.975 0.003 70);
+
+  --success: oklch(0.72 0.15 150);
+  --success-foreground: oklch(0.17 0.006 60);
+  --success-text: oklch(0.76 0.14 150);
+  --warning: oklch(0.81 0.15 86);
+  --warning-foreground: oklch(0.17 0.006 60);
+  --warning-text: oklch(0.82 0.14 86);
+  --info: oklch(0.73 0.13 245);
+  --info-foreground: oklch(0.17 0.006 60);
+  --info-text: oklch(0.75 0.12 245);
+  --destructive: oklch(0.7 0.19 26);
+  --destructive-foreground: oklch(0.17 0.006 60);
+  --destructive-text: oklch(0.73 0.18 26);
+
+  --chart-1: var(--brand);
+  --chart-2: oklch(0.84 0 0);
+  --chart-3: oklch(0.68 0 0);
+  --chart-4: oklch(0.5 0 0);
+  --chart-5: oklch(0.35 0 0);
+
+  --elevation-card: 0 1px 2px oklch(0 0 0 / 22%);
+  --elevation-raised:
+    0 0 0 1px oklch(1 0 0 / 8%), 0 18px 44px -18px oklch(0 0 0 / 65%);
   --window-frame: inset 0 0 0 1px oklch(1 0 0 / 12%);
+  --theme-color: #151412;
+
+  --latency-good-bg: oklch(0.3 0.055 152);
+  --latency-good-text: oklch(0.82 0.12 152);
+  --latency-good-dot: oklch(0.74 0.14 152);
+  --latency-medium-bg: oklch(0.32 0.06 82);
+  --latency-medium-text: oklch(0.86 0.1 86);
+  --latency-medium-dot: oklch(0.82 0.13 86);
+  --latency-slow-bg: oklch(0.32 0.07 48);
+  --latency-slow-text: oklch(0.84 0.11 50);
+  --latency-slow-dot: oklch(0.8 0.14 50);
+  --latency-failed-bg: oklch(0.3 0.07 27);
+  --latency-failed-text: oklch(0.8 0.13 27);
+  --latency-failed-dot: oklch(0.74 0.17 27);
+}
+
+/*
+ * Host shape and type. `data-host` is written before render by
+ * platform/host.ts. Linux and unknown browsers use the neutral web scale.
+ */
+:root[data-host="macos"] {
+  --radius-control: 6px;
+  --radius-card: 10px;
+}
+
+:root[data-host="windows"] {
+  --radius-control: 4px;
+  --radius-card: 8px;
+  --font-sans:
+    "Segoe UI Variable", "Segoe UI", system-ui, "Microsoft YaHei",
+    "Noto Sans CJK SC", sans-serif;
+}
+
+:root[data-host="ios"] {
+  --radius-control: 8px;
+  --radius-card: 12px;
+}
+
+:root[data-host="android"] {
+  --radius-control: 10px;
+  --radius-card: 12px;
+  --font-sans:
+    Roboto, system-ui, "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
 }

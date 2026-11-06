@@ -1,84 +1,87 @@
 ---
 name: XBond 用戶端設計系統
-description: 以日常連線為中心的跨端玻璃浮島設計，適用桌面、流動 App、Web 與瀏覽器擴充功能。
+description: 原生為先、信號為輔的跨端設計，適用桌面、流動 App、Web 與瀏覽器擴充功能。
 colors:
-  brand: "oklch(0.7163 0.1706 53.45)"
+  brand: "oklch(0.716 0.171 53.4)"
   brand-strong: "oklch(0.66 0.18 52)"
-  brand-foreground: "oklch(0.205 0 0)"
-  brand-text: "oklch(0.55 0.15 45)"
-  brand-text-dark: "oklch(0.78 0.13 58)"
-  background: "oklch(0.975 0 0)"
-  background-dark: "oklch(0.145 0 0)"
-  foreground: "oklch(0.145 0 0)"
-  foreground-dark: "oklch(0.985 0 0)"
+  brand-foreground: "oklch(0.19 0.006 60)"
+  brand-text: "oklch(0.5 0.145 45)"
+  brand-soft: "oklch(0.935 0.045 68)"
+  background: "oklch(0.973 0.004 70)"
+  background-dark: "oklch(0.155 0.006 60)"
+  foreground: "oklch(0.19 0.008 60)"
+  foreground-dark: "oklch(0.955 0.004 70)"
   card: "oklch(1 0 0)"
-  card-dark: "oklch(0.185 0.004 55)"
+  card-dark: "oklch(0.225 0.007 60)"
   popover: "oklch(1 0 0)"
-  popover-dark: "oklch(0.22 0.005 55)"
-  surface-inset: "oklch(0.955 0 0)"
-  surface-inset-dark: "oklch(0.115 0.003 55)"
-  muted-foreground: "oklch(0.5 0 0)"
-  muted-foreground-dark: "oklch(0.72 0 0)"
-  border: "oklch(0.915 0 0)"
-  border-dark: "oklch(1 0 0 / 8%)"
-  border-strong: "oklch(0.86 0 0)"
-  border-strong-dark: "oklch(1 0 0 / 14%)"
-  sidebar: "oklch(1 0 0)"
-  sidebar-dark: "oklch(0.16 0.004 55)"
-  sidebar-foreground: "oklch(0.22 0.005 55)"
-  sidebar-foreground-dark: "oklch(0.93 0 0)"
-  success: "oklch(0.54 0.16 153)"
-  success-dark: "oklch(0.72 0.16 150)"
-  success-text: "oklch(0.489 0.116 156.7)"
-  warning: "oklch(0.78 0.16 85)"
-  warning-dark: "oklch(0.8 0.16 85)"
-  warning-text: "oklch(0.52 0.125 72)"
-  info: "oklch(0.53 0.16 247)"
-  info-dark: "oklch(0.72 0.15 245)"
-  destructive: "oklch(0.57 0.22 26)"
-  destructive-dark: "oklch(0.7 0.2 25)"
-  destructive-text: "oklch(0.523 0.203 26.4)"
+  popover-dark: "oklch(0.255 0.008 60)"
+  surface-inset: "oklch(0.945 0.005 70)"
+  surface-inset-dark: "oklch(0.128 0.006 60)"
+  muted-foreground: "oklch(0.44 0.008 60)"
+  muted-foreground-dark: "oklch(0.75 0.008 65)"
+  border: "oklch(0.85 0.006 70)"
+  border-dark: "oklch(1 0 0 / 17%)"
+  border-strong: "oklch(0.76 0.009 70)"
+  border-strong-dark: "oklch(1 0 0 / 25%)"
+  sidebar: "oklch(0.943 0.007 70)"
+  sidebar-dark: "oklch(0.19 0.007 60)"
+  success: "oklch(0.55 0.135 155)"
+  success-text: "oklch(0.45 0.115 156)"
+  warning: "oklch(0.79 0.15 85)"
+  warning-text: "oklch(0.49 0.115 70)"
+  info: "oklch(0.54 0.15 247)"
+  destructive: "oklch(0.56 0.2 27)"
+  destructive-text: "oklch(0.49 0.18 27)"
 typography:
-  title:
-    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
-    fontSize: "1.25rem"
-    fontWeight: 600
-    lineHeight: 1.4
-    letterSpacing: "normal"
-  headline:
-    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+  display:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
     fontSize: "1.75rem"
     fontWeight: 600
-    lineHeight: 1.25
+    lineHeight: 1.15
+    letterSpacing: "-0.03em"
+  headline:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    fontSize: "1.5rem"
+    fontWeight: 600
+    lineHeight: 1.2
+  title:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    fontSize: "1.25rem"
+    fontWeight: 600
+    lineHeight: 1.3
   subtitle:
-    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
-    fontSize: "1rem"
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    fontSize: "0.9375rem"
     fontWeight: 600
     lineHeight: 1.4
   body:
-    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
   body-touch:
-    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 500
     lineHeight: 1.4
+  caption:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI Variable, Segoe UI, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 500
+    lineHeight: 1.35
   code:
     fontFamily: "ui-monospace, Cascadia Code, SF Mono, Menlo, Consolas, Liberation Mono, monospace"
     fontSize: "0.75rem"
     fontWeight: 400
     lineHeight: 1.5
 rounded:
-  control: "0.75rem"
-  card: "1.5rem"
-  rail: "1.75rem"
+  control: "0.375rem"
+  card: "0.625rem"
   pill: "9999px"
 spacing:
   xs: "0.25rem"
@@ -92,37 +95,27 @@ components:
     backgroundColor: "{colors.foreground}"
     textColor: "{colors.card}"
     rounded: "{rounded.control}"
-    padding: "0.5rem 1rem"
+    height: "2rem"
   button-brand:
-    backgroundColor: "{colors.brand-foreground}"
-    textColor: "{colors.brand}"
-    rounded: "{rounded.control}"
-    padding: "0.5rem 1rem"
-  button-secondary:
-    backgroundColor: "{colors.card}"
-    textColor: "{colors.foreground}"
-    rounded: "{rounded.control}"
-    padding: "0.5rem 1rem"
-  button-brand-dark:
     backgroundColor: "{colors.brand}"
     textColor: "{colors.brand-foreground}"
     rounded: "{rounded.control}"
-    padding: "0.5rem 1rem"
+    height: "2rem"
   card:
     backgroundColor: "{colors.card}"
     textColor: "{colors.foreground}"
     rounded: "{rounded.card}"
-    padding: "{spacing.lg}"
+    padding: "1.25rem"
   input:
     backgroundColor: "{colors.surface-inset}"
     textColor: "{colors.foreground}"
     rounded: "{rounded.control}"
-    padding: "0.5rem 0.75rem"
+    height: "2rem"
   nav-item-active:
-    backgroundColor: "{colors.card}"
+    backgroundColor: "{colors.brand-soft}"
     textColor: "{colors.foreground}"
     rounded: "{rounded.control}"
-    padding: "0.625rem 0.75rem"
+    height: "2.25rem"
 ---
 
 # XBond 設計系統
@@ -131,151 +124,178 @@ components:
 
 ## Overview
 
-**設計核心：「隨身連線，玻璃浮島」。**
+**設計核心：「原生信號台」。**
 
-XBond 是日常連線工具。介面先讓用戶理解目前狀態、影響範圍與所用節點，再完成啟停、換節點或恢復；完整配置、策略、記錄及診斷留在專責工作區。白灰卡片、磨砂玻璃、大圓角與柔和陰影提供親和且清楚的層次，品牌橙只強調主要行動及必要狀態。
+XBond 是每天都會打開的連線工具。介面先回答三件事：現在通不通、流量走哪裡、下一步能做甚麼。外觀像所在平台的原生應用，資訊編排像一台安靜的儀表：暖紙色畫布、石墨文字、實色工作面、髮絲分隔，品牌橙只留給連線主操作、選中與焦點。
 
-本文記錄已確認的跨端設計基準。頁首令牌中的品牌及語義配色沿用既有系統，更新的形狀、字級與響應式規則是實施目標；規範更新不代表相關介面已全部完成或通過平台及視覺驗收。逐頁內容、互動、狀態及驗收見[跨端體驗設計](docs/design/client-experience-proposal.md)，實際產品能力以 [PRODUCT.md](PRODUCT.md) 及行為規格為準。
+這不是把每個平台畫成不同產品。跨端共享同一套語義令牌、用語與能力含義；宿主只決定形狀、字體、材質與導覽慣例。首頁內容維持連線、當前節點、常用模式、配置與用量，逐頁互動見[跨端體驗設計](docs/design/client-experience-proposal.md)，產品能力以 [PRODUCT.md](PRODUCT.md) 為準。
 
-### 原生客戶端視覺基準
+### 四條原則
 
-以用戶指定的[桌面參考](docs/design/references/native-desktop.png)及[手機參考](docs/design/references/native-mobile.png)作為視覺依據：乳白磨砂表面、柔和向下陰影、圓潤連線主操作、清楚的狀態層級與懸浮導覽。參考圖是概念示意，圖片中的示例數據、標誌變體及手機「系統代理」文案不構成功能或品牌變更。
+1. **先講事實，再談裝飾。** 核心運行、流量接管、出口驗證分開表達；未知就是未知，不以顏色、綠點或動畫代替結果。
+2. **一個畫面只有一個重心。** 首頁重心是連線主操作；設定頁重心是當前分組；列表頁重心是資料本身。次要資訊靠字重、間距與位置退後，不靠再加一層卡。
+3. **形狀跟隨宿主。** 控件高度、圓角、焦點、開關與選單按 macOS／Windows／iOS／Android／Web 各自的比例；令牌一處定義，不在頁面內寫死。
+4. **材質只用系統給的。** macOS vibrancy、Windows Mica、iOS 材質由原生殼提供；Web 一律實色，不用 `backdrop-filter` 模擬磨砂。
 
-- **主次**：連線主卡是首頁重心；桌面右側承接節點與偏好，手機按任務單欄排列。保留有用留白，不把所有狀態壓成等權橫條或 KPI 方塊。
-- **觸感**：圓形連線鍵具克制的內高光、邊緣及按壓回應；卡片、分段滑塊與開關共享柔和幾何，不使用高亮塑膠或重複發光邊框。
-- **閱讀**：文字在穩定乳白／石墨表面上，層級由字重、間距及位置建立，不靠大量眉題、技術識別碼和邊框製造儀表感。
-- **導航**：桌面獨立玻璃側欄，手機底部留距的玻璃浮島；系統安全區、返回、鍵盤、視窗及 VPN 授權遵從宿主慣例。
-- **操作**：啟停、換節點和模式可就近完成，載入和錯誤留在相關位置；原生感同時包含回應與恢復，不能只靠大圓角和模糊。
+### 宿主基準
 
-B 方案保留為內容分組與操作效率的參考；上述圖片及規則是較新的視覺基準，優先於此前的緊湊橫條構圖。這是設計決定，尚須以實作和原生宿主結果驗證。
+| 宿主 | 導覽 | 控件圓角 | 卡片圓角 | 字體 |
+| --- | --- | --- | --- | --- |
+| macOS | 左側 source list 側欄 | 6px | 10px | `-apple-system`（SF） |
+| Windows 11 | 左側導覽欄，選中帶左軌 | 4px | 8px | `Segoe UI Variable` |
+| iOS | 底部標籤欄、分組列表 | 8px | 12px | `-apple-system`（SF） |
+| Android | 底部導覽、Material 3 | 10px | 12px | `Roboto`／系統字體 |
+| Web | 與桌面同構，跟隨瀏覽器主題 | 6px | 10px | `system-ui` |
 
-**主要特徵：**
-
-- 日常連線優先，首頁只有一個清楚的主操作和適量高頻資訊。
-- 玻璃用於導覽與浮層，工作卡維持穩定可讀的乳白表面。
-- 緊湊、標準、寬屏三檔，檔內自然重排，避免過度拆分。
-- 桌面八入口、手機四主入口，擴充功能另有快捷面板與完整管理頁。
-- 操作有原位回應，失敗保留可用狀態；核心、接管及出口分別表達。
+根節點的 `data-host` 由 `platform/host.ts` 在渲染前寫入；令牌在 `styles/tokens.css` 按宿主覆寫。
 
 ## Colors
 
-品牌橙沿用現有標誌；中性灰畫布、潔淨白色工作面及石墨深色表面承擔主要閱讀。色值以頁首令牌為準，不因加入玻璃而重建另一套品牌配色。
-
-樣式實現層是 Tailwind CSS v4 + shadcn/ui：令牌單一來源在 `packages/client-ui/src/styles/tokens.css`，工具類經 `styles/app.css` 的 `@theme inline` 映射生成，組件原語在 `packages/client-ui/src/components/ui/`。狀態與表面只走語義令牌工具類（`bg-card`、`text-success-text` 等），一律不寫原始色板類（`bg-emerald-500` 之類），深淺色因此保持同構。
+令牌單一來源是 `packages/client-ui/src/styles/tokens.css`，工具類經 `styles/app.css` 的 `@theme inline` 映射。元件只使用語義工具類（`bg-card`、`text-success-text` 等），不寫原始色板類（`bg-emerald-500` 之類）。
 
 | 角色 | 令牌 | 用途 |
 | --- | --- | --- |
-| 品牌 | `brand`、`brand-strong`、`brand-text` | 連線主操作、選中、焦點及少量品牌標記 |
-| 工作表面 | `background`、`card`、`popover`、`surface-inset` | 畫布、任務卡、浮層與控制軌道 |
-| 文字與邊界 | `foreground`、`muted-foreground`、`border`、`border-strong` | 正文、補充說明與可操作輪廓 |
-| 狀態 | `success`、`warning`、`info`、`destructive` 及相應文字色 | 已知成功、注意、處理中與錯誤，不用顏色代替事實 |
+| 品牌 | `brand`、`brand-strong`、`brand-text`、`brand-soft` | 連線主操作、選中、焦點、少量品牌標記 |
+| 工作面 | `background`、`card`、`popover`、`surface-inset` | 畫布、任務面、浮層、凹面軌道 |
+| 文字與邊界 | `foreground`、`muted-foreground`、`border`、`border-strong` | 正文、補充說明、分組與可操作輪廓 |
+| 狀態 | `success`、`warning`、`info`、`destructive` 及相應文字色 | 已知成功、注意、處理中、錯誤 |
 
-圓形連線主操作可使用品牌橙表面及深色電源符號，保留可辨認的輪廓與按壓回應。一般品牌按鈕保留明暗構圖：淺色近黑底配品牌橙，深色橙底配深色字；亮橙底不配白字。狀態文字採對應文字級色，主要文字至少 4.5:1，大字及必要功能圖形至少 3:1，透明表面須按最不利背景驗證。
+- 品牌橙是強調色，不是背景色。大面積橙底、橙底白字、常駐光暈都不用。
+- 橙面上的文字與圖示固定用深墨 `brand-foreground`；亮橙不配白字。
+- 主要文字至少 4.5:1，大字及必要功能圖形至少 3:1；半透明表面按最不利背景驗證。
+- 深淺色同構：新增語義令牌時同時補 `:root` 與 `.dark`，不讓頁面自行判斷主題。
 
 ## Typography
 
-共享介面沿用自託管 Inter Variable 與系統中文字體。桌面正文及操作使用 `body`，手機主要閱讀及輸入使用 `body-touch`；原生文字依宿主的字體縮放與文字角色處理。必要頁名使用 `title`，卡片標題使用 `subtitle`，連線主狀態使用 `headline`，技術資料使用 `code`。
+共享介面使用各宿主系統字體，跟隨系統字體縮放。桌面正文用 `body`（14px），手機主要閱讀與輸入用 `body-touch`（16px）；頁面標題用 `title`，區塊標題用 `subtitle`，連線主狀態用 `display`，技術資料與數字用 `code` 或 `tabular-nums`。
 
-首頁不為填滿版面放大字或重複頁名。輔助文字不能承擔唯一操作或重要錯誤；大字、長名稱與多語文案可令行高及卡片自然增加。中文不加裝飾字距，數據使用等寬數字並附單位，網址與技術字串保留完整查看或複製方式。
-
-繁體中文採香港用語：用戶、流動裝置、網絡、設定、匯入、複製、載入、儲存、連線及伺服器。支援既有語系和 RTL，位址及協定依需要保持 LTR，不靠固定左右定位排版。
+- 中文不加裝飾字距；大標題才用負字距，正文保持正常。
+- 數字附單位，速率與配額用等寬數字；網址、識別碼與命令保留完整查看或複製方式。
+- 11px 只用於標籤、單位與輔助計量，不承擔唯一操作或重要錯誤。
+- 首頁不重複大頁名，也不為填滿版面放大字。
 
 ## Layout
 
-### 任務、導覽與頁頭
+### 外殼
 
-一張卡處理一項任務，一張設定卡可包含多個同類設定行；列表項不各自套大卡，避免卡片層層相套。工作卡直接浮於畫布，不強制先把整個內容區包進一張巨卡。相鄰任務使用共享間距，同一任務內保持緊湊。
+桌面及完整 Web 是全幅工作面：左側 240px 導覽軌，右側內容直接鋪在畫布上，兩者以髮絲邊分界，不再把內容包進一張懸浮大圓角卡。導覽分三組：日常（首頁、代理、配置）、排查（連線、規則、日誌、診斷）、底部設定與控制目標。控制目標、設備配置與 Cloud 身份收進側欄底部單一入口，分區呈現，不混成互斥選擇器。
 
-桌面及完整 Web 保留「首頁、節點、配置、連線、規則、日誌、診斷、設定」八入口。標準及寬屏使用完整側欄，緊湊時使用八入口抽屜；不增加獨立圖示軌道檔。控制目標、設備配置與 Cloud 身份收進側欄底部的單一入口，品牌下方不再另設控制器選擇器；目標、配置與身份分區呈現，不混成互斥選擇器。
+手機保留「首頁、節點、活動、配置」四項底部導覽，設定由頁頭齒輪進入；連線與日誌在活動內，規則及診斷有清楚次級入口。八入口及四入口由宿主決定，不由窗口寬度互相切換。
 
-手機保留「首頁、節點、活動、配置」四項底部導覽，設定由頁頭齒輪進入。連線與日誌在活動內，規則及診斷有清楚次級入口。八入口及四入口由宿主決定，不由窗口寬度互相切換。
+### 頁面
 
-配置頁是帳號、配置來源與外部控制器的統一管理面：分組資源列表加選中詳情，列表選中只查看，登入、使用、切換查看等明確動作才改變狀態。純 Web 只呈現外部控制器；瀏覽器擴充功能只呈現 Cloud；桌面與移動 App 才呈現三組完整能力。設定頁不重複承載帳號、訂閱或控制器管理。
-
-首頁移除重複的大頁名與介紹段，直接開始連線任務。列表及設定頁保留緊湊頁名、搜尋及唯一主操作；說明就近放在相關區域。側欄不常駐堆疊 PID、版本和持續跳動的多項指標。
-
-內容分組沿用已選的 B 方案；視覺以用戶確認的桌面／手機參考圖為準：圓形連線鍵、清楚的連線主卡、右側節點及偏好、玻璃側欄與手機浮島底欄。原生感及操作主次優先於將所有資訊壓成橫條。
+- 頁面邊距 24px；手機 16px。區塊間距 20px；卡片內距 16–20px。
+- 一張卡處理一項任務；同類設定行共用一張卡，不逐行套卡。
+- 頁頭保留緊湊頁名、搜尋及唯一主操作；說明就近放在相關區域。
+- 首頁依「連線 → 當前節點 → 常用模式 → 配置與用量」排列，不放全量策略清單、匯入表單或日誌。
+- 表單按閱讀需要限寬；資料列表與詳情可用更多空間，不把整個產品鎖在同一最大寬度。
+- 一般頁面只有一個主要縱向捲動區；表格橫向捲動限制在自身區域。
 
 ### 三檔響應式
 
-| 版面 | 可用 CSS 寬度起點 | 結構 |
-| --- | --- | --- |
-| 緊湊 | 小於 768px | 單欄、主操作優先；詳情單獨打開，導覽按宿主收斂 |
-| 標準 | 768–1439px | 側欄＋主要內容，以 960 × 720 客戶端校準；首頁連線主卡與輔助區，詳情按需打開 |
-| 寬屏 | 1440px 及以上 | 列表及已選詳情可同屏；首頁保持任務流，模式與配置可並列 |
+| 版面 | 可用 CSS 寬度 | 結構                                           |
+| ---- | ------------- | ---------------------------------------------- |
+| 緊湊 | < 768px       | 單欄、主操作優先；詳情單獨打開；底部導覽       |
+| 標準 | 768–1439px    | 側欄＋主內容；首頁主卡與右側輔助區             |
+| 寬屏 | ≥ 1440px      | 列表與詳情可同屏；首頁保持任務流，資料區可並列 |
 
-只有兩處主要結構切換，檔內用彈性欄寬與自然換行，不為每張卡列額外閾值。標準檔較窄時，首頁主卡與輔助區依內容寬度疊放，配置庫改為清單與詳情逐層切換，詳情卡依可用寬度重排；2K／4K 共用寬屏一檔，不等比例放大字體及控制項。表單按閱讀需要限寬，資料列表和詳情可用更多空間，不把整個產品封在同一最大寬度內。
-
-主內容按「連線 → 當前節點 → 常用模式 → 配置與用量」排列。首頁不放全量策略清單、訂閱匯入表單、局域網／端口輸入或日誌。必要的核心、接管、出口事實直接可見，次要技術資料進專責頁或詳情。
+只有兩處主要結構切換；檔內用彈性欄寬與自然換行，不為每張卡列額外閾值。2K／4K 共用寬屏檔，不等比例放大字體與控件。
 
 ### 視口與操作連續性
 
-安全區只預留一次，軟鍵盤出現後欄位、錯誤及提交仍可見；低高度先減少裝飾留白，再正常捲動。一般頁面保留一個主要縱向捲動區，表格橫向捲動限制在自身區域。
-
-詳情由並列轉抽屜或全屏時，保留草稿、焦點、搜尋、選中與捲動位置；不重連、不重送操作。Web 操作區至少 44 × 44 CSS px，原生 iOS／Android 分別按 44pt／48dp 校驗。觸控、鍵盤、縮放及大字不能依賴 Hover 或縮小控制項解決。
-
-擴充功能彈出視窗始終為快捷面板：代理開關、節點、模式與必要網站／配額摘要，只有一個捲動區；長任務進完整管理頁並帶入目的地。完整管理頁的八入口為首頁、節點、帳號、規則、請求、日誌、診斷、設定，依瀏覽器能力呈現，不冒充原生核心。
+安全區只預留一次；軟鍵盤出現後欄位、錯誤及提交仍可見。低高度先減少裝飾留白，再正常捲動。詳情由並列轉抽屜或全屏時，保留草稿、焦點、搜尋、選中與捲動位置。Web 操作區至少 44 × 44 CSS px；iOS／Android 分別按 44pt／48dp 校驗。
 
 ## Elevation & Depth
 
-玻璃負責導覽、底欄及浮層的空間層級，工作卡維持高不透明度或實色閱讀面。以共享表面色衍生透明度，不逐頁硬編另一套白色／黑色玻璃；深色使用石墨階梯、微亮邊界及內高光，避免霓虹邊緣。
+層級用分組背景、髮絲邊與明度差表達。陰影只給脫離文檔流的浮層。
 
-| 表面 | 材質目標 | 深度 |
+| 表面 | 目標 | 深度 |
 | --- | --- | --- |
-| 導覽／浮層 | 約 82% 表面不透明度、20px 背景模糊 | 微弱內高光、細輪廓與柔和向下陰影 |
-| 工作卡 | 實色或約 96% 表面不透明度 | 輕描邊及低濃度向下陰影，保持文字穩定 |
-| 凹面控制 | `surface-inset` 軌道或輸入面 | 選中滑塊回到清楚的工作表面 |
+| 畫布 | 實色 `background` | 無 |
+| 卡片／分組 | 實色 `card`，與畫布有清楚明度差 | 1px `border`，無陰影 |
+| 凹面控制 | `surface-inset` 軌道或輸入面 | 選中滑塊回到 `card` |
+| 浮層（選單、對話框） | 實色 `popover` | 一套共享 `--elevation-raised`；深色改為微亮邊界 |
+| 系統材質 | 僅宿主原生提供時 | 不可用或減少透明度時回退實色 |
 
-陰影、材質及過渡的機器可讀值記錄於 `.impeccable/design.json`，屬已確認設計目標。背景模糊不支援、減少透明度或效能不足時用實色回退；不為每列或每個子控制建立模糊層，也不讓模糊常駐動畫。
+不為每列或每個子控制建立模糊層，也不讓材質做常駐動畫。
 
 ## Shapes
 
-形狀由控制項、任務卡到浮島逐級柔化：`rounded.control` 為 12px、`rounded.card` 為 24px、`rounded.rail` 為 28px，開關及小徽章使用完整膠囊形。這些是本次更新的目標尺度，現有樣式尚需同步；不以舊半徑當作已完成新版的證據。
-
-圓形用於連線主操作和必要狀態圖形，一般次要按鈕不全做藥丸。圖示使用一致的線條、尺寸及可存取名稱；供應者名稱可保留原文，功能圖示不以 emoji 代替。
+- `rounded-control`：按鈕、輸入、分段、選單行、小頭像。
+- `rounded-card`：卡片、面板、對話框、浮層。
+- `rounded-full`：只給開關、狀態點、必要膠囊與圓形連線鍵。
+- 原有 `rounded-sm/md/lg/xl/2xl` 已映射到同一尺度；新程式碼用語義名，不以舊類名當作已完成新版的證據。
+- 圖示使用一致的線條與尺寸；功能圖示不用 emoji 代替。
 
 ## Components
 
-### 控制項與設定行
+### 按鈕
 
-按鈕、輸入、分段及開關共用預設、懸停、焦點、按壓、停用、待處理和錯誤語言。切換內容使用 Tabs，切換設定值使用分段選擇，兩者共用軌道、選中色與觸控尺寸。短頁籤保留完整單行文字，空間不足時整項換行。首頁的接管與路由模式各用三個等寬選項。每區只有一個明確主操作；網址、識別碼及命令有標籤和完整值，錯誤緊跟欄位，不只依賴 Placeholder 或 Toast。
+| 變體          | 用途                     | 外觀                       |
+| ------------- | ------------------------ | -------------------------- |
+| `default`     | 一般主操作               | 石墨底、紙白字             |
+| `brand`       | 連線、保存帳號等品牌時刻 | 品牌橙底、深墨字，無陰影   |
+| `outline`     | 次要操作                 | 卡片底、`border-strong` 邊 |
+| `secondary`   | 低強調操作               | 凹面色底                   |
+| `ghost`       | 工具列與行內操作         | 透明底，懸停才出現底色     |
+| `destructive` | 刪除、中斷               | 紅底、白字                 |
 
-開關視覺軌道約 44 × 26px，白色圓形滑塊，開啟可用品牌橙配深色功能標記；觸控區仍符合宿主下限。設定行先標籤及解釋，再控制項，空間不足時換行；偏好可直接生效，端口等輸入有驗證及明確儲存回應。
+高度：預設 32px、`sm` 28px、`lg` 36px；手機主要操作至少 44px。焦點用 2px 品牌外框加 3px 低透明度內環，不靠陰影表示焦點。
+
+### 輸入與設定行
+
+輸入框 32px 高、`rounded-control`、`surface-inset` 底、`border-strong` 邊；聚焦時邊框轉品牌色並加低透明度內環。標籤在控制項上方，錯誤緊跟欄位；不只用 Placeholder 或 Toast 表達錯誤。
+
+設定行先標籤與解釋，再控制項；空間不足時換行。開關視覺軌道約 44 × 26px，白色滑塊，開啟用品牌橙配深墨勾選；觸控區仍符合宿主下限。切換內容用 Tabs，切換設定值用分段選擇；分段選中採卡片底加品牌文字，不整塊鋪橙。
+
+### 卡片與面板
+
+卡片是任務容器，不是裝飾。預設無陰影，靠 `border` 與畫布分開；卡內用髮絲線分段，不套子卡。只有浮層、拖拽中的物件與需要脫離文檔流的元素才加陰影。
 
 ### 狀態與操作回應
 
-未知、載入中、未啟用、進行中、成功、部分完成、失敗及資料過期分別呈現。核心運行、流量接管、出口驗證、帳號登入與配置有效性是不同事實；遠端管理不能顯示本機 VPN／TUN 已啟用。
+- 未知、載入中、未啟用、進行中、成功、部分完成、失敗、資料過期分別呈現。
+- 核心運行、流量接管、出口驗證、帳號登入、配置有效性是不同事實，不能合併成一個「已連線」。
+- 啟停、切節點與改模式顯示原位進度；成功才改變選中，失敗保留原選擇與恢復入口。
+- 複製在原處顯示「已複製」，失敗保留文字供手動選取。
+- 需行動的錯誤保留至處理；來源失聯不反覆彈通知。
 
-啟停、切節點及改模式顯示原位進度，成功才改變選中；失敗保留原選擇及恢復入口。部分完成需說明已完成哪一步；尺寸變化或面板關閉不代表取消後端操作。複製在原處顯示「已複製」，失敗保留文字供手動選取。
+### 配額與流量
 
-### 配置、配額與流量
+配額同時有數值、總額與資料來源；未知、無總額、載入失敗、零餘額與超額分開。配額圖形不能取代文字。即時速率、核心累計與訂閱配額分別命名，到期日與重設日分開。只有真實樣本才畫走勢；失聯標明停止更新，不補假樣本。
 
-使用中配置優先，完整管理屬配置頁；匯入完成表示配置已加入，不代表已啟動代理。配額同時有數值、總額及資料來源，未知、無總額、載入失敗、零餘額與超額分開；配額圖形不能取代文字，也不強制在首頁畫環。
+### 動畫
 
-即時速率、核心累計與訂閱配額分別命名，到期日與重設日分開。只有真實樣本才畫走勢，失聯標明停止更新，不持續補假樣本。節點延遲附量度口徑，切換保持策略組上下文，不宣稱所有流量共用同一出口。
-
-### 動畫與回饋
-
-動畫只交代按壓、選中、面板及真實狀態，沿用無超調緩動。按壓約 120ms、滑塊約 160ms、面板約 200ms；必要的低幅運行光環可用 2.4s，並非安全或連通證明。減少動態時取消循環、旋轉及位移，以靜態文字保留資訊。
-
-回應以控制項原位為先，其次欄位／區塊、頁面狀態列，再用短提示。需行動的錯誤保留至處理，來源失聯不反覆彈通知；已有資料不整頁清空換骨架，沒有真實進度不畫百分比。背景及離屏的圖表停止不必要繪製。
-
-### 擴充功能差異
-
-目前擴充功能要求 XBond 帳號與專用配置，不提供桌面的通用訂閱匯入。其「關閉」或 `direct` 模式是釋放本擴充功能設定，文案為「跟隨瀏覽器設定」而非「全裝置直連」。代理控制權被政策或其他擴充功能取得時明確說明，不自動搶回；請求記錄、規則預測與原生核心連線分開命名。
+動畫只交代按壓、選中、面板與真實狀態，沿用無超調緩動：按壓 120ms、滑塊 160ms、面板 200ms。減少動態時取消循環、旋轉與位移，以靜態文字保留資訊。背景及離屏圖表停止不必要繪製。
 
 ## Do's and Don'ts
 
 ### Do
 
-- 優先呈現日常連線、目前節點、影響範圍和可處理的狀態。
-- 保留桌面八入口、手機四主入口，使用緊湊、標準、寬屏三檔適配。
-- 玻璃外殼與可讀工作面分工，明暗、減少動態及實色回退保持同一層級。
+- 先呈現日常連線、當前節點、影響範圍與可處理的狀態。
+- 保留桌面八入口、手機四主入口，使用緊湊、標準、寬屏三檔。
+- 跟隨宿主的控件、形狀、字體與導覽慣例；材質只用系統提供者。
 - 讓詳情、草稿及操作狀態跨尺寸連續，重要回應就近可見。
+- 用髮絲邊、分組與字重建立層級，讓畫面保持安靜。
 
 ### Don't
 
-- 不用大面積橙色、橙底白字、層層卡片或常駐動畫增加閱讀負擔。
-- 不把 2K／4K 當作放大版手機，也不為每個尺寸和元件建立新檔位。
+- 不用大面積橙色、橙底白字、層層卡片、常駐動畫或模擬磨砂。
+- 不用統一大圓角覆蓋平台差異，也不為每個尺寸和元件建立新檔位。
 - 不用綠點、光環、帳號登入或配置加入代替真實接管與連通結果。
+- 不把 2K／4K 當作放大版手機。
 - 不把設計規範、文件更新或 mock 當作已實作和原生平台驗證。
+
+## 實作對照
+
+| 層 | 位置 |
+| --- | --- |
+| 令牌 | `packages/client-ui/src/styles/tokens.css` |
+| Tailwind 映射與全域樣式 | `packages/client-ui/src/styles/app.css` |
+| 基礎原語 | `packages/client-ui/src/components/ui/` |
+| 宿主形狀切換 | `packages/client-ui/src/platform/host.ts` + `tokens.css` 的 `[data-host]` |
+| 應用外殼與導覽 | `packages/client-ui/src/app/app-shell.tsx`、`app/navigation/` |
+
+新增或修改原語後，至少檢查桌面與手機寬度、明暗主題、鍵盤焦點、減少動態、長文案，以及載入／空／錯誤／成功狀態。Web 與 mock 截圖不能代替 macOS、Windows、iOS、Android 的實際平台驗收。
+
+> AI生成

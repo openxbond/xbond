@@ -1,4 +1,3 @@
-import "@fontsource-variable/inter";
 import "@xbond/client-ui/styles.css";
 import {
   Alert,

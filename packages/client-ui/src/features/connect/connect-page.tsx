@@ -79,17 +79,15 @@ function formatDisplayTraffic(bytes: number): string {
   return `${formatted} ${units[exp]}`;
 }
 
-/* 任務卡（乳白實面、髮邊、卡片陰影），四張卡共用。 */
-const cardSurface =
-  "rounded-card border border-[color:color-mix(in_srgb,var(--border)_65%,transparent)] bg-[color:color-mix(in_srgb,var(--card)_96%,transparent)] shadow-elevation-card";
+/* 工作面：實色、髮線邊，不用常駐陰影。 */
+const cardSurface = "panel";
 
-/* 連線主操作：品牌橙圓形電源鍵，深色電源符號，克制光環。 */
+/* 連線主操作：品牌橙圓形電源鍵，深色電源符號，無光暈。 */
 const orbBase =
-  "relative grid size-[124px] max-md:size-24 shrink-0 cursor-pointer place-items-center mt-2.5 mb-1.5 rounded-full focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-8 disabled:cursor-not-allowed disabled:opacity-60 [transition:transform_var(--duration-fast)_var(--ease-out-expo),box-shadow_var(--duration-base)_var(--ease-out-expo)] motion-reduce:[transition:none] enabled:hover:shadow-[inset_0_0_0_1px_var(--brand),0_10px_28px_-12px_var(--brand-text)] enabled:active:[transform:scale(0.97)]";
-const orbOn =
-  "bg-[image:var(--orb-gradient)] text-brand-foreground shadow-[inset_0_2px_3px_rgba(255,255,255,0.65),inset_0_-4px_8px_rgba(0,0,0,0.22),var(--orb-glow)]";
+  "relative grid size-[128px] max-md:size-[104px] shrink-0 cursor-pointer place-items-center rounded-full outline-none transition-[background-color,border-color,color,transform] duration-[120ms] ease-[var(--ease-out-expo)] focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-55 enabled:active:scale-[0.985] motion-reduce:transition-none motion-reduce:enabled:active:scale-100";
+const orbOn = "bg-brand text-brand-foreground hover:bg-brand-strong";
 const orbOff =
-  "border border-border bg-[image:var(--orb-off-gradient)] text-muted-foreground shadow-[var(--orb-off-inset-shadow),0_4px_14px_rgba(0,0,0,0.05)]";
+  "border border-border-strong bg-card text-muted-foreground hover:border-brand/70 hover:text-brand-text";
 
 function FactIcon({ kind }: { kind: "core" | "takeover" | "egress" }) {
   const common = {
@@ -231,7 +229,7 @@ function ScrollablePills({
           tabIndex={-1}
           aria-hidden="true"
           onClick={() => scrollByAmount(-180)}
-          className="absolute -left-2 z-10 grid size-6 place-items-center rounded-full bg-card/95 text-muted-foreground shadow-md border border-border/80 backdrop-blur-sm hover:text-foreground hover:bg-card cursor-pointer transition-opacity max-md:hidden"
+          className="absolute -left-2 z-10 grid size-6 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-xs hover:bg-inset hover:text-foreground cursor-pointer transition-colors max-md:hidden"
         >
           <svg
             viewBox="0 0 24 24"
@@ -268,7 +266,7 @@ function ScrollablePills({
           tabIndex={-1}
           aria-hidden="true"
           onClick={() => scrollByAmount(180)}
-          className="absolute -right-2 z-10 grid size-6 place-items-center rounded-full bg-card/95 text-muted-foreground shadow-md border border-border/80 backdrop-blur-sm hover:text-foreground hover:bg-card cursor-pointer transition-opacity max-md:hidden"
+          className="absolute -right-2 z-10 grid size-6 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-xs hover:bg-inset hover:text-foreground cursor-pointer transition-colors max-md:hidden"
         >
           <svg
             viewBox="0 0 24 24"
@@ -617,217 +615,217 @@ export default function Connect() {
       ) : !hasDaemonConfig() && !active ? (
         <ExternalControllerOnboarding className="my-auto py-6" />
       ) : (
-        <div className="grid w-full min-w-0 grid-cols-1 gap-4 [grid-template-areas:'control'_'aside'_'live'] @min-[46rem]/connect:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] @min-[46rem]/connect:[grid-template-areas:'control_aside'_'live_live']">
+        <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-4 [grid-template-areas:'control'_'aside'_'live'] @min-[46rem]/connect:grid-cols-[minmax(0,1.35fr)_minmax(0,0.9fr)] @min-[46rem]/connect:grid-rows-[minmax(0,1fr)_auto] @min-[46rem]/connect:[grid-template-areas:'control_aside'_'live_live']">
           <section
             className={cn(
               cardSurface,
-              "[grid-area:control] flex flex-col items-center justify-center gap-2.5 pt-8 px-7 pb-6 text-center max-md:pt-7 max-md:px-5 max-md:pb-5",
+              "relative flex min-h-[430px] flex-col items-center justify-start gap-2 overflow-hidden px-6 pt-10 pb-0 text-center max-md:min-h-0 max-md:px-4 max-md:pt-8",
             )}
             aria-label={t("connect")}
           >
-            {hasLocalAPI ? (
-              <button
-                type="button"
-                className={cn(orbBase, active ? orbOn : orbOff)}
-                disabled={pending || (!running && !sub)}
-                aria-pressed={active}
-                aria-label={`${stateWord} — ${running ? t("disconnect") : t("connect")}`}
-                onClick={() => void handleToggleConnection()}
-              >
+            <div className="absolute inset-x-0 top-0 z-10 flex h-10 items-center justify-between border-b border-border/70 px-4 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "pointer-events-none absolute -inset-2 rounded-full border-[1.5px]",
-                    active
-                      ? "animate-[native-breathe_2.4s_ease-in-out_infinite] border-[color:color-mix(in_srgb,var(--brand)_45%,transparent)] motion-reduce:animate-none"
-                      : "border-[color:color-mix(in_srgb,var(--border)_80%,transparent)]",
+                    "size-1.5 rounded-full",
+                    active ? "bg-success" : "bg-muted-foreground/45",
                   )}
                 />
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "pointer-events-none absolute -inset-[38px] rounded-full",
-                    active ? "bg-[image:var(--orb-halo)]" : "hidden",
-                  )}
-                />
-                {pending ? (
-                  <span
-                    aria-hidden="true"
-                    className="size-[30px] animate-[native-spin_0.8s_linear_infinite] rounded-full border-[3px] border-current border-t-transparent"
-                  />
-                ) : (
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="40"
-                    height="40"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    aria-hidden="true"
-                    className={cn(
-                      "size-10 max-md:size-8",
-                      active && "drop-shadow-[0_1px_2px_rgba(0,0,0,0.22)]",
-                    )}
-                  >
-                    <path d="M12 2v10" />
-                    <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
-                  </svg>
-                )}
-              </button>
-            ) : (
-              // A plain Clash-API remote has nothing this dashboard can start
-              // or stop: the honest main action is managing the target itself.
-              <div className="flex flex-col items-center gap-3">
+                {t("connect")}
+              </span>
+              <span className="max-w-[55%] truncate font-mono text-[10px] tracking-tight text-muted-foreground">
+                {controller.targetKind === "daemon"
+                  ? `127.0.0.1:${mixedPort}`
+                  : controller.hostname}
+              </span>
+            </div>
+            <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2">
+              {hasLocalAPI ? (
                 <button
                   type="button"
-                  className="group relative flex size-24 cursor-pointer items-center justify-center rounded-control border border-border bg-card p-0 shadow-elevation-card transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-elevation-raised"
-                  aria-label={t("manageController")}
-                  onClick={() => setIdentity(false)}
+                  className={cn(orbBase, active ? orbOn : orbOff)}
+                  disabled={pending || (!running && !sub)}
+                  aria-pressed={active}
+                  aria-label={`${stateWord} — ${running ? t("disconnect") : t("connect")}`}
+                  onClick={() => void handleToggleConnection()}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute -inset-1.5 rounded-control border border-brand/20 opacity-0 transition-opacity group-hover:opacity-100"
-                  />
-                  <span className="grid size-14 place-items-center rounded-control bg-brand-soft text-brand-text">
+                  {pending ? (
+                    <span
+                      aria-hidden="true"
+                      className="size-[30px] animate-[native-spin_0.8s_linear_infinite] rounded-full border-[3px] border-current border-t-transparent"
+                    />
+                  ) : (
                     <svg
                       viewBox="0 0 24 24"
-                      width="32"
-                      height="32"
+                      width="40"
+                      height="40"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="1.8"
+                      strokeWidth="2.2"
                       strokeLinecap="round"
-                      strokeLinejoin="round"
                       aria-hidden="true"
+                      className="size-10 max-md:size-8"
                     >
-                      <rect x="2" y="3" width="20" height="14" rx="2" />
-                      <line x1="8" y1="21" x2="16" y2="21" />
-                      <line x1="12" y1="17" x2="12" y2="21" />
+                      <path d="M12 2v10" />
+                      <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
                     </svg>
-                  </span>
+                  )}
                 </button>
-                <div className="flex flex-col items-center gap-0.5">
-                  <span className="text-sm font-semibold text-foreground">
-                    {controller.targetKind === "controller"
-                      ? controller.controller.name || "Controller"
-                      : "Controller"}
-                  </span>
-                  {controller.targetKind === "controller" &&
-                    controller.controller.url && (
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {controller.controller.url}
-                      </span>
-                    )}
-                </div>
-              </div>
-            )}
-
-            <h2 className="m-0 text-display font-bold leading-[1.25] tracking-[-0.02em] text-foreground max-md:text-headline">
-              {stateWord}
-            </h2>
-            <p className="m-0 text-sm text-muted-foreground [overflow-wrap:anywhere]">
-              {stateNote}
-            </p>
-            {uptimeClock && (
-              <p
-                className="m-0 mt-1 text-subtitle font-medium font-mono tabular-nums text-muted-foreground max-md:hidden"
-                aria-label={t("uptime", { duration: uptimeClock })}
-              >
-                {uptimeClock}
-              </p>
-            )}
-
-            {connectError && (
-              <div className="w-full mt-2 text-left">
-                <Alert
-                  variant="destructive"
-                  className="rounded-control border-destructive/30 bg-destructive/5 text-destructive p-3"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <span className="size-2 rounded-full bg-destructive mt-1.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <AlertTitle className="text-xs font-semibold text-destructive">
-                        {connectError.kind === "port_conflict"
-                          ? t("portConflictTitle")
-                          : connectError.kind === "tun_denied"
-                            ? t("tunDeniedTitle")
-                            : t("connectFailed")}
-                      </AlertTitle>
-                      <AlertDescription className="text-xs text-muted-foreground mt-1 flex flex-col gap-2">
-                        <span>
-                          {connectError.kind === "port_conflict"
-                            ? t("portConflictDesc")
-                            : connectError.kind === "tun_denied"
-                              ? t("tunDeniedDesc")
-                              : connectError.message}
+              ) : (
+                // A plain Clash-API remote has nothing this dashboard can start
+                // or stop: the honest main action is managing the target itself.
+                <div className="flex flex-col items-center gap-3">
+                  <button
+                    type="button"
+                    className="group relative flex size-24 cursor-pointer items-center justify-center rounded-card border border-border-strong bg-card p-0 transition-colors duration-150 hover:border-brand/70 hover:bg-brand-soft/40"
+                    aria-label={t("manageController")}
+                    onClick={() => setIdentity(false)}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -inset-1.5 rounded-control border border-brand/20 opacity-0 transition-opacity group-hover:opacity-100"
+                    />
+                    <span className="grid size-14 place-items-center rounded-control bg-brand-soft text-brand-text">
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="32"
+                        height="32"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect x="2" y="3" width="20" height="14" rx="2" />
+                        <line x1="8" y1="21" x2="16" y2="21" />
+                        <line x1="12" y1="17" x2="12" y2="21" />
+                      </svg>
+                    </span>
+                  </button>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-sm font-semibold text-foreground">
+                      {controller.targetKind === "controller"
+                        ? controller.controller.name || "Controller"
+                        : "Controller"}
+                    </span>
+                    {controller.targetKind === "controller" &&
+                      controller.controller.url && (
+                        <span className="text-xs font-mono text-muted-foreground">
+                          {controller.controller.url}
                         </span>
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          {connectError.kind === "port_conflict" && (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="h-7 px-2.5 text-xs font-medium cursor-pointer"
-                              onClick={async () => {
-                                setConnectError(null);
-                                await run(() => up({ port: 7891 }), false);
-                              }}
-                            >
-                              {t("switchPortAndRetry")}
-                            </Button>
-                          )}
-                          {connectError.kind === "tun_denied" && (
-                            <>
+                      )}
+                  </div>
+                </div>
+              )}
+
+              <h2 className="m-0 mt-2 text-[28px] font-semibold leading-[1.15] tracking-[-0.03em] text-foreground max-md:text-[24px]">
+                {stateWord}
+              </h2>
+              <p className="m-0 max-w-[34ch] text-[13px] leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+                {stateNote}
+              </p>
+              {uptimeClock && (
+                <p
+                  className="m-0 mt-0.5 text-[12px] font-medium font-mono tabular-nums text-muted-foreground max-md:hidden"
+                  aria-label={t("uptime", { duration: uptimeClock })}
+                >
+                  {uptimeClock}
+                </p>
+              )}
+
+              {connectError && (
+                <div className="w-full mt-2 text-left">
+                  <Alert
+                    variant="destructive"
+                    className="rounded-control border-destructive/30 bg-destructive/5 text-destructive p-3"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <span className="size-2 rounded-full bg-destructive mt-1.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <AlertTitle className="text-xs font-semibold text-destructive">
+                          {connectError.kind === "port_conflict"
+                            ? t("portConflictTitle")
+                            : connectError.kind === "tun_denied"
+                              ? t("tunDeniedTitle")
+                              : t("connectFailed")}
+                        </AlertTitle>
+                        <AlertDescription className="text-xs text-muted-foreground mt-1 flex flex-col gap-2">
+                          <span>
+                            {connectError.kind === "port_conflict"
+                              ? t("portConflictDesc")
+                              : connectError.kind === "tun_denied"
+                                ? t("tunDeniedDesc")
+                                : connectError.message}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {connectError.kind === "port_conflict" && (
                               <Button
                                 size="sm"
                                 variant="secondary"
                                 className="h-7 px-2.5 text-xs font-medium cursor-pointer"
                                 onClick={async () => {
                                   setConnectError(null);
-                                  await setMode({
-                                    systemProxy: true,
-                                    tun: false,
-                                  });
-                                  await run(() => up(), false);
+                                  await run(() => up({ port: 7891 }), false);
                                 }}
                               >
-                                {t("fallbackSysproxy")}
+                                {t("switchPortAndRetry")}
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 px-2.5 text-xs font-medium cursor-pointer"
-                                onClick={() => {
-                                  setConnectError(null);
-                                  setPrivilegeDialogOpen(true);
-                                }}
-                              >
-                                {st("takeover.installService")}
-                              </Button>
-                            </>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-xs ml-auto cursor-pointer"
-                            onClick={() => setConnectError(null)}
-                          >
-                            {tc("cancel")}
-                          </Button>
-                        </div>
-                      </AlertDescription>
+                            )}
+                            {connectError.kind === "tun_denied" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-7 px-2.5 text-xs font-medium cursor-pointer"
+                                  onClick={async () => {
+                                    setConnectError(null);
+                                    await setMode({
+                                      systemProxy: true,
+                                      tun: false,
+                                    });
+                                    await run(() => up(), false);
+                                  }}
+                                >
+                                  {t("fallbackSysproxy")}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2.5 text-xs font-medium cursor-pointer"
+                                  onClick={() => {
+                                    setConnectError(null);
+                                    setPrivilegeDialogOpen(true);
+                                  }}
+                                >
+                                  {st("takeover.installService")}
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs ml-auto cursor-pointer"
+                              onClick={() => setConnectError(null)}
+                            >
+                              {tc("cancel")}
+                            </Button>
+                          </div>
+                        </AlertDescription>
+                      </div>
                     </div>
-                  </div>
-                </Alert>
-              </div>
-            )}
+                  </Alert>
+                </div>
+              )}
+            </div>
 
-            <ul className="mt-3.5 grid self-stretch list-none grid-cols-3 border-t border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] pt-[18px]">
+            <ul className="mt-6 grid w-full list-none grid-cols-3 border-t border-border/70 pt-4">
               {facts.map((fact) => (
                 <li
                   key={fact.kind}
                   className={cn(
-                    "flex min-w-0 flex-col items-center gap-[7px] border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] px-2 text-xs text-muted-foreground not-first:border-l",
+                    "flex min-w-0 flex-col items-center gap-1.5 border-border/70 px-2 text-[11px] text-muted-foreground not-first:border-l",
                     fact.tone === "brand" && "text-brand-text",
                     fact.tone === "ok" && "text-success-text",
                   )}
@@ -850,7 +848,7 @@ export default function Connect() {
                     />
                     <b
                       className={cn(
-                        "text-sm font-semibold tabular-nums [overflow-wrap:anywhere]",
+                        "text-[13px] font-semibold tabular-nums [overflow-wrap:anywhere]",
                         fact.tone === "brand"
                           ? "text-brand-text"
                           : fact.tone === "ok"
@@ -865,9 +863,9 @@ export default function Connect() {
               ))}
             </ul>
 
-            <div className="flex items-center gap-2.5 self-stretch mt-4 border-t border-[color:color-mix(in_srgb,var(--border)_70%,transparent)] px-1 pt-4 text-body text-muted-foreground max-md:hidden">
+            <div className="mt-5 flex w-full items-center gap-2.5 self-stretch border-t border-border/70 px-0 pt-3.5 pb-4 text-[12px] text-muted-foreground max-md:hidden">
               <span
-                className="grid size-8 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/55%)]"
+                className="grid size-7 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground"
                 aria-hidden="true"
               >
                 <svg
@@ -919,18 +917,15 @@ export default function Connect() {
             </div>
           </section>
 
-          <div className="[grid-area:aside] flex min-w-0 flex-col gap-4">
+          <div className="[grid-area:aside] flex min-w-0 flex-col overflow-hidden rounded-card border border-border bg-card">
             <section
-              className={cn(
-                cardSurface,
-                "flex flex-col gap-3 py-4.5 px-5 max-md:p-4",
-              )}
+              className="flex flex-col gap-3 px-4 py-4"
               aria-label={t("strategyGroups")}
             >
               {/* Header: 标题 + 策略组数量 + 全部策略跳转 */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-subtitle font-semibold text-foreground">
+                  <h2 className="text-[13px] font-semibold text-foreground">
                     {t("strategyGroups")}
                   </h2>
                   {available.length > 0 && (
@@ -941,7 +936,7 @@ export default function Connect() {
                 </div>
                 <Link
                   to="/proxies"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-brand-text no-underline hover:underline hover:underline-offset-4"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground no-underline transition-colors hover:text-brand-text"
                 >
                   {t("allStrategies")}
                   <svg
@@ -971,10 +966,10 @@ export default function Connect() {
                         type="button"
                         onClick={() => setFocusGroup(item.name)}
                         className={cn(
-                          "shrink-0 cursor-pointer rounded-full px-3 py-1 max-md:min-h-11 max-md:px-4 text-xs font-medium transition-all duration-150 select-none",
+                          "shrink-0 cursor-pointer rounded-control border px-2.5 py-1 text-[12px] font-medium transition-colors duration-150 select-none max-md:min-h-11 max-md:px-3.5",
                           isCurrent
-                            ? "bg-brand text-brand-foreground shadow-sm font-semibold"
-                            : "bg-inset text-muted-foreground hover:bg-card hover:text-foreground",
+                            ? "border-brand bg-brand text-brand-foreground font-semibold"
+                            : "border-transparent bg-inset text-muted-foreground hover:border-border hover:bg-card hover:text-foreground",
                         )}
                       >
                         {item.name}
@@ -993,7 +988,7 @@ export default function Connect() {
                       {group ? group.name : t("strategy.title")}
                     </span>
                     {group?.type && (
-                      <span className="rounded-md bg-inset px-1.5 py-0.5 font-mono text-label text-muted-foreground">
+                      <span className="rounded-[4px] bg-inset px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                         {group.type}
                       </span>
                     )}
@@ -1014,7 +1009,7 @@ export default function Connect() {
                 >
                   {/* 节点图标头像 (40px 圆角国旗 / 直连 / 拦截 / 服务器图标) */}
                   <span
-                    className="flex size-10 max-md:size-9 shrink-0 items-center justify-center overflow-hidden rounded-control bg-inset text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--border)_60%,transparent),0_1px_3px_oklch(0.55_0.08_60/0.08)]"
+                    className="flex size-9 max-md:size-9 shrink-0 items-center justify-center overflow-hidden rounded-control border border-border bg-inset text-muted-foreground"
                     aria-hidden="true"
                   >
                     {isDirect ? (
@@ -1072,7 +1067,7 @@ export default function Connect() {
                   {/* 节点名称、延迟与策略链路 */}
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span
-                      className="truncate text-subtitle font-semibold text-foreground tracking-tight"
+                      className="truncate text-[14px] font-semibold text-foreground tracking-tight"
                       title={
                         leafNodeName
                           ? leafFlag
@@ -1124,7 +1119,7 @@ export default function Connect() {
                   {/* 右侧进入箭头 */}
                   <span className="flex shrink-0 items-center text-muted-foreground group-hover:text-brand-text transition-colors">
                     <span
-                      className="grid size-7 place-items-center rounded-full bg-inset text-muted-foreground shadow-[inset_0_1px_0_oklch(1_0_0/50%)] [transition:color_var(--duration-fast)_ease,background-color_var(--duration-fast)_ease] group-hover:bg-brand-soft group-hover:text-brand-text"
+                      className="grid size-6 place-items-center rounded-control bg-inset text-muted-foreground transition-colors group-hover:bg-brand-soft group-hover:text-brand-text"
                       aria-hidden="true"
                     >
                       <svg
@@ -1146,21 +1141,18 @@ export default function Connect() {
             </section>
 
             <section
-              className={cn(
-                cardSurface,
-                "flex flex-1 flex-col gap-3.5 py-5 px-[22px] max-md:p-[18px]",
-              )}
+              className="flex flex-1 flex-col gap-4 border-t border-border px-4 py-4"
               aria-label={t("prefs")}
             >
-              <h2 className="text-subtitle font-semibold">{t("prefs")}</h2>
+              <h2 className="text-[13px] font-semibold">{t("prefs")}</h2>
               {hasLocalAPI && (
-                <div className="flex flex-col gap-3 border-t border-border/70 pt-3">
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-label font-semibold text-muted-foreground">
+                    <span className="text-[11px] font-semibold text-muted-foreground">
                       {t("takeoverMode")}
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono">
+                      <span className="size-1.5 rounded-full bg-success" />
                       <span className="font-sans text-[11px] text-muted-foreground">
                         {t("port")}
                       </span>
@@ -1171,12 +1163,12 @@ export default function Connect() {
                   </div>
 
                   {/* System Proxy */}
-                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
+                  <div className="-mx-2 flex items-center justify-between gap-3 rounded-control px-2 py-2 transition-colors hover:bg-row-hover">
                     <div className="flex min-w-0 flex-col gap-0.5">
-                      <strong className="text-body font-semibold text-foreground">
+                      <strong className="text-[13px] font-semibold text-foreground">
                         {t("sysproxy")}
                       </strong>
-                      <span className="text-label text-muted-foreground leading-tight">
+                      <span className="text-[11px] leading-4 text-muted-foreground">
                         {st("takeover.sysproxyDesc")}
                       </span>
                     </div>
@@ -1191,10 +1183,10 @@ export default function Connect() {
                   </div>
 
                   {/* Virtual NIC (TUN) */}
-                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/40 p-2.5">
+                  <div className="-mx-2 flex items-center justify-between gap-3 rounded-control px-2 py-2 transition-colors hover:bg-row-hover">
                     <div className="flex min-w-0 flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
-                        <strong className="text-body font-semibold text-foreground">
+                        <strong className="text-[13px] font-semibold text-foreground">
                           {t("tun")}
                         </strong>
                         {hasLocalAPI && (
@@ -1206,7 +1198,7 @@ export default function Connect() {
                                   "inline-flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                                   isServiceInstalled
                                     ? "text-muted-foreground/60 hover:text-foreground"
-                                    : "text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300",
+                                    : "text-warning-text hover:text-foreground",
                                 )}
                                 aria-label={
                                   isServiceInstalled
@@ -1228,8 +1220,8 @@ export default function Connect() {
                                     className={cn(
                                       "size-3.5 shrink-0",
                                       isServiceInstalled
-                                        ? "text-emerald-500 dark:text-emerald-400"
-                                        : "text-amber-500 dark:text-amber-400",
+                                        ? "text-success-text"
+                                        : "text-warning-text",
                                     )}
                                   />
                                   <span>
@@ -1275,7 +1267,7 @@ export default function Connect() {
                           </HoverCard>
                         )}
                       </div>
-                      <span className="text-label text-muted-foreground leading-tight">
+                      <span className="text-[11px] leading-4 text-muted-foreground">
                         {st("takeover.tunDesc")}
                       </span>
                     </div>
@@ -1294,8 +1286,8 @@ export default function Connect() {
                   </div>
                 </div>
               )}
-              <div className="flex flex-col gap-2.5 border-t border-border/70 pt-3">
-                <span className="text-label font-semibold text-muted-foreground">
+              <div className="flex flex-col gap-2 border-t border-border pt-3">
+                <span className="text-[11px] font-semibold text-muted-foreground">
                   {tc("routingMode.title")}
                 </span>
                 <SegmentedControl
@@ -1310,10 +1302,27 @@ export default function Connect() {
                 {currentMode === "rule" ||
                 currentMode === "global" ||
                 currentMode === "direct" ? (
-                  <p className="m-0 text-label text-muted-foreground">
+                  <p className="m-0 text-[11px] leading-4 text-muted-foreground">
                     {t(`routingHint.${currentMode}`)}
                   </p>
                 ) : null}
+              </div>
+              <div className="mt-auto grid grid-cols-3 gap-1.5 border-t border-border pt-3">
+                {(
+                  [
+                    ["/connections", t("quickLinks.connections")],
+                    ["/rules", t("quickLinks.rules")],
+                    ["/logs", t("quickLinks.logs")],
+                  ] as const
+                ).map(([path, label]) => (
+                  <Link
+                    key={path}
+                    to={path}
+                    className="truncate rounded-control border border-border bg-card px-2 py-1.5 text-center text-[11px] font-medium text-foreground no-underline transition-colors hover:border-brand/50 hover:bg-brand-soft hover:text-brand-text"
+                  >
+                    {label}
+                  </Link>
+                ))}
               </div>
             </section>
           </div>
@@ -1321,13 +1330,15 @@ export default function Connect() {
           <section
             className={cn(
               cardSurface,
-              "[grid-area:live] flex flex-col gap-4 py-5 px-6 max-md:p-4.5",
+              "[grid-area:live] flex min-h-[190px] flex-col gap-4 px-5 py-4 max-md:min-h-0 max-md:px-4",
             )}
             aria-label={t("trafficStats")}
           >
-            <h2 className="text-subtitle font-semibold text-foreground tracking-tight">
-              {t("trafficStats")}
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[13px] font-semibold text-foreground">
+                {t("trafficStats")}
+              </h2>
+            </div>
 
             <div className="grid min-w-0 grid-cols-1 items-stretch gap-4 @min-[46rem]/connect:grid-cols-[auto_minmax(0,1fr)_auto] @min-[46rem]/connect:gap-6">
               {/* Desktop Speeds: 左右横排，橙色箭头，中间发丝分割线 */}
@@ -1351,7 +1362,7 @@ export default function Connect() {
                     </svg>
                     {t("download")}
                   </span>
-                  <b className="whitespace-nowrap text-title font-bold text-foreground tabular-nums tracking-tight">
+                  <b className="whitespace-nowrap text-[22px] font-semibold text-foreground tabular-nums tracking-[-0.02em]">
                     {trafficState === "open" && speed
                       ? formatDisplayRate(speed.down)
                       : "—"}
@@ -1380,7 +1391,7 @@ export default function Connect() {
                     </svg>
                     {t("upload")}
                   </span>
-                  <b className="whitespace-nowrap text-title font-bold text-foreground tabular-nums tracking-tight">
+                  <b className="whitespace-nowrap text-[22px] font-semibold text-foreground tabular-nums tracking-[-0.02em]">
                     {trafficState === "open" && speed
                       ? formatDisplayRate(speed.up)
                       : "—"}
@@ -1469,7 +1480,7 @@ export default function Connect() {
                   <span className="text-xs font-medium text-muted-foreground">
                     {t("sessionTotal")}
                   </span>
-                  <b className="whitespace-nowrap text-title font-bold text-foreground tabular-nums tracking-tight">
+                  <b className="whitespace-nowrap text-[20px] font-semibold text-foreground tabular-nums tracking-[-0.02em]">
                     {sessionTotal !== null
                       ? formatDisplayTraffic(sessionTotal)
                       : "—"}

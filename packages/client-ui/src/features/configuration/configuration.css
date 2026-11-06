@@ -8,16 +8,15 @@
     grid-template-columns: clamp(260px, 22vw, 300px) minmax(0, 1fr);
     height: calc(100dvh - 150px);
     min-height: 0;
-    border-radius: var(--radius-card, 24px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
     background: var(--card);
-    box-shadow: var(--shadow-elevation-card);
     overflow: hidden;
   }
   .config-resources {
     padding: 18px 12px;
     background: color-mix(in oklch, var(--surface-inset) 40%, var(--card));
-    border-inline-end: 1px solid
-      color-mix(in oklch, var(--border) 70%, transparent);
+    border-inline-end: 1px solid var(--border);
     min-width: 0;
     height: 100%;
     overflow-y: auto;
@@ -42,8 +41,7 @@
   .config-group-heading h2 {
     font-size: var(--text-label);
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
     color: var(--muted-foreground);
   }
   .config-group-heading button {
@@ -94,7 +92,7 @@
   }
   .config-resource.is-selected {
     background: var(--brand-soft);
-    color: var(--brand-text);
+    color: var(--foreground);
   }
   /* 焦點落在行內按鈕上，行本身不可聚焦：用 :has() 把外框掛回整行。 */
   .config-resource:has(:focus-visible) {
@@ -148,7 +146,7 @@
     justify-items: start;
     gap: 12px;
     border: 1px solid var(--border-strong);
-    border-radius: 12px;
+    border-radius: var(--radius-card);
     padding: 16px;
     color: var(--foreground);
     font-size: 14px;
@@ -204,8 +202,8 @@
     min-height: 48px;
     align-items: center;
     gap: 8px;
-    padding: 7px 9px;
-    border-radius: 12px;
+    padding: 6px 8px;
+    border-radius: var(--radius-control);
     cursor: pointer;
     list-style: none;
     transition: background-color 150ms ease;
@@ -226,22 +224,20 @@
     z-index: 70;
     inset-inline-start: 0;
     bottom: calc(100% + 10px);
-    width: 280px;
+    width: 288px;
     max-height: min(75dvh, 520px);
     overflow-y: auto;
-    padding: 8px;
+    padding: 6px;
     background: var(--popover);
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    box-shadow: 0 12px 32px -4px
-      color-mix(in oklch, var(--foreground) 16%, transparent);
+    border-radius: var(--radius-card);
+    box-shadow: var(--elevation-raised);
   }
   .config-menu-heading {
     padding: 6px 8px 4px;
-    font-size: var(--text-label);
+    font-size: var(--text-caption);
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
     color: var(--muted-foreground);
   }
   .config-menu-item {
@@ -249,10 +245,10 @@
     align-items: center;
     text-align: start;
     width: 100%;
-    min-height: 42px;
-    gap: 10px;
-    border-radius: var(--radius-md);
-    padding: 6px 8px;
+    min-height: 40px;
+    gap: 9px;
+    border-radius: var(--radius-control);
+    padding: 5px 7px;
     font-size: var(--text-body);
     text-decoration: none;
     background: transparent;
@@ -268,7 +264,7 @@
   }
   .config-menu-item.is-active {
     background: var(--brand-soft);
-    color: var(--brand-text);
+    color: var(--foreground);
   }
   .config-menu-item:disabled {
     cursor: default;
@@ -285,7 +281,7 @@
     color: var(--muted-foreground);
   }
   .config-menu-item.is-active small {
-    color: color-mix(in oklch, var(--brand-text) 80%, transparent);
+    color: var(--muted-foreground);
   }
   .config-menu-link {
     display: inline-flex;

@@ -390,7 +390,7 @@ export default function ProxyPage() {
                     </svg>
                     {t("parameters")}
                   </summary>
-                  <div className="absolute top-[calc(100%+8px)] left-0 z-20 flex min-w-[280px] flex-col gap-2.5 rounded-md border border-border bg-card px-4 py-3.5 shadow-[0_4px_12px_oklch(0_0_0/8%)] max-md:right-0 max-md:left-auto max-md:w-[calc(100vw-64px)] max-md:min-w-[240px] max-md:max-w-[320px]">
+                  <div className="absolute top-[calc(100%+8px)] left-0 z-20 flex min-w-[280px] flex-col gap-2.5 rounded-md border border-border bg-card px-4 py-3.5 shadow-elevation-raised max-md:right-0 max-md:left-auto max-md:w-[calc(100vw-64px)] max-md:min-w-[240px] max-md:max-w-[320px]">
                     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                       <span>{t("testUrl")}</span>
                       <input

@@ -60,22 +60,21 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
   return (
     <div className={cn("flex w-full min-w-0 flex-col gap-5 py-4", className)}>
       {/* Welcome Header */}
-      <div className="flex flex-col items-center text-center px-4 py-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 text-brand-text text-xs font-semibold mb-3">
-          <Sparkles className="size-3.5" />
-          <span>{t("title")}</span>
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+      <div className="flex flex-col items-center px-4 py-3 text-center">
+        <span className="mb-4 grid size-9 place-items-center rounded-control border border-border bg-card text-brand-text">
+          <Sparkles className="size-[18px]" />
+        </span>
+        <h2 className="text-[28px] font-semibold leading-tight tracking-[-0.03em] text-foreground">
           {t("title")}
         </h2>
-        <p className="mt-1.5 max-w-lg text-sm text-muted-foreground">
+        <p className="mt-2 max-w-lg text-[13px] leading-5 text-muted-foreground">
           {t("subtitle")}
         </p>
       </div>
 
       {/* Clipboard Sniffer Bar (if candidate detected) */}
       {candidate && (
-        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-card border border-brand/40 bg-brand/5 p-3.5 shadow-sm transition-all animate-in fade-in-50">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-card border border-brand/40 bg-brand-soft/50 p-3.5">
           <div className="flex min-w-0 items-center gap-2.5 pl-1">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground text-xs font-bold">
               ✓
@@ -91,8 +90,9 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
           </div>
           <Button
             size="sm"
+            variant="brand"
             onClick={() => handleQuickImport(candidate)}
-            className="shrink-0 bg-brand text-brand-foreground hover:bg-brand-strong"
+            className="shrink-0"
           >
             {t("importHandoffOpen")}
             <ArrowRight className="ml-1 size-3.5" />
@@ -105,16 +105,16 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
         {/* Option 1: XBond Cloud Account */}
         <Card
           onClick={() => navigate("/config?item=cloud")}
-          className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border/80 bg-card/95 p-5 shadow-elevation-card transition-all duration-200 hover:-translate-y-1 hover:border-brand hover:shadow-elevation-raised"
+          className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border bg-card p-5 transition-colors duration-150 hover:border-brand/60 hover:bg-brand-soft/20"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex size-10 items-center justify-center rounded-control bg-brand/10 text-brand-text">
+              <div className="flex size-9 items-center justify-center rounded-control bg-brand-soft text-brand-text">
                 <Cloud className="size-5" />
               </div>
               <Badge
                 variant="secondary"
-                className="bg-brand/15 text-brand-text border-0 font-medium text-[11px]"
+                className="border-0 bg-brand-soft text-brand-text font-medium text-[11px]"
               >
                 {account?.status === "signed_in"
                   ? connT("connected")
@@ -137,11 +137,11 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
         {/* Option 2: Universal Subscription / Paste */}
         <Card
           onClick={() => navigate("/config?item=add-profile")}
-          className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border/80 bg-card/95 p-5 shadow-elevation-card transition-all duration-200 hover:-translate-y-1 hover:border-brand hover:shadow-elevation-raised"
+          className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border bg-card p-5 transition-colors duration-150 hover:border-brand/60 hover:bg-brand-soft/20"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex size-10 items-center justify-center rounded-control bg-surface-inset text-foreground">
+              <div className="flex size-9 items-center justify-center rounded-control bg-inset text-muted-foreground">
                 <Download className="size-5" />
               </div>
             </div>
@@ -161,11 +161,11 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
         {/* Option 3: Remote Controller */}
         <Card
           onClick={() => navigate("/config?item=add-controller")}
-          className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border/80 bg-card/95 p-5 shadow-elevation-card transition-all duration-200 hover:-translate-y-1 hover:border-brand hover:shadow-elevation-raised"
+          className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-card border border-border bg-card p-5 transition-colors duration-150 hover:border-brand/60 hover:bg-brand-soft/20"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex size-10 items-center justify-center rounded-control bg-surface-inset text-foreground">
+              <div className="flex size-9 items-center justify-center rounded-control bg-inset text-muted-foreground">
                 <Globe className="size-5" />
               </div>
             </div>

@@ -473,7 +473,7 @@ export function Group({
                 className={cn(
                   "inline-flex size-6 max-md:size-10 shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand hover:bg-brand-soft hover:text-brand-text",
                   isPinned(name)
-                    ? "border-amber-500/40 text-amber-500 hover:text-amber-600 dark:text-amber-400"
+                    ? "border-warning/40 text-warning-text hover:text-foreground"
                     : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100",
                 )}
                 title={isPinned(name) ? t("unpin") : t("pin")}

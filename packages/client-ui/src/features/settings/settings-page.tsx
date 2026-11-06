@@ -571,7 +571,7 @@ export default function Settings() {
                 <TabsContent
                   key={format}
                   value={format}
-                  className="rounded-xl border border-border bg-inset p-3.5 shadow-inner"
+                  className="rounded-card border border-border bg-inset p-3.5"
                 >
                   <code className="block w-full select-all break-all font-mono text-xs text-foreground tracking-tight">
                     {terminalCommands[format]}

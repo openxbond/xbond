@@ -152,7 +152,7 @@ function NodePickerRow({
           className={cn(
             "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md p-0 text-muted-foreground transition-all hover:bg-card hover:text-foreground",
             pinned
-              ? "text-amber-500 opacity-100 hover:text-amber-600 dark:text-amber-400"
+              ? "text-warning-text opacity-100 hover:text-foreground"
               : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
           )}
           title={pinned ? unpinText : pinText}

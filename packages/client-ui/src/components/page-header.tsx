@@ -13,12 +13,12 @@ export function Header(props: HeaderProps) {
   return (
     <header
       className={cn(
-        "header my-2.5 flex w-full flex-row items-center justify-between select-none",
+        "header flex min-h-9 w-full flex-row items-center justify-between gap-3 select-none",
         className,
       )}
       style={style}
     >
-      <h1 className="shrink-0 text-xl leading-[1.4] font-semibold tracking-normal text-foreground">
+      <h1 className="shrink-0 text-[18px] leading-tight font-semibold tracking-[-0.015em] text-foreground">
         {title}
       </h1>
       <div className="flex flex-auto flex-wrap items-center justify-end gap-y-1">

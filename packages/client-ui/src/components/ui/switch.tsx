@@ -19,7 +19,7 @@ function Switch({
         // checked; the component keeps its own hit area instead of a padded
         // wrapper. The ::before extends the touch target past the 44×44 CSS
         // px floor without moving the visual track.
-        "peer group/switch relative inline-flex shrink-0 items-center rounded-full border border-transparent transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] data-[size=default]:h-[26px] data-[size=default]:w-11 data-[size=sm]:h-5 data-[size=sm]:w-9 data-[state=checked]:bg-brand data-[state=unchecked]:bg-input",
+        "peer group/switch relative inline-flex shrink-0 items-center rounded-full border border-transparent transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] data-[size=default]:h-[26px] data-[size=default]:w-11 data-[size=sm]:h-5 data-[size=sm]:w-9 data-[state=checked]:bg-brand data-[state=unchecked]:bg-border-strong",
         className,
       )}
       {...props}
@@ -27,7 +27,7 @@ function Switch({
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
         className={cn(
-          "pointer-events-none flex items-center justify-center rounded-full bg-white shadow-[0_1px_3px_oklch(0_0_0/20%)] ring-0 transition-transform group-data-[size=default]/switch:size-5 group-data-[size=sm]/switch:size-4 data-[state=checked]:translate-x-[calc(100%+2px)] data-[state=unchecked]:translate-x-0 motion-reduce:transition-none",
+          "pointer-events-none flex items-center justify-center rounded-full bg-switch-thumb shadow-[0_1px_2px_oklch(0_0_0/22%)] ring-0 transition-transform group-data-[size=default]/switch:size-5 group-data-[size=sm]/switch:size-4 data-[state=checked]:translate-x-[calc(100%+2px)] data-[state=unchecked]:translate-x-0 motion-reduce:transition-none",
         )}
       >
         {/* 開啟以品牌橙配深色功能標記（DESIGN.md「控制項與設定行」）。 */}

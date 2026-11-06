@@ -348,7 +348,7 @@ export function CommandPalette() {
     >
       <DialogContent
         showCloseButton={false}
-        className="fixed top-[15%] sm:top-[18%] left-[50%] translate-x-[-50%] translate-y-0 w-full max-w-xl p-0 overflow-hidden rounded-2xl border border-border/80 bg-popover/95 shadow-elevation-raised backdrop-blur-2xl ring-1 ring-white/10 dark:ring-white/5"
+        className="fixed top-[15%] sm:top-[18%] left-[50%] translate-x-[-50%] translate-y-0 w-full max-w-xl p-0 overflow-hidden rounded-card border border-border bg-popover shadow-elevation-raised"
       >
         <DialogTitle className="sr-only">{t("title")}</DialogTitle>
 

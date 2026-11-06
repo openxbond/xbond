@@ -4,37 +4,36 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// XBond adds the status/brand variants DESIGN.md defines on top of the
-// shadcn set. Brand carries the warm orange glow; the button stays a quiet
-// control otherwise (near-black primary, outlined secondary).
+// XBond button recipe: a compact native control. Graphite is the default
+// action; brand orange is reserved for connect/brand moments and never glows.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/25 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-control text-[13px] leading-none font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-[120ms] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive aria-invalid:ring-destructive/20 motion-reduce:transition-none max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/25",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/20",
         outline:
-          "border border-input bg-card text-foreground hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border border-border-strong bg-card text-foreground hover:bg-accent hover:text-accent-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-accent",
         brand:
-          "bg-brand-action text-brand-action-foreground shadow-brand-action hover:bg-brand-action-hover hover:shadow-brand-action-hover",
+          "bg-brand-action text-brand-action-foreground hover:bg-brand-action-hover",
         success: "bg-success text-success-foreground hover:bg-success/90",
         warning: "bg-warning text-warning-foreground hover:bg-warning/90",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        ghost:
+          "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        link: "text-brand-text underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9 max-md:size-11",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-8 max-md:size-11",
-        "icon-lg": "size-10",
+        default: "h-8 px-3 py-1.5 has-[>svg]:px-2.5",
+        xs: "h-6 gap-1 rounded-[5px] px-2 text-[11px] has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-7 gap-1.5 rounded-[5px] px-2.5 text-xs has-[>svg]:px-2",
+        lg: "h-9 px-4 has-[>svg]:px-3.5",
+        icon: "size-8 max-md:size-11",
+        "icon-xs": "size-6 rounded-[5px] [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm": "size-7 max-md:size-11",
+        "icon-lg": "size-9",
       },
     },
     defaultVariants: {

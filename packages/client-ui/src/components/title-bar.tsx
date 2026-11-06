@@ -83,7 +83,7 @@ export function TitleBar() {
   return (
     <header
       data-tauri-drag-region="deep"
-      className="fixed inset-x-0 top-0 z-50 flex h-[var(--titlebar-height)] select-none max-md:hidden"
+      className="z-50 flex h-[var(--titlebar-height)] shrink-0 select-none border-b border-border bg-background max-md:hidden"
     >
       {!IS_MACOS && (
         <div className="ml-auto flex items-stretch">
@@ -118,7 +118,7 @@ export function TitleBar() {
             type="button"
             onClick={runWindowCommand("close_main_window")}
             aria-label={t("close")}
-            className="flex w-[46px] items-center justify-center cursor-default text-muted-foreground transition-colors duration-[120ms] ease-[var(--ease-out-expo)] motion-reduce:transition-none hover:bg-destructive hover:text-white focus-visible:relative focus-visible:z-10 focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-white/70"
+            className="flex w-[46px] items-center justify-center cursor-default text-muted-foreground transition-colors duration-[120ms] ease-[var(--ease-out-expo)] motion-reduce:transition-none hover:bg-destructive hover:text-destructive-foreground focus-visible:relative focus-visible:z-10 focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-destructive-foreground/70"
           >
             <CaptionIcon>
               <path d="M1 1l8 8M9 1l-8 8" />

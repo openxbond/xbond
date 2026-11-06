@@ -7,9 +7,9 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        // XBond task-card recipe (DESIGN.md): solid milky surface, hairline
-        // border, soft downward shadow, 24px radius.
-        "rounded-card border bg-card text-card-foreground shadow-elevation-card p-5",
+        // XBond task-card recipe (DESIGN.md): solid working surface, hairline
+        // border, no resting shadow. Elevation belongs to floating layers.
+        "rounded-card border border-border bg-card text-card-foreground p-5",
         className,
       )}
       {...props}

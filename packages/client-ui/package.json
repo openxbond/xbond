@@ -12,7 +12,6 @@
     "./utils": "./src/lib/utils.ts"
   },
   "dependencies": {
-    "@fontsource-variable/inter": "^5.0.0",
     "@react-hookz/web": "^26.1.0",
     "@tanstack/react-table": "^8.21.3",
     "@xbond/client": "workspace:*",

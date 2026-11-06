@@ -95,7 +95,7 @@ export function Proxy(props: ProxyProps) {
   return (
     <div
       className={cn(
-        "relative flex min-h-[88px] flex-col justify-between rounded-card border border-border bg-card px-[18px] py-4 shadow-elevation-card transition-all duration-200 ease-[var(--ease-out-expo)] hover:-translate-y-0.5 hover:border-brand hover:shadow-[0_4px_14px_oklch(0_0_0/5%)]",
+        "relative flex min-h-[88px] flex-col justify-between rounded-card border border-border bg-card px-[18px] py-4 transition-colors duration-150 hover:border-brand/60 hover:bg-row-hover",
         // 失敗卡仍須可讀：保留邊框與徽章提示，整體只輕微降低存在感。
         isFailed &&
           "border-destructive bg-inset opacity-80 shadow-none hover:-translate-y-px hover:border-destructive hover:opacity-100 hover:shadow-none",

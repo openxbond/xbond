@@ -26,16 +26,17 @@ import ProxyPage from "@/features/proxies/proxies-page";
 import Rules from "@/features/rules/rules-page";
 import Settings from "@/features/settings/settings-page";
 import { cn } from "@/lib/utils";
-import { isClashX } from "@/platform/clashx-bridge";
 import { useDesktopShell } from "@/platform/desktop-shell";
 import { isDesktopApp } from "@/platform/local-api-bootstrap";
 import { identityAtom, useAPIInfo } from "@/state/controller-target";
 import { useTheme } from "@/state/user-preferences";
 
-import SideBar from "./navigation/app-navigation";
+import AppNavigation, {
+  type Route as NavRoute,
+} from "./navigation/app-navigation";
 
 // Mobile bottom navigation targets (4 core destinations)
-const mobileRoutes = [
+const mobileRoutes: NavRoute[] = [
   { path: "/", name: "Connect" },
   { path: "/proxies", name: "Proxies" },
   { path: "/activity", name: "Activity" },
@@ -52,7 +53,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const maximized = useMainWindowMaximized();
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLElement>(null);
 
   // Instant scroll-to-top on route change to prevent jump flickering
   useEffect(() => {
@@ -75,17 +76,7 @@ export default function App() {
   }, [identity, target, location.search, navigate, setIdentity]);
 
   const layout = (
-    <div
-      className={cn(
-        "h-[100dvh] min-h-0 overflow-hidden p-3 pl-[228px]",
-        // Desktop frameless window: content islands start below the 40px
-        // titlebar band, keeping the 12px island margin as the gap.
-        isDesktopApp() && "pt-[calc(var(--titlebar-height)+12px)]",
-        "max-md:pt-[calc(var(--topbar-height)+env(safe-area-inset-top))] max-md:pr-0 max-md:pb-[calc(84px+env(safe-area-inset-bottom))] max-md:pl-0",
-        !isClashX() &&
-          "bg-[image:radial-gradient(ellipse_at_top_left,var(--surface-inset),transparent_65%)] bg-background",
-      )}
-    >
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-background">
       {/* Frameless Windows/Linux windows get no compositor shadow (tao drops
           it with decorations), so the webview edge disappears on light
           desktops. A hairline inset frame marks the boundary; maximized
@@ -97,13 +88,20 @@ export default function App() {
           className="pointer-events-none fixed inset-0 z-40 shadow-window-frame"
         />
       )}
-      <TitleBar />
-      <SideBar routes={mobileRoutes} />
-      <div
-        ref={contentRef}
-        className="h-full w-full min-w-0 overflow-y-auto max-md:px-3 max-md:[&::-webkit-scrollbar]:hidden"
-      >
-        <ControllerPage />
+      <AppNavigation routes={mobileRoutes} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TitleBar />
+        {/* Full-bleed working area: the navigation rail and page share one
+            plane. Hairlines, not a floating rounded card, mark the boundary. */}
+        <main
+          ref={contentRef}
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto",
+            "max-md:px-0 max-md:pt-[calc(var(--topbar-height)+env(safe-area-inset-top))] max-md:pb-[calc(64px+env(safe-area-inset-bottom))] max-md:[&::-webkit-scrollbar]:hidden",
+          )}
+        >
+          <ControllerPage />
+        </main>
       </div>
       <Toaster />
       <CommandPalette />
