@@ -49,6 +49,15 @@ type LoginOptions struct {
 	// CallbackHTML renders the browser callback page. The lang argument is
 	// the callback query's lang when present. Nil uses a plain English page.
 	CallbackHTML func(lang string) string
+	// RedirectURI switches PKCE to the custom-scheme flow: the daemon never
+	// opens a loopback listener and the authorization code arrives through
+	// WaitCode instead (OS deep link -> desktop shell -> LocalAPI callback).
+	// The Cloud must have the scheme registered as an allowed redirect URI
+	// for ClientID; mirror of @cloud/core's client-oauth contract.
+	RedirectURI string
+	// WaitCode blocks until the authorization code for state is delivered.
+	// Required with RedirectURI; ignored otherwise.
+	WaitCode func(ctx context.Context, state string) (string, error)
 }
 
 // Credentials is the result of a successful OAuth login. LinkError means the

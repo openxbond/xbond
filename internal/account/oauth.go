@@ -17,8 +17,10 @@ import (
 const loginTimeout = 5 * time.Minute
 
 // Authenticate runs the Better Auth OAuth flow. PKCE through the system
-// browser is the default; device authorization is the explicit headless path
-// and also the fallback when no loopback listener can be opened.
+// browser is the default: desktop apps redirect back through their
+// registered custom scheme (the code arrives via opts.WaitCode), other
+// callers land on a loopback listener; device authorization stays the
+// explicit headless path and the fallback when no listener can be opened.
 func Authenticate(
 	ctx context.Context,
 	opts LoginOptions,
@@ -30,8 +32,11 @@ func Authenticate(
 	}
 	conf := clientapi.NewConfig(origin)
 
-	if opts.Device {
+	switch {
+	case opts.Device:
 		return deviceLogin(ctx, conf, opts, progress)
+	case opts.RedirectURI != "":
+		return schemeLogin(ctx, conf, opts, progress)
 	}
 	token, err := pkceLogin(ctx, conf, opts, progress)
 	if err == nil {
@@ -154,6 +159,59 @@ func pkceLogin(
 		code,
 		oauth2.VerifierOption(verifier),
 		oauth2.SetAuthURLParam("redirect_uri", redirectURI),
+		clientapi.ResourceOption(),
+	)
+	if err != nil {
+		return nil, mapOAuthError(err)
+	}
+	return token, nil
+}
+
+// schemeLogin is the desktop PKCE path: the authorize request carries the
+// app's registered custom scheme as redirect_uri (e.g. xbond://callback),
+// so the daemon never listens on loopback — the OS hands the deep link to
+// the desktop shell and the authorization code reaches WaitCode instead.
+func schemeLogin(
+	ctx context.Context,
+	conf *oauth2.Config,
+	opts LoginOptions,
+	progress func(Progress),
+) (*oauth2.Token, error) {
+	if opts.WaitCode == nil {
+		return nil, errors.New("scheme login requires a code channel")
+	}
+	verifier := oauth2.GenerateVerifier()
+	stateBytes := make([]byte, 16)
+	if _, err := rand.Read(stateBytes); err != nil {
+		return nil, fmt.Errorf("generate oauth state: %w", err)
+	}
+	state := hex.EncodeToString(stateBytes)
+
+	authURL := conf.AuthCodeURL(
+		state,
+		oauth2.S256ChallengeOption(verifier),
+		oauth2.SetAuthURLParam("redirect_uri", opts.RedirectURI),
+		clientapi.ResourceOption(),
+	)
+	reportProgress(progress, Progress{Phase: "authorizing", Method: "scheme", AuthURL: authURL})
+	openBrowser(opts, authURL)
+
+	waitCtx, cancel := context.WithTimeout(ctx, loginTimeout)
+	defer cancel()
+	code, err := opts.WaitCode(waitCtx, state)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, &Error{Code: ErrCodeTimeout, Err: err}
+		}
+		return nil, err
+	}
+
+	reportProgress(progress, Progress{Phase: "exchanging_token", Method: "scheme", AuthURL: authURL})
+	token, err := conf.Exchange(
+		ctx,
+		code,
+		oauth2.VerifierOption(verifier),
+		oauth2.SetAuthURLParam("redirect_uri", opts.RedirectURI),
 		clientapi.ResourceOption(),
 	)
 	if err != nil {

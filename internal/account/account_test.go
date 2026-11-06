@@ -229,6 +229,90 @@ func TestPKCELoginThroughLoopbackCallback(t *testing.T) {
 	}
 }
 
+func TestSchemeLoginDeliversCodeThroughDeepLink(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/auth/oauth2/token":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"access_token":  "at-scheme",
+				"refresh_token": "rt-scheme",
+				"token_type":    "Bearer",
+				"expires_in":    3600,
+			})
+		case "/api/trpc/user.credentials.subscriptionLink":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode([]map[string]any{{
+				"result": map[string]any{
+					"data": map[string]any{
+						"subscriptionToken": "sub-scheme",
+						"fallbackDomains":   []string{"https://sub-01.xbond.dev"},
+					},
+				},
+			}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	// The daemon never listens on loopback in this flow: the desktop shell
+	// hands the code over the LocalAPI callback and the state must be the
+	// one the authorize URL was built with.
+	codeCh := make(chan string, 1)
+	var browserState string
+
+	sessionPath := filepath.Join(t.TempDir(), "account.json")
+	manager := NewManager(sessionPath)
+	credentials, err := manager.Login(
+		context.Background(),
+		LoginOptions{
+			Origin:      server.URL,
+			RedirectURI: "xbond://callback",
+			OpenBrowser: func(authURL string) error {
+				parsed, err := url.Parse(authURL)
+				if err != nil {
+					return err
+				}
+				if got := parsed.Query().Get("redirect_uri"); got != "xbond://callback" {
+					t.Errorf("redirect_uri: got %q", got)
+				}
+				browserState = parsed.Query().Get("state")
+				if browserState == "" {
+					t.Error("authorize URL carries no state")
+				}
+				codeCh <- "the-code"
+				return nil
+			},
+			WaitCode: func(ctx context.Context, state string) (string, error) {
+				if state != browserState {
+					return "", errors.New("state mismatch between flow and shell")
+				}
+				select {
+				case code := <-codeCh:
+					return code, nil
+				case <-ctx.Done():
+					return "", ctx.Err()
+				}
+			},
+		},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("scheme login failed: %v", err)
+	}
+	if credentials.SubscriptionToken != "sub-scheme" {
+		t.Errorf("subscription token: got %q", credentials.SubscriptionToken)
+	}
+	session, err := manager.Session()
+	if err != nil {
+		t.Fatalf("session not saved: %v", err)
+	}
+	if session.AccessToken != "at-scheme" || session.RefreshToken != "rt-scheme" {
+		t.Errorf("session tokens: %+v", session)
+	}
+}
+
 func TestLoginKeepsSessionWhenLinkFetchFails(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

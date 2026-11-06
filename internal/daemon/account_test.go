@@ -121,6 +121,71 @@ func TestAccountControllerLoginSuccess(t *testing.T) {
 	}
 }
 
+func TestAccountControllerSchemeCallbackDelivery(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	entered := make(chan struct{})
+	manager := &fakeAccountManager{}
+	manager.login = func(
+		ctx context.Context,
+		opts account.LoginOptions,
+		_ func(account.Progress),
+	) (*account.Credentials, error) {
+		if opts.WaitCode == nil {
+			return nil, errors.New("scheme flow was not wired to the code channel")
+		}
+		close(entered)
+		code, err := opts.WaitCode(ctx, "state-1")
+		if err != nil {
+			return nil, err
+		}
+		if code != "code-1" {
+			return nil, errors.New("unexpected authorization code: " + code)
+		}
+		return &account.Credentials{SubscriptionToken: "sub-abc", Origin: "https://sub-01.xbond.dev"}, nil
+	}
+
+	bound := &sub.SubscriptionMeta{ID: "sub_x", Name: "XBond", Type: sub.SubTypeXBond}
+	controller := newAccountController(
+		manager,
+		func(context.Context, *account.Credentials, accountBindOptions) (*sub.SubscriptionMeta, string, error) {
+			return bound, "", nil
+		},
+		func() ([]sub.SubscriptionMeta, error) { return nil, nil },
+		func() *sub.SubscriptionMeta { return nil },
+	)
+
+	state := controller.start(account.LoginOptions{RedirectURI: "xbond://callback"}, accountBindOptions{})
+	if state.Status != "pending" || state.Method != "scheme" {
+		t.Fatalf("expected pending scheme flow, got %+v", state)
+	}
+	<-entered
+
+	// A stale or replayed link never matches the flow's own state.
+	if err := controller.deliverCallback("code-1", "state-other"); err == nil {
+		t.Error("stale callback state was accepted")
+	}
+
+	// The flow registers its state before blocking, so the matching state
+	// becomes deliverable; poll briefly to stay independent of scheduling.
+	deadline := time.Now().Add(2 * time.Second)
+	delivered := false
+	for time.Now().Before(deadline) {
+		if err := controller.deliverCallback("code-1", "state-1"); err == nil {
+			delivered = true
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !delivered {
+		t.Fatal("matching callback was never accepted")
+	}
+
+	final := waitForAccountStatus(t, controller, "signed_in")
+	if final.Subscription == nil || final.Subscription.ID != bound.ID {
+		t.Errorf("subscription not attached: %+v", final.Subscription)
+	}
+}
+
 func TestAccountControllerReportsSubscriptionSyncAfterAuthorization(t *testing.T) {
 	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	entered := make(chan struct{})

@@ -295,6 +295,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/account/logout", s.authMiddleware(s.handleAccountLogout))
 	mux.HandleFunc("/localapi/v0/account/refresh", s.authMiddleware(s.handleAccountRefresh))
 	mux.HandleFunc("/localapi/v0/account/cancel", s.authMiddleware(s.handleAccountCancel))
+	mux.HandleFunc("/localapi/v0/account/callback", s.authMiddleware(s.handleAccountCallback))
 
 	mux.HandleFunc("/localapi/v0/subs", s.authMiddleware(s.handleSubs))
 	mux.HandleFunc("/localapi/v0/subs/use", s.authMiddleware(s.handleSubUse))

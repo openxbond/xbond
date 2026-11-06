@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -77,6 +78,12 @@ type accountController struct {
 	bind       func(context.Context, *account.Credentials, accountBindOptions) (*sub.SubscriptionMeta, string, error)
 	logoutSubs func() ([]sub.SubscriptionMeta, error)
 	listXBond  func() *sub.SubscriptionMeta
+	// Deep-link scheme flow: the browser hands the authorization code to the
+	// desktop shell, the shell delivers it through the LocalAPI callback
+	// endpoint, and waitSchemeCode unblocks the in-flight flow. One flow at a
+	// time (start refuses while pending), so a single slot suffices.
+	schemeState string
+	codeCh      chan string
 	// overview is the overview fetch seam; defaults to manager.Overview.
 	overview func(context.Context) (*clientapi.AccountOverview, error)
 }
@@ -155,6 +162,12 @@ func (c *accountController) start(
 	}
 	if login.Device {
 		c.state.Method = "device"
+	}
+	if login.RedirectURI != "" {
+		c.state.Method = "scheme"
+		c.codeCh = make(chan string, 1)
+		c.schemeState = ""
+		login.WaitCode = c.waitSchemeCode
 	}
 	c.mu.Unlock()
 
@@ -277,6 +290,8 @@ func (c *accountController) cancelPending() {
 	// over the reset below.
 	c.syncGen++
 	c.state = AccountState{Status: "signed_out"}
+	c.schemeState = ""
+	c.codeCh = nil
 	c.mu.Unlock()
 	if cancel != nil {
 		cancel()
@@ -491,6 +506,53 @@ func joinDegraded(first, second string) string {
 	return first + "; " + second
 }
 
+// waitSchemeCode is the account package's code channel for the deep-link
+// flow: it records the flow's state so deliverCallback can match the
+// browser's answer, then blocks until the desktop shell delivers the code
+// or the login context is cancelled.
+func (c *accountController) waitSchemeCode(ctx context.Context, state string) (string, error) {
+	c.mu.Lock()
+	if c.state.Status != "pending" || c.codeCh == nil {
+		c.mu.Unlock()
+		return "", errors.New("no pending scheme login")
+	}
+	c.schemeState = state
+	ch := c.codeCh
+	c.mu.Unlock()
+
+	select {
+	case code := <-ch:
+		return code, nil
+	case <-ctx.Done():
+		c.mu.Lock()
+		if c.schemeState == state {
+			c.schemeState = ""
+		}
+		c.mu.Unlock()
+		return "", ctx.Err()
+	}
+}
+
+// deliverCallback hands the browser's authorization code to the in-flight
+// scheme flow. The state must match the flow that opened the browser; a
+// stale or replayed link is rejected instead of guessing.
+func (c *accountController) deliverCallback(code, state string) error {
+	c.mu.Lock()
+	if c.state.Status != "pending" || c.codeCh == nil || state == "" || state != c.schemeState {
+		c.mu.Unlock()
+		return errors.New("no matching pending authorization")
+	}
+	c.schemeState = ""
+	ch := c.codeCh
+	c.mu.Unlock()
+
+	select {
+	case ch <- code:
+	default:
+	}
+	return nil
+}
+
 func (s *Server) handleAccountStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -505,26 +567,41 @@ func (s *Server) handleAccountLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Origin    string `json:"origin"`
-		Name      string `json:"name"`
-		Lang      string `json:"lang"`
-		Protocol  string `json:"protocol"`
-		Device    bool   `json:"device"`
-		NoBrowser bool   `json:"noBrowser"`
-		Use       *bool  `json:"use"`
+		Origin         string `json:"origin"`
+		Name           string `json:"name"`
+		Lang           string `json:"lang"`
+		Protocol       string `json:"protocol"`
+		Device         bool   `json:"device"`
+		NoBrowser      bool   `json:"noBrowser"`
+		CallbackScheme string `json:"callbackScheme"`
+		Use            *bool  `json:"use"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid account login request")
 		return
 	}
+	opts := account.LoginOptions{
+		Origin:       req.Origin,
+		Device:       req.Device,
+		NoBrowser:    req.NoBrowser,
+		CallbackHTML: i18n.RenderCallbackHTML,
+		OpenBrowser:  browser.Open,
+	}
+	// The desktop app owns the OS deep link; its login asks the daemon to
+	// redirect back through the registered custom scheme so the code returns
+	// through the shell instead of a loopback listener. Everything else
+	// (web, CLI, extension) keeps the loopback path.
+	if !req.Device {
+		if scheme := strings.ToLower(strings.TrimSpace(req.CallbackScheme)); scheme != "" {
+			if !validCallbackScheme(scheme) {
+				writeError(w, http.StatusBadRequest, "invalid callback scheme")
+				return
+			}
+			opts.RedirectURI = scheme + "://callback"
+		}
+	}
 	state := s.account.start(
-		account.LoginOptions{
-			Origin:       req.Origin,
-			Device:       req.Device,
-			NoBrowser:    req.NoBrowser,
-			CallbackHTML: i18n.RenderCallbackHTML,
-			OpenBrowser:  browser.Open,
-		},
+		opts,
 		// Signing in is an explicit ask to use the Cloud configuration; the
 		// same default as /localapi/v0/login. Rotation refreshes never pass
 		// Use, so they keep the current selection.
@@ -535,7 +612,7 @@ func (s *Server) handleAccountLogin(w http.ResponseWriter, r *http.Request) {
 
 // handleAccountCancel aborts an in-flight login flow. Restarting the flow
 // with a different method needs this: start() refuses while pending, so the
-// UI must drop the pending state before switching to the device flow.
+// UI must drop the pending state before starting over.
 func (s *Server) handleAccountCancel(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -543,6 +620,49 @@ func (s *Server) handleAccountCancel(w http.ResponseWriter, r *http.Request) {
 	}
 	s.account.cancelPending()
 	writeJSON(w, http.StatusOK, s.account.snapshot())
+}
+
+// handleAccountCallback is the desktop deep-link landing: the shell hands
+// over the browser's authorization code and the daemon — the only token
+// holder — validates the state and completes the exchange.
+func (s *Server) handleAccountCallback(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		Code  string `json:"code"`
+		State string `json:"state"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid account callback request")
+		return
+	}
+	if req.Code == "" || req.State == "" {
+		writeError(w, http.StatusBadRequest, "code and state are required")
+		return
+	}
+	if err := s.account.deliverCallback(req.Code, req.State); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, s.account.snapshot())
+}
+
+// validCallbackScheme matches RFC 3986 scheme syntax; the shell only
+// registers known schemes, so anything exotic is refused here.
+func validCallbackScheme(scheme string) bool {
+	if scheme == "" || scheme[0] < 'a' || scheme[0] > 'z' {
+		return false
+	}
+	for _, r := range scheme {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '+', r == '-', r == '.':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Server) handleAccountLogout(w http.ResponseWriter, r *http.Request) {

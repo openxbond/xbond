@@ -634,6 +634,10 @@ export class LocalAPIClient {
     protocol?: string;
     device?: boolean;
     noBrowser?: boolean;
+    /** Desktop deep-link redirect: the daemon redirects the browser back
+     * through the shell-registered custom scheme (e.g. "xbond") instead of
+     * a loopback listener; the code returns via the OS deep link. */
+    callbackScheme?: string;
   }): Promise<AccountStatus> {
     const data = await this.request<AccountStatusWire>(
       "/localapi/v0/account/login",
