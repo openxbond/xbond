@@ -9,10 +9,7 @@ import {
   ArrowRight,
   Globe,
   HelpCircle,
-  KeyRound,
-  Link2,
   Server,
-  Tag,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -123,11 +120,11 @@ export function ExternalControllerOnboarding({
   return (
     <div
       className={cn(
-        "mx-auto grid w-full max-w-[1120px] items-start gap-4 py-4 md:grid-cols-12 md:gap-5 md:py-6",
+        "mx-auto grid w-full max-w-[1120px] gap-4 py-4 md:grid-cols-12 md:gap-5 md:py-6",
         className,
       )}
     >
-      <section className="bento bento-hero relative order-1 flex flex-col items-start overflow-hidden rounded-hero p-6 md:col-span-7 md:row-start-1 md:p-10 md:order-none">
+      <section className="bento bento-hero relative order-1 flex flex-col items-start justify-center overflow-hidden rounded-hero p-6 md:col-span-7 md:row-span-2 md:row-start-1 md:p-10 md:order-none">
         <span
           aria-hidden="true"
           className="pointer-events-none absolute -end-24 -top-28 size-64 rounded-full"
@@ -155,46 +152,6 @@ export function ExternalControllerOnboarding({
           {t("webModeDesc")}
         </p>
       </section>
-
-      <div className="order-3 grid grid-cols-3 gap-2.5 md:col-span-7 md:row-start-2 md:order-none md:gap-3">
-        {[
-          {
-            label: s("external.url"),
-            hint: "127.0.0.1:9090",
-            Icon: Link2,
-            tone: "",
-          },
-          {
-            label: s("external.secret"),
-            hint: "••••••••",
-            Icon: KeyRound,
-            tone: "",
-          },
-          {
-            label: s("external.name"),
-            hint: "My Core",
-            Icon: Tag,
-            tone: "",
-          },
-        ].map(({ label, hint, Icon, tone }, index) => (
-          <div key={label} className={cn("bento rounded-[16px] p-4", tone)}>
-            <div className="flex items-start justify-between gap-2">
-              <span className="grid size-8 place-items-center rounded-[10px] border border-[var(--glass-border)] bg-white/45 text-muted-foreground dark:bg-white/10">
-                <Icon aria-hidden="true" className="size-4" strokeWidth={1.8} />
-              </span>
-              <span className="font-mono text-[10px] font-semibold text-foreground/85">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-            </div>
-            <p className="mt-4 truncate text-[12px] font-medium text-foreground">
-              {label}
-            </p>
-            <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
-              {hint}
-            </p>
-          </div>
-        ))}
-      </div>
 
       <div className="order-2 flex min-w-0 flex-col gap-4 md:col-span-5 md:col-start-8 md:row-span-2 md:row-start-1 md:gap-5 md:order-none">
         {/* Main Connection Card */}
