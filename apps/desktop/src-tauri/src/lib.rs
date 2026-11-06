@@ -21,10 +21,12 @@ pub(crate) fn window_state_flags() -> StateFlags {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // A second launch carrying an import link hands it over and comes
+            // A second launch carrying a deep link hands it over and comes
             // to front; anything else just focuses the existing window.
             if let Some(url) = commands::extract_import_url(&args) {
                 commands::queue_import(app, url);
+            } else if let Some(callback) = commands::extract_auth_callback(&args) {
+                commands::complete_auth_callback(app, callback);
             } else {
                 commands::show_main_window(app.clone());
             }
@@ -39,6 +41,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(updater::UpdateState::default())
         // Global reveal/hide hotkey is registered in setup via on_shortcut.
         // The plugin dispatches every event to BOTH the builder handler and
@@ -70,8 +73,11 @@ pub fn run() {
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
-                    if let Some(import) = commands::import_url_from_deep_link(url.as_str()) {
+                    let raw = url.as_str();
+                    if let Some(import) = commands::import_url_from_deep_link(raw) {
                         commands::queue_import(&handle, import);
+                    } else if let Some(callback) = commands::auth_callback_from_deep_link(raw) {
+                        commands::complete_auth_callback(&handle, callback);
                     }
                 }
             });
@@ -96,6 +102,8 @@ pub fn run() {
             let argv: Vec<String> = std::env::args().skip(1).collect();
             if let Some(url) = commands::extract_import_url(&argv) {
                 commands::queue_import(app.handle(), url);
+            } else if let Some(callback) = commands::extract_auth_callback(&argv) {
+                commands::complete_auth_callback(app.handle(), callback);
             }
 
             // Anti-flash fallback: normally the webview shows the window
@@ -114,15 +122,32 @@ pub fn run() {
             });
 
             updater::on_launch(app.handle().clone());
+
+            // An explicit quit stops the supervised daemon, so a fresh
+            // launch reconciles the runtime back up — one supervisor verb
+            // through the bundled CLI; the GUI itself still never spawns a
+            // rival daemon (daemon-runtime spec).
+            std::thread::spawn(|| {
+                daemon::launch_ensure();
+            });
             Ok(())
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 // Closing the window must not take the proxy down (AC-10);
                 // tray behavior follows the user's closeToTray preference.
-                if window.label() == "main" && window.app_handle().state::<commands::ShellState>().close_to_tray() {
-                    api.prevent_close();
-                    let _ = window.hide();
+                if window.label() == "main" {
+                    let app = window.app_handle();
+                    if app.state::<commands::ShellState>().close_to_tray() {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    } else {
+                        // Tray disabled: closing the window is an explicit
+                        // quit and runs the same ask-first, stop-on-confirm
+                        // flow as the tray entry.
+                        api.prevent_close();
+                        tray::quit(app);
+                    }
                 }
             }
         })
@@ -150,5 +175,15 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("failed to build XBond desktop app")
-        .run(|_app_handle, _event| {});
+        .run(|app, event| {
+            // OS-level quit requests (macOS Cmd+Q, session managers) join the
+            // same ask-first flow; the exit the confirmed stop triggers is
+            // marked so it passes straight through.
+            if let tauri::RunEvent::ExitRequested { code: None, api, .. } = event {
+                if !tray::quit_in_progress() {
+                    api.prevent_exit();
+                    tray::quit(app);
+                }
+            }
+        });
 }

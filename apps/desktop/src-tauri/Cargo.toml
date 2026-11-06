@@ -21,6 +21,7 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-window-state = "2"
 # Tray-local LocalAPI client: loopback plain HTTP only, no TLS stack.

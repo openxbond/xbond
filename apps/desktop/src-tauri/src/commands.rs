@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::time::Duration;
 
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
@@ -221,6 +222,71 @@ pub(crate) fn import_url_from_deep_link(raw: &str) -> Option<String> {
     None
 }
 
+/// OAuth callback handover: `xbond://callback?code=...&state=...`. The
+/// daemon is the only token holder, so the shell forwards the code to the
+/// LocalAPI account callback endpoint instead of touching OAuth itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AuthCallback {
+    pub code: String,
+    pub state: String,
+}
+
+/// Strict route match: `xbond://callback` (query optional) and nothing else —
+/// `xbond://callback/extra` must not masquerade as the auth landing.
+pub(crate) fn auth_callback_from_deep_link(raw: &str) -> Option<AuthCallback> {
+    let rest = raw.strip_prefix("xbond://callback")?;
+    if !rest.is_empty() && !rest.starts_with('?') {
+        return None;
+    }
+    let query = raw.split_once('?')?.1.split('#').next()?;
+    let mut code = None;
+    let mut state = None;
+    for pair in query.split('&') {
+        let Some((key, value)) = pair.split_once('=') else {
+            continue;
+        };
+        let decoded = percent_decode(value);
+        if decoded.is_empty() {
+            continue;
+        }
+        if key.eq_ignore_ascii_case("code") {
+            code = Some(decoded);
+        } else if key.eq_ignore_ascii_case("state") {
+            state = Some(decoded);
+        }
+    }
+    Some(AuthCallback {
+        code: code?,
+        state: state?,
+    })
+}
+
+/// Same contract for second-instance argv / cold-start command lines.
+pub(crate) fn extract_auth_callback(args: &[String]) -> Option<AuthCallback> {
+    args.iter()
+        .find_map(|arg| auth_callback_from_deep_link(arg))
+}
+
+/// Forward the browser's authorization code to the daemon and bring the
+/// window forward. The daemon may still be booting when a cold-start link
+/// arrives, so delivery retries briefly before giving up.
+pub(crate) fn complete_auth_callback(app: &AppHandle, callback: AuthCallback) {
+    show_main_window(app.clone());
+    std::thread::spawn(move || {
+        for attempt in 0..8u32 {
+            match crate::localapi::post_account_callback(&callback.code, &callback.state) {
+                Ok(()) => return,
+                Err(e) => {
+                    if attempt == 7 {
+                        eprintln!("[XBond Desktop] Account callback delivery failed: {e}");
+                    }
+                }
+            }
+            std::thread::sleep(Duration::from_millis(500));
+        }
+    });
+}
+
 /// Same contract for second-instance argv / cold-start command lines: find
 /// the first argument that is a deep link.
 pub(crate) fn extract_import_url(args: &[String]) -> Option<String> {
@@ -327,6 +393,56 @@ mod tests {
             Some("https://example.com/s".to_string())
         );
         assert_eq!(extract_import_url(&["--flag".to_string()]), None);
+    }
+
+    #[test]
+    fn test_auth_callback_from_deep_link() {
+        let callback = auth_callback_from_deep_link("xbond://callback?code=abc123&state=st-456")
+            .expect("valid callback link");
+        assert_eq!(
+            callback,
+            AuthCallback {
+                code: "abc123".into(),
+                state: "st-456".into(),
+            }
+        );
+        // Percent-encoded values decode; order does not matter.
+        assert_eq!(
+            auth_callback_from_deep_link("xbond://callback?state=s%20t&code=a%2Bb"),
+            Some(AuthCallback {
+                code: "a+b".into(),
+                state: "s t".into(),
+            })
+        );
+    }
+
+    #[test]
+    fn test_auth_callback_rejects_foreign_routes_and_missing_fields() {
+        // A different deep-link route must not be mistaken for the callback.
+        assert_eq!(
+            auth_callback_from_deep_link("xbond://callback/extra?code=a&state=b"),
+            None
+        );
+        assert_eq!(
+            auth_callback_from_deep_link("clash://callback?code=a&state=b"),
+            None
+        );
+        // code/state are both required and must be non-empty.
+        assert_eq!(
+            auth_callback_from_deep_link("xbond://callback?code=a"),
+            None
+        );
+        assert_eq!(
+            auth_callback_from_deep_link("xbond://callback?code=&state=b"),
+            None
+        );
+        // Import links stay on their own route.
+        assert_eq!(
+            auth_callback_from_deep_link(
+                "xbond://install-config?url=https%3A%2F%2Fexample.com%2Fs"
+            ),
+            None
+        );
     }
 
     #[test]

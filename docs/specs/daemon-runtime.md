@@ -43,7 +43,7 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - 普通操作不隐式注册自启动：服务未运行且未安装时，命令报错并给出 `xbond daemon install` 指引，不得静默安装。
 - scope：user 注册在当前用户（用户数据目录、用户会话系统代理）；system 注册为机器级特权隧道宿主（Windows SCM 服务 `XBondSystemService`，macOS root LaunchDaemon `net.xbond.daemon-system`，Linux root system unit `xbond-daemon-system.service`；独立数据目录与特权控制通道）。平台或构建不支持某个 scope 时返回明确结果，不得偷换为另一种机制宣称成功。安装经平台原生提权一次完成：Windows 由提升副本自装 SCM（`ShellExecuteW runas` 唤起 UAC），macOS 由 `osascript with administrator privileges` 执行安装脚本，Linux 由 `pkexec`（polkit）执行安装脚本（无 polkit 时明确报错并给出 `sudo` 命令）；拒绝授权如实回报「已拒绝，未变更」。
 - 平台注册内容：Windows 用户会话=当前用户登录任务（原生 Task Scheduler API；被策略拒绝时明确报错并提供显式 run-key 备选），Windows 机器级=SCM；Linux user=systemd --user 单元（免登录自启需显式 linger，不得宣称天然开机自启），system=system unit；macOS CLI=LaunchAgent（系统级任务用 LaunchDaemon），正式 GUI=`SMAppService`。注册的都是受监督的前台 `xbond daemon`，程序不再自行 fork；Windows SCM 由服务回调触发同一套启动与关闭流程。
-- CLI 与 GUI 控制同一个 daemon：CLI 启动的连接在 GUI 可见；关闭窗口不停止连接；GUI 升级或崩溃不带走网络运行时；配置与状态只有一个来源。四种用户操作语义分离：关闭窗口、退出 GUI、断开连接、停止后台服务。
+- CLI 与 GUI 控制同一个 daemon：CLI 启动的连接在 GUI 可见；关闭窗口不停止连接（默认最小化到托盘）；GUI 升级或崩溃不带走网络运行时；配置与状态只有一个来源。用户操作语义：关闭窗口＝最小化到托盘，绝不动连接；断开连接＝停核心并还原系统代理；退出 GUI＝先询问，确认后断开连接并停止后台服务（经 `daemon stop` 优雅路径），服务在 GUI 下次启动时经 `daemon start` 自动拉起——GUI 仍从不自行 spawn 或硬杀守护进程，一律走 supervisor 动词，停止失败则如实通知并取消退出，绝不留下无提示的隐形代理。
 
 ### 状态模型
 
@@ -107,3 +107,5 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 ## 落地顺序
 
 S1 单 CLI 收敛 `run`／`daemon`，提取共享运行逻辑；S2 实例锁、就绪检查与可靠停止；S3 CLI 与 Tauri 启动契约统一、删除隐式安装；S4 三桌面安装后端与权限边界验证；S5 移动端桥接与真实流量验收。切片与证据记录见 [任务](../tasks/daemon-runtime.md)。
+
+> AI生成

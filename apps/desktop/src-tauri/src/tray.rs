@@ -1,18 +1,21 @@
 //! Native tray surface. Daily connect/disconnect, takeover mode, routing
 //! mode and node switching happen here without opening the window — the
 //! tray polls LocalAPI directly (see `localapi.rs`) so it stays functional
-//! while the window is hidden, and it never spawns or stops the daemon:
-//! per daemon-runtime spec, closing/quitting the GUI must not take the
-//! proxy down.
+//! while the window is hidden. Closing the window never stops the proxy
+//! (daemon-runtime spec); quitting the GUI is an explicit transaction that
+//! asks first and stops the supervised service only on confirmation —
+//! always through the CLI's supervisor verbs, never a bare stop.
 
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{image::Image, AppHandle, Manager, Wry};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_clipboard_manager::ClipboardExt as _;
+use tauri_plugin_dialog::{DialogExt as _, MessageDialogButtons};
 use tauri_plugin_notification::NotificationExt as _;
 use tauri_plugin_window_state::AppHandleExt as _;
 
@@ -70,6 +73,12 @@ pub struct TrayI18n {
     pub notify_disconnect_failed: &'static str,
     pub notify_takeover_failed: &'static str,
     pub notify_routing_failed: &'static str,
+    pub quit_confirm_title: &'static str,
+    pub quit_confirm_connected: &'static str,
+    pub quit_confirm_idle: &'static str,
+    pub quit_confirm_ok: &'static str,
+    pub quit_confirm_cancel: &'static str,
+    pub notify_stop_failed: &'static str,
 }
 
 pub const ZH_HK: TrayI18n = TrayI18n {
@@ -105,6 +114,12 @@ pub const ZH_HK: TrayI18n = TrayI18n {
     notify_disconnect_failed: "斷線失敗",
     notify_takeover_failed: "接管模式切換失敗",
     notify_routing_failed: "路由模式切換失敗",
+    quit_confirm_title: "退出 XBond",
+    quit_confirm_connected: "連線仍在運行。退出將斷開連線、還原系統代理並停止後台服務；下次啟動 XBond 時服務會自動恢復。",
+    quit_confirm_idle: "後台服務仍在運行。退出將停止後台服務；下次啟動 XBond 時會自動恢復。",
+    quit_confirm_ok: "退出並停止",
+    quit_confirm_cancel: "取消",
+    notify_stop_failed: "停止後台服務失敗，已取消退出",
 };
 
 pub const ZH_CN: TrayI18n = TrayI18n {
@@ -140,6 +155,12 @@ pub const ZH_CN: TrayI18n = TrayI18n {
     notify_disconnect_failed: "断开连接失败",
     notify_takeover_failed: "接管模式切换失败",
     notify_routing_failed: "路由模式切换失败",
+    quit_confirm_title: "退出 XBond",
+    quit_confirm_connected: "连接仍在运行。退出将断开连接、还原系统代理并停止后台服务；下次启动 XBond 时服务会自动恢复。",
+    quit_confirm_idle: "后台服务仍在运行。退出将停止后台服务；下次启动 XBond 时会自动恢复。",
+    quit_confirm_ok: "退出并停止",
+    quit_confirm_cancel: "取消",
+    notify_stop_failed: "停止后台服务失败，已取消退出",
 };
 
 pub const EN_US: TrayI18n = TrayI18n {
@@ -175,6 +196,12 @@ pub const EN_US: TrayI18n = TrayI18n {
     notify_disconnect_failed: "Disconnection Failed",
     notify_takeover_failed: "Failed to Switch Takeover Mode",
     notify_routing_failed: "Failed to Switch Routing Mode",
+    quit_confirm_title: "Quit XBond",
+    quit_confirm_connected: "A connection is still running. Quitting disconnects it, restores your system proxy and stops the background service; it starts again the next time you open XBond.",
+    quit_confirm_idle: "The background service is still running. Quitting stops it; it starts again the next time you open XBond.",
+    quit_confirm_ok: "Quit and Stop",
+    quit_confirm_cancel: "Cancel",
+    notify_stop_failed: "Failed to stop the background service; quit cancelled",
 };
 
 pub const KO: TrayI18n = TrayI18n {
@@ -210,6 +237,12 @@ pub const KO: TrayI18n = TrayI18n {
     notify_disconnect_failed: "연결 해제 실패",
     notify_takeover_failed: "인수 모드 전환 실패",
     notify_routing_failed: "라우팅 모드 전환 실패",
+    quit_confirm_title: "XBond 종료",
+    quit_confirm_connected: "연결이 아직 실행 중입니다. 종료하면 연결이 끊기고 시스템 프록시가 복원되며 백그라운드 서비스가 중지됩니다. XBond를 다시 열면 자동으로 시작됩니다.",
+    quit_confirm_idle: "백그라운드 서비스가 아직 실행 중입니다. 종료하면 서비스가 중지됩니다. XBond를 다시 열면 자동으로 시작됩니다.",
+    quit_confirm_ok: "종료하고 중지",
+    quit_confirm_cancel: "취소",
+    notify_stop_failed: "백그라운드 서비스 중지 실패로 종료를 취소했습니다",
 };
 
 pub const FA: TrayI18n = TrayI18n {
@@ -245,6 +278,12 @@ pub const FA: TrayI18n = TrayI18n {
     notify_disconnect_failed: "قطع اتصال ناموفق بود",
     notify_takeover_failed: "تغییر حالت کنترل ناموفق بود",
     notify_routing_failed: "تغییر حالت مسیریابی ناموفق بود",
+    quit_confirm_title: "خروج از XBond",
+    quit_confirm_connected: "اتصال همچنان فعال است. با خروج، اتصال قطع می‌شود، پروکسی سیستم بازنشانی و سرویس پس‌زمینه متوقف می‌شود؛ دفعهٔ بعد که XBond را باز کنید دوباره راه‌اندازی می‌شود.",
+    quit_confirm_idle: "سرویس پس‌زمینه همچنان فعال است. با خروج متوقف می‌شود؛ دفعهٔ بعد که XBond را باز کنید دوباره راه‌اندازی می‌شود.",
+    quit_confirm_ok: "خروج و توقف",
+    quit_confirm_cancel: "انصراف",
+    notify_stop_failed: "توقف سرویس پس‌زمینه ناموفق بود؛ خروج لغو شد",
 };
 
 impl TrayI18n {
@@ -396,12 +435,69 @@ pub fn update_language(app: &AppHandle, lang: &str) {
     }
 }
 
-/// Quit the GUI only. The daemon is a peer and keeps serving: system proxy
-/// and TUN are daemon-owned, so GUI exit cannot strand them (daemon-runtime
-/// spec: 關閉視窗、退出 GUI、斷線、停止後台服務是四種語義).
-pub fn quit(app: &AppHandle) {
+/// Guards the run-loop exit interception: the confirmed stop path flips this
+/// before calling app.exit(0) so its own exit request sails through.
+static QUIT_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
+pub(crate) fn quit_in_progress() -> bool {
+    QUIT_IN_PROGRESS.load(Ordering::Relaxed)
+}
+
+fn exit_app(app: &AppHandle) {
+    QUIT_IN_PROGRESS.store(true, Ordering::Relaxed);
     let _ = app.save_window_state(crate::window_state_flags());
     app.exit(0);
+}
+
+/// Quit the GUI. Closing the window only ever hides to the tray, so an
+/// explicit quit is where honesty happens (daemon-runtime spec): if the
+/// supervised daemon is still serving, ask first — confirming disconnects
+/// (the CLI's graceful stop restores the system proxy and stops the engine)
+/// and stops the service, then exits. The service is brought back by the
+/// next launch's `daemon start`. A stop failure cancels the quit and
+/// notifies, so an exit can never strand an invisible proxy.
+pub fn quit(app: &AppHandle) {
+    let shared = app.state::<TrayShared>();
+    let lang = shared
+        .lang
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let i18n = TrayI18n::for_lang(&lang);
+
+    if !crate::daemon::daemon_running() {
+        exit_app(app);
+        return;
+    }
+
+    let connected = crate::localapi::fetch_status()
+        .map(|status| status.engine.running)
+        .unwrap_or(false);
+    let body = if connected {
+        i18n.quit_confirm_connected
+    } else {
+        i18n.quit_confirm_idle
+    };
+    let app = app.clone();
+    app.dialog()
+        .message(body)
+        .title(i18n.quit_confirm_title)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            i18n.quit_confirm_ok.into(),
+            i18n.quit_confirm_cancel.into(),
+        ))
+        .show(move |confirmed| {
+            if !confirmed {
+                return;
+            }
+            std::thread::spawn(move || match crate::daemon::stop_service() {
+                Ok(()) => exit_app(&app),
+                Err(err) => {
+                    eprintln!("[XBond Desktop] daemon stop during quit failed: {err}");
+                    notify(&app, i18n.notify_stop_failed, &err);
+                }
+            });
+        });
 }
 
 pub(crate) fn toggle_main_window(app: &AppHandle) {

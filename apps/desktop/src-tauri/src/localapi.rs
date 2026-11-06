@@ -160,3 +160,13 @@ pub fn select_node(group: &str, node: &str) -> Result<(), String> {
         json!({ "group": group, "node": node }),
     )
 }
+
+/// Hands the browser's OAuth authorization code (delivered by the OS deep
+/// link) to the daemon, which validates the state and completes the token
+/// exchange. The shell never holds tokens — it is only the delivery path.
+pub fn post_account_callback(code: &str, state: &str) -> Result<(), String> {
+    post_action(
+        "/localapi/v0/account/callback",
+        json!({ "code": code, "state": state }),
+    )
+}

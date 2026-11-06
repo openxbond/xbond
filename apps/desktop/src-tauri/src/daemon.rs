@@ -186,6 +186,102 @@ fn wait_for_daemon() -> Option<LocalAPIConfig> {
     None
 }
 
+/// True when the supervised daemon is currently serving: credential files
+/// exist and the loopback port answers. Stale files from a dead daemon do
+/// not count.
+pub(crate) fn daemon_running() -> bool {
+    read_credentials()
+        .map(|(addr, _)| daemon_alive(&addr))
+        .unwrap_or(false)
+}
+
+fn sidecar_name(base: &str) -> String {
+    if cfg!(windows) {
+        format!("{base}.exe")
+    } else {
+        base.to_owned()
+    }
+}
+
+/// Ordered CLI candidates for supervisor verbs. Packaged builds reach for the
+/// sidecar beside the app; dev runs prefer the workspace-root binary that
+/// `pnpm cli:build` emits.
+pub(crate) fn cli_candidates() -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
+    if packaged() {
+        if let Ok(current) = std::env::current_exe() {
+            if let Some(parent) = current.parent() {
+                paths.push(parent.join(sidecar_name("xbond-daemon")));
+                paths.push(parent.join(sidecar_name("xbond")));
+            }
+        }
+    } else {
+        paths.push(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../..")
+                .join(sidecar_name("xbond")),
+        );
+        if let Ok(current) = std::env::current_exe() {
+            if let Some(parent) = current.parent() {
+                paths.push(parent.join(sidecar_name("xbond-daemon")));
+                paths.push(parent.join(sidecar_name("xbond")));
+            }
+        }
+    }
+    paths
+}
+
+/// Runs one `xbond daemon <verb>` through the bundled CLI. Lifecycle always
+/// goes through the supervisor this way — the shell never spawns or stops
+/// the daemon itself — and the CLI reports bounded, honest results; failures
+/// carry its stderr so callers can surface a real reason.
+pub(crate) fn cli_verb(verb: &[&str]) -> Result<String, String> {
+    let bin = cli_candidates()
+        .into_iter()
+        .find(|path| path.exists())
+        .ok_or_else(|| "xbond CLI not found beside the app or at the workspace root".to_string())?;
+    let mut command = std::process::Command::new(&bin);
+    command.args(verb);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    let output = command.output().map_err(|err| err.to_string())?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_owned())
+    }
+}
+
+/// Stops the supervised daemon: the CLI's graceful path runs the LocalAPI
+/// shutdown endpoint (engine stopped, system proxy restored, credentials
+/// cleaned) and waits for the process to exit.
+pub(crate) fn stop_service() -> Result<(), String> {
+    cli_verb(&["daemon", "stop"]).map(|_| ())
+}
+
+/// Launch-time bring-up. An explicit quit stops the supervised daemon, so a
+/// fresh GUI launch reconciles the runtime with one supervisor verb — only
+/// `daemon start`, never a bare spawn, and registration stays an explicit
+/// install.
+pub fn launch_ensure() {
+    if daemon_running() {
+        return;
+    }
+    if let Err(err) = cli_verb(&["daemon", "start"]) {
+        eprintln!("[XBond Desktop] launch daemon start failed: {err}");
+        return;
+    }
+    if wait_for_daemon().is_none() {
+        eprintln!(
+            "[XBond Desktop] daemon start claimed success but the daemon never became reachable"
+        );
+    }
+}
+
 pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
     // The release sidecar reconciles registration and runtime on launch.
     // Reads must preserve a stopped service and must never start from the
