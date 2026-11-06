@@ -66,7 +66,7 @@ function ProxyGroups() {
       <div className="section-heading mb-3.5">
         <h2>{t("groups")}</h2>
       </div>
-      <label className="mb-4 flex flex-col gap-2 text-body md:@min-[44rem]/proxies:hidden">
+      <label className="mb-4 flex flex-col gap-2 text-body lg:hidden">
         {t("groups")}
         <NativeSelect
           wrapperClassName="w-full"
@@ -81,9 +81,9 @@ function ProxyGroups() {
           ))}
         </NativeSelect>
       </label>
-      <div className="flex min-h-[460px] flex-col overflow-hidden rounded-card border border-border bg-card shadow-elevation-card md:@min-[44rem]/proxies:grid md:@min-[44rem]/proxies:h-[calc(100vh-210px)] md:@min-[44rem]/proxies:grid-cols-[250px_minmax(0,1fr)]">
+      <div className="flex min-h-[460px] flex-col overflow-hidden rounded-card border border-border bg-card shadow-elevation-card lg:grid lg:h-[calc(100vh-210px)] lg:grid-cols-[250px_minmax(0,1fr)]">
         <StrategyDirectory
-          className="hidden md:@min-[44rem]/proxies:flex"
+          className="hidden lg:flex"
           label={t("groups")}
           value={selected.name}
           onSelect={select}
@@ -94,7 +94,7 @@ function ProxyGroups() {
             kind: group.type,
           }))}
         />
-        <div className="min-w-0 h-full min-h-0 overflow-y-auto bg-card md:@min-[44rem]/proxies:overflow-hidden">
+        <div className="min-w-0 h-full min-h-0 overflow-y-auto bg-card lg:overflow-hidden">
           <Group
             key={selected.name}
             config={selected}
@@ -289,7 +289,7 @@ export default function ProxyPage() {
 
   if (!isConnected) {
     return (
-      <div className="page @container/proxies gap-5 max-md:pb-[84px]">
+      <div className="page gap-5 max-md:pb-[84px]">
         <Header title={t("title")} />
         <DisconnectedState
           description={!hasSub ? t("noConfigNotice") : t("disconnectedNotice")}
@@ -301,7 +301,7 @@ export default function ProxyPage() {
 
   return (
     <SearchContext value={search}>
-      <div className="page @container/proxies gap-5 max-md:pb-[84px]">
+      <div className="page gap-5 max-md:pb-[84px]">
         <Header title={t("title")} />
         <div className="rounded-card border border-border bg-card px-5 py-4 shadow-elevation-card">
           <div className="flex flex-wrap items-center justify-between gap-4 max-md:flex-col max-md:items-stretch max-md:gap-3">

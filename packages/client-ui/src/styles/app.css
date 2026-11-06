@@ -132,11 +132,6 @@
   --shadow-elevation-card: var(--elevation-card);
   --shadow-elevation-raised: var(--elevation-raised);
   --shadow-window-frame: var(--window-frame);
-
-  /* Structure switches per DESIGN.md: compact <768 (md), standard 768–1439,
-     wide ≥1440 (xl). 2xl keeps the legacy 1600px step. */
-  --breakpoint-xl: 90rem;
-  --breakpoint-2xl: 100rem;
 }
 
 @layer base {
@@ -310,7 +305,7 @@
     gap: 12px;
   }
 
-  @media (max-width: 768px) {
+  @media (width < 48rem) {
     .page {
       padding: 14px 14px 24px;
       height: auto;
@@ -537,7 +532,7 @@
     border-color: var(--ring);
   }
 
-  @media (max-width: 767px) {
+  @media (width < 48rem) {
     .empty-state-action {
       min-height: 44px;
     }

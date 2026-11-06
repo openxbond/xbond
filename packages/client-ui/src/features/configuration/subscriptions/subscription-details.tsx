@@ -235,7 +235,7 @@ export default function SubscriptionDetail({
       <RequestStatus error={subError} retry={refreshSubs} />
 
       {/* 1. Header Banner & Identity */}
-      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
+      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-start gap-4">
           <ResourceIcon
             kind={sub.format || "local"}
@@ -371,7 +371,7 @@ export default function SubscriptionDetail({
 
       {/* Source pinned notice (user edited raw config locally) */}
       {sub.sourcePinned && (
-        <div className="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
+        <div className="flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-2.5 text-sm">
             <AlertCircle className="size-4 shrink-0 text-warning-text" />
             <span className="text-warning-text">{t("sourceEditHint")}</span>
@@ -394,7 +394,7 @@ export default function SubscriptionDetail({
         <h3 className="mb-4 text-sm font-semibold text-foreground">
           {c("quota.title")}
         </h3>
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 @min-[34rem]/config-detail:grid-cols-[auto_minmax(10rem,1fr)_auto] @min-[34rem]/config-detail:items-center">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 xl:grid-cols-[auto_minmax(10rem,1fr)_auto] xl:items-center">
           {quota ? (
             <>
               <QuotaRing percent={quota.remainingPercent} />
@@ -434,9 +434,9 @@ export default function SubscriptionDetail({
             </div>
           )}
 
-          <div className="col-span-full flex min-w-0 flex-col gap-2.5 border-t border-border pt-4 text-xs @min-[34rem]/config-detail:col-span-1 @min-[34rem]/config-detail:border-t-0 @min-[34rem]/config-detail:border-s @min-[34rem]/config-detail:pt-0 @min-[34rem]/config-detail:ps-6">
+          <div className="col-span-full flex min-w-0 flex-col gap-2.5 border-t border-border pt-4 text-xs xl:col-span-1 xl:border-t-0 xl:border-s xl:pt-0 xl:ps-6">
             {sub.expire > 0 && (
-              <div className="flex items-center justify-between gap-3 @min-[34rem]/config-detail:justify-start">
+              <div className="flex items-center justify-between gap-3 xl:justify-start">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                   <Calendar className="size-3.5" />
                   {c("expiry")}
@@ -448,7 +448,7 @@ export default function SubscriptionDetail({
                 </span>
               </div>
             )}
-            <div className="flex items-center justify-between gap-3 @min-[34rem]/config-detail:justify-start">
+            <div className="flex items-center justify-between gap-3 xl:justify-start">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="size-3.5" />
                 {t("updated")}
@@ -520,7 +520,7 @@ export default function SubscriptionDetail({
             )}
 
             {/* Update Channel Selector */}
-            <div className="flex flex-col gap-2 border-t border-border/60 pt-3 text-xs @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
+            <div className="flex flex-col gap-2 border-t border-border/60 pt-3 text-xs xl:flex-row xl:items-center xl:justify-between">
               <span className="text-muted-foreground">{t("channelTitle")}</span>
               <SegmentedControl<"direct" | "self" | "proxy">
                 ariaLabel={t("channelTitle")}
@@ -651,7 +651,7 @@ export default function SubscriptionDetail({
       </div>
 
       {/* 5. Danger Zone */}
-      <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
+      <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
             <Trash2 className="size-4" />

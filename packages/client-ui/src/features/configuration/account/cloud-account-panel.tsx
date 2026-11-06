@@ -153,7 +153,7 @@ export default function AccountPanel() {
   return (
     <div className="flex flex-col w-full gap-6" aria-busy={busy}>
       {/* Top Header */}
-      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
+      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-start gap-4">
           <ResourceIcon kind="cloud" className="size-12 shrink-0 rounded-2xl" />
           <div className="min-w-0 flex-1">
@@ -295,9 +295,9 @@ export default function AccountPanel() {
                         className={cn(
                           "flex size-8 items-center justify-center rounded-full text-xs font-semibold transition-all shadow-xs",
                           isPast
-                            ? "bg-brand text-brand-foreground"
+                            ? "bg-brand-action text-brand-action-foreground"
                             : isCurrent
-                              ? "bg-brand text-brand-foreground ring-4 ring-brand/20"
+                              ? "bg-brand-action text-brand-action-foreground ring-4 ring-brand/20"
                               : "border border-border bg-inset text-muted-foreground",
                         )}
                       >
@@ -485,7 +485,7 @@ export default function AccountPanel() {
               )}
             </div>
 
-            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 @min-[34rem]/config-detail:grid-cols-[auto_minmax(10rem,1fr)_auto] @min-[34rem]/config-detail:items-center">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 xl:grid-cols-[auto_minmax(10rem,1fr)_auto] xl:items-center">
               {quota ? (
                 <>
                   <QuotaRing percent={quota.remainingPercent} />
@@ -509,8 +509,8 @@ export default function AccountPanel() {
                 </div>
               )}
 
-              <div className="col-span-full flex min-w-0 flex-col gap-2.5 border-t border-border pt-4 text-xs @min-[34rem]/config-detail:col-span-1 @min-[34rem]/config-detail:border-t-0 @min-[34rem]/config-detail:border-s @min-[34rem]/config-detail:pt-0 @min-[34rem]/config-detail:ps-6">
-                <div className="flex items-center justify-between gap-3 @min-[34rem]/config-detail:justify-start">
+              <div className="col-span-full flex min-w-0 flex-col gap-2.5 border-t border-border pt-4 text-xs xl:col-span-1 xl:border-t-0 xl:border-s xl:pt-0 xl:ps-6">
+                <div className="flex items-center justify-between gap-3 xl:justify-start">
                   <span className="flex items-center gap-1.5 text-muted-foreground">
                     <Calendar className="size-3.5" />
                     {t("serviceExpiry")}
@@ -523,7 +523,7 @@ export default function AccountPanel() {
                       : "—"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-3 @min-[34rem]/config-detail:justify-start">
+                <div className="flex items-center justify-between gap-3 xl:justify-start">
                   <span className="flex items-center gap-1.5 text-muted-foreground">
                     <Zap className="size-3.5" />
                     {t("servicePlan")}
@@ -534,7 +534,7 @@ export default function AccountPanel() {
                       : t("noService")}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-3 @min-[34rem]/config-detail:justify-start">
+                <div className="flex items-center justify-between gap-3 xl:justify-start">
                   <span className="flex items-center gap-1.5 text-muted-foreground">
                     <Globe className="size-3.5" />
                     {t("protocol")}
@@ -575,7 +575,7 @@ export default function AccountPanel() {
           )}
 
           {/* Danger Zone: Log Out */}
-          <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 @min-[34rem]/config-detail:flex-row @min-[34rem]/config-detail:items-center @min-[34rem]/config-detail:justify-between">
+          <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <h3 className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
                 <LogOut className="size-4" />

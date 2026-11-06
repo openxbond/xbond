@@ -54,9 +54,9 @@
   --brand-foreground: oklch(0.18 0.02 40);
   --brand-text: oklch(0.52 0.17 40);
   --brand-soft: oklch(0.94 0.045 55);
-  --brand-action: var(--brand);
-  --brand-action-foreground: var(--brand-foreground);
-  --brand-action-hover: var(--brand-strong);
+  --brand-action: oklch(0.53 0.18 43);
+  --brand-action-foreground: oklch(0.99 0 0);
+  --brand-action-hover: oklch(0.47 0.16 43);
   --brand-action-shadow: none;
   --brand-action-hover-shadow: none;
 
@@ -148,8 +148,8 @@
   /* Gradients */
   --gradient-brand: linear-gradient(
     135deg,
-    oklch(0.76 0.15 52),
-    oklch(0.67 0.19 42)
+    oklch(0.54 0.18 43),
+    oklch(0.49 0.17 35)
   );
   --gradient-ink: linear-gradient(
     180deg,
@@ -274,8 +274,8 @@
 
   --gradient-brand: linear-gradient(
     135deg,
-    oklch(0.8 0.13 58),
-    oklch(0.7 0.17 46)
+    oklch(0.54 0.18 43),
+    oklch(0.49 0.17 35)
   );
   --gradient-ink: linear-gradient(
     135deg,

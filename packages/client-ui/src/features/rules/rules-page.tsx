@@ -143,7 +143,6 @@ function RuleBrowser({
   const matchPayload = params.get("matchedRulePayload") ?? "";
   const [draft, setDraft] = useState({ query, value: query });
   const searchValue = draft.query === query ? draft.value : query;
-  const [loadRemote, setLoadRemote] = useState(false);
   const parsedPage = Number(params.get("rulePage"));
   const page =
     Number.isSafeInteger(parsedPage) &&
@@ -176,7 +175,7 @@ function RuleBrowser({
     () => daemonClient?.getRulesPage(request),
     { shouldRetryOnError: false },
   );
-  const remote = useRule(!isLocalTarget && loadRemote);
+  const remote = useRule(!isLocalTarget && isConnected);
   const remotePage = useMemo<RulePage | undefined>(() => {
     if (!remote.rules) return;
     if (!query && !matchType) {
@@ -233,7 +232,6 @@ function RuleBrowser({
 
   function search(value: string) {
     setDraft({ query: value, value });
-    if (!isLocalTarget) setLoadRemote(true);
     const next = new URLSearchParams(params);
     next.delete("matchedRuleType");
     next.delete("matchedRulePayload");
@@ -302,16 +300,6 @@ function RuleBrowser({
         >
           {common("loading")}
         </p>
-      )}
-      {!isLocalTarget && !loadRemote && (
-        <EmptyState
-          message={t("remoteNotice")}
-          action={
-            <Button variant="outline" onClick={() => setLoadRemote(true)}>
-              {t("loadRemote")}
-            </Button>
-          }
-        />
       )}
       {(result || loading) && (
         <Card className="overflow-hidden p-0">
@@ -429,7 +417,7 @@ export default function Rules() {
           </TabsTrigger>
         )}
       </TabsList>
-      <TabsContent value="rules">
+      <TabsContent value="rules" className="flex flex-col gap-3">
         <RuleBrowser local={local} isConnected={isConnected} />
       </TabsContent>
       <TabsContent value="providers">

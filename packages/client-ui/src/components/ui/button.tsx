@@ -21,7 +21,7 @@ const buttonVariants = cva(
         secondary:
           "glass-button text-secondary-foreground hover:bg-white/75 dark:hover:bg-white/10",
         brand:
-          "gradient-brand text-brand-action-foreground shadow-[0_8px_20px_-10px_oklch(0.7_0.19_45/55%)] hover:brightness-105",
+          "gradient-brand bg-brand-action text-brand-action-foreground hover:-translate-y-px hover:bg-brand-action-hover hover:bg-none active:translate-y-0 motion-reduce:hover:translate-y-0",
         success:
           "bg-success text-success-foreground shadow-[0_6px_16px_-10px_oklch(0.66_0.14_168/50%)] hover:bg-success/90",
         warning: "bg-warning text-warning-foreground hover:brightness-105",

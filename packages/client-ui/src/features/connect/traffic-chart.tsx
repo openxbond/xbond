@@ -152,7 +152,7 @@ export function TrafficChart({
   const upLine = hasUpTraffic ? smoothPath(upPoints) : "";
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col justify-between self-stretch max-md:hidden">
+    <div className="flex min-w-0 flex-1 flex-col justify-between self-stretch">
       <div className="flex flex-1 items-stretch gap-2.5">
         {/* Y 轴刻度 (自适应如 100K/50K/0, 500K/250K/0, 30/15/0) */}
         <div
@@ -165,7 +165,7 @@ export function TrafficChart({
         </div>
 
         {/* 图表主区域 */}
-        <div className="relative min-h-[76px] flex-1">
+        <div className="relative min-h-20 min-w-0 flex-1">
           {stale && staleLabel && samples.length > 0 && (
             <span className="absolute top-0 right-0 z-10 rounded-full bg-inset px-2 py-0.5 text-label text-muted-foreground">
               {staleLabel}
@@ -204,51 +204,21 @@ export function TrafficChart({
               y1="2"
               x2={CHART_WIDTH}
               y2="2"
-              className="stroke-border/70 [stroke-dasharray:3_4] [stroke-width:1]"
+              className="stroke-border/70 [stroke-dasharray:3_4] [stroke-width:1] [vector-effect:non-scaling-stroke]"
             />
             <line
               x1="0"
               y1={CHART_HEIGHT / 2}
               x2={CHART_WIDTH}
               y2={CHART_HEIGHT / 2}
-              className="stroke-border/70 [stroke-dasharray:3_4] [stroke-width:1]"
+              className="stroke-border/70 [stroke-dasharray:3_4] [stroke-width:1] [vector-effect:non-scaling-stroke]"
             />
             <line
               x1="0"
               y1={CHART_HEIGHT - 2}
               x2={CHART_WIDTH}
               y2={CHART_HEIGHT - 2}
-              className="stroke-border/70 [stroke-dasharray:3_4] [stroke-width:1]"
-            />
-
-            {/* 垂直虚线网格：等间距划分 */}
-            <line
-              x1={CHART_WIDTH * 0.2}
-              y1="0"
-              x2={CHART_WIDTH * 0.2}
-              y2={CHART_HEIGHT}
-              className="stroke-border/50 [stroke-dasharray:3_4] [stroke-width:1]"
-            />
-            <line
-              x1={CHART_WIDTH * 0.4}
-              y1="0"
-              x2={CHART_WIDTH * 0.4}
-              y2={CHART_HEIGHT}
-              className="stroke-border/50 [stroke-dasharray:3_4] [stroke-width:1]"
-            />
-            <line
-              x1={CHART_WIDTH * 0.6}
-              y1="0"
-              x2={CHART_WIDTH * 0.6}
-              y2={CHART_HEIGHT}
-              className="stroke-border/50 [stroke-dasharray:3_4] [stroke-width:1]"
-            />
-            <line
-              x1={CHART_WIDTH * 0.8}
-              y1="0"
-              x2={CHART_WIDTH * 0.8}
-              y2={CHART_HEIGHT}
-              className="stroke-border/50 [stroke-dasharray:3_4] [stroke-width:1]"
+              className="stroke-border/70 [stroke-dasharray:3_4] [stroke-width:1] [vector-effect:non-scaling-stroke]"
             />
 
             {/* 样本面积与平滑曲线 */}
@@ -274,7 +244,7 @@ export function TrafficChart({
           </svg>
 
           {samples.length < 2 && (
-            <div className="absolute inset-0 flex items-center justify-center text-label text-muted-foreground select-none">
+            <div className="absolute inset-0 flex items-center justify-center px-2 text-center text-label text-muted-foreground select-none">
               {empty}
             </div>
           )}

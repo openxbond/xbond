@@ -242,7 +242,7 @@ export default function Logs() {
         </Button>
         <Button
           aria-pressed={following}
-          className="aria-pressed:bg-brand aria-pressed:text-brand-foreground aria-pressed:hover:bg-brand-strong"
+          className="aria-pressed:bg-brand-action aria-pressed:text-brand-action-foreground aria-pressed:hover:bg-brand-action-hover"
           onClick={() => {
             follow.current = true;
             setFollowing(true);

@@ -147,7 +147,7 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
       {candidate && (
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-card border border-brand/40 bg-brand-soft/50 p-3.5">
           <div className="flex min-w-0 items-center gap-2.5 pl-1">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground text-xs font-bold">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-action text-brand-action-foreground text-xs font-bold">
               ✓
             </span>
             <div className="min-w-0">

@@ -420,7 +420,7 @@ export function CommandPalette() {
                           className={cn(
                             "flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
                             isSelected
-                              ? "bg-brand text-brand-foreground shadow-sm"
+                              ? "bg-brand-action text-brand-action-foreground shadow-sm"
                               : "border border-[var(--glass-border)] bg-card/45 text-muted-foreground group-hover:bg-muted",
                           )}
                         >

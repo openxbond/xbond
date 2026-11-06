@@ -1,6 +1,5 @@
 @layer components {
   .config-page {
-    container: config-page / inline-size;
     gap: 16px;
   }
   .config-workspace {
@@ -65,7 +64,7 @@
   }
 
   /* 觸控下限：行動寬度下標題加號與清單項都回到 44px。 */
-  @media (max-width: 767px) {
+  @media (width < 48rem) {
     .config-group-heading button {
       width: 44px;
       height: 44px;
@@ -104,7 +103,6 @@
     outline-offset: 1px;
   }
   .config-detail {
-    container: config-detail / inline-size;
     min-width: 0;
     height: 100%;
     overflow-y: auto;
@@ -314,7 +312,7 @@
     border-top: 1px solid var(--border);
     margin-block: 6px;
   }
-  @container config-page (width < 50rem) {
+  @media (width < 64rem) {
     .config-workspace {
       display: block;
       height: auto;
@@ -344,7 +342,7 @@
       display: block;
     }
   }
-  @media (max-width: 767px) {
+  @media (width < 48rem) {
     .config-detail input,
     .config-detail textarea {
       font-size: 16px;
