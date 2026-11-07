@@ -62,10 +62,12 @@
   --color-accent-violet-text: var(--accent-violet-text);
   --color-accent-violet-soft: var(--accent-violet-soft);
   --shadow-brand-action: var(--brand-action-shadow);
-  --shadow-brand-action-hover: var(--brand-action-hover-shadow);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-success-text: var(--success-text);
+  --color-success-soft: var(--success-soft);
+  --color-upload: var(--upload);
+  --color-control-border: var(--control-border);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-warning-text: var(--warning-text);
@@ -95,12 +97,13 @@
   /* Type scale (DESIGN.md typography roles). Custom names carry font-size
      only, so authored line-heights stay intact. */
   --text-caption: 0.6875rem;
-  --text-label: 0.75rem;
-  --text-body: 0.875rem;
+  --text-label: 0.875rem;
+  --text-body: 1rem;
   --text-subtitle: 0.9375rem;
-  --text-title: 1.25rem;
-  --text-headline: 1.5rem;
-  --text-display: 2rem;
+  --text-title: 1.375rem;
+  --text-headline: 2.125rem;
+  --text-metric: 1.75rem;
+  --text-display: 2.75rem;
 
   --color-latency-good: var(--latency-good-bg);
   --color-latency-good-text: var(--latency-good-text);
@@ -151,9 +154,7 @@
     height: 100%;
   }
 
-  /* Static aurora field. It must stay cheap: no full-screen blur filter and
-     no animation, otherwise every frosted layer re-samples a moving
-     backdrop each frame and desktop webviews drop frames. */
+  /* The ambient light sits behind the workspace and stays static. */
   body::before {
     content: "";
     position: fixed;
@@ -162,7 +163,7 @@
     pointer-events: none;
     background:
       radial-gradient(
-        30rem 24rem at 14% 18%,
+        30rem 24rem at 10% 86%,
         var(--aurora-peach),
         transparent 68%
       ),
@@ -175,11 +176,10 @@
 
   body {
     font-family: var(--font-sans);
-    font-size: 0.875rem;
+    font-size: var(--text-body);
     line-height: 1.5;
     color: var(--foreground);
     background-color: var(--background);
-    font-feature-settings: "tnum" off;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -233,7 +233,7 @@
 
   :focus-visible {
     outline: 2px solid var(--ring);
-    outline-offset: 2px;
+    outline-offset: 3px;
   }
 
   button,
@@ -305,6 +305,17 @@
     gap: 12px;
   }
 
+  @media (width >= 64rem) and (height <= 46rem) {
+    .home-page {
+      padding-block: 12px;
+    }
+
+    .home-greeting,
+    .home-preference-note {
+      display: none;
+    }
+  }
+
   @media (width < 48rem) {
     .page {
       padding: 14px 14px 24px;
@@ -313,71 +324,18 @@
     }
   }
 
-  /* Bento 2.0 card: frosted glass, generous radius, layered soft shadow. */
+  .bento,
+  .glass-bar {
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--elevation-card);
+  }
+
   .bento {
     position: relative;
-    border: 1px solid var(--glass-border);
     border-radius: var(--radius-card);
     background: var(--glass-surface);
-    box-shadow:
-      0 0 0 1px oklch(0.2 0.03 265 / 5%),
-      var(--elevation-card);
   }
 
-  .bento::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      135deg,
-      oklch(1 0 0 / 60%),
-      oklch(1 0 0 / 12%) 45%,
-      color-mix(in oklab, var(--brand) 10%, transparent) 100%
-    );
-    mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    mask-composite: exclude;
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    pointer-events: none;
-  }
-
-  .dark .bento {
-    box-shadow:
-      0 0 0 1px oklch(1 0 0 / 7%),
-      var(--elevation-card);
-  }
-
-  .dark .bento-inset {
-    border-color: oklch(1 0 0 / 12%);
-    box-shadow:
-      inset 0 1px 0 oklch(1 0 0 / 12%),
-      0 1px 2px oklch(0 0 0 / 28%);
-  }
-
-  .dark .glass-bar {
-    box-shadow:
-      0 0 0 1px oklch(1 0 0 / 8%),
-      var(--elevation-card);
-  }
-
-  .dark .bento::before {
-    background: linear-gradient(
-      135deg,
-      oklch(1 0 0 / 18%),
-      oklch(1 0 0 / 3%) 45%,
-      color-mix(in oklab, var(--brand) 8%, transparent) 100%
-    );
-  }
-
-  /* The single expressive gradient in the system: a restrained brand wash
-     reserved for the connect hero. Every other card stays neutral glass. */
   .bento-hero {
     border-radius: var(--radius-hero);
     box-shadow:
@@ -395,77 +353,59 @@
       var(--glass-surface);
   }
 
-  /* Running-state hero: the brand wash brightens only while the engine
-     actually runs — presence follows fact, nothing animates. Both radials
-     stay brand-only (the system's single gradient hue), ≤18% alpha, and
-     corner-placed so no wash sits under text. */
-  .bento-hero-live {
-    border-color: color-mix(in oklab, var(--brand) 18%, var(--glass-border));
-    background:
-      radial-gradient(
-        46% 56% at 88% 0%,
-        color-mix(in oklab, var(--brand) 15%, transparent),
-        transparent 72%
-      ),
-      radial-gradient(
-        36% 44% at 8% 100%,
-        color-mix(in oklab, var(--brand) 8%, transparent),
-        transparent 70%
-      ),
-      var(--glass-surface);
-  }
-
   .bento-inset {
-    border: 1px solid var(--glass-border);
-    border-radius: calc(var(--radius-card) - 6px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
     background: var(--glass-inset);
-    box-shadow: inset 0 1px 0 oklch(1 0 0 / 48%);
   }
 
   .bento-interactive {
     transition:
-      transform var(--duration-base) var(--ease-out-expo),
-      border-color var(--duration-base) var(--ease-out-expo);
+      border-color var(--duration-base),
+      background-color var(--duration-base);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bento-interactive {
+      transition: none;
+    }
   }
 
   .bento-interactive:hover {
-    transform: translateY(-1px);
-    border-color: var(--glass-border-strong);
-    box-shadow: var(--elevation-card-hover);
+    border-color: var(--control-border);
   }
 
   .glass-bar {
-    border: 1px solid var(--glass-border);
     background: var(--glass-sidebar);
-    box-shadow: var(--elevation-card);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
   }
 
-  /* Control contours are ink-tinted so buttons stay visible on the white
-     glass cards (field-glass already follows this); the white hairline
-     (--glass-border) belongs to surface boundaries, not to controls. */
   .glass-button {
-    border: 1px solid var(--border-strong);
-    background: var(--glass-inset);
-  }
-
-  /* Segmented/toggle tracks sit on white glass cards, so they follow the
-     ink-contour rule too: a card-white hairline vanishes (field-glass
-     recipe). The selected capsule stays a raised white pill on top. */
-  .glass-track {
-    background: color-mix(in oklab, var(--background) 54%, transparent);
-    border: 1px solid var(--border-strong);
+    border: 1px solid color-mix(in srgb, var(--control-border) 55%, transparent);
+    box-shadow:
+      inset 0 1px 0 var(--glass-border),
+      0 2px 5px oklch(0.2 0.03 265 / 6%);
   }
 
   .field-glass {
-    border: 1px solid var(--border-strong);
-    background: color-mix(in oklab, var(--background) 54%, transparent);
-    box-shadow: inset 0 1px 0 oklch(1 0 0 / 42%);
+    border: 1px solid var(--control-border);
+  }
+
+  .glass-button {
+    background: var(--card);
+  }
+
+  .glass-track,
+  .field-glass {
+    background: var(--surface-inset);
+  }
+
+  .glass-track {
+    border: 1px solid var(--border);
   }
 
   .gradient-brand {
     background-image: var(--gradient-brand);
+    border: 1px solid var(--brand-highlight);
   }
 
   .gradient-ink {
@@ -496,14 +436,6 @@
   @keyframes skeleton-sweep {
     to {
       transform: translateX(100%);
-    }
-  }
-
-  @supports not
-  ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .bento,
-    .glass-bar {
-      background: var(--card);
     }
   }
 
@@ -629,6 +561,10 @@
     transform: rotate(360deg);
   }
 }
+
+/* AuroraWave slow drift: transform-only so the blurred texture is reused by
+   the compositor instead of re-filtered per frame; disabled for reduced
+   motion (DESIGN.md 性能預算). */
 
 /* Desktop shell removes browser residue (Tauri only — the class is added by
    initDesktopShellDom): no native right-click menu outside inputs, no

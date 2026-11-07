@@ -235,15 +235,15 @@ export default function SubscriptionDetail({
       <RequestStatus error={subError} retry={refreshSubs} />
 
       {/* 1. Header Banner & Identity */}
-      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-start gap-4">
+      <div className="flex flex-col gap-3.5">
+        <div className="flex items-start gap-3.5">
           <ResourceIcon
             kind={sub.format || "local"}
-            className="size-12 shrink-0 rounded-2xl"
+            className="size-12 shrink-0 rounded-[14px]"
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
+              <h2 className="truncate text-[21px] font-bold tracking-tight text-foreground">
                 {sub.name}
               </h2>
               <Button
@@ -260,10 +260,10 @@ export default function SubscriptionDetail({
               </Button>
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
+              <span className="rounded-md bg-muted px-2.5 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
                 {sub.format || "config"}
               </span>
-              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              <span className="rounded-md bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {isCloud
                   ? cfg("kindCloud")
                   : isInline
@@ -273,13 +273,13 @@ export default function SubscriptionDetail({
                       : cfg("kindRemote")}
               </span>
               {isActive && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-text">
-                  <Check className="size-3" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-text">
+                  <Check className="size-3" strokeWidth={2.2} />
                   {cfg("activeLocal")}
                 </span>
               )}
               {sub.sourcePinned && (
-                <span className="rounded-md bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning-text">
+                <span className="rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning-text">
                   {t("sourcePinned")}
                 </span>
               )}
@@ -287,12 +287,12 @@ export default function SubscriptionDetail({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           {(isRemote || isLocal) && (
             <Button
               variant="outline"
               disabled={pending || Boolean(operation)}
-              className="gap-2"
+              className="h-9 gap-2 rounded-[10px] bg-card/90 px-3.5 shadow-2xs"
               onClick={() =>
                 void run(async () => {
                   if (isAccountManaged(sub)) {
@@ -308,7 +308,7 @@ export default function SubscriptionDetail({
             >
               <RefreshCw
                 className={cn(
-                  "size-4",
+                  "size-3.5",
                   (pending || operation) && "animate-spin",
                 )}
               />
@@ -320,15 +320,15 @@ export default function SubscriptionDetail({
             <Button
               variant="secondary"
               disabled
-              className="pointer-events-none gap-1.5"
+              className="pointer-events-none h-9 gap-1.5 rounded-[10px] px-3.5 text-muted-foreground [&_svg]:text-success"
             >
-              <Check className="size-4 text-success" />
+              <Check className="size-3.5" strokeWidth={2.2} />
               {cfg("activeLocal")}
             </Button>
           ) : (
             <Button
               variant="brand"
-              className="gap-1.5"
+              className="h-9 gap-1.5 rounded-[10px] px-4"
               disabled={pending || Boolean(operation)}
               onClick={() =>
                 void run(async () => {
@@ -338,7 +338,7 @@ export default function SubscriptionDetail({
                 }, t("activateDone"))
               }
             >
-              <Zap className="size-4" />
+              <Zap className="size-3.5" />
               {cfg("use")}
             </Button>
           )}

@@ -4,11 +4,8 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// XBond Bento button recipe: a soft, tactile control. Primary actions use
-// a subtle ink/brand gradient and lift on hover; glass variants float on
-// the aurora canvas without competing with the hero connect action.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-control text-[13px] leading-none font-medium whitespace-nowrap transition-[background-color,border-color,color,transform,filter] duration-[160ms] ease-[var(--ease-out-expo)] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive aria-invalid:ring-destructive/20 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-control text-sm leading-tight font-medium whitespace-nowrap transition-[background-color,border-color,color] duration-[160ms] ease-[var(--ease-out-expo)] outline-none focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive aria-invalid:ring-destructive/20 motion-reduce:transition-none max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -17,11 +14,11 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground shadow-[0_6px_16px_-10px_oklch(0.57_0.2_25/55%)] hover:brightness-105 focus-visible:ring-destructive/20",
         outline:
-          "glass-button text-foreground hover:border-[var(--glass-border-strong)] hover:bg-white/75 dark:hover:bg-white/10",
+          "glass-button text-foreground hover:border-control-border hover:bg-inset active:bg-muted",
         secondary:
-          "glass-button text-secondary-foreground hover:bg-white/75 dark:hover:bg-white/10",
+          "glass-button text-secondary-foreground hover:border-control-border hover:bg-inset active:bg-muted",
         brand:
-          "gradient-brand bg-brand-action text-brand-action-foreground hover:-translate-y-px hover:bg-brand-action-hover hover:bg-none active:translate-y-0 motion-reduce:hover:translate-y-0",
+          "gradient-brand rounded-full bg-brand-action text-brand-action-foreground shadow-brand-action hover:bg-brand-action-hover hover:bg-none active:bg-brand-text active:bg-none",
         success:
           "bg-success text-success-foreground shadow-[0_6px_16px_-10px_oklch(0.66_0.14_168/50%)] hover:bg-success/90",
         warning: "bg-warning text-warning-foreground hover:brightness-105",
@@ -30,10 +27,10 @@ const buttonVariants = cva(
         link: "text-brand-text underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-[34px] px-3.5 py-1.5 has-[>svg]:px-3",
+        default: "h-10 px-3.5 py-1.5 xl:h-11 has-[>svg]:px-3",
         xs: "h-6 gap-1 rounded-[6px] px-2 text-[11px] has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 gap-1.5 rounded-[8px] px-2.5 text-xs has-[>svg]:px-2",
-        lg: "h-10 px-[18px] has-[>svg]:px-4",
+        lg: "h-11 px-[18px] xl:h-12 has-[>svg]:px-4",
         icon: "size-[34px] max-md:size-11",
         "icon-xs": "size-6 rounded-[6px] [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-7 rounded-[8px] max-md:size-11",

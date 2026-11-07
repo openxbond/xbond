@@ -72,9 +72,7 @@ export function SegmentedControl<T extends string>({
             title={option.disabledReason}
             className={cn(
               segmentedItem,
-              // 選中是白色浮起膠囊、深色前景字（DESIGN.md「輸入與設定行」）：
-              // 品牌橙留在軌道，不壓在小字上，保住對比。
-              "h-auto shrink data-[state=on]:bg-white/95 data-[state=on]:font-semibold data-[state=on]:text-foreground data-[state=on]:shadow-[0_6px_14px_-10px_oklch(0.2_0.03_265/45%)] data-[state=on]:ring-1 data-[state=on]:ring-border-strong dark:data-[state=on]:bg-white/15 dark:data-[state=on]:ring-white/10 aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+              "h-auto shrink data-[state=on]:bg-brand-soft data-[state=on]:font-semibold data-[state=on]:!text-brand-text data-[state=on]:ring-1 data-[state=on]:ring-brand/40 aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
               itemClassName,
             )}
           >

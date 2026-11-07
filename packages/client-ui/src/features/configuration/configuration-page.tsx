@@ -1,11 +1,19 @@
 import { isAccountManaged } from "@xbond/client/localapi";
-import { ArrowLeft, Check, Plus, Search } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  ArrowLeft,
+  Box,
+  Check,
+  ChevronDown,
+  Inbox,
+  Plus,
+  Search,
+} from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
-import { Header } from "@/components/page-header";
+import { AuroraWave } from "@/components/aurora-wave";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -177,9 +185,12 @@ export default function Config() {
           </span>
         </button>
         {options?.isActive && (
-          <span className="shrink-0 text-xs font-medium text-brand inline-flex items-center gap-1">
-            <Check className="size-3.5" />
-            <span className="hidden sm:inline">{t("viewing")}</span>
+          <span
+            className="inline-flex shrink-0 items-center text-brand"
+            title={t("viewing")}
+            aria-label={t("viewing")}
+          >
+            <Check className="size-4" strokeWidth={2.2} />
           </span>
         )}
         {!options?.isActive && options?.canActivate && options?.onActivate && (
@@ -240,20 +251,53 @@ export default function Config() {
     : target.targetKind === "controller"
       ? target.controller.name || target.hostname
       : t("noActive");
+  const pickerRef = useRef<HTMLDetailsElement>(null);
+  const plainSubs = subscriptions.filter((item) => !isAccountManaged(item));
+
+  useEffect(() => {
+    function handleOutsidePointer(event: PointerEvent) {
+      if (
+        pickerRef.current?.open &&
+        event.target instanceof Node &&
+        !pickerRef.current.contains(event.target)
+      ) {
+        pickerRef.current.open = false;
+      }
+    }
+    document.addEventListener("pointerdown", handleOutsidePointer);
+    return () =>
+      document.removeEventListener("pointerdown", handleOutsidePointer);
+  }, []);
+
+  function pick(id: string) {
+    pickerRef.current?.removeAttribute("open");
+    choose(id);
+  }
+  function pickerEntry(
+    id: string,
+    title: string,
+    kind: Parameters<typeof ResourceIcon>[0]["kind"],
+  ) {
+    const isActive = selected === id;
+    return (
+      <button
+        type="button"
+        key={id}
+        className={cn("config-menu-item", isActive && "is-active")}
+        onClick={() => pick(id)}
+      >
+        <ResourceIcon kind={kind} className="size-7 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+        {isActive && <Check className="size-3.5 shrink-0 text-brand" />}
+      </button>
+    );
+  }
 
   return (
-    <div className="page config-page">
-      <Header title={t("title")}>
-        <span className="hidden items-center gap-2 text-sm text-muted-foreground md:flex">
-          <ResourceIcon kind={activeIconKind} className="size-8" />
-          <span>
-            {t("viewing")} · {activeDisplayName}
-          </span>
-        </span>
-      </Header>
-      <p className="text-sm text-muted-foreground">{t("description")}</p>
+    <div className="page config-page relative">
+      <AuroraWave className="-top-8 end-0 h-60 w-[58%] opacity-40" />
       {offline && (
-        <Alert role="status">
+        <Alert role="status" className="relative z-10">
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>{t("serviceUnavailable")}</span>
             <Button variant="outline" size="sm" onClick={() => void refresh()}>
@@ -262,9 +306,61 @@ export default function Config() {
           </AlertDescription>
         </Alert>
       )}
-      <div className={cn("config-workspace", explicit && "has-selection")}>
-        <div className="config-resources">
-          <InputGroup className="mb-3.5">
+      {/* 頁面頂欄：標題與副標題在左，「當前使用」環境膠囊在右（對齊設計稿） */}
+      <header className="config-header relative z-20">
+        <div className="config-list-intro">
+          <h1>{t("title")}</h1>
+          <p>{t("description")}</p>
+        </div>
+        <details ref={pickerRef} className="group relative hidden md:block">
+          <summary className="glass-button flex h-10 cursor-pointer list-none select-none items-center gap-2 rounded-full ps-2 pe-3.5 shadow-elevation-card xl:h-12 transition-colors hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+            <ResourceIcon kind={activeIconKind} className="size-6.5" />
+            <span className="text-xs text-muted-foreground">
+              {t("viewing")} ·
+            </span>
+            <span className="max-w-44 truncate text-xs font-semibold text-foreground">
+              {activeDisplayName}
+            </span>
+            <ChevronDown
+              aria-hidden="true"
+              className="size-3.5 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none"
+            />
+          </summary>
+          <div className="absolute end-0 top-[calc(100%+8px)] z-50 w-64 rounded-card border border-[var(--glass-border)] bg-popover p-2 shadow-[var(--elevation-raised)]">
+            {supported && pickerEntry("cloud", "XBond Cloud", "cloud")}
+            {plainSubs.length > 0 && (
+              <>
+                <p className="config-menu-heading">{t("profiles")}</p>
+                {plainSubs.map((sub) =>
+                  pickerEntry(`sub:${sub.id}`, sub.name, sub.format || "local"),
+                )}
+              </>
+            )}
+            {controllers.length > 0 && (
+              <>
+                <p className="config-menu-heading">{t("controllers")}</p>
+                {controllers.map((controller) =>
+                  pickerEntry(
+                    `controller:${controller.id}`,
+                    controller.name || new URL(controller.url).host,
+                    "controller",
+                  ),
+                )}
+              </>
+            )}
+          </div>
+        </details>
+      </header>
+
+      {/* 雙欄工作區：左欄配置清單玻璃卡與右欄詳情容器頂部齊平 */}
+      <div
+        className={cn(
+          "config-shell relative z-10 min-h-0",
+          explicit && "has-selection",
+        )}
+      >
+        <aside className="bento config-list" aria-label={t("title")}>
+          <InputGroup className="mb-1">
             <InputGroupInput
               type="search"
               aria-label={t("search")}
@@ -352,7 +448,11 @@ export default function Config() {
                   </div>
                 ) : (
                   <p className="config-list-empty">
-                    {search ? common("empty") : t("profileEmpty")}
+                    <Inbox
+                      aria-hidden="true"
+                      className="size-4 shrink-0 opacity-75"
+                    />
+                    <span>{search ? common("empty") : t("profileEmpty")}</span>
                   </p>
                 )}
               </>,
@@ -376,63 +476,69 @@ export default function Config() {
               )
             ) : (
               <p className="config-list-empty">
-                {search ? common("empty") : t("controllerEmpty")}
+                <Box
+                  aria-hidden="true"
+                  className="size-4 shrink-0 opacity-75"
+                />
+                <span>{search ? common("empty") : t("controllerEmpty")}</span>
               </p>
             ),
             { label: t("addController"), item: "add-controller" },
           )}
-        </div>
-        <div className="config-detail" key={selected}>
-          <div className="config-back">
-            <Button variant="ghost" className="mb-5" onClick={() => choose()}>
-              <ArrowLeft className="size-4" />
-              {t("back")}
-            </Button>
+        </aside>
+        <div className="config-main">
+          <div className="config-detail" key={selected}>
+            <div className="config-back">
+              <Button variant="ghost" onClick={() => choose()}>
+                <ArrowLeft className="size-4" />
+                {t("back")}
+              </Button>
+            </div>
+            <fieldset
+              className="bento config-detail-flow min-w-0"
+              disabled={
+                daemonBlocked &&
+                (selected === "cloud" ||
+                  selected.startsWith("sub:") ||
+                  selected === "add-profile")
+              }
+            >
+              {selected === "cloud" && supported ? (
+                <AccountPanel />
+              ) : selected === "add-profile" && supported ? (
+                <ImportConfig onAdded={(id) => choose(`sub:${id}`)} />
+              ) : selected === "add-controller" ? (
+                <ControllerDetail
+                  onSaved={(id) => choose(`controller:${id}`)}
+                  onRemoved={() => choose()}
+                />
+              ) : selectedController ? (
+                <ControllerDetail
+                  controller={selectedController}
+                  onSaved={(id) => choose(`controller:${id}`)}
+                  onRemoved={() => choose()}
+                />
+              ) : selectedSub ? (
+                <SubscriptionDetail selectedId={selectedSub.id} />
+              ) : (
+                <div className="config-empty">
+                  <ResourceIcon kind="local" className="size-14" />
+                  <h2 className="text-title font-semibold">{t("welcome")}</h2>
+                  <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+                    {supported ? t("welcomeNote") : t("controllerEmpty")}
+                  </p>
+                  <Button
+                    variant="brand"
+                    onClick={() =>
+                      choose(supported ? "add-profile" : "add-controller")
+                    }
+                  >
+                    {supported ? t("addProfile") : t("addController")}
+                  </Button>
+                </div>
+              )}
+            </fieldset>
           </div>
-          <fieldset
-            className="min-w-0"
-            disabled={
-              daemonBlocked &&
-              (selected === "cloud" ||
-                selected.startsWith("sub:") ||
-                selected === "add-profile")
-            }
-          >
-            {selected === "cloud" && supported ? (
-              <AccountPanel />
-            ) : selected === "add-profile" && supported ? (
-              <ImportConfig onAdded={(id) => choose(`sub:${id}`)} />
-            ) : selected === "add-controller" ? (
-              <ControllerDetail
-                onSaved={(id) => choose(`controller:${id}`)}
-                onRemoved={() => choose()}
-              />
-            ) : selectedController ? (
-              <ControllerDetail
-                controller={selectedController}
-                onSaved={(id) => choose(`controller:${id}`)}
-                onRemoved={() => choose()}
-              />
-            ) : selectedSub ? (
-              <SubscriptionDetail selectedId={selectedSub.id} />
-            ) : (
-              <div className="config-empty">
-                <ResourceIcon kind="local" className="size-14" />
-                <h2 className="text-title font-semibold">{t("welcome")}</h2>
-                <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-                  {supported ? t("welcomeNote") : t("controllerEmpty")}
-                </p>
-                <Button
-                  variant="brand"
-                  onClick={() =>
-                    choose(supported ? "add-profile" : "add-controller")
-                  }
-                >
-                  {supported ? t("addProfile") : t("addController")}
-                </Button>
-              </div>
-            )}
-          </fieldset>
         </div>
       </div>
     </div>

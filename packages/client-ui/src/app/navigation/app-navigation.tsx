@@ -81,20 +81,29 @@ function useRouteLink(item: Route) {
 function SidebarLink({ item }: { item: Route }) {
   const { active, Icon, to, text } = useRouteLink(item);
   return (
-    <li>
+    <li className="relative ps-1.5">
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-2.5 start-0 w-[3px] rounded-full bg-brand"
+        />
+      )}
       <Link
         to={to}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "relative flex min-h-10 items-center gap-2.5 rounded-[12px] border border-transparent px-2.5 text-[13px] font-medium text-sidebar-foreground-muted no-underline transition-[background-color,color,box-shadow,border-color] duration-150 motion-reduce:transition-none",
+          "relative flex min-h-10 items-center gap-2.5 rounded-control border border-transparent px-3 text-sm xl:min-h-12 xl:text-body font-medium text-sidebar-foreground-muted no-underline transition-[background-color,color,box-shadow,border-color] duration-150 motion-reduce:transition-none",
           active
-            ? "border border-[var(--glass-border)] bg-white/45 text-foreground shadow-[0_8px_20px_-14px_oklch(0.2_0.03_265/45%)] before:absolute before:inset-y-2.5 before:start-0 before:w-[3px] before:rounded-full before:bg-brand before:content-[''] dark:bg-white/10"
-            : "hover:bg-white/45 hover:text-foreground dark:hover:bg-white/10",
+            ? "border-brand/15 bg-gradient-to-r from-brand-soft/95 to-brand-soft/65 font-semibold text-foreground shadow-[0_8px_18px_-12px_oklch(0.68_0.18_45/38%)] dark:border-brand/25 dark:from-brand-soft/45 dark:to-brand-soft/20"
+            : "hover:bg-sidebar-accent hover:text-foreground",
         )}
       >
         <Icon
           aria-hidden
-          className={cn("size-[17px] shrink-0", active && "text-foreground")}
+          className={cn(
+            "size-5 shrink-0",
+            active ? "text-brand-text" : undefined,
+          )}
           strokeWidth={1.8}
         />
         <span className="min-w-0 truncate">{text}</span>
@@ -152,7 +161,7 @@ function DesktopSidebar() {
   return (
     <nav
       aria-label={t("home")}
-      className="glass-bar flex w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden rounded-[22px] text-sidebar-foreground select-none max-md:hidden"
+      className="glass-bar flex w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden rounded-[var(--radius-hero)] text-sidebar-foreground select-none max-md:hidden"
     >
       {isDesktopApp() && (
         <div
@@ -162,10 +171,10 @@ function DesktopSidebar() {
       )}
       <div
         data-tauri-drag-region="deep"
-        className="flex h-16 shrink-0 items-center gap-2.5 px-4"
+        className="flex h-14 shrink-0 items-center gap-2.5 px-4 xl:h-18"
       >
-        <XBondIcon className="size-[22px] shrink-0" />
-        <span className="text-[15px] font-semibold tracking-tight text-foreground">
+        <XBondIcon className="size-6 shrink-0" />
+        <span className="text-title font-bold tracking-tight text-foreground">
           XBond
         </span>
         <SearchTrigger />
@@ -176,24 +185,18 @@ function DesktopSidebar() {
             <SidebarLink key={item.name} item={item} />
           ))}
         </ul>
-        <div
-          className="mx-2 my-2 h-px bg-[var(--glass-border)]"
-          aria-hidden="true"
-        />
+        <div className="mx-2 my-2 h-px bg-sidebar-border" aria-hidden="true" />
         <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
           {inspectRoutes.map((item) => (
             <SidebarLink key={item.name} item={item} />
           ))}
         </ul>
-        <div
-          className="mx-2 my-2 h-px bg-[var(--glass-border)]"
-          aria-hidden="true"
-        />
+        <div className="mx-2 my-2 h-px bg-sidebar-border" aria-hidden="true" />
         <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
           <SidebarLink item={settingsRoute} />
         </ul>
       </div>
-      <div className="border-t border-[var(--glass-border)] p-2.5">
+      <div className="p-2.5">
         <ConfigMenu />
       </div>
     </nav>

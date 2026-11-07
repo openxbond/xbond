@@ -11,13 +11,13 @@ const MB = 1024 * 1024;
 
 /** 根据窗口内最大速率自适应 Y 轴刻度与标尺上限，精准适配 <1MB/s 的常见场景 */
 export function getChartScale(maxBytesPerSec: number) {
-  // 无流量或极小待机流量时，使用 100 KB/s 作为初始基准标尺，保证网格稳定同时对轻量网络活动灵敏
+  // 无流量或极小待机流量时，使用 50 KB/s 作为初始基准标尺，与设计稿一致且对轻量网络活动灵敏
   if (!Number.isFinite(maxBytesPerSec) || maxBytesPerSec <= 0) {
     return {
-      top: "100K",
-      mid: "50K",
+      top: "50K",
+      mid: "25K",
       bottom: "0",
-      maxBound: 100 * KB,
+      maxBound: 50 * KB,
     };
   }
 
@@ -165,7 +165,7 @@ export function TrafficChart({
         </div>
 
         {/* 图表主区域 */}
-        <div className="relative min-h-20 min-w-0 flex-1">
+        <div className="relative min-h-16 min-w-0 flex-1 xl:min-h-24">
           {stale && staleLabel && samples.length > 0 && (
             <span className="absolute top-0 right-0 z-10 rounded-full bg-inset px-2 py-0.5 text-label text-muted-foreground">
               {staleLabel}
@@ -189,7 +189,7 @@ export function TrafficChart({
                 x2="0"
                 y2="1"
               >
-                <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.16" />
+                <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.24" />
                 <stop
                   offset="100%"
                   stopColor="var(--brand)"
@@ -236,7 +236,7 @@ export function TrafficChart({
                 {upLine && (
                   <path
                     d={upLine}
-                    className="fill-none stroke-muted-foreground [stroke-linecap:round] [stroke-linejoin:round] [stroke-dasharray:3_3] [stroke-width:1.4] [vector-effect:non-scaling-stroke]"
+                    className="fill-none stroke-upload [stroke-linecap:round] [stroke-linejoin:round] [stroke-dasharray:3_3] [stroke-width:1.4] [vector-effect:non-scaling-stroke]"
                   />
                 )}
               </>

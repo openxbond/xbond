@@ -1,6 +1,6 @@
 import { isAccountManaged } from "@xbond/client/localapi";
 import { workspaceLink } from "@xbond/client/workspace";
-import { Check, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronRight, Plus, SlidersHorizontal } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -114,9 +114,9 @@ export function ConfigMenu() {
             {activeSubtitle}
           </span>
         </span>
-        <ChevronUp
+        <ChevronRight
           aria-hidden="true"
-          className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+          className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:-rotate-90 rtl:rotate-180"
         />
       </summary>
 

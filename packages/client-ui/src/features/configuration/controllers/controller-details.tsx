@@ -161,15 +161,15 @@ export default function ControllerDetail({
   return (
     <div className="flex flex-col w-full gap-6">
       {/* 1. Unified Top Header */}
-      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-start gap-4">
+      <div className="flex flex-col gap-3.5">
+        <div className="flex items-start gap-3.5">
           <ResourceIcon
             kind="controller"
-            className="size-12 shrink-0 rounded-2xl"
+            className="size-12 shrink-0 rounded-[14px]"
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
+              <h2 className="truncate text-[21px] font-bold tracking-tight text-foreground">
                 {controller
                   ? controller.name || hostDisplay
                   : c("addController")}
@@ -192,20 +192,20 @@ export default function ControllerDetail({
               )}
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
+              <span className="rounded-md bg-muted px-2.5 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
                 CLASH API
               </span>
-              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              <span className="rounded-md bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {c("controllers")}
               </span>
               {hostDisplay && (
-                <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                <span className="rounded-md bg-muted px-2.5 py-0.5 font-mono text-xs text-muted-foreground">
                   {hostDisplay}
                 </span>
               )}
               {viewing && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-text">
-                  <Check className="size-3" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-text">
+                  <Check className="size-3" strokeWidth={2.2} />
                   {c("activeLocal")}
                 </span>
               )}
@@ -213,16 +213,16 @@ export default function ControllerDetail({
           </div>
         </div>
 
-        {/* Top-Right Action Buttons (Unified Position with SubscriptionDetail & AccountPanel) */}
+        {/* Action Buttons Row */}
         {controller && (
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Button
               variant="outline"
               disabled={pending}
-              className="gap-2"
+              className="h-9 gap-2 rounded-[10px] bg-card/90 px-3.5 shadow-2xs"
               onClick={() => void test()}
             >
-              <Activity className={cn("size-4", pending && "animate-spin")} />
+              <Activity className={cn("size-3.5", pending && "animate-spin")} />
               {pending ? common("loading") : t("external.test")}
             </Button>
 
@@ -230,21 +230,21 @@ export default function ControllerDetail({
               <Button
                 variant="secondary"
                 disabled
-                className="pointer-events-none gap-1.5"
+                className="pointer-events-none h-9 gap-1.5 rounded-[10px] px-3.5 text-muted-foreground [&_svg]:text-success"
               >
-                <Check className="size-4 text-success" />
+                <Check className="size-3.5" strokeWidth={2.2} />
                 {c("activeLocal")}
               </Button>
             ) : (
               <Button
                 variant="brand"
-                className="gap-1.5"
+                className="h-9 gap-1.5 rounded-[10px] px-4"
                 onClick={() =>
                   select({ kind: "controller", id: controller.id })
                 }
                 disabled={Boolean(operation)}
               >
-                <Zap className="size-4" />
+                <Zap className="size-3.5" />
                 {c("use")}
               </Button>
             )}

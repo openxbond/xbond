@@ -51,6 +51,7 @@ export default function App() {
   const [identity, setIdentity] = useAtom(identityAtom);
   const target = useAPIInfo();
   const location = useLocation();
+  const isHome = location.pathname === "/";
   const navigate = useNavigate();
   const maximized = useMainWindowMaximized();
   const contentRef = useRef<HTMLElement>(null);
@@ -76,7 +77,7 @@ export default function App() {
   }, [identity, target, location.search, navigate, setIdentity]);
 
   const layout = (
-    <div className="flex h-[100dvh] min-h-0 gap-3 overflow-hidden bg-transparent p-3 max-md:gap-0 max-md:p-0">
+    <div className="flex h-[100dvh] min-h-0 gap-2 overflow-hidden bg-transparent p-2 xl:gap-3 xl:p-3 max-md:gap-0 max-md:p-0">
       {/* Frameless Windows/Linux windows get no compositor shadow (tao drops
           it with decorations), so the webview edge disappears on light
           desktops. A hairline inset frame marks the boundary; maximized
@@ -91,8 +92,6 @@ export default function App() {
       <AppNavigation routes={mobileRoutes} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TitleBar />
-        {/* Full-bleed working area: the navigation rail and page share one
-            plane. Hairlines, not a floating rounded card, mark the boundary. */}
         <main
           ref={contentRef}
           className={cn(
@@ -103,7 +102,19 @@ export default function App() {
           <ControllerPage />
         </main>
       </div>
-      <Toaster />
+      <Toaster
+        position={isHome ? "top-right" : "bottom-right"}
+        offset={
+          isHome ? { top: "calc(var(--titlebar-height) + 16px)" } : undefined
+        }
+        mobileOffset={
+          isHome
+            ? {
+                top: "calc(var(--topbar-height) + env(safe-area-inset-top) + 8px)",
+              }
+            : undefined
+        }
+      />
       <CommandPalette />
     </div>
   );

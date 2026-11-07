@@ -1,12 +1,4 @@
-/*
- * XBond design tokens — the single source of truth for colour, shape,
- * material, elevation and layout (DESIGN.md).
- *
- * Direction: Bento Grid 2.0. A cool porcelain canvas carries a soft aurora
- * mesh; modules are frosted glass cards with generous radii, hairline light
- * edges and layered shadows. Brand orange is the hero action; mint, blue and
- * violet are module accents used sparingly.
- */
+/* Shared XBond palette, surfaces and geometry. See DESIGN.md. */
 
 :root {
   color-scheme: light;
@@ -24,41 +16,36 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 140ms;
-  --duration-base: 220ms;
+  --duration-base: 160ms;
   --duration-slow: 360ms;
 
-  /* Shape — semantic, host-overridable. */
+  /* Shared component geometry. */
   --radius: 12px;
-  --radius-control: 10px;
-  --radius-card: 20px;
-  --radius-hero: 24px;
-  --radius-pill: 9999px;
+  --radius-control: 0.875rem;
+  --radius-card: 1.375rem;
+  --radius-hero: 1.5rem;
 
   /* Density */
-  --control-height-sm: 30px;
-  --control-height: 34px;
-  --control-height-lg: 40px;
-  --page-pad: 16px;
-  --sidebar-width: 248px;
+  --page-pad: clamp(0.875rem, 1.6vw, 1.5rem);
+  --sidebar-width: clamp(11.75rem, 17vw, 17rem);
   --topbar-height: 56px;
-  --titlebar-height: 40px;
-  --content-max: 1440px;
+  --titlebar-height: 36px;
 
   /* Aurora canvas */
-  --aurora-peach: oklch(0.78 0.12 55 / 18%);
-  --aurora-slate: oklch(0.86 0.035 245 / 13%);
+  --aurora-peach: #ffcdb521;
+  --aurora-slate: #cbd8ee45;
 
   /* Accent family */
-  --brand: oklch(0.7 0.19 45);
-  --brand-strong: oklch(0.62 0.21 35);
+  --brand: #f7720d;
+  --brand-highlight: #ff914d;
+  --brand-strong: oklch(0.63 0.21 38);
   --brand-foreground: oklch(0.18 0.02 40);
-  --brand-text: oklch(0.52 0.17 40);
-  --brand-soft: oklch(0.94 0.045 55);
-  --brand-action: oklch(0.53 0.18 43);
-  --brand-action-foreground: oklch(0.99 0 0);
-  --brand-action-hover: oklch(0.47 0.16 43);
-  --brand-action-shadow: none;
-  --brand-action-hover-shadow: none;
+  --brand-text: #a84000;
+  --brand-soft: #feebdd;
+  --brand-action: #f7720d;
+  --brand-action-foreground: #fff;
+  --brand-action-hover: #df5e08;
+  --brand-action-shadow: 0 10px 22px -10px oklch(0.68 0.19 45 / 58%);
 
   --accent-mint: oklch(0.7 0.13 172);
   --accent-mint-text: oklch(0.42 0.1 175);
@@ -71,43 +58,45 @@
   --accent-violet-soft: oklch(0.94 0.035 300);
 
   /* Surfaces */
-  --background: oklch(0.962 0.008 255);
-  --foreground: oklch(0.19 0.018 265);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.19 0.018 265);
-  --popover: oklch(1 0 0 / 94%);
-  --popover-foreground: oklch(0.19 0.018 265);
-  --surface-inset: oklch(0.95 0.01 255 / 64%);
-  --surface-raised: oklch(1 0 0);
-  --sidebar: oklch(1 0 0 / 52%);
-  --sidebar-foreground: oklch(0.2 0.018 265);
-  --sidebar-foreground-muted: oklch(0.47 0.018 265);
-  --sidebar-accent: oklch(1 0 0 / 62%);
-  --sidebar-accent-foreground: oklch(0.2 0.018 265);
-  --sidebar-border: oklch(1 0 0 / 58%);
-  --sidebar-ring: var(--brand);
+  --background: #eff1f8;
+  --foreground: #101622;
+  --card: #fbfbfe;
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --surface-inset: #f3f5fa;
+  --surface-raised: var(--card);
+  --sidebar: #f8f8fc;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-foreground-muted: var(--muted-foreground);
+  --sidebar-accent: var(--surface-inset);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 
   /* Controls */
-  --primary: oklch(0.2 0.018 265);
+  --primary: var(--foreground);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(1 0 0 / 58%);
-  --secondary-foreground: oklch(0.2 0.018 265);
-  --muted: oklch(0.96 0.008 255 / 70%);
-  --muted-foreground: oklch(0.47 0.018 265);
-  --accent: oklch(1 0 0 / 60%);
-  --accent-foreground: oklch(0.2 0.018 265);
-  --border: oklch(0.2 0.02 265 / 9%);
+  --secondary: var(--card);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-inset);
+  --muted-foreground: #525b6c;
+  --accent: var(--surface-inset);
+  --accent-foreground: var(--foreground);
+  --border: #d6dde8;
+  --control-border: #818b9c;
   --border-strong: oklch(0.2 0.02 265 / 24%);
   --input: oklch(0.2 0.02 265 / 14%);
-  --ring: var(--brand);
-  --row-hover: oklch(1 0 0 / 55%);
+  --ring: var(--brand-text);
+  --row-hover: var(--surface-inset);
   --overlay: oklch(0.16 0.02 265 / 54%);
-  --switch-thumb: oklch(1 0 0);
+  --switch-thumb: #fff;
 
   /* Status */
-  --success: oklch(0.66 0.14 168);
-  --success-foreground: oklch(0.17 0.02 170);
-  --success-text: oklch(0.43 0.11 170);
+  --success: #007d46;
+  --success-foreground: #fff;
+  --success-soft: #e3f5ee;
+  --success-text: var(--success);
   --warning: oklch(0.8 0.15 85);
   --warning-foreground: oklch(0.18 0.02 80);
   --warning-text: oklch(0.49 0.12 70);
@@ -120,36 +109,25 @@
 
   /* Data visualisation */
   --chart-1: var(--brand);
+  --upload: #8daad3;
   --chart-2: oklch(0.55 0.02 265);
   --chart-3: oklch(0.68 0.015 265);
   --chart-4: oklch(0.8 0.01 265);
   --chart-5: oklch(0.9 0.008 265);
 
-  /* Glass material */
-  --glass-surface: linear-gradient(
-    145deg,
-    oklch(1 0 0 / 84%),
-    oklch(1 0 0 / 62%)
-  );
-  --glass-sidebar: linear-gradient(
-    180deg,
-    oklch(1 0 0 / 44%),
-    oklch(1 0 0 / 22%)
-  );
-  --glass-inset: linear-gradient(
-    145deg,
-    oklch(1 0 0 / 56%),
-    oklch(1 0 0 / 32%)
-  );
-  --glass-border: oklch(1 0 0 / 70%);
-  --glass-border-strong: oklch(1 0 0 / 84%);
-  --glass-blur: 14px;
+  /* Material roles. Ordinary panels use solid surfaces. */
+  --glass-surface: var(--card);
+  --glass-sidebar: color-mix(in srgb, var(--sidebar) 80%, transparent);
+  --glass-inset: var(--surface-inset);
+  --highlight-edge: #fff;
+  --glass-border: var(--highlight-edge);
+  --glass-border-strong: var(--highlight-edge);
 
-  /* Gradients */
+  /* Satin brand action and ink accent. */
   --gradient-brand: linear-gradient(
-    135deg,
-    oklch(0.54 0.18 43),
-    oklch(0.49 0.17 35)
+    145deg,
+    var(--brand-highlight),
+    var(--brand-action)
   );
   --gradient-ink: linear-gradient(
     180deg,
@@ -158,17 +136,9 @@
   );
 
   /* Elevation */
-  --elevation-card:
-    inset 0 1px 0 oklch(1 0 0 / 72%), 0 1px 2px oklch(0.2 0.03 265 / 5%),
-    0 18px 40px -24px oklch(0.2 0.03 265 / 24%);
-  --elevation-card-hover:
-    inset 0 1px 0 oklch(1 0 0 / 82%), 0 2px 4px oklch(0.2 0.03 265 / 6%),
-    0 28px 56px -28px oklch(0.2 0.03 265 / 30%);
-  --elevation-raised:
-    inset 0 1px 0 oklch(1 0 0 / 72%), 0 2px 6px oklch(0.2 0.03 265 / 8%),
-    0 28px 64px -24px oklch(0.2 0.03 265 / 32%);
+  --elevation-card: 0 2px 5px #2436540a, 0 14px 30px -18px #24365426;
+  --elevation-raised: 0 8px 26px -10px #24365440;
   --window-frame: inset 0 0 0 1px oklch(0.2 0.02 265 / 14%);
-  --theme-color: #eef1f6;
 
   /* Latency traffic-light family */
   --latency-good-bg: oklch(0.93 0.06 168);
@@ -221,7 +191,7 @@
   --sidebar-accent: oklch(1 0 0 / 7%);
   --sidebar-accent-foreground: oklch(0.97 0.006 255);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: var(--brand);
+  --sidebar-ring: var(--ring);
 
   --primary: oklch(0.94 0.006 255);
   --primary-foreground: oklch(0.17 0.014 260);
@@ -232,15 +202,17 @@
   --accent: oklch(1 0 0 / 9%);
   --accent-foreground: oklch(0.97 0.006 255);
   --border: oklch(1 0 0 / 11%);
+  --control-border: #768196;
   --border-strong: oklch(1 0 0 / 19%);
   --input: oklch(1 0 0 / 20%);
-  --ring: var(--brand);
+  --ring: var(--brand-text);
   --row-hover: oklch(1 0 0 / 7%);
   --overlay: oklch(0.06 0.01 260 / 64%);
   --switch-thumb: oklch(0.98 0.004 255);
 
   --success: oklch(0.75 0.14 168);
   --success-foreground: oklch(0.16 0.02 170);
+  --success-soft: #17372e;
   --success-text: oklch(0.82 0.12 168);
   --warning: oklch(0.82 0.15 86);
   --warning-foreground: oklch(0.17 0.02 80);
@@ -258,25 +230,9 @@
   --chart-4: oklch(0.33 0.01 260);
   --chart-5: oklch(0.24 0.008 260);
 
-  --glass-surface: linear-gradient(
-    145deg,
-    oklch(0.24 0.018 260 / 78%),
-    oklch(0.19 0.014 260 / 56%)
-  );
-  --glass-sidebar: linear-gradient(
-    180deg,
-    oklch(0.225 0.018 260 / 70%),
-    oklch(0.18 0.014 260 / 48%)
-  );
-  --glass-inset: linear-gradient(145deg, oklch(1 0 0 / 8%), oklch(1 0 0 / 3%));
   --glass-border: oklch(1 0 0 / 16%);
   --glass-border-strong: oklch(1 0 0 / 24%);
 
-  --gradient-brand: linear-gradient(
-    135deg,
-    oklch(0.54 0.18 43),
-    oklch(0.49 0.17 35)
-  );
   --gradient-ink: linear-gradient(
     135deg,
     oklch(0.97 0.004 255),
@@ -286,14 +242,10 @@
   --elevation-card:
     inset 0 1px 0 oklch(1 0 0 / 8%), 0 1px 2px oklch(0 0 0 / 30%),
     0 24px 56px -28px oklch(0 0 0 / 72%);
-  --elevation-card-hover:
-    inset 0 1px 0 oklch(1 0 0 / 12%), 0 2px 4px oklch(0 0 0 / 32%),
-    0 32px 64px -28px oklch(0 0 0 / 78%);
   --elevation-raised:
     inset 0 1px 0 oklch(1 0 0 / 10%), 0 2px 8px oklch(0 0 0 / 36%),
     0 32px 72px -24px oklch(0 0 0 / 82%);
   --window-frame: inset 0 0 0 1px oklch(1 0 0 / 12%);
-  --theme-color: #101318;
 
   --latency-good-bg: oklch(0.31 0.055 170);
   --latency-good-text: oklch(0.83 0.11 170);
@@ -310,34 +262,16 @@
 }
 
 /*
- * Host shape and type. `data-host` is written before render by
+ * Host type. `data-host` is written before render by
  * platform/host.ts. Linux and unknown browsers use the neutral web scale.
  */
-:root[data-host="macos"] {
-  --radius-control: 10px;
-  --radius-card: 20px;
-  --radius-hero: 24px;
-}
-
 :root[data-host="windows"] {
-  --radius-control: 8px;
-  --radius-card: 16px;
-  --radius-hero: 20px;
   --font-sans:
     "Segoe UI Variable", "Segoe UI", system-ui, "Microsoft YaHei",
     "Noto Sans CJK SC", sans-serif;
 }
 
-:root[data-host="ios"] {
-  --radius-control: 12px;
-  --radius-card: 24px;
-  --radius-hero: 28px;
-}
-
 :root[data-host="android"] {
-  --radius-control: 12px;
-  --radius-card: 24px;
-  --radius-hero: 28px;
   --font-sans:
     Roboto, system-ui, "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
 }

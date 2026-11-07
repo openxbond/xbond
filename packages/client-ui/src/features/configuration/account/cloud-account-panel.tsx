@@ -8,14 +8,15 @@ import {
   Globe,
   LoaderCircle,
   LogOut,
+  Megaphone,
   RefreshCw,
   Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AuroraWave } from "@/components/aurora-wave";
 import { QuotaRing } from "@/components/quota-ring";
-import { Stat } from "@/components/stat";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -68,6 +69,12 @@ export default function AccountPanel() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const connecting = daemonState === "connecting";
   const signedIn = account?.status === "signed_in";
+  const serviceHealthy =
+    signedIn &&
+    account.service?.enabled &&
+    account.service.status === "active" &&
+    account.service.quotaState !== "blocked" &&
+    !account.overviewError;
   const authorizing = account?.status === "pending";
   const phase = account?.phase || (authorizing ? "authorizing" : undefined);
   const busy = pending || Boolean(phase) || Boolean(operation);
@@ -151,35 +158,38 @@ export default function AccountPanel() {
   }
 
   return (
-    <div className="flex flex-col w-full gap-6" aria-busy={busy}>
-      {/* Top Header */}
-      <div className="flex flex-col gap-4 border-b border-border/60 pb-6 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-start gap-4">
-          <ResourceIcon kind="cloud" className="size-12 shrink-0 rounded-2xl" />
+    <div className="flex w-full flex-col gap-3 xl:gap-5" aria-busy={busy}>
+      {/* 服務信息頭：上方為配置身份與單行狀態徽章，下方為操作按鈕列（對齊設計稿） */}
+      <section className="flex flex-col gap-2.5 xl:gap-3.5">
+        <div className="flex items-start gap-3.5">
+          <ResourceIcon
+            kind="cloud"
+            className="size-12 shrink-0 rounded-control xl:size-16"
+          />
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
+            <h2 className="truncate text-title font-bold xl:text-metric tracking-tight text-foreground">
               XBond Cloud
             </h2>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
                 {cloudProfile?.format || "XBond"}
               </span>
-              <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {signedIn
                   ? account.name || account.email || t("signedIn")
                   : authorizing || phase
                     ? phaseText[phase ?? "authorizing"]
                     : t("signedOut")}
               </span>
-              {signedIn && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2 py-0.5 text-xs font-medium text-success-text">
-                  <span className="size-1.5 rounded-full bg-success animate-pulse" />
+              {serviceHealthy && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success-text">
+                  <span className="size-1.5 rounded-full bg-success" />
                   {t("serviceHealthy")}
                 </span>
               )}
               {current && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-text">
-                  <Check className="size-3" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-text">
+                  <Check className="size-3" strokeWidth={2.2} />
                   {c("activeLocal")}
                 </span>
               )}
@@ -187,55 +197,70 @@ export default function AccountPanel() {
           </div>
         </div>
 
-        {/* Top-Right Action Buttons (Consistent with SubscriptionDetail & ControllerDetail) */}
-        <div className="flex shrink-0 items-center gap-2.5">
-          {signedIn && (
-            <Button
-              variant="outline"
-              disabled={busy}
-              className="gap-2"
-              onClick={() => void action(update, c("updated"), "sync")}
-            >
-              <RefreshCw
-                className={cn(
-                  "size-4",
-                  pendingAction === "sync" && "animate-spin",
-                )}
-              />
-              {pendingAction === "sync"
-                ? t("phaseSync")
-                : failure
-                  ? common("retry")
-                  : t("syncSubscription")}
-            </Button>
-          )}
+        {/* 操作按鈕列置於身份區塊下方，保證四枚狀態標籤單行完整呈現 */}
+        {(signedIn || current) && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            {signedIn && (
+              <Button
+                variant="outline"
+                disabled={busy}
+                className="h-9 gap-2 rounded-[10px] bg-card/90 px-3.5 shadow-2xs"
+                onClick={() => void action(update, c("updated"), "sync")}
+              >
+                <RefreshCw
+                  className={cn(
+                    "size-3.5",
+                    pendingAction === "sync" && "animate-spin",
+                  )}
+                />
+                {pendingAction === "sync"
+                  ? t("phaseSync")
+                  : failure
+                    ? common("retry")
+                    : t("syncSubscription")}
+              </Button>
+            )}
 
-          {current ? (
-            <Button
-              variant="secondary"
-              disabled
-              className="pointer-events-none gap-1.5"
-            >
-              <Check className="size-4 text-success" />
-              {c("activeLocal")}
-            </Button>
-          ) : signedIn ? (
-            <Button
-              variant="brand"
-              disabled={busy}
-              className="gap-1.5"
-              onClick={() => void action(activateCloud, "", "use")}
-            >
-              {pendingAction === "use" ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
-                <Zap className="size-4" />
-              )}
-              {pendingAction === "use" ? t("applyingConfig") : c("use")}
-            </Button>
-          ) : null}
-        </div>
-      </div>
+            {current ? (
+              <Button
+                variant="secondary"
+                disabled
+                className="pointer-events-none h-9 gap-1.5 rounded-[10px] px-3.5 text-muted-foreground [&_svg]:text-success"
+              >
+                <Check className="size-3.5" strokeWidth={2.2} />
+                {c("activeLocal")}
+              </Button>
+            ) : signedIn ? (
+              <Button
+                variant="brand"
+                disabled={busy}
+                className="h-9 gap-1.5 rounded-[10px] px-4"
+                onClick={() => void action(activateCloud, "", "use")}
+              >
+                {pendingAction === "use" ? (
+                  <LoaderCircle className="size-3.5 animate-spin" />
+                ) : (
+                  <Zap className="size-3.5" />
+                )}
+                {pendingAction === "use" ? t("applyingConfig") : c("use")}
+              </Button>
+            ) : null}
+
+            {signedIn && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                className="ms-auto h-9 gap-1.5 rounded-[10px] px-3 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setConfirmLogout(true)}
+              >
+                <LogOut className="size-3.5" />
+                {t("logout")}
+              </Button>
+            )}
+          </div>
+        )}
+      </section>
 
       {connecting ? (
         <p
@@ -465,98 +490,125 @@ export default function AccountPanel() {
             </div>
           )}
 
-          {/* Quota & Plan Overview Card */}
-          <div className="rounded-card border bg-card p-5 shadow-elevation-card">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">
+          {/* Quota & Plan Card：配額環是卡片的視覺主角；右側帶柔和極光波形裝飾；
+              底部收進三欄信息欄（到期／套餐／協議）。 */}
+          <div className="relative overflow-hidden rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5 2xl:p-6">
+            <AuroraWave className="top-2 -end-5 h-48 w-[58%] opacity-25" />
+            <div className="relative z-10 mb-2 flex flex-wrap items-center justify-between gap-2 xl:mb-4">
+              <h3 className="text-lg font-bold text-foreground xl:text-title">
                 {conn("quota.title")}
               </h3>
               {account.consoleUrl && (
                 <a
-                  className="inline-flex h-7 items-center justify-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border border-border-strong bg-card/90 px-3 text-xs font-medium text-foreground shadow-2xs transition-colors hover:bg-accent hover:text-accent-foreground"
                   href={account.consoleUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(event) => openExternal(event, account.consoleUrl)}
                 >
-                  <ExternalLink aria-hidden="true" className="size-3" />
+                  <ExternalLink aria-hidden="true" className="size-3.5" />
                   {t("openConsole")}
                 </a>
               )}
             </div>
 
-            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 xl:grid-cols-[auto_minmax(10rem,1fr)_auto] xl:items-center">
-              {quota ? (
-                <>
-                  <QuotaRing percent={quota.remainingPercent} />
-                  <div className="flex min-w-0 flex-col gap-2">
-                    <Stat label={t("quotaRemaining")} className="tabular-nums">
-                      {formatTraffic(quota.remaining)}
-                    </Stat>
-                    <Stat
-                      size="sm"
-                      label={`${t("quotaUsed")} / ${t("quotaTotal")}`}
-                      className="tabular-nums"
-                    >
-                      {formatTraffic(quota.used)} /{" "}
-                      {formatTraffic(cloudProfile?.total ?? 0)}
-                    </Stat>
-                  </div>
-                </>
-              ) : (
-                <div className="col-span-2 text-xs text-muted-foreground">
-                  {c("unknownService")}
-                </div>
-              )}
-
-              <div className="col-span-full flex min-w-0 flex-col gap-2.5 border-t border-border pt-4 text-xs xl:col-span-1 xl:border-t-0 xl:border-s xl:pt-0 xl:ps-6">
-                <div className="flex items-center justify-between gap-3 xl:justify-start">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Calendar className="size-3.5" />
-                    {t("serviceExpiry")}
+            {quota ? (
+              <div className="relative z-10 flex min-w-0 flex-wrap items-center gap-4 xl:gap-6 xl:py-1">
+                <QuotaRing
+                  percent={quota.remainingPercent}
+                  className="size-22 xl:size-32 2xl:size-36"
+                />
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-label text-muted-foreground">
+                    {t("quotaRemaining")}
                   </span>
-                  <span className="font-mono font-medium text-foreground tabular-nums">
-                    {account.service?.servicePeriodEnd
-                      ? new Date(
-                          account.service.servicePeriodEnd,
-                        ).toLocaleDateString(lang.replace("_", "-"))
-                      : "—"}
+                  <strong className="text-metric leading-tight font-bold tracking-tight tabular-nums text-foreground">
+                    {formatTraffic(quota.remaining)}
+                  </strong>
+                  <span className="mt-1 text-label text-muted-foreground">
+                    {t("quotaUsed")} / {t("quotaTotal")}
                   </span>
-                </div>
-                <div className="flex items-center justify-between gap-3 xl:justify-start">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Zap className="size-3.5" />
-                    {t("servicePlan")}
-                  </span>
-                  <span className="font-medium text-foreground">
-                    {account.service?.enabled
-                      ? account.service.plan
-                      : t("noService")}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-3 xl:justify-start">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Globe className="size-3.5" />
-                    {t("protocol")}
-                  </span>
-                  <span className="font-medium text-brand">
-                    {cloudProfile?.format === "clash"
-                      ? "Clash / mihomo"
-                      : cloudProfile?.format === "sing-box"
-                        ? "sing-box"
-                        : "VLESS / Trojan"}
+                  <span className="text-sm font-medium tabular-nums text-foreground/85">
+                    {formatTraffic(quota.used)} /{" "}
+                    {formatTraffic(cloudProfile?.total ?? 0)}
                   </span>
                 </div>
               </div>
-            </div>
+            ) : (
+              <p className="relative z-10 text-xs text-muted-foreground">
+                {c("unknownService")}
+              </p>
+            )}
+
+            {/* 底部信息欄：豎線分隔的三項讀數（到期時間 / 套餐 / 協議類型）。 */}
+            <dl className="relative z-10 mt-3 grid grid-cols-1 gap-x-3 gap-y-3 border-t border-border pt-3 text-sm sm:grid-cols-3 sm:divide-x sm:divide-border xl:mt-4 xl:gap-x-6 xl:pt-4">
+              {(
+                [
+                  {
+                    Icon: Calendar,
+                    label: t("serviceExpiry"),
+                    value: account.service?.servicePeriodEnd
+                      ? new Date(
+                          account.service.servicePeriodEnd,
+                        ).toLocaleDateString(lang.replace("_", "-"))
+                      : "—",
+                    mono: true,
+                  },
+                  {
+                    Icon: Zap,
+                    label: t("servicePlan"),
+                    value: account.service?.enabled
+                      ? account.service.plan
+                      : t("noService"),
+                  },
+                  {
+                    Icon: Globe,
+                    label: t("protocol"),
+                    value:
+                      cloudProfile?.format === "clash"
+                        ? "Clash / mihomo"
+                        : cloudProfile?.format === "sing-box"
+                          ? "sing-box"
+                          : "VLESS / Trojan",
+                    brand: true,
+                  },
+                ] satisfies Array<{
+                  Icon: typeof Calendar;
+                  label: string;
+                  value: string;
+                  mono?: boolean;
+                  brand?: boolean;
+                }>
+              ).map(({ Icon, label, value, mono, brand }) => (
+                <div
+                  key={label}
+                  className="flex min-w-0 flex-col gap-1 sm:ps-3 sm:first:ps-0 xl:ps-6"
+                >
+                  <dt className="flex items-center gap-1.5 text-muted-foreground">
+                    <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+                    {label}
+                  </dt>
+                  <dd
+                    className={cn(
+                      "truncate text-body font-bold tabular-nums",
+                      mono && "font-mono",
+                      brand ? "text-brand-text" : "text-foreground",
+                    )}
+                    title={value}
+                  >
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
 
-          {/* Announcements Card */}
-          {account.announcements && account.announcements.length > 0 && (
-            <div className="flex flex-col rounded-card border bg-card p-5 shadow-elevation-card gap-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                {t("announcements")}
-              </h3>
+          {/* Announcements Card：空狀態也保留卡片，交代「沒有公告」這個事實。 */}
+          <div className="flex flex-col gap-3 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5 2xl:p-6">
+            <h3 className="text-lg font-bold text-foreground xl:text-title">
+              {t("announcements")}
+            </h3>
+            {account.announcements && account.announcements.length > 0 ? (
               <div className="divide-y divide-border/60">
                 {account.announcements.slice(0, 3).map((item) => (
                   <article key={item.id} className="py-3 first:pt-1 last:pb-1">
@@ -571,29 +623,24 @@ export default function AccountPanel() {
                   </article>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Danger Zone: Log Out */}
-          <div className="rounded-card border border-destructive/25 bg-destructive/[0.03] p-5 shadow-elevation-card flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
-                <LogOut className="size-4" />
-                {t("logout")}
-              </h3>
-              <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                {c("logoutImpact")}
-              </p>
-            </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="shrink-0"
-              disabled={busy}
-              onClick={() => setConfirmLogout(true)}
-            >
-              {t("logout")}
-            </Button>
+            ) : (
+              <div className="flex items-center gap-3.5 py-1">
+                <span
+                  aria-hidden="true"
+                  className="grid size-10 shrink-0 place-items-center rounded-control bg-brand-soft text-brand-text"
+                >
+                  <Megaphone className="size-5" strokeWidth={1.75} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-foreground">
+                    {t("announcementsEmpty")}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    {t("announcementsEmptyDesc")}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : (

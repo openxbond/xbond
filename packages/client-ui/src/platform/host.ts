@@ -1,8 +1,8 @@
 export type UiHost = "macos" | "windows" | "ios" | "android" | "web";
 
 /**
- * Picks the visual host from the user agent so tokens.css can switch shapes
- * and fonts per platform (DESIGN.md「原生基準」). Linux and unknown browsers
+ * Picks the visual host from the user agent so tokens.css can select fonts
+ * per platform. Linux and unknown browsers
  * fall back to the neutral web scale; iPadOS reports as Macintosh with touch.
  */
 export function detectUiHost(): UiHost {

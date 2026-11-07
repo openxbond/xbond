@@ -1,33 +1,81 @@
 @layer components {
   .config-page {
-    gap: 16px;
+    gap: 14px;
   }
-  .config-workspace {
+
+  @media (width >= 96rem) {
+    .config-page {
+      gap: 24px;
+    }
+  }
+
+  @media (width >= 64rem) {
+    .page.config-page {
+      height: 100%;
+    }
+  }
+
+  @media (width >= 64rem) and (height <= 46rem) {
+    .page.config-page {
+      padding-block: 12px;
+    }
+  }
+  .config-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-inline: 4px;
+  }
+  /* 清單與詳情共用頂緣，詳情使用剩餘寬度。 */
+  .config-shell {
     display: grid;
-    grid-template-columns: clamp(260px, 22vw, 300px) minmax(0, 1fr);
-    height: calc(100dvh - 150px);
+    grid-template-columns: clamp(14rem, 23vw, 23.5rem) minmax(0, 1fr);
+    gap: 16px;
+    flex: 1 1 auto;
     min-height: 0;
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-card);
-    background: var(--glass-surface);
-    box-shadow: var(--elevation-card);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    overflow: hidden;
+    align-items: stretch;
   }
-  .config-resources {
-    padding: 18px 12px;
-    background: color-mix(in oklch, var(--surface-inset) 40%, var(--card));
-    border-inline-end: 1px solid var(--border);
+  .config-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
     min-width: 0;
-    height: 100%;
+    min-height: 0;
+    padding: 16px 14px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklch, var(--border) 80%, transparent)
       transparent;
   }
+  .config-list-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .config-list-intro h1 {
+    margin: 0;
+    font-size: var(--text-headline);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    color: var(--foreground);
+  }
+  .config-list-intro p {
+    margin: 0;
+    font-size: var(--text-label);
+    line-height: 1.45;
+    color: var(--muted-foreground);
+  }
+  .config-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
   .config-group {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
   }
   .config-group:last-child {
     margin-bottom: 0;
@@ -80,22 +128,25 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 10px;
+    padding: 9px 11px;
     text-align: start;
-    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    border-radius: 12px;
     font-size: var(--text-body);
     cursor: pointer;
     transition:
       background-color 120ms ease,
+      border-color 120ms ease,
       color 120ms ease;
   }
   .config-resource:hover {
     background: var(--surface-inset);
   }
   .config-resource.is-selected {
-    background: color-mix(in oklab, var(--card) 72%, transparent);
+    border-color: color-mix(in oklab, var(--brand) 28%, transparent);
+    background: color-mix(in oklab, var(--brand-soft) 72%, var(--card));
     color: var(--foreground);
-    box-shadow: 0 6px 18px -14px oklch(0.2 0.03 265 / 35%);
+    box-shadow: 0 8px 18px -14px oklch(0.68 0.18 45 / 35%);
   }
   /* 焦點落在行內按鈕上，行本身不可聚焦：用 :has() 把外框掛回整行。 */
   .config-resource:has(:focus-visible) {
@@ -103,13 +154,19 @@
     outline-offset: 1px;
   }
   .config-detail {
-    min-width: 0;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklch, var(--border) 80%, transparent)
       transparent;
-    padding: clamp(20px, 2.5vw, 36px);
+  }
+  .config-detail-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 100%;
+    padding: clamp(0.875rem, 1.45vw, 1.5rem);
   }
   .config-back {
     display: none;
@@ -128,9 +185,12 @@
     min-height: 44px;
   }
   .config-list-empty {
-    margin: 8px 12px;
-    font-size: var(--text-body);
-    line-height: 1.7;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 8px;
+    font-size: var(--text-label);
+    line-height: 1.5;
     color: var(--muted-foreground);
   }
   .config-status {
@@ -203,8 +263,8 @@
     display: flex;
     min-height: 48px;
     align-items: center;
-    gap: 8px;
-    padding: 7px 9px;
+    gap: 6px;
+    padding: 7px 5px;
     border: 1px solid transparent;
     border-radius: var(--radius-control);
     cursor: pointer;
@@ -312,31 +372,30 @@
     border-top: 1px solid var(--border);
     margin-block: 6px;
   }
+  /* 行動寬度：清單與詳情互斥切換（選中即進詳情、返回回清單），
+     環境選擇器與其頂欄一并隱藏。 */
   @media (width < 64rem) {
-    .config-workspace {
+    .config-shell {
       display: block;
-      height: auto;
-      max-height: none;
-      min-height: 0;
-      border-radius: var(--radius-card);
+      flex: none;
     }
-    .config-resources {
-      border-inline-end: 0;
-      padding: 16px 10px;
+    .config-list {
       height: auto;
       overflow-y: visible;
+    }
+    .config-main {
+      display: none;
+    }
+    .config-shell.has-selection .config-list {
+      display: none;
+    }
+    .config-shell.has-selection .config-main {
+      display: block;
     }
     .config-detail {
-      display: none;
-      padding: 20px;
       height: auto;
       overflow-y: visible;
-    }
-    .config-workspace.has-selection .config-resources {
-      display: none;
-    }
-    .config-workspace.has-selection .config-detail {
-      display: block;
+      padding: 0;
     }
     .config-back {
       display: block;

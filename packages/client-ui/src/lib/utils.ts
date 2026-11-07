@@ -9,7 +9,17 @@ const twMerge = extendTailwindMerge<"custom-font-size">({
   extend: {
     classGroups: {
       "custom-font-size": [
-        { text: ["label", "body", "subtitle", "title", "headline", "display"] },
+        {
+          text: [
+            "label",
+            "body",
+            "subtitle",
+            "title",
+            "metric",
+            "headline",
+            "display",
+          ],
+        },
       ],
     },
     conflictingClassGroups: {
