@@ -238,14 +238,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		"TEMP_BE1E1598-D542-4A86-88A7-1820B286D6E7" /* x86_64 */ = {
+		"TEMP_17DE98EB-8D86-4621-AA94-122CBD49E319" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = x86_64;
 			sourceTree = "<group>";
 		};
-		"TEMP_F122803B-5FC2-4503-941B-5C4BC8D86E34" /* arm64 */ = {
+		"TEMP_DA23ADD7-BE59-4D6B-9FC5-C5E25088DB55" /* arm64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -440,6 +440,7 @@
 		3829ADA20663CC52B60C57A4 /* debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 0.3.0;
@@ -452,6 +453,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 467DD070DBA1074A69786BC8 /* XBond.xcconfig */;
 			buildSettings = {
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 0.3.0;
