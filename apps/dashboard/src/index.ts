@@ -1,4 +1,4 @@
-import "@xbond/client-ui/bootstrap";
+import { isTauriRuntime } from "@xbond/client-ui/bootstrap";
 
 async function registerDashboardWorker() {
   const registration = await navigator.serviceWorker.register("./sw.js");
@@ -40,6 +40,8 @@ async function registerDashboardWorker() {
 
 if (
   import.meta.env.PROD &&
+  import.meta.env.MODE !== "tauri" &&
+  !isTauriRuntime() &&
   "serviceWorker" in navigator &&
   location.protocol === "https:" &&
   !document.querySelector('meta[name="localapi-token"]')

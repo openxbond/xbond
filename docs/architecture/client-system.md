@@ -6,10 +6,9 @@ XBond 保留 cloud 與 xbond 兩個倉庫。cloud 擁有帳號、計費、服務
 
 ```mermaid
 flowchart TD
-  Dashboard["apps/dashboard · 網頁入口"] --> UI["packages/client-ui · 共用畫面"]
-  Desktop["apps/desktop · 桌面入口"] --> UI
+  Dashboard["apps/dashboard · 共用前端入口"] --> UI["packages/client-ui · 共用畫面"]
   UI --> Client["packages/client · 控制器、配置、傳輸"]
-  Desktop --> Tauri["src-tauri · IPC、托盤、進程"]
+  Tauri["src-tauri · IPC、托盤、進程"] --> Dashboard
   Client --> Local["LocalAPI"]
   Client --> Remote["外部控制器"]
   Local --> Daemon["internal/daemon"]
@@ -27,8 +26,7 @@ flowchart TD
 
 | 位置 | 責任與適合放入的程式碼 |
 | --- | --- |
-| apps/dashboard | HTML、靜態資源、獨立網頁啟動 |
-| apps/desktop | 桌面 HTML／JS 入口 |
+| apps/dashboard | Web、桌面與移動共用的 HTML、前端啟動及靜態資源 |
 | src-tauri | 桌面與移動共用的 Tauri 殼（crate `xbond-app`）：桌面能力走 `desktop` feature 門控，移動面註冊插件；gen/ 為平台生成工程 |
 | plugins/xbond | 移動原生能力（Tauri 插件）：LocalAPI 配置、分應用、自更新、偏好、系統欄、OAuth 回調；Kotlin 側 VpnService／TileService，Swift 側隧道橋與 PacketTunnel 源 |
 | packages/client | 不依賴 React 的控制器、來源資料正規化、核心及 LocalAPI 傳輸、策略與串流邏輯 |
@@ -54,7 +52,7 @@ client 的 interface 包含控制器身份、操作結果及資料語義；HTTP�
 
 client-ui 擁有呈現與互動；client 不向 client-ui 或 apps 導入，不直接探測 window、document、localStorage 或 chrome。共用 package 不反向導入宿主。pnpm check:architecture 解析 TypeScript／TSX 導入與 re-export，檢查方向、package exports、直接依賴、宿主探測及跨 package 循環；pnpm lint 會執行此檢查。這個門禁補充型別檢查，不宣稱驗證所有執行期動態載入。
 
-配置及資料的磁碟位置由 internal/platform/paths 決定，原始碼搬遷不改變 XBOND_DATA_DIR、訂閱來源、憑據與偏好格式。桌面及網頁各有 HTML／JS 入口，共享 client-ui；Vite 分別輸出到 `dist/desktop/` 及 `dist/web/`。
+配置及資料的磁碟位置由 internal/platform/paths 決定，原始碼搬遷不改變 XBOND_DATA_DIR、訂閱來源、憑據與偏好格式。Web、桌面及移動共用 `apps/dashboard` 的 HTML／JS 入口。Vite 將桌面前端輸出到 `dist/desktop/`，將 Web 及移動 WebView 使用的前端輸出到 `dist/web/`。Service Worker 只在符合條件的瀏覽器頁面註冊。
 
 ## 帳號與服務管理的責任
 

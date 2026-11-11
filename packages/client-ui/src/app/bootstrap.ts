@@ -4,6 +4,8 @@ import { initUiHost } from "@/platform/host";
 
 import renderApp from "./mount-app";
 
+export { isTauriRuntime } from "@/platform/host";
+
 initUiHost();
 
 /**

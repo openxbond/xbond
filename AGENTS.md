@@ -8,7 +8,7 @@
 
 - `cmd/xbond/`：單一二進位的 CLI；`daemon` 子命令本機前景運行，`daemon install|uninstall|start|stop|restart|status` 管理服務註冊（`--scope user`／`system`）。`internal/daemon/`：本機服務與 LocalAPI；`internal/daemon/service/`：平台託管（systemd --user／LaunchAgent／HKCU Run；機器級：Windows SCM 服務、macOS LaunchDaemon）。
 - `internal/engine/`：雙核心（mihomo v1.19.33 主核心跑 Clash YAML，sing-box v1.13.21 副核心跑 sing-box JSON，同一時間僅一個，引用包模式）；`internal/sub/`：訂閱與配置；`internal/platform/`：資料位置與系統代理；`internal/diag/`：診斷與脫敏。
-- `src-tauri/`：Tauri 殼（crate `xbond-app`），桌面與移動共用——桌面能力（托盤、單實例、自啟、快捷鍵、更新器）由 `desktop` feature 門控，移動面註冊 `xbond`／`opener`／`deep-link` 插件；`plugins/xbond/`：移動原生能力插件（Kotlin 服務與更新、Swift 橋與 PacketTunnel 源，gomobile AAR／XCFramework 產物落其 `libs`／`Frameworks`）；`src-tauri/gen/`：`tauri android init`／`ios init` 生成工程（提交，手改清單見移動規格）；`apps/dashboard/`：網頁入口及靜態資源；`apps/desktop/`：桌面 HTML／JS 入口；`mobile/` 保留 gomobile 公開入口。
+- `src-tauri/`：Tauri 殼（crate `xbond-app`），桌面與移動共用——桌面能力（托盤、單實例、自啟、快捷鍵、更新器）由 `desktop` feature 門控，移動面註冊 `xbond`／`opener`／`deep-link` 插件；`plugins/xbond/`：移動原生能力插件（Kotlin 服務與更新、Swift 橋與 PacketTunnel 源，gomobile AAR／XCFramework 產物落其 `libs`／`Frameworks`）；`src-tauri/gen/`：`tauri android init`／`ios init` 生成工程（提交，手改清單見移動規格）；`apps/dashboard/`：Web、桌面與移動共用的前端入口及靜態資源；`mobile/` 保留 gomobile 公開入口。
 - `packages/client/`：無 React 的控制器、配置及傳輸；`packages/client-ui/`：React 19、React Router、Jotai、Tailwind CSS v4 + shadcn/ui（組件在 `src/components/ui/`，由 `packages/client-ui/components.json` 管理，在根目錄執行 `pnpm ui:add <component>` 添加）共用畫面。
 - `scripts/`：`dev/` 管理開發工具，`check/` 執行工程檢查，`release/` 建置、簽署及驗證發佈產物。
 

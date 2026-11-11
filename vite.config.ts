@@ -35,8 +35,7 @@ function tailwindDevOptimize(): Plugin {
 }
 
 export default defineConfig((env) => ({
-  root: env.mode === "tauri" ? "apps/desktop" : "apps/dashboard",
-  publicDir: path.resolve("apps/dashboard/public"),
+  root: "apps/dashboard",
   define: {
     __APP_VERSION__: JSON.stringify(process.env.XBOND_VERSION || pkg.version),
   },

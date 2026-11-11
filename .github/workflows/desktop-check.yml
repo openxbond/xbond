@@ -10,7 +10,6 @@ on:
       - "src-tauri/**"
       - "plugins/**"
       - "apps/dashboard/**"
-      - "apps/desktop/**"
       - "packages/client/**"
       - "packages/client-ui/**"
       - "vite.config.ts"
