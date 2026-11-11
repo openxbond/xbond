@@ -146,7 +146,7 @@ jobs:
         if: runner.os == 'Linux'
         with:
           fuse2: "true"
-      - name: Import Windows code signing certificate when configured
+      - name: Import Windows code signing certificate
         if: runner.os == 'Windows'
         shell: pwsh
         env:
@@ -172,6 +172,19 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
           pnpm release:desktop "$TAG" "$TARGET_OS" "$TARGET_ARCH"
+      - name: Verify Windows installer Authenticode signature
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = "release/$($env:TAG)/desktop/windows-$($env:TARGET_ARCH)/xbond-desktop-$($env:TAG)-windows-$($env:TARGET_ARCH).exe"
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer
+          if (-not $env:WINDOWS_CERTIFICATE_THUMBPRINT -and $signature.Status -eq "NotSigned") {
+            Write-Warning "Windows installer has no Authenticode signature: $installer"
+            return
+          }
+          if ($signature.Status -ne "Valid" -or $signature.SignerCertificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
+            throw "Invalid Authenticode signature for ${installer}: $($signature.Status) ($($signature.StatusMessage))"
+          }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-${{ matrix.os }}-${{ matrix.arch }}

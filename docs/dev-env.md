@@ -10,7 +10,7 @@
 
 ## 桌面(Tauri)
 
-`pnpm desktop`、`pnpm desktop:check` 與 `pnpm desktop:build` 需要 Rust stable(rustup)及平台建置依賴。缺失的典型症狀:cargo 編譯 `soup3-sys`、`javascriptcore-rs-sys` 等 `-sys` crate 時 pkg-config 報 `Package ... was not found`。
+`pnpm desktop`、`pnpm desktop:check` 與 `pnpm desktop:compile` 需要 Rust stable(rustup)及平台建置依賴。缺失的典型症狀:cargo 編譯 `soup3-sys`、`javascriptcore-rs-sys` 等 `-sys` crate 時 pkg-config 報 `Package ... was not found`。
 
 `pnpm desktop` 另一前提:首次開發運行前先 `pnpm cli:build`,桌面殼在 `dist/cli/` 找 `xbond` CLI 來註冊並啟動本機服務;CLI 缺失時殼會輸出指引,介面停留在本機服務未連線狀態。本機服務已安裝並運行時不需要。
 

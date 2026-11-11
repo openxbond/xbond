@@ -45,7 +45,7 @@
     "cli:check": "node scripts/go.ts check",
     "tauri": "tauri",
     "desktop": "tauri dev --config apps/desktop/src-tauri/tauri.conf.json",
-    "desktop:build": "tauri build --no-bundle --config apps/desktop/src-tauri/tauri.conf.json",
+    "desktop:compile": "tauri build --no-bundle --config apps/desktop/src-tauri/tauri.conf.json",
     "desktop:check": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "desktop:links": "node scripts/desktop.ts register-links",
     "desktop:fmt": "cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml",

@@ -4,7 +4,7 @@
 
 ## 產物目錄
 
-日常建置用 `dist/`。`pnpm build` 產出 `dist/web/`，`pnpm build:desktop` 產出 `dist/desktop/`，`pnpm cli:build` 產出 `dist/cli/xbond`（Windows 為 `xbond.exe`）。`pnpm desktop:build` 編譯本機桌面執行檔，封裝安裝包使用 `pnpm release:desktop`。
+日常建置用 `dist/`。`pnpm build` 產出 `dist/web/`，`pnpm build:desktop` 產出 `dist/desktop/`，`pnpm cli:build` 產出 `dist/cli/xbond`（Windows 為 `xbond.exe`）。`pnpm desktop:compile` 編譯本機桌面執行檔，封裝安裝包使用 `pnpm release:desktop`。
 
 發佈候選以 `release/<tag>/` 為根目錄。下列路徑使用 `v0.4.3` 作例子。
 
@@ -18,6 +18,8 @@
 | `assets/`、`pages/` | GitHub Release 的平鋪資產、簽名清單與 `SHA256SUMS`，以及從同批資產產生的 Pages 網站。 |
 
 本機可先跑 `pnpm release:build v0.4.3`。有目標平台工具鏈及簽名材料時，再在相應宿主跑 `pnpm release:desktop v0.4.3 linux amd64`（按宿主換成 `windows`、`darwin` 或 `linux`，架構用 `amd64` 或 `arm64`）。桌面封裝從同版 `core/` 取出 daemon。Tauri、Gradle 及 Xcode 的原生中間檔由各自工具管理。
+
+Tauri 在 `tauri.<platform>.conf.json` 選擇平台的安裝包格式，桌面發佈再疊加 `tauri.release.conf.json` 啟用 daemon sidecar 及更新產物。封裝指令帶入本次版本及簽名設定。
 
 ## 1. 推 Tag
 
@@ -59,7 +61,7 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 | --- | --- |
 | Repository Variables | `XBOND_RELEASE_PUBLIC_KEY`（32-byte Ed25519 公鑰的 Base64）、`XBOND_TAURI_PUBLIC_KEY`（Tauri 公鑰檔內容）、`APPLE_TEAM_ID`。有可用條目後才填 `APP_STORE_URL`。有可用的 TestFlight 公開邀請時可填 `IOS_TESTFLIGHT_URL`。 |
 | `release-manifest-signing` | Secret `XBOND_RELEASE_PRIVATE_KEY`（配對的 PKCS#8 PEM）。 |
-| `release-desktop-signing` | Secrets `TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（如有）。macOS 另需 `APPLE_CERTIFICATE`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY` 及 Apple 團隊 API Key `ASC_KEY`。公證與 TestFlight 共用 Repository Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。Windows Authenticode 可用 `WINDOWS_PFX` 和 `WINDOWS_PFX_PASSWORD`。 |
+| `release-desktop-signing` | Secrets `TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（如有）。macOS 另需 `APPLE_CERTIFICATE`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY` 及 Apple 團隊 API Key `ASC_KEY`。公證與 TestFlight 共用 Repository Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。Windows 可配置 `WINDOWS_PFX` 及 `WINDOWS_PFX_PASSWORD`。配置後，CI 在上傳前驗證 Authenticode 簽名及簽署憑證指紋。憑證未配置時，CI 會標示安裝包缺少 Authenticode 簽名。 |
 | `release-android-signing` | Secrets `ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`。若金鑰密碼與 keystore 密碼不同，設定 `ANDROID_KEY_PASSWORD_OVERRIDE`。Variables `ANDROID_KEY_ALIAS`、`ANDROID_SIGNER_SHA256`（小寫十六進位，無冒號）。後續更新沿用同一簽名身份。 |
 | `release-ios-signing` | Apple Developer 組織帳號。為 `net.xbond.app` 和 `net.xbond.app.PacketTunnel` 建立 App Store Connect 發行用 profiles，配置 Network Extension 及 App Group `group.net.xbond.app`。Secrets `IOS_DISTRIBUTION_P12`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE` 用 Base64，另設 `IOS_DISTRIBUTION_PASSWORD`。 |
 | `release-store-ios` | Secret `ASC_KEY`（App Store Connect P8 原文），Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。 |

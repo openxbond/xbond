@@ -69,7 +69,7 @@ const output = join(releaseDirectory, "desktop", `${releaseOS}-${arch}`);
 if (existsSync(output))
   throw new Error(`Release directory already exists: ${output}`);
 const configDir = mkdtempSync(join(tmpdir(), "xbond-desktop-"));
-const config = join(configDir, "tauri.release.json");
+const signingConfig = join(configDir, "tauri.signing.json");
 
 const targetDirectory = resolve(
   process.env.CARGO_TARGET_DIR ?? join(tauriDirectory, "target"),
@@ -161,14 +161,13 @@ try {
   copiedSidecar = true;
   if (os !== "win32") chmodSync(sidecar, 0o755);
   writeFileSync(
-    config,
+    signingConfig,
     JSON.stringify({
       version,
-      bundle: {
-        createUpdaterArtifacts: true,
-        externalBin: ["binaries/xbond-daemon"],
-        ...(os === "win32" && process.env.WINDOWS_CERTIFICATE_THUMBPRINT
-          ? {
+      plugins: { updater: { pubkey: publicKey } },
+      ...(os === "win32" && process.env.WINDOWS_CERTIFICATE_THUMBPRINT
+        ? {
+            bundle: {
               windows: {
                 certificateThumbprint:
                   process.env.WINDOWS_CERTIFICATE_THUMBPRINT,
@@ -178,16 +177,9 @@ try {
                   "http://timestamp.digicert.com",
                 tsp: true,
               },
-            }
-          : {}),
-      },
-      plugins: {
-        updater: {
-          pubkey: publicKey,
-          requireSignedVersion: true,
-          endpoints: ["https://openxbond.github.io/xbond/desktop.json"],
-        },
-      },
+            },
+          }
+        : {}),
     }),
   );
   run(
@@ -196,11 +188,11 @@ try {
       join(root, "node_modules", "@tauri-apps", "cli", "tauri.js"),
       "build",
       "--config",
-      config,
+      join(tauriDirectory, "tauri.release.conf.json"),
+      "--config",
+      signingConfig,
       "--target",
       rustTarget,
-      "--bundles",
-      os === "darwin" ? "app,dmg" : bundle,
     ],
     {
       ...process.env,
