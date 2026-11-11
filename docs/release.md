@@ -74,7 +74,7 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 
 ### 建立或輪換簽名材料
 
-1. 用 `pnpm tauri signer generate -w <受控目錄>/tauri-updater.key` 生成帶密碼的桌面更新金鑰。將 `.pub` 檔原文填入 `XBOND_TAURI_PUBLIC_KEY`。將私鑰和密碼填入桌面簽名環境。[Tauri Updater](https://v2.tauri.app/plugin/updater/#signing)
+1. 用 `pnpm tauri signer generate -w <受控目錄>/tauri-updater.key` 生成帶密碼的桌面更新金鑰。將 `.pub` 檔內容的 Base64 填入 `XBOND_TAURI_PUBLIC_KEY`（Tauri 更新器讀取時會先 Base64 解碼）。將私鑰和密碼填入桌面簽名環境。[Tauri Updater](https://v2.tauri.app/plugin/updater/#signing)
 2. 用 `openssl genpkey -algorithm Ed25519 -out <受控目錄>/release-manifest.pem` 生成獨立的清單簽名私鑰，將 PEM 填入 `XBOND_RELEASE_PRIVATE_KEY`。用 `openssl pkey -pubout -outform DER` 匯出對應公鑰，將 DER 末尾 32 bytes 轉為 Base64，填入 `XBOND_RELEASE_PUBLIC_KEY`。CLI 與 Android 都會嵌入這個公鑰。
 3. 用 `keytool -genkeypair -storetype PKCS12 -keystore <受控目錄>/xbond-release.keystore -alias xbond-release -keyalg RSA -keysize 2048 -validity 10950` 建立 Android 發行 keystore。將 keystore 的 Base64 和密碼放入 Android 簽名環境，配置 alias 和新憑證的 SHA-256 指紋。使用 25 年以上的憑證有效期，並以 `keytool -list -v` 核對指紋。若之後加入 Google Play，先決定網站 APK 與 Play 安裝能否互相覆蓋更新，再選擇 Play App Signing 的應用簽名金鑰。[Android 簽名指南](https://developer.android.com/studio/publish/app-signing)
 4. 把簽名材料及密碼備份到組織的私有 `openxbond/automation` 倉庫，限制讀取權限。更換時同步更新 GitHub 上配對的公鑰、私鑰、密碼及憑證指紋。已用舊身份安裝的測試版需手動換裝新簽名版。
