@@ -1,0 +1,249 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { coreCapabilities } from "../src/capabilities.ts";
+import { ConnectionStore } from "../src/connection-store.ts";
+import {
+  migrateExternals,
+  normalizeControllerURL,
+  resolveControlTarget,
+  streamURL,
+  validPort,
+  createControllerId,
+} from "../src/controller.ts";
+import { runLatencyTests, validLatencyOptions } from "../src/latency.ts";
+import type { Connections } from "../src/request.ts";
+
+test("HTTP LAN deployments generate profile IDs without secure-context randomUUID", (t) => {
+  const original = Object.getOwnPropertyDescriptor(
+    globalThis.crypto,
+    "randomUUID",
+  );
+  Object.defineProperty(globalThis.crypto, "randomUUID", {
+    value: undefined,
+    configurable: true,
+  });
+  t.after(() => {
+    if (original)
+      Object.defineProperty(globalThis.crypto, "randomUUID", original);
+    else Reflect.deleteProperty(globalThis.crypto, "randomUUID");
+  });
+  assert.notEqual(createControllerId(), createControllerId());
+  const hosts = migrateExternals([
+    { hostname: "192.168.1.1", port: 9090, secret: "one" },
+    { hostname: "192.168.1.2", port: 9090, secret: "two" },
+  ]);
+  assert.equal(hosts.length, 2);
+  assert.equal(hosts[0].secret, "one");
+});
+test("external migration preserves multiple profiles and repairs invalid records", () => {
+  const hosts = migrateExternals([
+    { hostname: "localhost", port: 9090, secret: "one" },
+    { hostname: "::1", port: 9091, secret: "two" },
+    { url: "file:///secret" },
+  ]);
+  assert.equal(hosts.length, 2);
+  assert.notEqual(hosts[0].id, hosts[1].id);
+  assert.equal(hosts[1].url, "http://[::1]:9091");
+  assert.equal(hosts[0].secret, "one");
+  assert.deepEqual(migrateExternals(null), []);
+});
+test("persisted records cannot claim the built-in controller id", () => {
+  // A stored record holding the daemon's reserved id is hidden by every
+  // "is daemon" guard and becomes an undeletable ghost target.
+  const hosts = migrateExternals([
+    {
+      id: "default",
+      name: "nan-of",
+      hostname: "nan-of",
+      port: 9090,
+      secret: "x",
+    },
+    { id: "default", hostname: "192.168.1.1", port: 9090 },
+  ]);
+  assert.equal(hosts.length, 2);
+  for (const host of hosts) assert.notEqual(host.id, "default");
+  assert.equal(hosts[0].name, "nan-of");
+  assert.equal(hosts[0].secret, "x");
+  assert.notEqual(hosts[0].id, hosts[1].id);
+});
+test("built-in daemon copies never survive external migration", () => {
+  const hosts = migrateExternals([
+    { id: "default", name: "XBond", url: "http://127.0.0.1:9090", secret: "" },
+    { id: "stale", name: "XBond", url: "http://127.0.0.1:9090", secret: "" },
+    { id: "kept", hostname: "192.168.10.1", port: 19090, secret: "" },
+  ]);
+  assert.equal(hosts.length, 1);
+  assert.equal(hosts[0].url, "http://192.168.10.1:19090");
+});
+test("HTTPS launch parameters and reverse proxy paths survive REST/WS URL construction", () => {
+  const target = resolveControlTarget(
+    [],
+    { kind: "daemon" },
+    {
+      daemon: {},
+      search: "?protocol=https:&host=example.com&port=9443&secret=a%26b",
+    },
+  );
+  assert.ok(target.kind === "controller");
+  assert.equal(target.controller.url, "https://example.com:9443");
+  assert.equal(target.controller.secret, "a&b");
+  const ws = new URL(
+    streamURL("https://example.com/core", "logs?level=debug", "a&b"),
+  );
+  assert.equal(ws.protocol, "wss:");
+  assert.equal(ws.pathname, "/core/logs");
+  assert.equal(ws.searchParams.get("level"), "debug");
+  assert.equal(ws.searchParams.get("token"), "a&b");
+  assert.throws(() => normalizeControllerURL("javascript:alert(1)"));
+  assert.throws(() =>
+    normalizeControllerURL("https://user:password@example.com"),
+  );
+});
+test("daemon meta carries the controller secret in the password or username slot", () => {
+  const passwordSlot = resolveControlTarget(
+    [],
+    { kind: "daemon" },
+    {
+      daemon: {},
+      meta: "http://:a%26b@127.0.0.1:9090",
+    },
+  );
+  assert.ok(passwordSlot.kind === "daemon" && passwordSlot.endpoint);
+  assert.equal(passwordSlot.endpoint.url, "http://127.0.0.1:9090");
+  assert.equal(passwordSlot.endpoint.secret, "a&b");
+
+  const usernameSlot = resolveControlTarget(
+    [],
+    { kind: "daemon" },
+    {
+      daemon: {},
+      meta: "http://a%26b@127.0.0.1:9090",
+    },
+  );
+  assert.ok(usernameSlot.kind === "daemon" && usernameSlot.endpoint);
+  assert.equal(usernameSlot.endpoint.url, "http://127.0.0.1:9090");
+  assert.equal(usernameSlot.endpoint.secret, "a&b");
+});
+test("sing-box compatibility flags do not advertise Clash Premium mutations", () => {
+  const sing = coreCapabilities(
+    { version: "sing-box 1.14.2", premium: true, meta: true },
+    ["Rule", "Work"],
+  );
+  assert.deepEqual(sing.modes, ["Rule", "Work"]);
+  assert.equal(sing.editPorts, false);
+  assert.equal(sing.editLan, false);
+  assert.equal(sing.reloadConfig, false);
+  assert.equal(sing.proxyProviders, false);
+  assert.equal(sing.ruleProviders, false);
+  assert.equal(sing.flushCache, true);
+  assert.equal(
+    coreCapabilities({
+      version: "sing-box 1.14.2",
+      premium: true,
+    }).modes.includes("script"),
+    false,
+  );
+  assert.equal(coreCapabilities({ version: "v1.18.0" }).editPorts, true);
+  assert.equal(coreCapabilities({ version: "v1.18.0" }).ruleProviders, false);
+});
+test("embedded mihomo core reports its kind from the meta flag and full capabilities", () => {
+  // mihomo's /version returns the bare version number plus meta: true.
+  const core = coreCapabilities({ version: "1.19.33", meta: true });
+  assert.equal(core.kind, "mihomo");
+  assert.equal(core.editPorts, true);
+  assert.equal(core.editLan, true);
+  assert.equal(core.reloadConfig, true);
+  assert.equal(core.proxyProviders, true);
+  assert.equal(core.ruleProviders, true);
+  assert.equal(core.flushCache, true);
+  assert.deepEqual(core.modes, ["global", "rule", "direct"]);
+  const metaByName = coreCapabilities({ version: "Mihomo v1.19.33" });
+  assert.equal(metaByName.kind, "mihomo");
+});
+test("listener ports and latency options reject empty, fractional and out-of-range input", () => {
+  for (const value of ["", "-1", "1.2", "65536", "NaN"])
+    assert.equal(validPort(value), false);
+  assert.equal(validPort(0), true);
+  assert.equal(validPort(65535), true);
+  assert.equal(validLatencyOptions("http://example.com", 5000), false);
+  assert.equal(validLatencyOptions("https://example.com", 5000), true);
+  assert.equal(validLatencyOptions("https://example.com", 50000), false);
+});
+function connection(id: string, upload = 0, download = 0): Connections {
+  return {
+    id,
+    upload,
+    download,
+    start: "2026-01-01T00:00:00Z",
+    chains: [],
+    rule: "",
+    rulePayload: "",
+    metadata: {
+      network: "tcp",
+      type: "http",
+      host: "example.com",
+      sourceIP: "127.0.0.1",
+      sourcePort: "1234",
+      destinationPort: "443",
+    },
+  };
+}
+test("connection speed uses elapsed time and resets after disconnection or counter reset", () => {
+  const store = new ConnectionStore();
+  store.appendToSet([connection("one", 100, 200)], 1000);
+  store.appendToSet([connection("one", 1100, 2200)], 3000);
+  assert.equal(store.getConnections()[0].uploadSpeed, 500);
+  assert.equal(store.getConnections()[0].downloadSpeed, 1000);
+  store.resetRate();
+  store.appendToSet([connection("one", 1200, 2400)], 8000);
+  assert.equal(store.getConnections()[0].uploadSpeed, 0);
+  store.appendToSet([connection("one", 0, 0)], 9000);
+  assert.equal(store.getConnections()[0].uploadSpeed, 0);
+  store.appendToSet(null, 10000);
+  assert.deepEqual(store.getConnections(), []);
+});
+test("closed connection retention is bounded by count and age", () => {
+  const store = new ConnectionStore();
+  store.toggleSave();
+  store.appendToSet(
+    Array.from({ length: 1100 }, (_, index) => connection(String(index))),
+    0,
+  );
+  store.appendToSet([], 1000);
+  assert.equal(store.getConnections().length, 1000);
+  store.appendToSet([], 1801000);
+  assert.equal(store.getConnections().length, 0);
+});
+test("latency queue deduplicates nodes, limits concurrency and stops dispatching after cancellation", async () => {
+  const controller = new AbortController();
+  let active = 0,
+    maximum = 0,
+    completed = 0;
+  await runLatencyTests(
+    ["a", "a", "b", "c", "d", "e"],
+    async () => {
+      active++;
+      maximum = Math.max(maximum, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      completed++;
+      active--;
+    },
+    controller.signal,
+    2,
+  );
+  assert.equal(maximum, 2);
+  assert.equal(completed, 5);
+  const canceled = new AbortController();
+  let dispatched = 0;
+  await runLatencyTests(
+    ["a", "b", "c"],
+    async () => {
+      dispatched++;
+      canceled.abort();
+    },
+    canceled.signal,
+    1,
+  );
+  assert.equal(dispatched, 1);
+});

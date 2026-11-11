@@ -1,0 +1,51 @@
+import Foundation
+import XBondMobile
+
+enum MobileSupport {
+    static let providerID = "net.xbond.app.PacketTunnel"
+    static let appGroup = "group.net.xbond.app"
+    private static var cachedDirectory: URL?
+
+    static func directory() throws -> URL {
+        if let cached = cachedDirectory { return cached }
+        #if !targetEnvironment(simulator)
+        if let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) {
+            cachedDirectory = directory
+            return directory
+        }
+        #endif
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            throw MobileFailure("The XBond App Group is unavailable.")
+        }
+        let fallback = appSupport.appendingPathComponent("XBond", isDirectory: true)
+        try FileManager.default.createDirectory(at: fallback, withIntermediateDirectories: true)
+        cachedDirectory = fallback
+        return fallback
+    }
+
+    static func webEndpoint(for service: MobileTunnelService) throws -> Endpoint {
+        let port = service.localAPIPort()
+        let token = service.localAPIToken()
+        guard port > 0, port <= 65535, !token.isEmpty else {
+            throw MobileFailure("The local XBond interface could not start.")
+        }
+        return Endpoint(port: port, token: token)
+    }
+
+    struct Endpoint: Codable, Equatable {
+        let port: Int32
+        let token: String
+    }
+}
+
+struct MobileFailure: LocalizedError {
+    let errorDescription: String?
+    init(_ message: String) { errorDescription = message }
+}
+
+final class MobileLog: NSObject, MobileStatusListenerProtocol {
+    func onLog(_ level: String?, message: String?) {
+        // Core diagnostics are available through LocalAPI. Do not forward
+        // configuration or subscription errors into the OS log.
+    }
+}

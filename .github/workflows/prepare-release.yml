@@ -1,0 +1,389 @@
+name: Prepare XBond release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Stable Tag or proposed Tag for a rehearsal from main
+        required: true
+        type: string
+      rehearsal:
+        description: Build and validate without writing a Release or submitting to stores
+        type: boolean
+        default: true
+      rehearsal_apple_signing:
+        description: Use production Apple signing and build the iOS archive during rehearsal
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+# 檢查 → CLI → platforms in parallel → unified assembly. preflight derives
+# every release fact (mode, Apple signing) once; `check` gates all expensive
+# jobs; `cli` builds the binaries and web bundle the other ends consume; the
+# platform jobs then run concurrently and `assemble` merges everything into
+# one evidence-backed candidate.
+jobs:
+  preflight:
+    if: github.repository == 'openxbond/xbond' && (github.event_name == 'push' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
+      commit: ${{ steps.version.outputs.commit }}
+      mode: ${{ steps.version.outputs.mode }}
+      apple_signing: ${{ steps.version.outputs.apple_signing }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/release-toolchain
+        with:
+          install: "false"
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          RELEASE_EVENT: ${{ github.event_name }}
+          RELEASE_REHEARSAL: ${{ inputs.rehearsal }}
+          RELEASE_REHEARSAL_APPLE: ${{ inputs.rehearsal_apple_signing }}
+        run: node scripts/release-ci.ts preflight "$TAG" prepare
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-notes
+          path: release-notes.md
+
+  check:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          persist-credentials: false
+      - uses: ./.github/actions/release-toolchain
+        with:
+          go: "true"
+      - run: pnpm check
+      - run: pnpm cli:check
+
+  cli:
+    needs: [preflight, check]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TAG: ${{ needs.preflight.outputs.tag }}
+      XBOND_VERSION: ${{ needs.preflight.outputs.version }}
+      XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          persist-credentials: false
+      - uses: ./.github/actions/release-toolchain
+        with:
+          go: "true"
+      - run: |
+          test -n "$XBOND_RELEASE_PUBLIC_KEY"
+          node scripts/build-release.ts "$TAG"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cli-assets
+          path: |
+            release/${{ needs.preflight.outputs.tag }}/xbond-*
+            release/${{ needs.preflight.outputs.tag }}/dashboard.zip
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: web-dist
+          path: dist
+          if-no-files-found: error
+
+  desktop:
+    needs: [preflight, check, cli]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    environment: release-desktop-signing
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows, arch: amd64, runner: windows-2025 }
+          - { os: windows, arch: arm64, runner: windows-11-arm }
+          - { os: darwin, arch: amd64, runner: macos-15-intel }
+          - { os: darwin, arch: arm64, runner: macos-15 }
+          - { os: linux, arch: amd64, runner: ubuntu-22.04 }
+          - { os: linux, arch: arm64, runner: ubuntu-22.04-arm }
+    env:
+      TAG: ${{ needs.preflight.outputs.tag }}
+      TARGET_OS: ${{ matrix.os }}
+      TARGET_ARCH: ${{ matrix.arch }}
+      XBOND_VERSION: ${{ needs.preflight.outputs.version }}
+      RELEASE_APPLE_SIGNING: ${{ needs.preflight.outputs.apple_signing }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          persist-credentials: false
+      - uses: ./.github/actions/release-toolchain
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cli-assets
+          path: release/core
+      - uses: ./.github/actions/setup-tauri-deps
+        if: runner.os == 'Linux'
+        with:
+          fuse2: "true"
+      - name: Import Windows code signing certificate when configured
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_PFX: ${{ secrets.WINDOWS_PFX }}
+          WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
+        run: ./scripts/windows-cert.ps1
+      - name: Build and sign desktop installer
+        shell: bash
+        env:
+          XBOND_TAURI_PUBLIC_KEY: ${{ vars.XBOND_TAURI_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && vars.APPLE_SIGNING_IDENTITY || '' }}
+          ASC_KEY: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.ASC_KEY || '' }}
+          ASC_KEY_ID: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && vars.ASC_KEY_ID || '' }}
+          ASC_ISSUER_ID: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && vars.ASC_ISSUER_ID || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'true' && vars.APPLE_TEAM_ID || '' }}
+          XBOND_DESKTOP_REHEARSAL: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'false' && '1' || '' }}
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          node scripts/build-desktop-release.ts "$TAG" "$TARGET_OS" "$TARGET_ARCH" release/core release/desktop
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: desktop-${{ matrix.os }}-${{ matrix.arch }}
+          path: release/desktop/*
+          compression-level: 0
+          if-no-files-found: error
+
+  android:
+    needs: [preflight, check, cli]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: release-android-signing
+    env:
+      TAG: ${{ needs.preflight.outputs.tag }}
+      XBOND_VERSION: ${{ needs.preflight.outputs.version }}
+      XBOND_BUILD_NUMBER: ${{ needs.preflight.outputs.build }}
+      XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          persist-credentials: false
+      - uses: ./.github/actions/release-toolchain
+        with:
+          go: "true"
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0 ndk;28.2.13676358"
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          gradle-version: "8.11.1"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: web-dist
+          path: dist
+      - name: Build and sign the release APK
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD_OVERRIDE || secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+          ANDROID_SIGNER_SHA256: ${{ vars.ANDROID_SIGNER_SHA256 }}
+        run: |
+          test -n "$XBOND_RELEASE_PUBLIC_KEY"
+          pnpm mobile:ensure
+          gradle -p apps/mobile/android :app:assembleRelease
+          node scripts/release-android.ts sign "$TAG" apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk "release/android/xbond-android-$TAG.apk"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android
+          path: release/android/*.apk
+          compression-level: 0
+          if-no-files-found: error
+
+  ios:
+    needs: [preflight, check, cli]
+    # Only rehearsals without Apple credentials may omit the App Store archive.
+    if: needs.preflight.outputs.apple_signing == 'true'
+    runs-on: macos-26
+    timeout-minutes: 65
+    environment: release-ios-signing
+    outputs:
+      sha256: ${{ steps.archive.outputs.sha256 }}
+    env:
+      XBOND_VERSION: ${{ needs.preflight.outputs.version }}
+      XBOND_BUILD_NUMBER: ${{ needs.preflight.outputs.build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          persist-credentials: false
+      - uses: ./.github/actions/release-toolchain
+        with:
+          go: "true"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: web-dist
+          path: dist
+      - name: Build the Go framework
+        run: |
+          brew install xcodegen
+          pnpm mobile:ensure
+          pnpm mobile:bind:ios
+      - name: Archive the signed App Store build
+        id: archive
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          XBOND_APP_STORE_URL: ${{ vars.APP_STORE_URL }}
+          IOS_DISTRIBUTION_P12: ${{ secrets.IOS_DISTRIBUTION_P12 }}
+          IOS_DISTRIBUTION_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_PASSWORD }}
+          IOS_APP_PROFILE: ${{ secrets.IOS_APP_PROFILE }}
+          IOS_TUNNEL_PROFILE: ${{ secrets.IOS_TUNNEL_PROFILE }}
+        run: |
+          bash scripts/release-ios.sh archive release/ios
+          echo "sha256=$(shasum -a 256 release/ios/xbond.ipa | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: app-store-build
+          path: release/ios/xbond.ipa
+          compression-level: 0
+          retention-days: 90
+          if-no-files-found: error
+
+  image:
+    needs: [preflight, check, cli]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    outputs:
+      digest: ${{ steps.image.outputs.digest }}
+    env:
+      TAG: ${{ needs.preflight.outputs.tag }}
+      XBOND_VERSION: ${{ needs.preflight.outputs.version }}
+      COMMIT: ${{ needs.preflight.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - id: image
+        run: |
+          set -euo pipefail
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --build-arg "XBOND_VERSION=$XBOND_VERSION" --label "org.opencontainers.image.version=$TAG" \
+            --label "org.opencontainers.image.revision=$COMMIT" --label "org.opencontainers.image.source=https://github.com/openxbond/xbond" \
+            --provenance=false --output "type=oci,dest=xbond-image.tar" --metadata-file image.json .
+          jq -er '"digest=" + ."containerimage.digest"' image.json >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-image
+          path: xbond-image.tar
+          compression-level: 0
+          retention-days: 90
+          if-no-files-found: error
+
+  assemble:
+    needs: [preflight, check, cli, desktop, android, ios, image]
+    if: >-
+      ${{ !cancelled() && needs.preflight.result == 'success' && needs.check.result == 'success' &&
+      needs.cli.result == 'success' && needs.desktop.result == 'success' && needs.android.result == 'success' &&
+      needs.image.result == 'success' &&
+      (needs.ios.result == 'success' ||
+      (needs.preflight.outputs.apple_signing == 'false' && needs.ios.result == 'skipped')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release-manifest-signing
+    env:
+      TAG: ${{ needs.preflight.outputs.tag }}
+      RELEASE_MODE: ${{ needs.preflight.outputs.mode }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          persist-credentials: false
+      - uses: ./.github/actions/release-toolchain
+        with:
+          install: "false"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: "{cli-assets,desktop-*,android}"
+          merge-multiple: true
+          path: release/assets
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-notes
+      - name: Assemble and verify signed release
+        env:
+          XBOND_RELEASE_PRIVATE_KEY: ${{ secrets.XBOND_RELEASE_PRIVATE_KEY }}
+          XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
+          XBOND_TAURI_PUBLIC_KEY: ${{ vars.XBOND_TAURI_PUBLIC_KEY }}
+          IMAGE_DIGEST: ${{ needs.image.outputs.digest }}
+          IOS_SHA256: ${{ needs.ios.outputs.sha256 }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y minisign
+          node scripts/release-ci.ts evidence "$TAG" release/assets
+          node scripts/release-assets.ts assemble "$TAG" release/assets release-notes.md
+          node scripts/release-assets.ts pages "$TAG" release/assets release/pages
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verified-release
+          path: release/assets/*
+          compression-level: 0
+          retention-days: 90
+          if-no-files-found: error
+
+  draft:
+    if: github.event_name == 'push' || !inputs.rehearsal
+    needs: [preflight, assemble]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release-draft
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.preflight.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: verified-release
+          path: release/assets
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-notes
+      - run: bash scripts/stage-release.sh "$TAG"

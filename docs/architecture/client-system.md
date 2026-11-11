@@ -1,0 +1,70 @@
+# 用戶端體系
+
+XBond 保留 cloud 與 xbond 兩個倉庫。cloud 擁有帳號、計費、服務權益、配置簽發與 Agent 資料面；xbond 擁有用戶端宿主、控制器操作、本機配置、代理核心與流量接管。詞彙見 [GLOSSARY.md](../../GLOSSARY.md)，目錄決策見 [ADR-002](../adr/002-client-workspace.md)。
+
+## 實際依賴與入口
+
+```mermaid
+flowchart TD
+  Dashboard["apps/dashboard · 網頁入口"] --> UI["packages/client-ui · 共用畫面"]
+  Desktop["apps/desktop · 桌面入口"] --> UI
+  UI --> Client["packages/client · 控制器、配置、傳輸"]
+  Desktop --> Tauri["src-tauri · IPC、托盤、進程"]
+  Client --> Local["LocalAPI"]
+  Client --> Remote["外部控制器"]
+  Local --> Daemon["internal/daemon"]
+  CLI["cmd/xbond"] --> Daemon
+  Daemon --> Engine["internal/engine"]
+  Daemon --> Sub["internal/sub"]
+  Mobile["apps/mobile · 原生宿主"] --> Binding["mobile · gomobile 公開入口"]
+  Binding --> Engine
+  Binding --> Sub
+```
+
+此圖只畫當前程式碼中的關係。移動宿主使用既有原生程式碼與 Go binding，尚未因此得到完整 React 畫面或原生購買能力。
+
+| 位置 | 責任與適合放入的程式碼 |
+| --- | --- |
+| apps/dashboard | HTML、靜態資源、獨立網頁啟動 |
+| apps/desktop | 桌面 HTML／JS 入口與 src-tauri 原生殼 |
+| apps/mobile | Android／iOS 宿主、系統 VPN 與原生權限接入 |
+| packages/client | 不依賴 React 的控制器、來源資料正規化、核心及 LocalAPI 傳輸、策略與串流邏輯 |
+| packages/client-ui | React 畫面、互動、Jotai／SWR、語系及樣式；目前的瀏覽器／Tauri 探測亦留在這裡 |
+| cmd/xbond | 命令列參數、呈現及入口裝配 |
+| internal/daemon | LocalAPI、HTTP 裝配及本機運行流程；daemon/service 子包註冊使用者級自啟（systemd --user／LaunchAgent／HKCU Run） |
+| internal/engine | 雙核心執行（mihomo／sing-box）、格式判定、配置驗證與衍生 |
+| internal/sub | 訂閱來源、快取及更新 |
+| internal/platform | 作業系統資料位置與系統代理 |
+| mobile | gomobile 相容的公開入口與平台回呼 |
+
+Go 保持一個 module；internal 由編譯器限制外部導入，mobile 是公開導入位置。JS 使用 pnpm workspace；每個 package 宣告自己直接使用的依賴，跨 package 導入走具名 exports。宿主可以直接使用 client，無須為重用非視覺能力而載入 client-ui。原始碼位置直接遷移，舊目錄與舊產物佈局不設轉發或回退。
+
+## 共用介面目錄
+
+`packages/client-ui/src/app/` 裝配 React 根節點、路由和導覽。`features/` 按操作領域放置頁面、局部組件和資料 hooks。控制器、守護進程和使用者偏好等跨頁面狀態放在 `state/`，宿主探測及橋接放在 `platform/`。
+
+`components/ui/` 由 shadcn CLI 管理，其他跨功能組件放在 `components/`。共用 React hooks 放在 `hooks/`，語系資源放在 `i18n/messages/`，Tailwind 入口是 `styles/app.css`。檔名使用短橫線。功能內可用相對路徑，跨目錄可用 `@/`，宿主透過 `@xbond/client-ui` 的具名 package exports 導入。
+
+## Module 深度與依賴門禁
+
+client 的 interface 包含控制器身份、操作結果及資料語義；HTTP、WebSocket、LocalAPI 是已有的 adapter。將傳輸與正規化收在同一 module，讓畫面與測試從同一 seam 使用它；depth 來自呼叫者不再需要重寫協定知識，locality 讓修正集中，leverage 由現有桌面與網頁共同取得。
+
+client-ui 擁有呈現與互動；client 不向 client-ui 或 apps 導入，不直接探測 window、document、localStorage 或 chrome。共用 package 不反向導入宿主。pnpm check:architecture 解析 TypeScript／TSX 導入與 re-export，檢查方向、package exports、直接依賴、宿主探測及跨 package 循環；pnpm lint 會執行此檢查。這個門禁補充型別檢查，不宣稱驗證所有執行期動態載入。
+
+配置及資料的磁碟位置由 internal/platform/paths 決定，原始碼搬遷不改變 XBOND_DATA_DIR、訂閱來源、憑據與偏好格式。桌面及網頁各有 HTML／JS 入口，共享 client-ui；Vite 產物仍為根目錄 dist 與 dist-desktop。
+
+## 帳號與服務管理的責任
+
+帳號會話、訂閱憑據、代理憑據與 LocalAPI token 各有獨立用途。CLI／daemon 使用 Cloud 已提供的 OAuth PKCE／device 流程維護帳號會話，透過授權的 API 取得訂閱線路與配置；具體權限由 Cloud 公開契約決定，不把訂閱憑據當作帳號身份。第三方訂閱與外部控制器能力可在無 Cloud 帳號的情況下使用。
+
+用戶端呈現用戶資料、套餐、配額、到期與通知，購買、續費與流量不足等情境導向 Cloud 控制台。客戶端不建立報價、訂單、支付或商店購買流程；Cloud 繼續擁有價格、優惠、錢包、付款核驗及履約。帳號與各宿主會話仍需各自交付契約及驗證。
+
+帳號登入、付款完成、服務已履約、配置可取得、核心可達、流量接管與外部連通是不同事實。支付回跳或前端成功文案只觸發服務端狀態同步，不直接開通權益。Cloud 的公開用戶端契約由 Cloud 擁有並版本化；xbond 不導入其資料庫或私有計費 implementation，不複製定價與權益規則。
+
+控制目標、配置來源與帳號身份分開。有效目標在套用 metadata、URL 與宿主 bridge 後解析，再決定核心 API 連接與本機操作能力；同一已儲存 ID 不代表同一執行目標。首次接入與隔離契約見 [控制目標規格](../specs/control-targets.md)。
+
+## 後續宿主的落位
+
+daemon 進程的宿主是平台使用者級 supervisor，不是任何一條 CLI 命令：`xbond daemon` 供前景直接運行與服務註冊復用，`xbond daemon install` 把 `xbond daemon --background` 交給 systemd --user、LaunchAgent 或 HKCU Run，CLI 只透過 LocalAPI 連線，未安裝時報錯而不是靜默註冊。`xbond run --config` 是與 daemon 互斥的前台核心入口，使用顯式配置與隔離狀態。優雅退出統一走 LocalAPI shutdown 端點（引擎停止、系統代理還原、憑據檔清理），supervisor 的停止是硬殺，只作清理手段；同一資料目錄由實例鎖保證單一 daemon。完整契約見 [daemon 生命周期与运行形式](../specs/daemon-runtime.md)。
+
+只有真實第二個使用情境才新增 module 或 package；目前沒有預建帳號 SDK、支付框架或 PAC 編譯器。運行配置套用已集中於 internal/daemon 的 runtimeController：HTTP 與排程共用驗證、套用、持久化與恢復流程，詳見[行為契約](../specs/runtime-configuration.md)。桌面進程探測與控制器三層狀態歸屬仍需深化；原生系統設定的已知限制亦不由測試替身視為已驗收。

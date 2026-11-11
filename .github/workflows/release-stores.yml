@@ -1,0 +1,84 @@
+name: XBond store operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Prepared stable Tag
+        required: true
+        type: string
+      store:
+        description: Store
+        type: choice
+        options: [ios]
+        required: true
+      operation:
+        description: Submit build
+        type: choice
+        options: [submit]
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-store-${{ inputs.store }}
+  cancel-in-progress: false
+
+jobs:
+  ios:
+    if: github.repository == 'openxbond/xbond' && github.ref == 'refs/heads/main' && inputs.store == 'ios'
+    runs-on: macos-26
+    timeout-minutes: 25
+    environment: release-store-ios
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+      XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
+    steps:
+      - name: Reject unsupported operations
+        if: inputs.operation != 'submit'
+        run: |
+          echo "::error::The iOS store supports operation=submit only."
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/release-toolchain
+        with:
+          install: "false"
+      - id: candidate
+        run: |
+          node scripts/release-ci.ts preflight "$TAG" store
+          gh release download "$TAG" --pattern release-evidence.json --pattern release.json
+          node scripts/release-assets.ts verify "$TAG" . release-evidence
+          node scripts/release-ci.ts verify-evidence "$TAG" release-evidence.json
+      - name: Require the prepare artifacts
+        env:
+          RUN_ID: ${{ steps.candidate.outputs.run }}
+        run: node scripts/release-ci.ts require-artifact "$RUN_ID" app-store-build
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: app-store-build
+          run-id: ${{ steps.candidate.outputs.run }}
+          github-token: ${{ github.token }}
+          path: release/ios
+      - name: Verify the staged IPA
+        env:
+          IOS_SHA256: ${{ steps.candidate.outputs.ios_sha256 }}
+        run: |
+          printf '%s  %s\n' "$IOS_SHA256" release/ios/xbond.ipa | shasum -a 256 -c -
+      - name: Upload the verified IPA to TestFlight
+        uses: Apple-Actions/upload-testflight-build@665328adbecbc3ad929d3da710696d928b8a7ba9 # v5
+        with:
+          app-path: release/ios/xbond.ipa
+          app-type: ios
+          backend: altool
+          wait-for-processing: "false"
+          issuer-id: ${{ vars.ASC_ISSUER_ID }}
+          api-key-id: ${{ vars.ASC_KEY_ID }}
+          api-private-key: ${{ secrets.ASC_KEY }}

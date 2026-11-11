@@ -1,0 +1,23 @@
+{
+  "name": "@xbond/client",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./activity": "./src/activity.ts",
+    "./capabilities": "./src/capabilities.ts",
+    "./connection-store": "./src/connection-store.ts",
+    "./controller": "./src/controller.ts",
+    "./helper": "./src/helper.ts",
+    "./latency": "./src/latency.ts",
+    "./localapi": "./src/localapi.ts",
+    "./request": "./src/request.ts",
+    "./streamer": "./src/streamer.ts",
+    "./workspace": "./src/workspace.ts",
+    "./language": "./src/language.ts"
+  },
+  "dependencies": {
+    "axios": "^1.20.0",
+    "eventemitter3": "^5.0.4"
+  }
+}
