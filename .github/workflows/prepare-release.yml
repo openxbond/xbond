@@ -57,6 +57,12 @@ jobs:
           RELEASE_EVENT: ${{ github.event_name }}
           RELEASE_REHEARSAL: ${{ inputs.rehearsal }}
           RELEASE_REHEARSAL_APPLE: ${{ inputs.rehearsal_apple_signing }}
+          XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
+          XBOND_TAURI_PUBLIC_KEY: ${{ vars.XBOND_TAURI_PUBLIC_KEY }}
+          ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+          ANDROID_SIGNER_SHA256: ${{ vars.ANDROID_SIGNER_SHA256 }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
         run: node scripts/release-ci.ts preflight "$TAG" prepare
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

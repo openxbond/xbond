@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { releaseVariableProblems } from "./release-config.ts";
 import { releaseVersion } from "./release-version.ts";
 
 type Release = { tag_name: string; draft: boolean; prerelease: boolean };
@@ -81,6 +82,15 @@ function preflight(tag: string, context: "prepare" | "publish" | "store") {
     process.env.RELEASE_EVENT,
     process.env.RELEASE_REHEARSAL,
   );
+  const appleSigning = deriveAppleSigning(
+    process.env.RELEASE_EVENT,
+    mode,
+    process.env.RELEASE_REHEARSAL_APPLE,
+  );
+  if (context === "prepare") {
+    const problems = releaseVariableProblems(process.env, appleSigning);
+    if (problems.length) throw new Error(problems.join("\n"));
+  }
   const rehearsalWithoutTag =
     mode === "rehearsal" &&
     spawnSync("git", ["show-ref", "--verify", "--quiet", ref]).status === 1;
@@ -121,13 +131,7 @@ function preflight(tag: string, context: "prepare" | "publish" | "store") {
     build: String(build),
     commit,
     mode,
-    apple_signing: String(
-      deriveAppleSigning(
-        process.env.RELEASE_EVENT,
-        mode,
-        process.env.RELEASE_REHEARSAL_APPLE,
-      ),
-    ),
+    apple_signing: String(appleSigning),
   });
   const log = git(
     "log",

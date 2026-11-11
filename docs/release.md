@@ -59,18 +59,26 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 
 ## 首次設定
 
-按組織的 `openxbond/automation` 倉庫 README 將 Apple 及商店材料放入 Git 忽略的 `release-private/`，再在該倉庫執行 `pnpm release-setup` 和 `pnpm release-setup --check`。下表供查找 GitHub 欄位。 [Automation 設定](https://github.com/openxbond/automation#發佈密鑰與-xbond-設定)
+在 `openxbond/xbond` 的 GitHub Actions Environments 存放發佈私鑰及平台憑據，在 Repository Variables 配置公鑰、識別碼及 URL。首次設定和輪換後執行 `pnpm release:check`。只演練桌面、CLI 與 Android 時用 `pnpm release:check --rehearsal`。檢查讀取 Secrets 名稱和 Variables，實際金鑰配對、憑據有效性和產物簽名由建置演練驗證。[GitHub Environment Secrets](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments#environment-secrets)
 
 | 位置 | 設定 |
 | --- | --- |
-| Repository Variables | `XBOND_RELEASE_PUBLIC_KEY`（32-byte Ed25519 公鑰的 Base64）、`XBOND_TAURI_PUBLIC_KEY`（Tauri 公鑰檔內容）、`APPLE_TEAM_ID`。有可用條目後才填 `APP_STORE_URL`。有可用的 TestFlight 公開邀請時可填 `IOS_TESTFLIGHT_URL`。 |
+| Repository Variables | `XBOND_RELEASE_PUBLIC_KEY`（32-byte Ed25519 公鑰的 Base64）、`XBOND_TAURI_PUBLIC_KEY`（Tauri 公鑰檔內容）、`APPLE_TEAM_ID`、`APPLE_SIGNING_IDENTITY`（Developer ID Application 的簽名身分）。有可用條目後才填 `APP_STORE_URL`。有可用的 TestFlight 公開邀請時可填 `IOS_TESTFLIGHT_URL`。 |
 | `release-manifest-signing` | Secret `XBOND_RELEASE_PRIVATE_KEY`（配對的 PKCS#8 PEM）。 |
-| `release-desktop-signing` | Secrets `TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（如有）。macOS 另需 `APPLE_CERTIFICATE`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY` 及 Apple 團隊 API Key `ASC_KEY`。公證與 TestFlight 共用 Repository Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。Windows 可配置 `WINDOWS_PFX` 及 `WINDOWS_PFX_PASSWORD`。配置後，CI 在上傳前驗證 Authenticode 簽名及簽署憑證指紋。憑證未配置時，CI 會標示安裝包缺少 Authenticode 簽名。 |
+| `release-desktop-signing` | Secrets `TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（如有）。macOS 另需 `APPLE_CERTIFICATE`（Developer ID Application P12 的 Base64）、`APPLE_CERTIFICATE_PASSWORD` 及 Apple 團隊 API Key `ASC_KEY`。公證與 TestFlight 共用 Repository Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。Windows 可配置 `WINDOWS_PFX` 及 `WINDOWS_PFX_PASSWORD`。配置後，CI 在上傳前驗證 Authenticode 簽名及簽署憑證指紋。憑證未配置時，CI 會標示安裝包缺少 Authenticode 簽名。 |
 | `release-android-signing` | Secrets `ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`。若金鑰密碼與 keystore 密碼不同，設定 `ANDROID_KEY_PASSWORD_OVERRIDE`。Variables `ANDROID_KEY_ALIAS`、`ANDROID_SIGNER_SHA256`（小寫十六進位，無冒號）。後續更新沿用同一簽名身份。 |
 | `release-ios-signing` | Apple Developer 組織帳號。為 `net.xbond.app` 和 `net.xbond.app.PacketTunnel` 建立 App Store Connect 發行用 profiles，配置 Network Extension 及 App Group `group.net.xbond.app`。Secrets `IOS_DISTRIBUTION_P12`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE` 用 Base64，另設 `IOS_DISTRIBUTION_PASSWORD`。 |
 | `release-store-ios` | Secret `ASC_KEY`（App Store Connect P8 原文），Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。 |
 
-設定指令會建立必要環境、配置 Pages 使用 GitHub Actions、啟用不可變 Release，並保留現有的 `v*` Tag 保護與 `release-production` 審核人。 [GitHub 不可變 Release](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
+維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、啟用不可變 Release、限制 `v*` Tag 的建立及變更，並由審核人批准 `release-production`。 [GitHub 不可變 Release](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
+
+### 建立或輪換簽名材料
+
+1. 用 `pnpm tauri signer generate -w <受控目錄>/tauri-updater.key` 生成帶密碼的桌面更新金鑰。將 `.pub` 檔原文填入 `XBOND_TAURI_PUBLIC_KEY`。將私鑰和密碼填入桌面簽名環境。[Tauri Updater](https://v2.tauri.app/plugin/updater/#signing)
+2. 用 `openssl genpkey -algorithm Ed25519 -out <受控目錄>/release-manifest.pem` 生成獨立的清單簽名私鑰，將 PEM 填入 `XBOND_RELEASE_PRIVATE_KEY`。用 `openssl pkey -pubout -outform DER` 匯出對應公鑰，將 DER 末尾 32 bytes 轉為 Base64，填入 `XBOND_RELEASE_PUBLIC_KEY`。CLI 與 Android 都會嵌入這個公鑰。
+3. 用 `keytool -genkeypair -storetype PKCS12 -keystore <受控目錄>/xbond-release.keystore -alias xbond-release -keyalg RSA -keysize 2048 -validity 10950` 建立 Android 發行 keystore。將 keystore 的 Base64 和密碼放入 Android 簽名環境，配置 alias 和新憑證的 SHA-256 指紋。使用 25 年以上的憑證有效期，並以 `keytool -list -v` 核對指紋。若之後加入 Google Play，先決定網站 APK 與 Play 安裝能否互相覆蓋更新，再選擇 Play App Signing 的應用簽名金鑰。[Android 簽名指南](https://developer.android.com/studio/publish/app-signing)
+4. 把簽名材料及密碼備份到組織的私有 `openxbond/automation` 倉庫，限制讀取權限。更換時同步更新 GitHub 上配對的公鑰、私鑰、密碼及憑證指紋。已用舊身份安裝的測試版需手動換裝新簽名版。
+5. 用 [Tauri macOS 簽名指引](https://v2.tauri.app/distribute/sign/macos/) 配置 Developer ID Application 與公證，用 [Tauri iOS 簽名指引](https://v2.tauri.app/distribute/sign/ios/) 配置 Apple Distribution 與兩份 App Store Connect profiles，再跑帶 Apple 簽名的演練。GitHub 配置檢查通過後，驗收簽名和真機安裝，再按正式發佈流程操作。
 
 ## 演練與故障恢復
 
