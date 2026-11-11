@@ -42,22 +42,7 @@ export function getStoredLanguage(): Lang {
   // languageAtom persists through jotai's JSON storage, so accept both the
   // quoted form it writes and a bare code.
   try {
-    let raw = localStorage.getItem(LANG_STORAGE_KEY);
-    if (
-      !raw &&
-      typeof window !== "undefined" &&
-      window.XBondAndroid?.getPreference
-    ) {
-      try {
-        const bridgeRaw = window.XBondAndroid.getPreference(LANG_STORAGE_KEY);
-        if (bridgeRaw) {
-          raw = bridgeRaw;
-          localStorage.setItem(LANG_STORAGE_KEY, bridgeRaw);
-        }
-      } catch {
-        // ignore bridge error
-      }
-    }
+    const raw = localStorage.getItem(LANG_STORAGE_KEY);
     if (!raw) return getDefaultLanguage();
     let value: unknown = raw;
     try {
@@ -148,13 +133,6 @@ export function setAppLanguage(lang: Lang) {
   // keeps Unicode bidi inside an LTR frame until the layout migrates to
   // logical properties.
   document.documentElement.dir = "ltr";
-  if (typeof window !== "undefined" && window.XBondAndroid?.setPreference) {
-    try {
-      window.XBondAndroid.setPreference(LANG_STORAGE_KEY, JSON.stringify(lang));
-    } catch {
-      // ignore bridge error
-    }
-  }
   void i18next.changeLanguage(lang);
 }
 

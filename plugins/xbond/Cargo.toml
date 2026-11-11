@@ -1,0 +1,22 @@
+[package]
+name = "tauri-plugin-xbond"
+version = "0.3.0"
+description = "XBond mobile native capabilities: LocalAPI config, split tunnel, self-hosted updates, preferences, system bars, account callbacks."
+authors = ["openxbond <no-reply@xbond.net>"]
+edition = "2021"
+license = "MIT"
+links = "tauri-plugin-xbond"
+autolib = false
+
+[lib]
+name = "tauri_plugin_xbond"
+path = "src/lib.rs"
+
+[dependencies]
+tauri = { version = "2", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "externalBin": ["binaries/xbond-daemon"]
+  },
+  "plugins": {
+    "updater": {
+      "requireSignedVersion": true,
+      "endpoints": ["https://openxbond.github.io/xbond/desktop.json"]
+    }
+  }
+}

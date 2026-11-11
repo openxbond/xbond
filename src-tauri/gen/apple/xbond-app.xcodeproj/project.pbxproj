@@ -1,0 +1,542 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		14AC8E0659DAEBE0090C1940 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBEB73F1CD5745DA7FEA7DE4 /* CoreGraphics.framework */; };
+		18CC50B4CF4B13B3AE6D4EDE /* XBondMobile.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9F7F835FBE90C58B138DCA9B /* XBondMobile.xcframework */; };
+		26522358970DA4E8F293D6D1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EF072336A7305B938110D8B9 /* Assets.xcassets */; };
+		2E41DD91B1493A467271507D /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = B46F1B236AE3928582C698AC /* main.mm */; };
+		54F84CDCE9D5D6E50996F49E /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1B91D16298F3D87889712AF /* UIKit.framework */; };
+		58BBCC72D625A5E9EC6758CC /* PacketTunnel.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B53A4E5F9687C96AB45B59BE /* PacketTunnel.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		7B57CE9316862C37CFEF9A95 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BF71A364D69037DE303D3811 /* Metal.framework */; };
+		8B3987CCCD3A270779F5AB38 /* XBondMobile.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9F7F835FBE90C58B138DCA9B /* XBondMobile.xcframework */; };
+		930108035DBB5405F18A03B3 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5EDCC8EB2FB4FDBA08D0ABB1 /* LaunchScreen.storyboard */; };
+		9938221E7ACED60CEBCB6C50 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 651B4E18990C3095639FA163 /* WebKit.framework */; };
+		A85CC8BBFDC591414E6BA8D6 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003434E90532E9C4D8F210D1 /* PacketTunnelProvider.swift */; };
+		BF514F4F7D6CA09F8484625F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = E831636400754D1869560B39 /* assets */; };
+		E7272892004FC18BF296E993 /* PacketBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C55880B33707DE0F492CD7 /* PacketBridge.swift */; };
+		EDEC61C74F12B3863FADFD22 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA323D4CA7E0936386907B6A /* MetalKit.framework */; };
+		EF9F4E2D71DB5A7B20AAC685 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 30194F6285FDC68CE016DBDB /* Security.framework */; };
+		F731C8D24FCC58ADE5FF9AF9 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A833D281E7759FA195E2CD73 /* QuartzCore.framework */; };
+		F85969596E156E88F3A17666 /* MobileSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A199251BF0866EC98F2EE75A /* MobileSupport.swift */; };
+		FEFE9C4576E350AEE80B0238 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 93ABFB120C80388D6DBD1441 /* libapp.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BAD00B458FA93A758EDD4C13 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D60869F3DA5FD0FC6299BCF5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E1EE7857D0CF19104C8AB413;
+			remoteInfo = PacketTunnel;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		239C2E6FED5B114EF4A2266A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				58BBCC72D625A5E9EC6758CC /* PacketTunnel.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		003434E90532E9C4D8F210D1 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
+		1C1BCC2963684AD2A64025E5 /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
+		30194F6285FDC68CE016DBDB /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		3CFD5A9C15F268BBB21C754E /* xbond-app_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "xbond-app_iOS.entitlements"; sourceTree = "<group>"; };
+		467DD070DBA1074A69786BC8 /* XBond.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = XBond.xcconfig; sourceTree = "<group>"; };
+		5CF2BD74B457FC4C0AF58E6F /* localapi.rs */ = {isa = PBXFileReference; path = localapi.rs; sourceTree = "<group>"; };
+		5EDCC8EB2FB4FDBA08D0ABB1 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		5F527BC4E5AA26BE0D2D698C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		651B4E18990C3095639FA163 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		6CF583EAE7AA8FB46A0BA337 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
+		726B5AC32285BB3B55C5E7E7 /* tray.rs */ = {isa = PBXFileReference; path = tray.rs; sourceTree = "<group>"; };
+		72A3D9503AB0F6E19A782BA0 /* daemon.rs */ = {isa = PBXFileReference; path = daemon.rs; sourceTree = "<group>"; };
+		93ABFB120C80388D6DBD1441 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		9F67D6D987CB286B7B99CE56 /* xbond-app_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "xbond-app_iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9F7F835FBE90C58B138DCA9B /* XBondMobile.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = XBondMobile.xcframework; path = ../../../plugins/xbond/ios/Frameworks/XBondMobile.xcframework; sourceTree = "<group>"; };
+		A199251BF0866EC98F2EE75A /* MobileSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileSupport.swift; sourceTree = "<group>"; };
+		A833D281E7759FA195E2CD73 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		B3C55880B33707DE0F492CD7 /* PacketBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketBridge.swift; sourceTree = "<group>"; };
+		B46F1B236AE3928582C698AC /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		B53A4E5F9687C96AB45B59BE /* PacketTunnel.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PacketTunnel.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BBEB73F1CD5745DA7FEA7DE4 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		BF71A364D69037DE303D3811 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		DA323D4CA7E0936386907B6A /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		E1B91D16298F3D87889712AF /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		E831636400754D1869560B39 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		ED4339EAE7E9E78E78D03105 /* updater.rs */ = {isa = PBXFileReference; path = updater.rs; sourceTree = "<group>"; };
+		EF072336A7305B938110D8B9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F6C87D11F0FEACCF2729E7BA /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		F7A4CF7442CFEC22A750AFD4 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3B3850DACFC1487C4555218F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				18CC50B4CF4B13B3AE6D4EDE /* XBondMobile.xcframework in Frameworks */,
+				FEFE9C4576E350AEE80B0238 /* libapp.a in Frameworks */,
+				14AC8E0659DAEBE0090C1940 /* CoreGraphics.framework in Frameworks */,
+				7B57CE9316862C37CFEF9A95 /* Metal.framework in Frameworks */,
+				EDEC61C74F12B3863FADFD22 /* MetalKit.framework in Frameworks */,
+				F731C8D24FCC58ADE5FF9AF9 /* QuartzCore.framework in Frameworks */,
+				EF9F4E2D71DB5A7B20AAC685 /* Security.framework in Frameworks */,
+				54F84CDCE9D5D6E50996F49E /* UIKit.framework in Frameworks */,
+				9938221E7ACED60CEBCB6C50 /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8913A5CCACCCEC516A8ABA3B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8B3987CCCD3A270779F5AB38 /* XBondMobile.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		00F8B27E68C366B260B71EC3 /* PacketTunnel */ = {
+			isa = PBXGroup;
+			children = (
+				B3C55880B33707DE0F492CD7 /* PacketBridge.swift */,
+				003434E90532E9C4D8F210D1 /* PacketTunnelProvider.swift */,
+			);
+			name = PacketTunnel;
+			path = ../../../plugins/xbond/ios/PacketTunnel;
+			sourceTree = "<group>";
+		};
+		09C74A80361FA2491EDE9100 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BBEB73F1CD5745DA7FEA7DE4 /* CoreGraphics.framework */,
+				93ABFB120C80388D6DBD1441 /* libapp.a */,
+				BF71A364D69037DE303D3811 /* Metal.framework */,
+				DA323D4CA7E0936386907B6A /* MetalKit.framework */,
+				A833D281E7759FA195E2CD73 /* QuartzCore.framework */,
+				30194F6285FDC68CE016DBDB /* Security.framework */,
+				E1B91D16298F3D87889712AF /* UIKit.framework */,
+				651B4E18990C3095639FA163 /* WebKit.framework */,
+				9F7F835FBE90C58B138DCA9B /* XBondMobile.xcframework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		4B06AC21101035A426B6871A /* src */ = {
+			isa = PBXGroup;
+			children = (
+				1C1BCC2963684AD2A64025E5 /* commands.rs */,
+				72A3D9503AB0F6E19A782BA0 /* daemon.rs */,
+				6CF583EAE7AA8FB46A0BA337 /* lib.rs */,
+				5CF2BD74B457FC4C0AF58E6F /* localapi.rs */,
+				F6C87D11F0FEACCF2729E7BA /* main.rs */,
+				726B5AC32285BB3B55C5E7E7 /* tray.rs */,
+				ED4339EAE7E9E78E78D03105 /* updater.rs */,
+			);
+			name = src;
+			path = ../../src;
+			sourceTree = "<group>";
+		};
+		66918939EC793A034FE14B2F /* Externals */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Externals;
+			sourceTree = "<group>";
+		};
+		797695D52ED2BC104412A5E2 /* bindings */ = {
+			isa = PBXGroup;
+			children = (
+				F7A4CF7442CFEC22A750AFD4 /* bindings.h */,
+			);
+			path = bindings;
+			sourceTree = "<group>";
+		};
+		7DC5029EC9D564CA0ABC042D /* apple */ = {
+			isa = PBXGroup;
+			children = (
+				467DD070DBA1074A69786BC8 /* XBond.xcconfig */,
+			);
+			name = apple;
+			path = .;
+			sourceTree = "<group>";
+		};
+		A14801DAA8191D4A878561BC /* xbond-app */ = {
+			isa = PBXGroup;
+			children = (
+				B46F1B236AE3928582C698AC /* main.mm */,
+				797695D52ED2BC104412A5E2 /* bindings */,
+			);
+			path = "xbond-app";
+			sourceTree = "<group>";
+		};
+		AA162DB265CD39F709A9B108 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A14801DAA8191D4A878561BC /* xbond-app */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		AE813D40A8F8AF171C9B9A71 /* xbond-app_iOS */ = {
+			isa = PBXGroup;
+			children = (
+				5F527BC4E5AA26BE0D2D698C /* Info.plist */,
+				3CFD5A9C15F268BBB21C754E /* xbond-app_iOS.entitlements */,
+			);
+			path = "xbond-app_iOS";
+			sourceTree = "<group>";
+		};
+		B25CDFBED39084820778E240 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A199251BF0866EC98F2EE75A /* MobileSupport.swift */,
+			);
+			name = Sources;
+			path = ../../../plugins/xbond/ios/Sources;
+			sourceTree = "<group>";
+		};
+		B80A2076E2DA5837EA83FCD7 = {
+			isa = PBXGroup;
+			children = (
+				E831636400754D1869560B39 /* assets */,
+				EF072336A7305B938110D8B9 /* Assets.xcassets */,
+				5EDCC8EB2FB4FDBA08D0ABB1 /* LaunchScreen.storyboard */,
+				7DC5029EC9D564CA0ABC042D /* apple */,
+				66918939EC793A034FE14B2F /* Externals */,
+				00F8B27E68C366B260B71EC3 /* PacketTunnel */,
+				AA162DB265CD39F709A9B108 /* Sources */,
+				B25CDFBED39084820778E240 /* Sources */,
+				4B06AC21101035A426B6871A /* src */,
+				AE813D40A8F8AF171C9B9A71 /* xbond-app_iOS */,
+				09C74A80361FA2491EDE9100 /* Frameworks */,
+				DC6C57AB41E5C8B2F35C15F2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DC6C57AB41E5C8B2F35C15F2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B53A4E5F9687C96AB45B59BE /* PacketTunnel.appex */,
+				9F67D6D987CB286B7B99CE56 /* xbond-app_iOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		"TEMP_BE1E1598-D542-4A86-88A7-1820B286D6E7" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
+			sourceTree = "<group>";
+		};
+		"TEMP_F122803B-5FC2-4503-941B-5C4BC8D86E34" /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		15DEA378948EDDC7E7152CD8 /* xbond-app_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 011F38486E2D52AF7B1E2A5F /* Build configuration list for PBXNativeTarget "xbond-app_iOS" */;
+			buildPhases = (
+				56D7C18A9998A221580B1E35 /* Build Rust Code */,
+				A2EA5CA485A9C7891D66BF63 /* Sources */,
+				C79C8ED3DB8DABAAD31A73EA /* Resources */,
+				3B3850DACFC1487C4555218F /* Frameworks */,
+				239C2E6FED5B114EF4A2266A /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0777C360445A1659A6739B23 /* PBXTargetDependency */,
+			);
+			name = "xbond-app_iOS";
+			packageProductDependencies = (
+			);
+			productName = "xbond-app_iOS";
+			productReference = 9F67D6D987CB286B7B99CE56 /* xbond-app_iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E1EE7857D0CF19104C8AB413 /* PacketTunnel */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9C124DF00B03C5F31253A668 /* Build configuration list for PBXNativeTarget "PacketTunnel" */;
+			buildPhases = (
+				03F2876D7639BEFF57A9996E /* Sources */,
+				8913A5CCACCCEC516A8ABA3B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PacketTunnel;
+			packageProductDependencies = (
+			);
+			productName = PacketTunnel;
+			productReference = B53A4E5F9687C96AB45B59BE /* PacketTunnel.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D60869F3DA5FD0FC6299BCF5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = A5BEB8D82B5773AAE6F2D2A7 /* Build configuration list for PBXProject "xbond-app" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = B80A2076E2DA5837EA83FCD7;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = DC6C57AB41E5C8B2F35C15F2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				15DEA378948EDDC7E7152CD8 /* xbond-app_iOS */,
+				E1EE7857D0CF19104C8AB413 /* PacketTunnel */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C79C8ED3DB8DABAAD31A73EA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				26522358970DA4E8F293D6D1 /* Assets.xcassets in Resources */,
+				930108035DBB5405F18A03B3 /* LaunchScreen.storyboard in Resources */,
+				BF514F4F7D6CA09F8484625F /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		56D7C18A9998A221580B1E35 /* Build Rust Code */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust Code";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a",
+				"$(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "pnpm tauri ios xcode-script -v --platform \"${PLATFORM_DISPLAY_NAME:?}\" --sdk-root \"${SDKROOT:?}\" --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration \"${CONFIGURATION:?}\" ${FORCE_COLOR} ${ARCHS:?}\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		03F2876D7639BEFF57A9996E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F85969596E156E88F3A17666 /* MobileSupport.swift in Sources */,
+				E7272892004FC18BF296E993 /* PacketBridge.swift in Sources */,
+				A85CC8BBFDC591414E6BA8D6 /* PacketTunnelProvider.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A2EA5CA485A9C7891D66BF63 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2E41DD91B1493A467271507D /* main.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0777C360445A1659A6739B23 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E1EE7857D0CF19104C8AB413 /* PacketTunnel */;
+			targetProxy = BAD00B458FA93A758EDD4C13 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		2719A135C1B7677117C0890A /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ../../../plugins/xbond/ios/PacketTunnel/PacketTunnel.entitlements;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../../../plugins/xbond/ios/Frameworks\"",
+				);
+				INFOPLIST_FILE = ../../../plugins/xbond/ios/PacketTunnel/Info.plist;
+				OTHER_LDFLAGS = "$(inherited) -lresolv";
+				PRODUCT_BUNDLE_IDENTIFIER = net.xbond.app.PacketTunnel;
+				PRODUCT_NAME = PacketTunnel;
+			};
+			name = debug;
+		};
+		34ED01E022D65888EDD303CB /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "xbond-app_iOS/xbond-app_iOS.entitlements";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+					"\"../../../plugins/xbond/ios/Frameworks\"",
+				);
+				INFOPLIST_FILE = "xbond-app_iOS/Info.plist";
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				OTHER_LDFLAGS = "$(inherited) -lresolv";
+				PRODUCT_BUNDLE_IDENTIFIER = net.xbond.app;
+				PRODUCT_NAME = XBond;
+				VALID_ARCHS = "arm64 x86_64";
+			};
+			name = debug;
+		};
+		3829ADA20663CC52B60C57A4 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 0.3.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = debug;
+		};
+		6285CBEAB41EFAD37C695C38 /* release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 467DD070DBA1074A69786BC8 /* XBond.xcconfig */;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 0.3.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = release;
+		};
+		714E27FB89F7DFF1C40C5E31 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "xbond-app_iOS/xbond-app_iOS.entitlements";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+					"\"../../../plugins/xbond/ios/Frameworks\"",
+				);
+				INFOPLIST_FILE = "xbond-app_iOS/Info.plist";
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				OTHER_LDFLAGS = "$(inherited) -lresolv";
+				PRODUCT_BUNDLE_IDENTIFIER = net.xbond.app;
+				PRODUCT_NAME = XBond;
+				PROVISIONING_PROFILE_SPECIFIER = "$(XBOND_APP_PROFILE)";
+				VALID_ARCHS = "arm64 x86_64";
+			};
+			name = release;
+		};
+		CF8DAB92DA00A2504D3AFDD5 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ../../../plugins/xbond/ios/PacketTunnel/PacketTunnel.entitlements;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"../../../plugins/xbond/ios/Frameworks\"",
+				);
+				INFOPLIST_FILE = ../../../plugins/xbond/ios/PacketTunnel/Info.plist;
+				MARKETING_VERSION = "$(XBOND_MARKETING_VERSION)";
+				OTHER_LDFLAGS = "$(inherited) -lresolv";
+				PRODUCT_BUNDLE_IDENTIFIER = net.xbond.app.PacketTunnel;
+				PRODUCT_NAME = PacketTunnel;
+				PROVISIONING_PROFILE_SPECIFIER = "$(XBOND_TUNNEL_PROFILE)";
+			};
+			name = release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		011F38486E2D52AF7B1E2A5F /* Build configuration list for PBXNativeTarget "xbond-app_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				34ED01E022D65888EDD303CB /* debug */,
+				714E27FB89F7DFF1C40C5E31 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		9C124DF00B03C5F31253A668 /* Build configuration list for PBXNativeTarget "PacketTunnel" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2719A135C1B7677117C0890A /* debug */,
+				CF8DAB92DA00A2504D3AFDD5 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		A5BEB8D82B5773AAE6F2D2A7 /* Build configuration list for PBXProject "xbond-app" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3829ADA20663CC52B60C57A4 /* debug */,
+				6285CBEAB41EFAD37C695C38 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D60869F3DA5FD0FC6299BCF5 /* Project object */;
+}

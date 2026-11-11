@@ -8,7 +8,9 @@
       content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
     />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f7f7f7" />
+    <!-- Hex of --background (styles/tokens.css): the Android shell paints
+         system bars and the window background from this value. -->
+    <meta name="theme-color" content="#eff1f8" />
     <meta name="description" content="XBond proxy dashboard" />
     <title>XBond</title>
     <script>
@@ -17,18 +19,6 @@
       (function () {
         try {
           var raw = localStorage.getItem("theme");
-          if (
-            !raw &&
-            window.XBondAndroid &&
-            window.XBondAndroid.getPreference
-          ) {
-            raw = window.XBondAndroid.getPreference("theme");
-            if (raw) {
-              try {
-                localStorage.setItem("theme", raw);
-              } catch (e) {}
-            }
-          }
           var pref = JSON.parse(raw || "null");
           var dark =
             pref === "dark" ||
@@ -38,7 +28,7 @@
             document.documentElement.classList.add("dark");
             document
               .querySelector('meta[name="theme-color"]')
-              .setAttribute("content", "#0a0a0a");
+              .setAttribute("content", "#080b10");
           }
         } catch (e) {
           /* storage unavailable — system default already applied */

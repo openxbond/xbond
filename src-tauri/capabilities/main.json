@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Bundled client UI; custom titlebar drag region and its read-only window queries. No filesystem or core process access; window minimize/maximize/close and external http(s) links go through app-defined commands.",
+  "windows": ["main"],
+  "platforms": ["linux", "macOS", "windows"],
+  "permissions": ["core:window:default", "core:window:allow-start-dragging"]
+}

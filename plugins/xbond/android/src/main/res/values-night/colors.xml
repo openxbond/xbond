@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Web background dark token (oklch(0.15 0.012 260)). -->
+    <color name="xbond_surface">#080B10</color>
+</resources>

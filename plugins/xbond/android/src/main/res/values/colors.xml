@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Web background light token; keep in sync with packages/client-ui
+         styles/tokens.css and the theme-color meta. -->
+    <color name="xbond_surface">#EFF1F8</color>
+</resources>

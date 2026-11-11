@@ -20,7 +20,7 @@ ARG XBOND_VERSION
 RUN XBOND_VERSION="$XBOND_VERSION" pnpm build
 
 # --- daemon binary (both cores, same tags as pnpm cli:check) -----------------
-# BUILD_TAGS must stay pinned to scripts/go.ts (enforced by scripts/go.test.ts).
+# BUILD_TAGS must stay pinned to scripts/dev/go.ts (enforced by scripts/dev/go.test.ts).
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -43,7 +43,7 @@ RUN apk add --no-cache ca-certificates tzdata wget \
     && mkdir -p /data /app/dist \
     && chown -R xbond:xbond /data /app
 COPY --from=build /out/xbond /usr/local/bin/xbond
-COPY --from=web --chown=xbond:xbond /src/dist /app/dist
+COPY --from=web --chown=xbond:xbond /src/dist/web /app/dist
 
 # Headless defaults: port takeover (sysproxy/TUN are meaningless in a
 # container), LAN binding so published ports work, fixed proxy port, and the

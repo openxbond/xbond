@@ -12,10 +12,9 @@
 @import "./tokens.css";
 @import "../features/configuration/configuration.css";
 
-/* Shared UI and the Vite hosts that consume this stylesheet. */
+/* Shared UI and its Vite entry. */
 @source "..";
 @source "../../../../apps/dashboard";
-@source "../../../../apps/desktop/src";
 
 @custom-variant dark (&:where(.dark, .dark *));
 @custom-variant host-macos (:root[data-host="macos"] &);

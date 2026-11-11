@@ -1,0 +1,24 @@
+name: XBond toolchain
+description: Set up Node, pnpm and optional Go dependencies
+inputs:
+  go:
+    description: Install the Go toolchain
+    default: "false"
+  install:
+    description: Run pnpm install --frozen-lockfile
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6.1.1
+    - uses: actions/setup-node@v7.1.0
+      with:
+        node-version: 24
+        cache: ${{ inputs.install == 'true' && 'pnpm' || '' }}
+    - uses: actions/setup-go@v7.0.0
+      if: inputs.go == 'true'
+      with:
+        go-version-file: go.mod
+    - run: pnpm install --frozen-lockfile
+      if: inputs.install == 'true'
+      shell: bash

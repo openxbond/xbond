@@ -14,7 +14,7 @@
 
 ## 決策
 
-apps 放可運行宿主；packages/client 放無 React 的控制器、配置與傳輸，packages/client-ui 放現有共用畫面。依賴方向為 apps → client-ui → client，宿主亦可直接消費 client；跨 package 使用已宣告 exports，直接依賴各自列明，透過檢查命令鎖住方向與循環。
+apps 放可運行的前端入口。Web、桌面與移動使用同一 HTML 與啟動模組，宿主差異由 Tauri 原生入口、Vite 模式及宿主橋接處理。packages/client 放無 React 的控制器、配置與傳輸，packages/client-ui 放現有共用畫面。依賴方向為 apps → client-ui → client，宿主亦可直接消費 client；跨 package 使用已宣告 exports，直接依賴各自列明，透過檢查命令鎖住方向與循環。
 
 Go 保留單一 module，CLI 在 cmd/xbond，對外 gomobile 入口位於 mobile；其餘 implementation 收進 internal，平台能力歸 internal/platform。原始碼位置直接遷移，不建立舊路徑轉發、別名或舊產物佈局回退。磁碟資料位置及格式、CLI 命令、LocalAPI 端點依各自契約管理。
 
@@ -22,4 +22,4 @@ cloud 擁有帳號、商業規則、權益、配置簽發與 Agent；xbond 擁�
 
 ## 後果與取捨
 
-共享 module 有實際網頁／桌面兩個消費者，client 的測試可獨立執行；internal 由 Go 編譯器約束公開範圍。代價是增加 workspace manifests、導入門禁及多入口構建位置，需要同時維護 Tauri 與移動 binding 的相對路徑。這次先明確歸屬，行為深度必須用後續可觀察結果及故障測試衡量。
+共享 module 供 Web、桌面與移動使用，client 的測試可獨立執行；internal 由 Go 編譯器約束公開範圍。workspace manifests 及導入門禁維持依賴邊界，Tauri 設定及移動 binding 各自維護平台產物。這次先明確歸屬，行為深度必須用後續可觀察結果及故障測試衡量。

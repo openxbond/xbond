@@ -1,0 +1,145 @@
+name: xbond-app
+options:
+  bundleIdPrefix: net.xbond.app
+  deploymentTarget:
+    iOS: "16.0"
+fileGroups: [../../src]
+configs:
+  debug: debug
+  release: release
+configFiles:
+  release: XBond.xcconfig
+settings:
+  base:
+    MARKETING_VERSION: "0.3.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+settingGroups:
+  app:
+    base:
+      PRODUCT_NAME: XBond
+      PRODUCT_BUNDLE_IDENTIFIER: net.xbond.app
+targetTemplates:
+  app:
+    type: application
+    sources:
+      - path: Sources
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+    settings:
+      groups: [app]
+targets:
+  xbond-app_iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Assets.xcassets
+      # Exclude built static libs: regenerating with xcodegen after a build
+      # otherwise turns the per-configuration libapp.a copies into colliding
+      # resources ("Multiple commands produce …/libapp.a"). They are linked
+      # via LIBRARY_SEARCH_PATHS, never bundled as resources.
+      - path: Externals
+        optional: true
+        excludes: ["**/*.a"]
+      - path: xbond-app_iOS
+      - path: assets
+        optional: true
+        buildPhase: resources
+        type: folder
+      - path: LaunchScreen.storyboard
+    info:
+      path: xbond-app_iOS/Info.plist
+      properties:
+        LSRequiresIPhoneOS: true
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiredDeviceCapabilities: [arm64, metal]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        XBondAppStoreURL: $(XBOND_APP_STORE_URL)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        CFBundleURLTypes:
+          - CFBundleURLName: net.xbond.app
+            CFBundleURLSchemes: [xbond, clash, sing-box]
+    entitlements:
+      path: xbond-app_iOS/xbond-app_iOS.entitlements
+      properties:
+        com.apple.developer.networking.networkextension:
+          [packet-tunnel-provider]
+        com.apple.security.application-groups: [group.net.xbond.app]
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+    settings:
+      base:
+        ENABLE_BITCODE: false
+        OTHER_LDFLAGS: $(inherited) -lresolv
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ARCHS: [arm64, x86_64]
+        VALID_ARCHS: arm64 x86_64
+        LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
+        LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
+        EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+      groups: [app]
+      configs:
+        release:
+          PROVISIONING_PROFILE_SPECIFIER: $(XBOND_APP_PROFILE)
+    dependencies:
+      - framework: ../../../plugins/xbond/ios/Frameworks/XBondMobile.xcframework
+        embed: false
+      - target: PacketTunnel
+        embed: true
+      - framework: libapp.a
+        embed: false
+      - sdk: CoreGraphics.framework
+      - sdk: Metal.framework
+      - sdk: MetalKit.framework
+      - sdk: QuartzCore.framework
+      - sdk: Security.framework
+      - sdk: UIKit.framework
+      - sdk: WebKit.framework
+    preBuildScripts:
+      - script: |
+          pnpm tauri ios xcode-script -v --platform "${PLATFORM_DISPLAY_NAME:?}" --sdk-root "${SDKROOT:?}" --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration "${CONFIGURATION:?}" ${FORCE_COLOR} ${ARCHS:?}
+        name: Build Rust Code
+        showEnvVars: false
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a
+          - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a
+  PacketTunnel:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ../../../plugins/xbond/ios/PacketTunnel
+        excludes: [Info.plist, PacketTunnel.entitlements]
+      - path: ../../../plugins/xbond/ios/Sources/MobileSupport.swift
+    dependencies:
+      - framework: ../../../plugins/xbond/ios/Frameworks/XBondMobile.xcframework
+        embed: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.xbond.app.PacketTunnel
+        PRODUCT_NAME: PacketTunnel
+        APPLICATION_EXTENSION_API_ONLY: YES
+        OTHER_LDFLAGS: $(inherited) -lresolv
+        INFOPLIST_FILE: ../../../plugins/xbond/ios/PacketTunnel/Info.plist
+        CODE_SIGN_ENTITLEMENTS: ../../../plugins/xbond/ios/PacketTunnel/PacketTunnel.entitlements
+      configs:
+        release:
+          MARKETING_VERSION: $(XBOND_MARKETING_VERSION)
+          PROVISIONING_PROFILE_SPECIFIER: $(XBOND_TUNNEL_PROFILE)

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.XBond" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- The cold-start window — and on Android 15+ edge-to-edge the area
+             behind the transparent system bars — must wear the page surface,
+             or the bars read as a detached white strip. -->
+        <item name="android:windowBackground">@color/xbond_surface</item>
+    </style>
+</resources>

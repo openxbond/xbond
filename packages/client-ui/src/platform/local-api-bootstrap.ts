@@ -1,16 +1,6 @@
 import type { LocalAPIConfig } from "@xbond/client/localapi";
 
-import { hasAndroidBridge } from "./android-bridge.ts";
-
-// 移動宿主（Android WebView）剝離 external-controller meta：WebView 的頁面
-// 緩存會把上一進程注入的 meta 帶進新會話，而 meta 在控制目標解析中優先於
-// status 廣播——過期的端口／secret 讓代理頁掛上「Authentication failed」。
-// status 側 preferences.clashPort/clashSecret 是進程內固定的端點，永遠新鮮；
-// 剝離後移動端一律走活端點（reload 不換端口，鏈路穩定性不變）。
-// localapi-token meta 是 daemon 身份憑據，保留。
-if (typeof document !== "undefined" && hasAndroidBridge()) {
-  document.querySelector('meta[name="external-controller"]')?.remove();
-}
+import { isMobileApp, isTauriRuntime } from "./host.ts";
 
 /**
  * Adds the http scheme to a bare host:port endpoint. Meta-tag and query-param
@@ -79,15 +69,7 @@ export function detectLocalAPIConfig(): LocalAPIConfig | null {
  * Checks whether the current frontend is running inside Tauri desktop shell.
  */
 export function isDesktopApp(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    "__TAURI_INTERNALS__" in window ||
-    "__TAURI__" in window ||
-    Boolean(
-      (window as unknown as { __TAURI_METADATA__?: unknown })
-        .__TAURI_METADATA__,
-    )
-  );
+  return isTauriRuntime() && !isMobileApp();
 }
 
 /**
@@ -99,19 +81,15 @@ export function isDesktopApp(): boolean {
  * (Sidebar, App, Connect).
  */
 export function hasDaemonConfig(): boolean {
-  return Boolean(detectLocalAPIConfig() || isDesktopApp());
+  return Boolean(detectLocalAPIConfig() || isTauriRuntime());
 }
 
 type TauriInternals = {
   invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
 };
 
-/**
- * Raw Tauri IPC for the shell's custom commands; null outside the desktop
- * shell or when the bridge is unavailable. The desktop-facing platform code
- * (this module, desktop-shell.ts and open-external.ts) is the only consumer.
- */
-export function invokeDesktop(): TauriInternals["invoke"] | null {
+/** Raw Tauri IPC for desktop commands and native plugins. */
+export function invokeTauri(): TauriInternals["invoke"] | null {
   if (typeof window === "undefined") return null;
   const internals = (
     window as unknown as { __TAURI_INTERNALS__?: TauriInternals }
@@ -119,19 +97,27 @@ export function invokeDesktop(): TauriInternals["invoke"] | null {
   return internals?.invoke ?? null;
 }
 
+export function invokeDesktop(): TauriInternals["invoke"] | null {
+  return isDesktopApp() ? invokeTauri() : null;
+}
+
 /**
- * Resolves LocalAPI configuration from Tauri desktop IPC if running in desktop mode.
+ * Resolves LocalAPI configuration from the Tauri shell: the desktop app
+ * command (`get_localapi_config`, daemon-supervised) or, on mobile, the xbond
+ * plugin (`plugin:xbond|get_localapi_config`, the in-process VPN service that
+ * owns the TunnelService). Mobile answers may be not-ready while the service
+ * boots; the connection core retries.
  */
-export async function resolveDesktopLocalAPIConfig(): Promise<LocalAPIConfig | null> {
-  if (!isDesktopApp()) return null;
+export async function resolveShellLocalAPIConfig(): Promise<LocalAPIConfig | null> {
+  if (!isTauriRuntime()) return null;
   try {
-    const invoke = invokeDesktop();
+    const invoke = invokeTauri();
     if (invoke) {
-      const cfg = (await invoke("get_localapi_config")) as {
-        addr: string;
-        token: string;
-        is_running: boolean;
-      } | null;
+      const cfg = (await invoke(
+        isMobileApp()
+          ? "plugin:xbond|get_localapi_config"
+          : "get_localapi_config",
+      )) as { addr: string; token: string; is_running?: boolean } | null;
       if (cfg && cfg.token) {
         const endpoint = cfg.addr.startsWith("http")
           ? cfg.addr

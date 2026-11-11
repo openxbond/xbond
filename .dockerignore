@@ -8,7 +8,11 @@ dist
 dist-desktop
 release
 release-assets
-apps/desktop
+xbond
+xbond.exe
+xbond.exe.old
+src-tauri
+plugins
 docs
 *.md
 !README.md

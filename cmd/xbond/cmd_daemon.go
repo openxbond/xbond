@@ -75,12 +75,18 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 
 	webDir := daemonWebDir
 	if webDir == "" {
-		// Web builds are emitted into the workspace distribution directory.
-		if _, err := os.Stat("dist"); err == nil {
-			webDir = "dist"
+		// Local builds share the workspace dist directory. Standalone releases
+		// can serve dashboard.zip extracted into dist beside the executable.
+		localBuild := filepath.Join("dist", "web")
+		if _, err := os.Stat(filepath.Join(localBuild, "index.html")); err == nil {
+			webDir = localBuild
 		} else if exe, err := os.Executable(); err == nil {
-			candidate := filepath.Join(filepath.Dir(exe), "dist")
-			if _, err := os.Stat(candidate); err == nil {
+			exeDir := filepath.Dir(exe)
+			candidate := filepath.Join(exeDir, "dist")
+			if filepath.Base(exeDir) == "cli" && filepath.Base(filepath.Dir(exeDir)) == "dist" {
+				candidate = filepath.Join(filepath.Dir(exeDir), "web")
+			}
+			if _, err := os.Stat(filepath.Join(candidate, "index.html")); err == nil {
 				webDir = candidate
 			}
 		}
