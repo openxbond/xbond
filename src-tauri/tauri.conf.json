@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "XBond",
+  "version": "0.3.0",
+  "identifier": "net.xbond.app",
+  "build": {
+    "beforeDevCommand": "pnpm exec vite --port 1421 --strictPort",
+    "devUrl": "http://127.0.0.1:1421",
+    "beforeBuildCommand": "pnpm --workspace-root build",
+    "frontendDist": "../dist/web"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob:",
+        "font-src": "'self' http://at.alicdn.com https://at.alicdn.com",
+        "connect-src": "ipc: http: https: ws: wss:",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "frame-src": "'none'"
+      }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        { "scheme": ["xbond"] },
+        { "scheme": ["clash"] },
+        { "scheme": ["sing-box"] }
+      ]
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"]
+  }
+}

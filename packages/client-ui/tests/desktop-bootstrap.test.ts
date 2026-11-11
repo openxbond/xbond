@@ -11,7 +11,7 @@ import { handleDesktopShortcut } from "../src/platform/desktop-shortcuts.ts";
 import {
   invokeDesktop,
   isDesktopApp,
-  resolveDesktopLocalAPIConfig,
+  resolveShellLocalAPIConfig,
 } from "../src/platform/local-api-bootstrap.ts";
 
 test("isDesktopApp identifies presence vs absence of Tauri desktop shell", () => {
@@ -27,9 +27,9 @@ test("isDesktopApp identifies presence vs absence of Tauri desktop shell", () =>
   Reflect.deleteProperty(globalThis, "window");
 });
 
-test("resolveDesktopLocalAPIConfig resolves credentials from desktop IPC", async () => {
+test("resolveShellLocalAPIConfig resolves credentials from desktop IPC", async () => {
   // Non-desktop returns null
-  assert.equal(await resolveDesktopLocalAPIConfig(), null);
+  assert.equal(await resolveShellLocalAPIConfig(), null);
 
   // Mock desktop with successful invoke
   globalThis.window = {
@@ -47,7 +47,7 @@ test("resolveDesktopLocalAPIConfig resolves credentials from desktop IPC", async
     },
   } as unknown as Window & typeof globalThis;
 
-  const config = await resolveDesktopLocalAPIConfig();
+  const config = await resolveShellLocalAPIConfig();
   assert.ok(config);
   assert.equal(config.endpoint, "http://127.0.0.1:5001");
   assert.equal(config.token, "desktop-token-xyz");
@@ -63,11 +63,51 @@ test("resolveDesktopLocalAPIConfig resolves credentials from desktop IPC", async
     },
   } as unknown as Window & typeof globalThis;
 
-  assert.equal(await resolveDesktopLocalAPIConfig(), null);
+  assert.equal(await resolveShellLocalAPIConfig(), null);
 
   // Clean up
   // @ts-expect-error Restore
   delete globalThis.window;
+});
+
+test("iPhone and iPad Tauri shells use the mobile LocalAPI command", async (t) => {
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "navigator",
+  );
+  t.after(() => {
+    Reflect.deleteProperty(globalThis, "window");
+    if (navigatorDescriptor)
+      Object.defineProperty(globalThis, "navigator", navigatorDescriptor);
+  });
+
+  const commands: string[] = [];
+  globalThis.window = {
+    __TAURI_INTERNALS__: {
+      invoke: async (command: string) => {
+        commands.push(command);
+        return { addr: "127.0.0.1:5001", token: "mobile-token" };
+      },
+    },
+  } as unknown as Window & typeof globalThis;
+
+  for (const navigator of [
+    { userAgent: "Mozilla/5.0 (iPhone)", maxTouchPoints: 5 },
+    { userAgent: "Mozilla/5.0 (Macintosh)", maxTouchPoints: 5 },
+    { userAgent: "Mozilla/5.0 (Linux; Android 14)", maxTouchPoints: 5 },
+  ]) {
+    Object.defineProperty(globalThis, "navigator", {
+      value: navigator,
+      configurable: true,
+    });
+    assert.equal(isDesktopApp(), false);
+    assert.equal(invokeDesktop(), null);
+    assert.deepEqual(await resolveShellLocalAPIConfig(), {
+      endpoint: "http://127.0.0.1:5001",
+      token: "mobile-token",
+    });
+  }
+  assert.deepEqual(commands, Array(3).fill("plugin:xbond|get_localapi_config"));
 });
 
 test("Takeover TUN privilege notice exists across all locale dictionaries", () => {

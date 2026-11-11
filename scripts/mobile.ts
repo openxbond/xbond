@@ -7,8 +7,10 @@ import { fileURLToPath } from "node:url";
 import { BUILD_TAGS, MOBILE_ANDROID_TAGS } from "./go.ts";
 
 const MOBILE_PKG = "github.com/openxbond/xbond/mobile";
-const ANDROID_PROJECT = "apps/mobile/android";
+const ANDROID_TAURI = "src-tauri/gen/android";
 const ANDROID_APP_ID = "net.xbond.app";
+const ANDROID_AAR = "plugins/xbond/android/libs/xbond-mobile.aar";
+const IOS_FRAMEWORK = "plugins/xbond/ios/Frameworks/XBondMobile.xcframework";
 /** Vite dev server port the mobile dev loop binds and adb-reverses. */
 const MOBILE_DEV_PORT = 1421;
 
@@ -116,9 +118,7 @@ export function runMobileCheck(): { ok: boolean; message: string } {
   return { ok: true, message: "Mobile Go package passed vet and unit tests" };
 }
 
-export function buildAndroidAAR(
-  outputPath = "apps/mobile/android/xbond-mobile.aar",
-): {
+export function buildAndroidAAR(outputPath = ANDROID_AAR): {
   ok: boolean;
   message: string;
 } {
@@ -166,9 +166,7 @@ export function buildAndroidAAR(
   return { ok: true, message: `Successfully built ${outputPath}` };
 }
 
-export function buildIOSFramework(
-  outputPath = "apps/mobile/ios/XBondMobile.xcframework",
-): {
+export function buildIOSFramework(outputPath = IOS_FRAMEWORK): {
   ok: boolean;
   message: string;
 } {
@@ -254,42 +252,6 @@ function detectAndroidHome(): string | null {
   return null;
 }
 
-/** Gradle binary: PATH first, then the newest wrapper-managed dist on disk
- * (the project carries no wrapper jar, and the dist is already downloaded). */
-function resolveGradle(): string {
-  if (spawnSync("gradle", ["--version"], { stdio: "pipe" }).status === 0) {
-    return "gradle";
-  }
-  const distsDir = path.join(os.homedir(), ".gradle", "wrapper", "dists");
-  const candidates: { bin: string; version: string }[] = [];
-  if (fs.existsSync(distsDir)) {
-    for (const entry of fs.readdirSync(distsDir)) {
-      const match = entry.match(/^gradle-(\d+\.\d+(?:\.\d+)?)-bin$/);
-      if (!match) continue;
-      for (const hashDir of fs.readdirSync(path.join(distsDir, entry))) {
-        const bin = path.join(
-          distsDir,
-          entry,
-          hashDir,
-          `gradle-${match[1]}`,
-          "bin",
-          "gradle",
-        );
-        if (fs.existsSync(bin)) {
-          candidates.push({ bin, version: match[1] });
-        }
-      }
-    }
-  }
-  if (candidates.length === 0) {
-    throw new Error(
-      "gradle not found on PATH and no wrapper dist under ~/.gradle/wrapper/dists",
-    );
-  }
-  candidates.sort((a, b) => b.version.localeCompare(a.version));
-  return candidates[0].bin;
-}
-
 /** Installs the debug APK (building the AAR and the web dist when missing).
  * Returns once `net.xbond.app` is present on the connected device. */
 function ensureAppInstalled(rebuild: boolean): void {
@@ -300,37 +262,78 @@ function ensureAppInstalled(rebuild: boolean): void {
   }).includes(ANDROID_APP_ID);
   if (installed && !rebuild) return;
 
-  if (
-    !fs.existsSync(
-      path.join(root, "apps", "mobile", "android", "xbond-mobile.aar"),
-    )
-  ) {
+  if (!fs.existsSync(path.join(root, ANDROID_AAR))) {
     console.log(
       "[mobile:dev] AAR missing; binding (pnpm mobile:bind:android)…",
     );
     const res = buildAndroidAAR();
     if (!res.ok) throw new Error(res.message);
   }
-  if (!fs.existsSync(path.join(root, "dist", "web", "index.html"))) {
-    console.log("[mobile:dev] web dist missing; building (pnpm build)…");
-    spawnSync("pnpm", ["build"], { cwd: root, stdio: "inherit" });
-  }
-  console.log("[mobile:dev] installing debug APK (gradle installDebug)…");
-  const env = { ...process.env };
-  const sdk = detectAndroidHome();
-  if (sdk && !env.ANDROID_HOME) env.ANDROID_HOME = sdk;
-  const res = spawnSync(resolveGradle(), ["installDebug"], {
-    cwd: path.join(root, ANDROID_PROJECT),
-    stdio: "inherit",
-    env,
+  const abi = adb(["shell", "getprop", "ro.product.cpu.abi"], {
+    capture: true,
+  }).trim();
+  const targets: Record<string, string> = {
+    "arm64-v8a": "aarch64",
+    "armeabi-v7a": "armv7",
+    x86: "i686",
+    x86_64: "x86_64",
+  };
+  const target = targets[abi];
+  if (!target) throw new Error(`Unsupported Android ABI: ${abi}`);
+
+  console.log("[mobile:dev] building and installing Tauri debug APK…");
+  const env = {
+    ...process.env,
+    ANDROID_HOME: detectAndroidHome() ?? "",
+    NDK_HOME: process.env.NDK_HOME ?? resolveAndroidNdk(),
+  };
+  const res = spawnSync(
+    "pnpm",
+    ["tauri", "android", "build", "--debug", "--apk", "--target", target],
+    { cwd: root, stdio: "inherit", env },
+  );
+  if (res.error) throw res.error;
+  if (res.status !== 0) throw new Error("Tauri Android build failed");
+  adb([
+    "install",
+    "-r",
+    path.join(
+      root,
+      ANDROID_TAURI,
+      "app/build/outputs/apk/universal/debug/app-universal-debug.apk",
+    ),
+  ]);
+}
+
+/** Returns the adb endpoint of a running Waydroid session (the Linux
+ * container Android), or null when Waydroid is absent or not running. */
+function waydroidEndpoint(): string | null {
+  const probe = spawnSync("waydroid", ["status"], {
+    encoding: "utf8",
+    stdio: "pipe",
   });
-  if (res.status !== 0) throw new Error("gradle installDebug failed");
+  if (probe.status !== 0) return null;
+  if (!/Session:\s+RUNNING/.test(probe.stdout ?? "")) return null;
+  const ip = /IP address:\s*(\S+)/.exec(probe.stdout ?? "")?.[1];
+  return ip ? `${ip}:5555` : null;
 }
 
 /** Boots the first available AVD when no device is online, and waits for it
- * to finish booting. */
+ * to finish booting. Waydroid (the Linux Android container) is attached
+ * first when its session is already running. */
 function ensureDeviceOnline(): void {
   if (onlineDevices().length > 0) return;
+  const waydroid = waydroidEndpoint();
+  if (waydroid) {
+    console.log(`[mobile] attaching to Waydroid at ${waydroid}…`);
+    adb(["connect", waydroid]);
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline) {
+      if (onlineDevices().includes(waydroid)) return;
+      spawnSync("sleep", ["1"]);
+    }
+    throw new Error(`Waydroid at ${waydroid} did not come online for adb`);
+  }
   const listAvds = spawnSync("emulator", ["-list-avds"], {
     encoding: "utf8",
     stdio: "pipe",
@@ -367,132 +370,65 @@ function ensureDeviceOnline(): void {
   throw new Error("emulator did not finish booting within 180s");
 }
 
-/** `pnpm mobile:dev`: emulator + installed APK + adb reverse + Vite on
- * 127.0.0.1:1421, launched into the app through the dev_url bootstrap. The
- * Vite server stays in the foreground; Ctrl-C cleans up the reverse. */
-async function runMobileDev(): Promise<void> {
+/** `pnpm mobile:dev`: the canonical `tauri android dev` loop. The script
+ * boots an emulator, makes sure the gomobile AAR is bound, forwards the Vite
+ * dev port over adb (the CLI knows nothing about devices), then hands over
+ * to the Tauri CLI, which starts the dev server (beforeDevCommand), builds
+ * the debug APK and launches it against devUrl. Vite HMR reaches the app
+ * through the reverse; the LocalAPI credentials arrive through the xbond
+ * plugin, so no dev_url bootstrap exists anymore. Ctrl-C tears everything
+ * down, including the reverse. */
+function runMobileDev(): void {
   ensureDeviceOnline();
-  ensureAppInstalled(process.argv.includes("--rebuild"));
 
-  console.log(
-    `[mobile:dev] starting Vite dev server on 127.0.0.1:${MOBILE_DEV_PORT}…`,
-  );
-  const vite = spawn(
-    "pnpm",
-    [
-      "exec",
-      "vite",
-      "--port",
-      String(MOBILE_DEV_PORT),
-      "--strictPort",
-      "--host",
-      "127.0.0.1",
-    ],
-    { cwd: root, stdio: "inherit" },
-  );
-
-  const cleanup = () => {
-    adb(["reverse", "--remove", `tcp:${MOBILE_DEV_PORT}`], { capture: true });
-    vite.kill("SIGINT");
-    process.exit(0);
-  };
-  process.on("SIGINT", cleanup);
-  process.on("SIGTERM", cleanup);
-
-  // Wait for Vite to accept connections before reversing and launching.
-  const deadline = Date.now() + 60_000;
-  for (;;) {
-    const probe = spawnSync(
-      "curl",
-      ["-sf", `-o`, "/dev/null", `http://127.0.0.1:${MOBILE_DEV_PORT}/`],
-      { stdio: "pipe" },
+  if (!fs.existsSync(path.join(root, ANDROID_AAR))) {
+    console.log(
+      "[mobile:dev] AAR missing; binding (pnpm mobile:bind:android)…",
     );
-    if (probe.status === 0) break;
-    if (Date.now() > deadline)
-      throw new Error("Vite dev server did not start in time");
-    if (vite.exitCode !== null)
-      throw new Error("Vite dev server exited during startup");
-    spawnSync("sleep", ["0.5"]);
+    const res = buildAndroidAAR();
+    if (!res.ok) throw new Error(res.message);
   }
 
   adb(["reverse", `tcp:${MOBILE_DEV_PORT}`, `tcp:${MOBILE_DEV_PORT}`]);
-  adb([
-    "shell",
-    "am",
-    "start",
-    "-n",
-    `${ANDROID_APP_ID}/.MainActivity`,
-    "--es",
-    "dev_url",
-    `http://127.0.0.1:${MOBILE_DEV_PORT}`,
-  ]);
   console.log(
-    "[mobile:dev] app launched against the dev server — edit packages/client-ui for instant HMR",
+    `[mobile:dev] adb reverse tcp:${MOBILE_DEV_PORT} — starting tauri android dev…`,
   );
-  vite.on("exit", (code) => {
+
+  const dev = spawn("pnpm", ["tauri", "android", "dev"], {
+    cwd: root,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      ANDROID_HOME: detectAndroidHome() ?? "",
+      NDK_HOME: process.env.NDK_HOME ?? resolveAndroidNdk(),
+    },
+  });
+  const cleanup = () => {
     adb(["reverse", "--remove", `tcp:${MOBILE_DEV_PORT}`], { capture: true });
+  };
+  process.on("SIGINT", () => {
+    dev.kill("SIGINT");
+  });
+  process.on("SIGTERM", () => {
+    dev.kill("SIGTERM");
+  });
+  dev.on("exit", (code) => {
+    cleanup();
     process.exit(code ?? 0);
   });
 }
 
-/** `pnpm mobile:android`: standalone APK verification — fresh web dist into
- * the APK, installDebug, launch the packaged app (no dev_url). */
+/** `pnpm mobile:android`: install and launch the packaged Tauri APK. */
 function runMobileAndroid(): void {
   ensureDeviceOnline();
-  console.log("[mobile:android] building web dist (pnpm build)…");
-  const build = spawnSync("pnpm", ["build"], { cwd: root, stdio: "inherit" });
-  if (build.status !== 0) throw new Error("pnpm build failed");
   ensureAppInstalled(true);
   adb(["shell", "am", "start", "-n", `${ANDROID_APP_ID}/.MainActivity`]);
   console.log("[mobile:android] packaged app launched");
 }
 
-function bootedIOSSimulators(): string[] {
-  const res = spawnSync("xcrun", ["simctl", "list", "devices", "booted"], {
-    encoding: "utf8",
-    stdio: "pipe",
-  });
-  if (res.status !== 0) return [];
-  const lines = (res.stdout ?? "").split("\n");
-  const booted: string[] = [];
-  for (const line of lines) {
-    const match = line.match(/^(.+?)\s+\(([-0-9A-F]{36})\)\s+\(Booted\)/i);
-    if (match && /^iPhone/i.test(match[1].trim())) booted.push(match[2]);
-  }
-  return booted;
-}
-
-function ensureIOSDeviceOnline(): string {
-  const booted = bootedIOSSimulators();
-  if (booted.length > 0) return booted[0];
-
-  const res = spawnSync("xcrun", ["simctl", "list", "devices"], {
-    encoding: "utf8",
-    stdio: "pipe",
-  });
-  const lines = (res.stdout ?? "").split("\n");
-  const candidates: { name: string; id: string }[] = [];
-  for (const line of lines) {
-    const match = line.match(/(iPhone[^()]*)\s+\(([-0-9A-F]{36})\)/i);
-    if (match) {
-      candidates.push({ name: match[1].trim(), id: match[2] });
-    }
-  }
-  if (candidates.length === 0) {
-    throw new Error(
-      "no online iOS device and no simulator found (install an iOS Simulator runtime in Xcode)",
-    );
-  }
-  const pick =
-    candidates.find((c) => c.name.includes("iPhone 16 Pro")) ?? candidates[0];
-  console.log(`[mobile:ios] booting simulator ${pick.name} (${pick.id})…`);
-  spawnSync("xcrun", ["simctl", "boot", pick.id], { stdio: "inherit" });
-  return pick.id;
-}
-
-/** `pnpm mobile:ios`: standalone iOS app verification — fresh web dist,
- * ensured XBondMobile.xcframework and XBond.xcodeproj, xcodebuild, install
- * and launch the packaged app on the iOS simulator. */
+/** `pnpm mobile:ios`: the canonical `tauri ios dev` loop on macOS — ensure
+ * the gomobile xcframework is bound, then hand over to the Tauri CLI, which
+ * builds, installs and launches on the iOS simulator against devUrl. */
 export function runMobileIOS(): void {
   if (process.platform !== "darwin") {
     throw new Error(
@@ -501,13 +437,7 @@ export function runMobileIOS(): void {
     );
   }
 
-  const simId = ensureIOSDeviceOnline();
-
-  if (
-    !fs.existsSync(
-      path.join(root, "apps", "mobile", "ios", "XBondMobile.xcframework"),
-    )
-  ) {
+  if (!fs.existsSync(path.join(root, IOS_FRAMEWORK))) {
     console.log(
       "[mobile:ios] XBondMobile.xcframework missing; binding (pnpm mobile:bind:ios)…",
     );
@@ -515,76 +445,14 @@ export function runMobileIOS(): void {
     if (!res.ok) throw new Error(res.message);
   }
 
-  const distHtml = path.join(root, "dist", "web", "index.html");
-  if (!fs.existsSync(distHtml)) {
-    console.log("[mobile:ios] web dist missing; building (pnpm build)…");
-    const build = spawnSync("pnpm", ["build"], {
-      cwd: root,
-      stdio: "inherit",
-    });
-    if (build.status !== 0) throw new Error("pnpm build failed");
-  }
-
-  const projectDir = path.join(root, "apps", "mobile", "ios");
-  const xcodeProj = path.join(projectDir, "XBond.xcodeproj");
-  if (!fs.existsSync(xcodeProj)) {
-    console.log("[mobile:ios] generating XBond.xcodeproj via xcodegen…");
-    const xcodegenRes = spawnSync(
-      "xcodegen",
-      ["generate", "--spec", "project.yml", "--project", "."],
-      { cwd: projectDir, stdio: "inherit" },
-    );
-    if (xcodegenRes.status !== 0) throw new Error("xcodegen failed");
-  }
-
-  console.log(
-    `[mobile:ios] building iOS simulator app for device ${simId} (xcodebuild)…`,
-  );
-  const derivedDataPath = path.join(
-    os.homedir(),
-    "Library",
-    "Caches",
-    "XBondDerivedData",
-  );
-  const buildRes = spawnSync(
-    "xcodebuild",
-    [
-      "-project",
-      xcodeProj,
-      "-scheme",
-      "XBond",
-      "-destination",
-      `id=${simId}`,
-      "-derivedDataPath",
-      derivedDataPath,
-      "CODE_SIGNING_ALLOWED=NO",
-      "build",
-    ],
-    { cwd: projectDir, stdio: "inherit" },
-  );
-  if (buildRes.status !== 0) throw new Error("xcodebuild build failed");
-
-  const appPath = path.join(
-    derivedDataPath,
-    "Build",
-    "Products",
-    "Debug-iphonesimulator",
-    "XBond.app",
-  );
-  console.log("[mobile:ios] installing app to simulator…");
-  const installRes = spawnSync("xcrun", ["simctl", "install", simId, appPath], {
+  console.log("[mobile:ios] starting tauri ios dev…");
+  const dev = spawn("pnpm", ["tauri", "ios", "dev"], {
+    cwd: root,
     stdio: "inherit",
   });
-  if (installRes.status !== 0) throw new Error("simctl install failed");
-
-  console.log("[mobile:ios] launching net.xbond.app on simulator…");
-  const launchRes = spawnSync(
-    "xcrun",
-    ["simctl", "launch", simId, "net.xbond.app"],
-    { stdio: "inherit" },
-  );
-  if (launchRes.status !== 0) throw new Error("simctl launch failed");
-  console.log("[mobile:ios] packaged app launched on iOS simulator");
+  dev.on("exit", (code) => {
+    process.exit(code ?? 0);
+  });
 }
 
 function main(): void {
@@ -620,7 +488,7 @@ function main(): void {
     ensureGomobile();
     console.log("[mobile:ensure] gomobile and gobind match go.mod");
   } else if (command === "dev") {
-    void runMobileDev();
+    runMobileDev();
   } else if (command === "android") {
     runMobileAndroid();
   } else if (command === "ios") {

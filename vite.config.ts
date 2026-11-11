@@ -71,13 +71,15 @@ export default defineConfig((env) => ({
           short_name: "XBond",
           name: "XBond Dashboard",
           description: "XBond proxy dashboard",
-          theme_color: "#0a0a0a",
-          background_color: "#0a0a0a",
+          // Light --background token; the PWA manifest has no dark variant.
+          theme_color: "#eff1f8",
+          background_color: "#eff1f8",
           display: "standalone",
         },
       }),
   ],
   server: {
+    host: process.env.TAURI_DEV_HOST ?? "127.0.0.1",
     port: env.mode === "tauri" ? 1420 : 3000,
     strictPort: env.mode === "tauri",
     watch: { ignored: ["**/src-tauri/**"] },

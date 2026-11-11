@@ -123,11 +123,11 @@ export function checkHardcodedAttributes(rootDir: string): I18nProblem[] {
 }
 
 /**
- * Verify desktop tray i18n completeness in apps/desktop/src-tauri/src/tray.rs.
+ * Verify desktop tray i18n completeness in src-tauri/src/tray.rs.
  */
 export function checkTrayI18n(rootDir: string): I18nProblem[] {
   const problems: I18nProblem[] = [];
-  const trayPath = path.join(rootDir, "apps/desktop/src-tauri/src/tray.rs");
+  const trayPath = path.join(rootDir, "src-tauri/src/tray.rs");
 
   if (!fs.existsSync(trayPath)) return problems;
 
@@ -140,7 +140,7 @@ export function checkTrayI18n(rootDir: string): I18nProblem[] {
       !content.includes(`static ${loc}: TrayI18n`)
     ) {
       problems.push({
-        file: "apps/desktop/src-tauri/src/tray.rs",
+        file: "src-tauri/src/tray.rs",
         message: `Missing tray i18n definition for locale '${loc}'`,
       });
     }

@@ -9,9 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
@@ -29,7 +27,6 @@ type apiServer struct {
 	svc    *TunnelService
 	token  string
 	port   int
-	webDir string
 	server *http.Server
 }
 
@@ -47,10 +44,9 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 		}
 	}
 	s := &apiServer{
-		svc:    svc,
-		token:  randomSecret(),
-		port:   listener.Addr().(*net.TCPAddr).Port,
-		webDir: filepath.Join(paths.DataDir(), "web"),
+		svc:   svc,
+		token: randomSecret(),
+		port:  listener.Addr().(*net.TCPAddr).Port,
 	}
 
 	mux := http.NewServeMux()
@@ -109,13 +105,6 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 	mux.HandleFunc("/localapi/v0/logs", auth(s.handleLogs))
 	mux.HandleFunc("/localapi/v0/doctor", auth(s.handleDoctor))
 	mux.HandleFunc("/localapi/v0/bugreport", auth(s.handleBugReport))
-
-	// Shared web UI, extracted from APK assets by the platform side. Same
-	// injection contract as the daemon: token and controller meta ride the
-	// page; everything else is relative to this origin. The route registers
-	// unconditionally — the service may start before the UI assets are
-	// extracted, and index is read per request.
-	mux.HandleFunc("/", s.handleWeb)
 
 	s.server = &http.Server{Handler: httplocal.Guard(mux)}
 	go func() {
@@ -1119,47 +1108,6 @@ func (s *apiServer) handleBugReport(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---------------------------------------------------------------- json
-
-func (s *apiServer) handleWeb(w http.ResponseWriter, r *http.Request) {
-	filePath := filepath.Join(s.webDir, filepath.Clean(r.URL.Path))
-	// web 目錄歸界：本機上任何應用都能連到這個 loopback 端口，/../../ 之類
-	// 的路徑不能逃出 web 目錄去讀 token、訂閱等 app 私有文件。
-	if rel, relErr := filepath.Rel(s.webDir, filePath); relErr != nil ||
-		rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		http.NotFound(w, r)
-		return
-	}
-	info, err := os.Stat(filePath)
-	if err != nil || info.IsDir() {
-		if iosWebOrigin && r.Header.Get("X-XBond-Token") != s.token {
-			http.NotFound(w, r)
-			return
-		}
-		indexBytes, err := os.ReadFile(filepath.Join(s.webDir, "index.html"))
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		// The controller meta pins the proxy front (stable port, secret
-		// injected per connection), not the per-apply core controller.
-		proxyPort := 0
-		if s.svc.controller != nil {
-			proxyPort = s.svc.controller.port
-		}
-		_, clashSecret := s.svc.runtime.endpoint()
-		if iosWebOrigin && s.svc.controller != nil {
-			clashSecret = s.svc.controller.webToken
-		}
-		metaTag := fmt.Sprintf(`<meta name="external-controller" content="http://:%s@127.0.0.1:%d">
-    <meta name="localapi-token" content="%s">`, clashSecret, proxyPort, s.token)
-		html := strings.Replace(string(indexBytes), "<head>", "<head>\n    "+metaTag, 1)
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(html))
-		return
-	}
-	http.ServeFile(w, r, filePath)
-}
 
 func writeJSON(w http.ResponseWriter, code int, data any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

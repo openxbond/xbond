@@ -1,9 +1,10 @@
-import { isMobileApp } from "./host.ts";
+import { isMobileApp, isTauriAndroid } from "./host.ts";
+import { invokeTauri } from "./local-api-bootstrap.ts";
 
 /**
- * Typed surface for `window.XBondAndroid`, the @JavascriptInterface bridge
- * MainActivity installs. Every call degrades to a browser-safe no-op so the
- * same build runs in a plain desktop browser or the dev server.
+ * Typed surface for the Tauri `xbond` mobile plugin (net.xbond.app.xbond on
+ * Android, the Swift plugin on iOS). Every call degrades to a browser-safe
+ * no-op so the same build runs in a plain desktop browser or the dev server.
  */
 
 export interface InstalledApp {
@@ -19,85 +20,82 @@ export interface SplitTunnelConfig {
   packages: string[];
 }
 
-interface XBondAndroidBridge {
-  getInstalledApps(): string;
-  getSplitTunnelConfig(): string;
-  setSplitTunnelConfig(json: string): boolean;
-  checkForUpdates(): void;
-  syncSystemBars(isDark: boolean, colorHex?: string): void;
-  openURL?(url: string): boolean;
-  getPreference?(key: string): string | null;
-  setPreference?(key: string, value: string): boolean;
-}
-
 declare global {
   interface Window {
-    XBondAndroid?: XBondAndroidBridge;
+    /** Web-side back handler (app-shell); the thin launcher activity asks
+     * it before moving the task to the background. */
     __xbondHandleBack?: () => boolean;
   }
 }
 
-function bridge(): XBondAndroidBridge | null {
-  if (!isMobileApp()) return null;
-  return window.XBondAndroid ?? null;
+/** Raw invoke into the xbond plugin; null outside the Android shell. */
+function pluginInvoke() {
+  if (!isTauriAndroid()) return null;
+  return invokeTauri();
 }
 
+/** True inside the Tauri Android shell (per-app VPN, updates, split tunnel). */
 export function hasAndroidBridge(): boolean {
-  return bridge() !== null;
+  return pluginInvoke() !== null;
+}
+
+async function call<T>(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<T | null> {
+  const invoke = pluginInvoke();
+  if (!invoke) return null;
+  try {
+    return (await invoke(`plugin:xbond|${command}`, args)) as T;
+  } catch {
+    return null;
+  }
 }
 
 /** Installed apps for the per-app VPN picker; [] outside Android. */
-export function listInstalledApps(): InstalledApp[] {
-  const native = bridge();
-  if (!native) return [];
-  try {
-    const parsed: unknown = JSON.parse(native.getInstalledApps());
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is InstalledApp =>
-        typeof item === "object" &&
-        item !== null &&
-        typeof (item as InstalledApp).packageName === "string" &&
-        typeof (item as InstalledApp).label === "string",
-    );
-  } catch {
-    return [];
-  }
+export async function listInstalledApps(): Promise<InstalledApp[]> {
+  const parsed = await call<InstalledApp[]>("list_installed_apps");
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter(
+    (item): item is InstalledApp =>
+      typeof item === "object" &&
+      item !== null &&
+      typeof item.packageName === "string" &&
+      typeof item.label === "string",
+  );
 }
 
 /** Saved split-tunnel config; defaults to every app riding the VPN. */
-export function getSplitTunnelConfig(): SplitTunnelConfig {
-  const native = bridge();
-  if (!native) return { mode: "all", packages: [] };
-  try {
-    const parsed = JSON.parse(
-      native.getSplitTunnelConfig(),
-    ) as Partial<SplitTunnelConfig>;
-    const mode: SplitTunnelMode =
-      parsed.mode === "allow" || parsed.mode === "disallow"
-        ? parsed.mode
-        : "all";
-    const packages = Array.isArray(parsed.packages)
-      ? parsed.packages.filter(
-          (pkg): pkg is string => typeof pkg === "string" && pkg.length > 0,
-        )
-      : [];
-    return { mode, packages };
-  } catch {
+export async function getSplitTunnelConfig(): Promise<SplitTunnelConfig> {
+  const parsed = await call<Partial<SplitTunnelConfig>>(
+    "get_split_tunnel_config",
+  );
+  if (!parsed || typeof parsed !== "object") {
     return { mode: "all", packages: [] };
   }
+  const mode: SplitTunnelMode =
+    parsed.mode === "allow" || parsed.mode === "disallow" ? parsed.mode : "all";
+  const packages = Array.isArray(parsed.packages)
+    ? parsed.packages.filter(
+        (pkg): pkg is string => typeof pkg === "string" && pkg.length > 0,
+      )
+    : [];
+  return { mode, packages };
 }
 
 /** Persists the config and hot-reloads the VPN interface when connected. */
-export function setSplitTunnelConfig(config: SplitTunnelConfig): boolean {
-  const native = bridge();
-  if (!native) return false;
-  return native.setSplitTunnelConfig(JSON.stringify(config));
+export async function setSplitTunnelConfig(
+  config: SplitTunnelConfig,
+): Promise<boolean> {
+  const saved = await call<boolean>("set_split_tunnel_config", {
+    json: JSON.stringify(config),
+  });
+  return saved === true;
 }
 
 /** Manual update check through the native installer flow. */
 export function checkForUpdates(): void {
-  bridge()?.checkForUpdates();
+  void call("check_for_updates", { manual: true });
 }
 
 /**
@@ -105,40 +103,20 @@ export function checkForUpdates(): void {
  * is a #rrggbb surface color (the theme-color meta already carries one).
  */
 export function syncSystemBars(isDark: boolean, colorHex?: string): void {
-  bridge()?.syncSystemBars(isDark, colorHex);
-  if (
-    typeof window !== "undefined" &&
-    typeof window.XBondIOS === "object" &&
-    window.XBondIOS?.syncSystemBars
-  ) {
-    window.XBondIOS.syncSystemBars(isDark, colorHex);
-  }
+  if (!isMobileApp()) return;
+  void invokeTauri()?.("plugin:xbond|sync_system_bars", {
+    isDark,
+    color: colorHex ?? null,
+  }).catch(() => {});
 }
 
-/** Opens an external URL in the Android default browser. */
-export function openAndroidUrl(url: string): boolean {
-  const native = bridge();
-  if (!native?.openURL) return false;
-  return native.openURL(url);
-}
-
-/** Reads a persistent preference from the native Android host. */
-export function getAndroidPreference(key: string): string | null {
-  const native = bridge();
-  if (!native?.getPreference) return null;
+/** Opens an external URL in the Android default browser (opener plugin). */
+export async function openAndroidUrl(url: string): Promise<boolean> {
+  const invoke = pluginInvoke();
+  if (!invoke) return false;
   try {
-    return native.getPreference(key);
-  } catch {
-    return null;
-  }
-}
-
-/** Writes a persistent preference to the native Android host. */
-export function setAndroidPreference(key: string, value: string): boolean {
-  const native = bridge();
-  if (!native?.setPreference) return false;
-  try {
-    return native.setPreference(key, value);
+    await invoke("plugin:opener|open_url", { url });
+    return true;
   } catch {
     return false;
   }

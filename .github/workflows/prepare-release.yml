@@ -216,10 +216,11 @@ jobs:
           java-version: "17"
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
-          packages: "platform-tools platforms;android-36 build-tools;36.0.0 ndk;28.2.13676358"
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+          packages: "platform-tools platforms;android-36 platforms;android-37.0 build-tools;36.0.0 ndk;28.2.13676358"
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
         with:
-          gradle-version: "8.11.1"
+          target: "aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android"
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: web-dist
@@ -234,8 +235,12 @@ jobs:
         run: |
           test -n "$XBOND_RELEASE_PUBLIC_KEY"
           pnpm mobile:ensure
-          gradle -p apps/mobile/android :app:assembleRelease
-          node scripts/release-android.ts sign "$TAG" apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk "release/$TAG/android"
+          pnpm mobile:bind:android
+          export NDK_HOME="$(ls -d "$ANDROID_HOME"/ndk/* | sort -V | tail -1)"
+          pnpm tauri android build --apk
+          node scripts/release-android.ts sign "$TAG" \
+            src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk \
+            "release/$TAG/android"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: android
@@ -271,6 +276,7 @@ jobs:
       - name: Build the Go framework
         run: |
           brew install xcodegen
+          rustup target add aarch64-apple-ios
           pnpm mobile:ensure
           pnpm mobile:bind:ios
       - name: Archive the signed App Store build

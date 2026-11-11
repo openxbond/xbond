@@ -34,9 +34,8 @@ export const WRAPPER_SCHEMES = ["xbond", "clash", "sing-box"];
  * otherwise cargo's default target dir inside src-tauri. */
 export function devBinaryPath(): string {
   const targetDir =
-    process.env.CARGO_TARGET_DIR ??
-    path.join(root, "apps", "desktop", "src-tauri", "target");
-  return path.join(targetDir, "debug", "xbond-client");
+    process.env.CARGO_TARGET_DIR ?? path.join(root, "src-tauri", "target");
+  return path.join(targetDir, "debug", "xbond-app");
 }
 
 function shellQuote(value: string): string {

@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import {
   Route,
   Navigate,
@@ -27,7 +27,7 @@ import Rules from "@/features/rules/rules-page";
 import Settings from "@/features/settings/settings-page";
 import { cn } from "@/lib/utils";
 import { syncSystemBars } from "@/platform/android-bridge";
-import { handleDeepLink } from "@/platform/deep-links";
+import { installTauriDeepLinkListener } from "@/platform/deep-links";
 import { useDesktopShell } from "@/platform/desktop-shell";
 import { isMobileApp } from "@/platform/host";
 import { isDesktopApp } from "@/platform/local-api-bootstrap";
@@ -135,14 +135,11 @@ export default function App() {
     setIdentity(true);
   }, [identity, target, location.search, navigate, setIdentity]);
 
-  // Handle mobile / native shell deep links (subscription import, tab navigation)
+  const navigateFromDeepLink = useEffectEvent((to: string) => navigate(to));
   useEffect(() => {
-    const onDeepLink = (e: Event) => {
-      handleDeepLink((e as CustomEvent<unknown>).detail, navigate);
-    };
-    window.addEventListener("xbond-deep-link", onDeepLink);
-    return () => window.removeEventListener("xbond-deep-link", onDeepLink);
-  }, [navigate]);
+    if (!isMobileApp()) return;
+    return installTauriDeepLinkListener(navigateFromDeepLink);
+  }, []);
 
   const layout = (
     <div className="flex h-[100dvh] min-h-0 gap-2 overflow-hidden bg-transparent p-2 xl:gap-3 xl:p-3 max-md:gap-0 max-md:p-0">

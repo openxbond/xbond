@@ -12,7 +12,8 @@ xbond
 xbond.exe
 xbond.exe.old
 apps/desktop
-apps/mobile
+src-tauri
+plugins
 docs
 *.md
 !README.md

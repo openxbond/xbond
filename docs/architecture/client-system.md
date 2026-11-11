@@ -16,18 +16,21 @@ flowchart TD
   CLI["cmd/xbond"] --> Daemon
   Daemon --> Engine["internal/engine"]
   Daemon --> Sub["internal/sub"]
-  Mobile["apps/mobile · 原生宿主"] --> Binding["mobile · gomobile 公開入口"]
+  Mobile["src-tauri/gen · Tauri 生成原生工程"] --> Tauri
+  Mobile --> Plugin["plugins/xbond · 移動原生能力插件"]
+  Plugin --> Binding["mobile · gomobile 公開入口"]
   Binding --> Engine
   Binding --> Sub
 ```
 
-此圖只畫當前程式碼中的關係。移動宿主使用既有原生程式碼與 Go binding，尚未因此得到完整 React 畫面或原生購買能力。
+此圖只畫當前程式碼中的關係。移動宿主由 Tauri 生成工程承載（gen/android、gen/apple），原生能力集中在 `plugins/xbond`（Kotlin 服務與更新、Swift 橋與 PacketTunnel 源），Go binding 經插件接入；桌面與移動共用同一 `src-tauri` crate。
 
 | 位置 | 責任與適合放入的程式碼 |
 | --- | --- |
 | apps/dashboard | HTML、靜態資源、獨立網頁啟動 |
-| apps/desktop | 桌面 HTML／JS 入口與 src-tauri 原生殼 |
-| apps/mobile | Android／iOS 宿主、系統 VPN 與原生權限接入 |
+| apps/desktop | 桌面 HTML／JS 入口 |
+| src-tauri | 桌面與移動共用的 Tauri 殼（crate `xbond-app`）：桌面能力走 `desktop` feature 門控，移動面註冊插件；gen/ 為平台生成工程 |
+| plugins/xbond | 移動原生能力（Tauri 插件）：LocalAPI 配置、分應用、自更新、偏好、系統欄、OAuth 回調；Kotlin 側 VpnService／TileService，Swift 側隧道橋與 PacketTunnel 源 |
 | packages/client | 不依賴 React 的控制器、來源資料正規化、核心及 LocalAPI 傳輸、策略與串流邏輯 |
 | packages/client-ui | React 畫面、互動、Jotai／SWR、語系及樣式；目前的瀏覽器／Tauri 探測亦留在這裡 |
 | cmd/xbond | 命令列參數、呈現及入口裝配 |

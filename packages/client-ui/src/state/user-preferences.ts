@@ -51,10 +51,12 @@ function resolveDark(pref: ThemePreference | undefined) {
 
 function applyTheme(dark: boolean) {
   document.documentElement.classList.toggle("dark", dark);
-  // Browsers refuse a theme-color they cannot parse — hex, not oklch.
+  // Browsers refuse a theme-color they cannot parse — hex, not oklch. Must
+  // track --background in styles/tokens.css: the Android shell paints the
+  // system bars and window background from this value.
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute("content", dark ? "#0a0a0a" : "#f7f7f7");
+    ?.setAttribute("content", dark ? "#080b10" : "#eff1f8");
 }
 
 /**
@@ -67,11 +69,6 @@ export function useTheme() {
 
   useEffect(() => {
     applyTheme(resolveDark(theme));
-    if (typeof window !== "undefined" && window.XBondAndroid?.setPreference) {
-      try {
-        window.XBondAndroid.setPreference("theme", JSON.stringify(theme));
-      } catch {}
-    }
     if (theme === "light" || theme === "dark") return;
 
     const onChange = () => applyTheme(darkQuery.matches);

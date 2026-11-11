@@ -45,56 +45,36 @@ test("openExternalUrl falls back to window.open outside the desktop shell", asyn
   }
 });
 
-test("openExternalUrl delegates to XBondAndroid.openURL inside Android host", async () => {
-  const opened: string[] = [];
+test("openExternalUrl routes through the opener plugin inside a mobile Tauri shell", async () => {
+  const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = [];
+  // host.ts reads the global navigator; override it with an Android UA.
+  const realNavigator = globalThis.navigator;
+  Object.defineProperty(globalThis, "navigator", {
+    value: {
+      userAgent: "Mozilla/5.0 (Linux; Android 14; wv) AppleWebKit/537.36",
+    },
+    configurable: true,
+  });
   mockWindow({
-    XBondAndroid: {
-      openURL: (url: string) => {
-        opened.push(url);
-        return true;
+    __TAURI_INTERNALS__: {
+      invoke: async (cmd: string, args?: Record<string, unknown>) => {
+        calls.push({ cmd, args });
       },
     },
   });
   try {
     await openExternalUrl("https://www.xbond.net/dash");
-    assert.deepEqual(opened, ["https://www.xbond.net/dash"]);
-  } finally {
-    restoreWindow();
-  }
-});
-
-test("openExternalUrl delegates to XBondIOS.openURL inside iOS host when available", async () => {
-  const opened: string[] = [];
-  mockWindow({
-    XBondIOS: {
-      openURL: (url: string) => {
-        opened.push(url);
-        return true;
+    assert.deepEqual(calls, [
+      {
+        cmd: "plugin:opener|open_url",
+        args: { url: "https://www.xbond.net/dash" },
       },
-    },
-  });
-  try {
-    await openExternalUrl("https://www.xbond.net/dash");
-    assert.deepEqual(opened, ["https://www.xbond.net/dash"]);
+    ]);
   } finally {
-    restoreWindow();
-  }
-});
-
-test("openExternalUrl navigates the frame inside the iOS host", async () => {
-  const navigated: string[] = [];
-  mockWindow({
-    XBondIOS: true,
-    location: {
-      set href(value: string) {
-        navigated.push(value);
-      },
-    },
-  });
-  try {
-    await openExternalUrl("https://www.xbond.net/dash");
-    assert.deepEqual(navigated, ["https://www.xbond.net/dash"]);
-  } finally {
+    Object.defineProperty(globalThis, "navigator", {
+      value: realNavigator,
+      configurable: true,
+    });
     restoreWindow();
   }
 });

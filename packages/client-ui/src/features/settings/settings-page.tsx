@@ -183,19 +183,20 @@ export default function Settings() {
     return () => connStream.unsubscribe("data", onData);
   }, [connStream]);
 
-  // 分应用代理状态摘要
-  const [splitSummary, setSplitSummary] = useState(() => {
-    if (!isAndroid) return "";
-    const current = getSplitTunnelConfig();
-    return perAppVpnSummary(cfg, current.mode, current.packages.length);
-  });
+  // 分应用代理状态摘要（桥接为异步读取，先空串再按结果刷新）
+  const [splitSummary, setSplitSummary] = useState("");
   const refreshSplitSummary = useCallback(() => {
     if (!isAndroid) return;
-    const current = getSplitTunnelConfig();
-    setSplitSummary(
-      perAppVpnSummary(cfg, current.mode, current.packages.length),
-    );
+    void getSplitTunnelConfig().then((current) => {
+      setSplitSummary(
+        perAppVpnSummary(cfg, current.mode, current.packages.length),
+      );
+    });
   }, [cfg, isAndroid]);
+
+  useEffect(() => {
+    refreshSplitSummary();
+  }, [refreshSplitSummary]);
 
   const isDesktop = isDesktopApp();
   const clientInfo = parseClientInfo(

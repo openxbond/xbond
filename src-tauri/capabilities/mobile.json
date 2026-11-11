@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "Mobile shell: the bundled UI reaches native capabilities only through the xbond plugin (LocalAPI config, split tunnel, updates, preferences, system bars, account callback) plus opener for external links and deep-link for URL import/OAuth callbacks.",
+  "windows": ["main"],
+  "platforms": ["android", "iOS"],
+  "permissions": [
+    "core:default",
+    "xbond:default",
+    "opener:allow-open-url",
+    "opener:allow-default-urls",
+    "deep-link:default"
+  ]
+}

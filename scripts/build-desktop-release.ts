@@ -44,7 +44,7 @@ const applePassword = process.env.APPLE_PASSWORD;
 const appleTeam = process.env.APPLE_TEAM_ID;
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const tauriDirectory = join(root, "apps", "desktop", "src-tauri");
+const tauriDirectory = join(root, "src-tauri");
 const rustOS =
   os === "win32"
     ? "pc-windows-msvc"
@@ -189,11 +189,15 @@ try {
       join(root, "node_modules", "@tauri-apps", "cli", "tauri.js"),
       "build",
       "--config",
+      join(tauriDirectory, "tauri.desktop.conf.json"),
+      "--config",
       join(tauriDirectory, "tauri.release.conf.json"),
       "--config",
       signingConfig,
       "--target",
       rustTarget,
+      "--features",
+      "desktop",
     ],
     {
       ...process.env,

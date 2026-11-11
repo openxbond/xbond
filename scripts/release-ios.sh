@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Signs the iOS App Store archive: an ephemeral keychain holds the
 # distribution certificate, the provisioning profiles are installed, and
-# apps/mobile/ios/build-release.sh archives the signed IPA.
+# scripts/build-ios-release.sh archives the signed IPA from the Tauri
+# gen/apple project.
 #
 # Env contract (the release-ios-signing environment):
 #   IOS_DISTRIBUTION_P12       base64 PKCS#12 distribution certificate
@@ -60,4 +61,4 @@ APPLE_TUNNEL_PROFILE="$(printf '%s' "$IOS_TUNNEL_PROFILE" | install_profile tunn
 export APPLE_APP_PROFILE APPLE_TUNNEL_PROFILE
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-bash "$repo/apps/mobile/ios/build-release.sh" "$2"
+bash "$repo/scripts/build-ios-release.sh" "$2"

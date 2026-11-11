@@ -202,8 +202,8 @@ export function generateAllLogoAssets(): void {
   );
   console.log("✓ Dashboard & Web assets generated");
 
-  // 3. Desktop Tauri assets (apps/desktop/src-tauri/icons)
-  const desktopIcons = path.join(ROOT, "apps/desktop/src-tauri/icons");
+  // 3. Desktop Tauri assets (src-tauri/icons)
+  const desktopIcons = path.join(ROOT, "src-tauri/icons");
   fs.mkdirSync(desktopIcons, { recursive: true });
   const desktopPng512 = renderPng(roundedSvg, 512);
   fs.writeFileSync(path.join(desktopIcons, "icon.png"), desktopPng512);
@@ -242,8 +242,8 @@ export function generateAllLogoAssets(): void {
   }
   console.log("✓ Desktop Tauri assets generated");
 
-  // 4. Android Native Assets (apps/mobile/android/app/src/main/res)
-  const resDir = path.join(ROOT, "apps/mobile/android/app/src/main/res");
+  // 4. Android launcher resources
+  const resDir = path.join(ROOT, "src-tauri/gen/android/app/src/main/res");
   fs.mkdirSync(path.join(resDir, "values"), { recursive: true });
   fs.mkdirSync(path.join(resDir, "drawable"), { recursive: true });
   fs.mkdirSync(path.join(resDir, "mipmap-anydpi-v26"), { recursive: true });
@@ -291,8 +291,8 @@ export function generateAllLogoAssets(): void {
   }
   console.log("✓ Android assets generated");
 
-  // 5. iOS Native Assets (apps/mobile/ios/App/Assets.xcassets)
-  const iosAssetsDir = path.join(ROOT, "apps/mobile/ios/App/Assets.xcassets");
+  // 5. iOS launcher resources
+  const iosAssetsDir = path.join(ROOT, "src-tauri/gen/apple/Assets.xcassets");
   const iosIconSetDir = path.join(iosAssetsDir, "AppIcon.appiconset");
   fs.mkdirSync(iosIconSetDir, { recursive: true });
 

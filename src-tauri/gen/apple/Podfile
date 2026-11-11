@@ -1,0 +1,4 @@
+platform :ios, '16.0'
+
+target 'xbond-app_iOS' do
+end

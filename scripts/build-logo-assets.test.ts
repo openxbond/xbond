@@ -74,18 +74,12 @@ test("verified all platform icon assets are present and properly declared", () =
   );
 
   // Desktop (Tauri)
-  assert.ok(
-    fs.existsSync(path.join(root, "apps/desktop/src-tauri/icons/icon.png")),
-  );
-  assert.ok(
-    fs.existsSync(path.join(root, "apps/desktop/src-tauri/icons/icon.ico")),
-  );
-  assert.ok(
-    fs.existsSync(path.join(root, "apps/desktop/src-tauri/icons/icon.icns")),
-  );
+  assert.ok(fs.existsSync(path.join(root, "src-tauri/icons/icon.png")));
+  assert.ok(fs.existsSync(path.join(root, "src-tauri/icons/icon.ico")));
+  assert.ok(fs.existsSync(path.join(root, "src-tauri/icons/icon.icns")));
 
-  // Android
-  const resDir = path.join(root, "apps/mobile/android/app/src/main/res");
+  // Android (Tauri gen launcher icons; see docs/specs/mobile-android.md)
+  const resDir = path.join(root, "src-tauri/gen/android/app/src/main/res");
   assert.ok(
     fs.existsSync(path.join(resDir, "values/ic_launcher_background.xml")),
   );
@@ -115,26 +109,16 @@ test("verified all platform icon assets are present and properly declared", () =
 
   // Android Manifest declaration
   const manifest = fs.readFileSync(
-    path.join(root, "apps/mobile/android/app/src/main/AndroidManifest.xml"),
+    path.join(root, "src-tauri/gen/android/app/src/main/AndroidManifest.xml"),
     "utf8",
   );
   assert.match(manifest, /android:icon="@mipmap\/ic_launcher"/);
   assert.match(manifest, /android:roundIcon="@mipmap\/ic_launcher_round"/);
 
-  // iOS Asset Catalog
-  const iosAssets = path.join(root, "apps/mobile/ios/App/Assets.xcassets");
-  assert.ok(fs.existsSync(path.join(iosAssets, "Contents.json")));
-  assert.ok(
-    fs.existsSync(path.join(iosAssets, "AppIcon.appiconset/Contents.json")),
+  // iOS app icon in the generated project catalog
+  const appIcon = path.join(
+    root,
+    "src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
   );
-  assert.ok(
-    fs.existsSync(path.join(iosAssets, "AppIcon.appiconset/icon-1024.png")),
-  );
-
-  // iOS project.yml declaration
-  const projectYml = fs.readFileSync(
-    path.join(root, "apps/mobile/ios/project.yml"),
-    "utf8",
-  );
-  assert.match(projectYml, /ASSETCATALOG_COMPILER_APPICON_NAME:\s*AppIcon/);
+  assert.ok(fs.existsSync(appIcon));
 });

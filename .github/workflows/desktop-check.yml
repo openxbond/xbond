@@ -7,6 +7,9 @@ on:
   push:
     branches: [main]
     paths:
+      - "src-tauri/**"
+      - "plugins/**"
+      - "apps/dashboard/**"
       - "apps/desktop/**"
       - "packages/client/**"
       - "packages/client-ui/**"
@@ -16,6 +19,9 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "src-tauri/**"
+      - "plugins/**"
+      - "apps/dashboard/**"
       - "apps/desktop/**"
       - "packages/client/**"
       - "packages/client-ui/**"
@@ -33,8 +39,12 @@ permissions:
 
 jobs:
   desktop:
-    name: "Desktop (Tauri)"
-    runs-on: ubuntu-latest
+    name: "Desktop (Tauri, ${{ matrix.runner }})"
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, macos-26, windows-latest]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,15 +57,20 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # tauri::generate_context! embeds the frontend dist at compile time, so
-      # cargo check needs dist/desktop/ to exist and be current.
-      - run: pnpm build:desktop
+      # tauri::generate_context! embeds the frontend dist at compile time;
+      # the shared crate's base config points at dist/web, so cargo check
+      # needs it to exist. Desktop assets ride the desktop config overlay
+      # and are exercised by the release pipeline.
+      - run: pnpm build
 
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
         with:
           components: rustfmt
 
-      - uses: ./.github/actions/setup-tauri-deps
+      - if: runner.os == 'Linux'
+        uses: ./.github/actions/setup-tauri-deps
 
+      # The release workflow builds the same crate for the Android and iOS
+      # targets. A desktop target always requires the desktop feature.
       - run: pnpm desktop:fmt:check
       - run: pnpm desktop:check

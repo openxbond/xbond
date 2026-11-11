@@ -8,7 +8,9 @@
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f7f7f7" />
+    <!-- Hex of --background (styles/tokens.css); kept in sync with the
+         dashboard entry. -->
+    <meta name="theme-color" content="#eff1f8" />
     <meta name="description" content="XBond proxy dashboard" />
     <title>XBond</title>
     <script>
@@ -25,7 +27,7 @@
             document.documentElement.classList.add("dark");
             document
               .querySelector('meta[name="theme-color"]')
-              .setAttribute("content", "#0a0a0a");
+              .setAttribute("content", "#080b10");
           }
         } catch (e) {
           /* storage unavailable — system default already applied */

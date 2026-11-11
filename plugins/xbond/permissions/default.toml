@@ -1,0 +1,15 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = """Full access to the XBond mobile native capabilities the bundled UI needs: the LocalAPI endpoint it drives the tunnel through, the per-app VPN picker data, self-hosted update checks, UI preferences, system bar theming and OAuth callback delivery."""
+permissions = [
+  "allow-get-localapi-config",
+  "allow-list-installed-apps",
+  "allow-get-split-tunnel-config",
+  "allow-set-split-tunnel-config",
+  "allow-check-for-updates",
+  "allow-get-preference",
+  "allow-set-preference",
+  "allow-sync-system-bars",
+  "allow-deliver-account-callback",
+]

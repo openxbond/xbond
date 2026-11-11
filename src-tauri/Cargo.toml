@@ -1,0 +1,58 @@
+[package]
+name = "xbond-app"
+version = "0.3.0"
+description = "XBond client shell (desktop and mobile)"
+authors = ["openxbond <no-reply@xbond.net>"]
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "xbond_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[features]
+# Desktop shell surface: tray, window state, single instance, autostart,
+# global shortcut and the signed updater. Default is empty so mobile builds
+# compile without desktop-only crates; desktop builds always pass
+# `--features desktop` (enforced by a compile_error! guard in lib.rs).
+desktop = [
+  "tauri/tray-icon",
+  "dep:tauri-plugin-single-instance",
+  "dep:tauri-plugin-window-state",
+  "dep:tauri-plugin-autostart",
+  "dep:tauri-plugin-clipboard-manager",
+  "dep:tauri-plugin-notification",
+  "dep:tauri-plugin-dialog",
+  "dep:tauri-plugin-global-shortcut",
+  "dep:tauri-plugin-updater",
+  "dep:ureq",
+]
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-deep-link = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-xbond = { path = "../plugins/xbond" }
+serde = { version = "1.0", features = ["derive"] }
+# preserve_order keeps the core's proxy-group order (config order) in tray menus.
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+# Desktop-only, enabled via the `desktop` feature.
+tauri-plugin-single-instance = { version = "2.5.4", optional = true }
+tauri-plugin-window-state = { version = "2", optional = true }
+tauri-plugin-autostart = { version = "2", optional = true }
+tauri-plugin-clipboard-manager = { version = "2", optional = true }
+tauri-plugin-notification = { version = "2", optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-global-shortcut = { version = "2", optional = true }
+tauri-plugin-updater = { version = "2.14.1", default-features = false, features = [
+  "rustls-tls",
+  "system-proxy",
+], optional = true }
+# Tray-local LocalAPI client: loopback plain HTTP only, no TLS stack.
+ureq = { version = "2", default-features = false, features = [
+  "json",
+], optional = true }

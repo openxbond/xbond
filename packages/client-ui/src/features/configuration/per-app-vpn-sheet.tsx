@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import { Search, Smartphone } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -51,25 +51,39 @@ export function PerAppVpnSheet({
 function PerAppVpnPanel() {
   const { t } = useTranslation("configuration");
   const { t: common } = useTranslation("common");
-  const [initial] = useState(() => getSplitTunnelConfig());
-  const [mode, setMode] = useState<SplitTunnelMode>(initial.mode);
-  const [packages, setPackages] = useState<Set<string>>(
-    new Set(initial.packages),
-  );
-  const [apps] = useState<InstalledApp[] | null>(() => listInstalledApps());
+  const [mode, setMode] = useState<SplitTunnelMode>("all");
+  const [packages, setPackages] = useState<Set<string>>(new Set());
+  const [apps, setApps] = useState<InstalledApp[] | null>(null);
   const [query, setQuery] = useState("");
   const [showSystem, setShowSystem] = useState(false);
   const [saveTimer, setSaveTimer] = useState<number | null>(null);
+
+  // 面板打開時掛載：橋接配置異步讀入，到達前保持「全部應用」初值。
+  useEffect(() => {
+    let cancelled = false;
+    void getSplitTunnelConfig().then((config) => {
+      if (cancelled) return;
+      setMode(config.mode);
+      setPackages(new Set(config.packages));
+    });
+    void listInstalledApps().then((list) => {
+      if (!cancelled) setApps(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 勾選即存：防抖 800ms 合併連續點擊，一次寫盤一次隧道重建。
   function persist(nextMode: SplitTunnelMode, nextPackages: Set<string>) {
     if (saveTimer !== null) window.clearTimeout(saveTimer);
     const timer = window.setTimeout(() => {
-      const ok = setSplitTunnelConfig({
+      void setSplitTunnelConfig({
         mode: nextMode,
         packages: [...nextPackages],
+      }).then((ok) => {
+        if (!ok) toast.error(t("perAppVpn.saveFailed"), { duration: 6000 });
       });
-      if (!ok) toast.error(t("perAppVpn.saveFailed"), { duration: 6000 });
     }, 800);
     setSaveTimer(timer);
   }

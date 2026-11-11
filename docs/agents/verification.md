@@ -40,4 +40,4 @@
 
 ## 自動化現況
 
-`.github/workflows/` 在 push 與 PR 複用本地同一批命令：`ci.yml` 的 `web` job 跑 `pnpm check` 與 `pnpm build` 並校驗產物非空，`go` job 跑 `pnpm cli:check`；`desktop-check.yml` 僅在 `apps/desktop/src-tauri/` 等路徑變更時跑 `pnpm build:desktop`、`pnpm desktop:fmt:check`、`pnpm desktop:check`（runner 缺少的系統依賴在 workflow 內安裝）。pre-commit（lefthook，`pnpm hooks:install` 自選安裝）對提交中的檔案跑同樣的 oxfmt 與 oxlint 檢查。檢查成為合併門禁須在 GitHub 儲存庫設定中設為 required checks；runner 工具鏈或平台依賴缺失造成的失敗先與基線核對，不能以本地綠燈掩蓋。
+`.github/workflows/` 在 push 與 PR 複用本地同一批命令：`ci.yml` 的 `web` job 跑 `pnpm check` 與 `pnpm build` 並校驗產物非空，`go` job 跑 `pnpm cli:check`；`desktop-check.yml` 僅在 `src-tauri/`、`plugins/` 等路徑變更時跑 `pnpm build`、`pnpm desktop:fmt:check`、`pnpm desktop:check` （Linux、macOS、Windows 三個 runner）。Android 與 iOS 由發佈工作流執行原生建置。pre-commit（lefthook，`pnpm hooks:install` 自選安裝）對提交中的檔案跑同樣的 oxfmt 與 oxlint 檢查。檢查成為合併門禁須在 GitHub 儲存庫設定中設為 required checks；runner 工具鏈或平台依賴缺失造成的失敗先與基線核對，不能以本地綠燈掩蓋。

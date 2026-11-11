@@ -25,14 +25,11 @@ node scripts/mobile.ts android
 ### 僅重新編譯與安裝 APK（AAR 未變更時）
 
 ```bash
-# 推薦：直接調用倉庫統一入口（自動尋找 Gradle、打包並安裝至在線設備）
+# 用 Tauri 打包並安裝至在線設備
 pnpm mobile:android
 
-# 或在 apps/mobile/android 目錄下使用本機 Gradle 編譯
-cd apps/mobile/android
-gradle assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n net.xbond.app/.MainActivity
+# 只生成 debug APK
+pnpm tauri android build --debug --apk
 ```
 
 > [!IMPORTANT]

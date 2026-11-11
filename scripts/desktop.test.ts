@@ -12,12 +12,12 @@ import {
 
 test("open location script hands the URL to the dev binary as argv", () => {
   const script = buildOpenLocationScript(
-    "/Users/nan/.cargo-target/debug/xbond-client",
+    "/Users/nan/.cargo-target/debug/xbond-app",
   );
   assert.match(script, /on open location theURL/);
   assert.match(
     script,
-    /exec '\/Users\/nan\/\.cargo-target\/debug\/xbond-client' " & quoted form of \(theURL as text\)/,
+    /exec '\/Users\/nan\/\.cargo-target\/debug\/xbond-app' " & quoted form of \(theURL as text\)/,
   );
   assert.match(script, /end open location/);
 });
@@ -39,7 +39,7 @@ test("plist patch registers the declared schemes on the dev bundle", () => {
 test("devBinaryPath honours CARGO_TARGET_DIR and defaults to src-tauri target", () => {
   const previous = process.env.CARGO_TARGET_DIR;
   process.env.CARGO_TARGET_DIR = "/tmp/cargo-target";
-  assert.match(devBinaryPath(), /^\/tmp\/cargo-target\/debug\/xbond-client$/);
+  assert.match(devBinaryPath(), /^\/tmp\/cargo-target\/debug\/xbond-app$/);
   if (previous === undefined) {
     delete process.env.CARGO_TARGET_DIR;
   } else {

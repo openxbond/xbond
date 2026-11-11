@@ -87,7 +87,7 @@ test("checkTrayI18n catches missing tray locales", (t) => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "xbond-tray-test-"));
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
 
-  const trayDir = path.join(tempDir, "apps/desktop/src-tauri/src");
+  const trayDir = path.join(tempDir, "src-tauri/src");
   fs.mkdirSync(trayDir, { recursive: true });
 
   // Missing FA
