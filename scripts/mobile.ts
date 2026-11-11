@@ -429,7 +429,7 @@ function runMobileAndroid(): void {
 /** `pnpm mobile:ios`: the canonical `tauri ios dev` loop on macOS — ensure
  * the gomobile xcframework is bound, then hand over to the Tauri CLI, which
  * builds, installs and launches on the iOS simulator against devUrl. */
-export function runMobileIOS(): void {
+export function runMobileIOS(args: string[] = []): void {
   if (process.platform !== "darwin") {
     throw new Error(
       "pnpm mobile:ios requires macOS with Xcode installed. " +
@@ -446,7 +446,7 @@ export function runMobileIOS(): void {
   }
 
   console.log("[mobile:ios] starting tauri ios dev…");
-  const dev = spawn("pnpm", ["tauri", "ios", "dev"], {
+  const dev = spawn("pnpm", ["tauri", "ios", "dev", ...args], {
     cwd: root,
     stdio: "inherit",
   });
@@ -493,7 +493,7 @@ function main(): void {
     runMobileAndroid();
   } else if (command === "ios") {
     try {
-      runMobileIOS();
+      runMobileIOS(process.argv.slice(3));
     } catch (err) {
       console.error(
         `[mobile:ios] Error: ${err instanceof Error ? err.message : String(err)}`,
