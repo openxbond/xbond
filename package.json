@@ -64,6 +64,7 @@
     "oxc-parser": "^0.150.0",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.82.0",
+    "sharp": "^0.35.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vite-plugin-pwa": "^2.0.0"

@@ -28,8 +28,35 @@ pub(crate) fn window_state_flags() -> StateFlags {
     StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED | StateFlags::FULLSCREEN
 }
 
+// Windows 10 is the documented minimum (see PRODUCT.md). The NSIS installer
+// blocks older systems before copying files; this guard covers executables
+// run directly, e.g. copied out of a bundle instead of installed.
+#[cfg(target_os = "windows")]
+fn ensure_supported_windows() {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONSTOP, MB_OK};
+    if windows_version::OsVersion::current() < windows_version::OsVersion::new(10, 0, 0, 0) {
+        let text: Vec<u16> = "XBond 需要 Windows 10 或更高版本。"
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
+        let caption: Vec<u16> = "XBond".encode_utf16().chain(std::iter::once(0)).collect();
+        unsafe {
+            MessageBoxW(
+                std::ptr::null_mut(),
+                text.as_ptr(),
+                caption.as_ptr(),
+                MB_ICONSTOP | MB_OK,
+            );
+        }
+        std::process::exit(1);
+    }
+}
+
 #[cfg(feature = "desktop")]
 pub fn run() {
+    #[cfg(target_os = "windows")]
+    ensure_supported_windows();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // A second launch carrying a deep link hands it over and comes

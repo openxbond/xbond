@@ -5882,6 +5882,8 @@ dependencies = [
  "tauri-plugin-window-state",
  "tauri-plugin-xbond",
  "ureq",
+ "windows-sys 0.61.2",
+ "windows-version",
 ]
 
 [[package]]
