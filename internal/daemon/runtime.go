@@ -369,6 +369,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	}
 
 	var runtimeJSON []byte
+	coreUnchanged := false
 	prefsJSON, err := json.MarshalIndent(next, "", "  ")
 	if err != nil {
 		return err
@@ -482,8 +483,9 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		// — sysproxy and port can derive the same core JSON while the
 		// takeover side effect differs. Preferences still get persisted in
 		// case the file drifted from memory.
-		proxyOwnershipMatches := (next.SystemProxy == (c.originalProxy != nil))
-		if c.connectedLocked() && c.appliedSubID == targetID && bytes.Equal(runtimeJSON, c.applied) && proxyOwnershipMatches {
+		coreUnchanged = c.connectedLocked() && c.appliedSubID == targetID && bytes.Equal(runtimeJSON, c.applied)
+		proxyOwnershipMatches := next.SystemProxy == (c.originalProxy != nil)
+		if coreUnchanged && proxyOwnershipMatches {
 			if err := c.write(paths.RuntimeStatePath(), prefsJSON, 0o600); err != nil {
 				return fmt.Errorf("save runtime preferences: %w", err)
 			}
@@ -540,20 +542,32 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 				problems = append(problems, fmt.Errorf("restore system proxy: %w", err))
 			}
 		}
-		if run {
+		if run && !coreUnchanged {
 			var restoreErr error
 			switch {
 			case wasDelegated:
 				// The previous takeover ran in the machine session; put it
 				// back there, not as a local mixed-only look-alike, with the
 				// selections the previous core ran with.
-				if len(previousRuntime) > 0 {
+				if c.engine.IsRunning() {
+					restoreErr = c.engine.Stop()
+				}
+				if restoreErr == nil && len(previousRuntime) > 0 {
 					_, restoreErr = c.delegate.Apply(previousRuntime, previousSelections)
 				}
 			case wasRunning:
-				restoreErr = c.engine.Reload(previousRuntime, previousSelections)
+				if c.delegatedActive() {
+					restoreErr = c.delegate.Stop()
+				}
+				if restoreErr == nil {
+					restoreErr = c.engine.Reload(previousRuntime, previousSelections)
+				}
 			default:
-				restoreErr = c.engine.Stop()
+				if c.delegatedActive() {
+					restoreErr = c.delegate.Stop()
+				} else {
+					restoreErr = c.engine.Stop()
+				}
 			}
 			if restoreErr != nil {
 				problems = append(problems, fmt.Errorf("restore previous core: %w", restoreErr))
@@ -576,15 +590,17 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	// the adapter itself only when elevated; otherwise the gate's approval
 	// came from the machine-scoped daemon, and the core runs there.
 	delegateTakeover := run && next.Tun && !localTunCapable()
-	if run {
+	if run && !coreUnchanged {
 		if delegateTakeover {
 			// Free the loopback ports first: the delegated core binds the
 			// same mixed and controller ports in the machine session.
-			if err := c.engine.Stop(); err != nil {
-				return fmt.Errorf("stop local core before delegating: %w", err)
-			}
-			if err := waitTakeoverPorts(next.MixedPort, next.ClashPort); err != nil {
-				return rollback(err)
+			if !wasDelegated {
+				if err := c.engine.Stop(); err != nil {
+					return fmt.Errorf("stop local core before delegating: %w", err)
+				}
+				if err := waitTakeoverPorts(next.MixedPort, next.ClashPort); err != nil {
+					return rollback(err)
+				}
 			}
 			if _, err := c.delegate.Apply(runtimeJSON, selected.SavedSelections); err != nil {
 				return rollback(err)
@@ -607,14 +623,20 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 			// condemn healthy re-applies.
 			if !wasRunning {
 				if held := waitTakeoverPorts(next.MixedPort, next.ClashPort); held != nil {
-					_ = c.delegate.Stop()
+					if c.delegate != nil {
+						_ = c.delegate.Stop()
+					}
 					if held := waitTakeoverPorts(next.MixedPort, next.ClashPort); held != nil {
 						return rollback(held)
 					}
 				}
 			}
 			if err := c.engine.Reload(runtimeJSON, selected.SavedSelections); err != nil {
-				return fmt.Errorf("apply runtime configuration: %w", err)
+				cause := fmt.Errorf("apply runtime configuration: %w", err)
+				if wasDelegated {
+					return rollback(cause)
+				}
+				return cause
 			}
 		}
 	}

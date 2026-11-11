@@ -263,7 +263,9 @@ func (d *delegateManager) RulesPage(query engine.RuleQuery) (engine.RulePage, er
 // cached status is still returned so callers can show the last known truth.
 func (d *delegateManager) Status() (engine.EngineStatus, bool) {
 	d.mu.Lock()
-	fresh := time.Since(d.statusAt) < delegateStatusTTL
+	// The reconciler can adopt an unowned core only after checking live
+	// status. A cached running reply may predate an explicit stop.
+	fresh := d.active && time.Since(d.statusAt) < delegateStatusTTL
 	status := d.lastStatus
 	d.mu.Unlock()
 	if fresh {

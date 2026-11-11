@@ -156,8 +156,9 @@ type Manager struct {
 	clashPort    int
 	clashSecret  string
 
-	client     *ClashClient
-	ringLogger *RingLogger
+	client      *ClashClient
+	ringLogger  *RingLogger
+	portHandoff bool
 }
 
 func NewManager(ringCap int) *Manager {
@@ -171,6 +172,12 @@ func NewManager(ringCap int) *Manager {
 		mixedPort:    7890,
 		clashPort:    9090,
 	}
+}
+
+// EnablePortHandoff prepares listeners in the machine-scoped daemon to hand
+// their ports back to the user daemon. Set before starting any core.
+func (m *Manager) EnablePortHandoff() {
+	m.portHandoff = true
 }
 
 func GenerateSecret() string {
@@ -500,9 +507,12 @@ func (m *Manager) awaitCoreReady() error {
 	client := NewClashClient(m.clashPort, m.clashSecret)
 	deadline := time.Now().Add(3 * time.Second)
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-		_, err := client.GetVersion(ctx)
-		cancel()
+		err := m.prepareListenerHandoff(m.clashPort)
+		if err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			_, err = client.GetVersion(ctx)
+			cancel()
+		}
 		if err == nil {
 			break
 		}
@@ -515,11 +525,15 @@ func (m *Manager) awaitCoreReady() error {
 	if m.mixedPort > 0 {
 		deadline := time.Now().Add(3 * time.Second)
 		for {
-			if err := probeMixedListener(m.mixedPort); err == nil {
+			err := m.prepareListenerHandoff(m.mixedPort)
+			if err == nil {
+				err = probeMixedListener(m.mixedPort)
+			}
+			if err == nil {
 				break
 			}
 			if time.Now().After(deadline) {
-				return fmt.Errorf("mixed listener on port %d did not answer", m.mixedPort)
+				return fmt.Errorf("mixed listener on port %d did not answer: %w", m.mixedPort, err)
 			}
 			time.Sleep(25 * time.Millisecond)
 		}

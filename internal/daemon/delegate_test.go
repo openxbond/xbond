@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/openxbond/xbond/internal/engine"
+	"github.com/openxbond/xbond/internal/platform/sysproxy"
 )
 
 // fakeMachineSession stands in for the machine-scoped daemon's delegation
@@ -329,16 +331,76 @@ func TestTUNTakeoverDelegatesToMachineSession(t *testing.T) {
 		t.Fatalf("unchanged apply reached the machine session again (%d times)", session.applyCount())
 	}
 
+	// The local core can still fail to bind after the machine listener
+	// closes. Restore the previously working takeover in that case.
+	f.core.reloadError = errors.New("local bind failed")
+	err := f.controller.Configure(context.Background(), runtimeOptions{Mode: engine.ModePort})
+	if err == nil || !strings.Contains(err.Error(), "local bind failed") {
+		t.Fatalf("expected local startup failure, got %v", err)
+	}
+	if !session.isRunning() || session.applyCount() != 2 || f.core.IsRunning() || f.controller.Preferences() != prefs {
+		t.Fatal("failed handoff did not restore the previous delegated takeover")
+	}
+
 	// Tearing the connection down also tears the machine-session takeover
 	// down — no orphaned TUN keeps routing after `down`.
 	if _, err := f.controller.Down(); err != nil {
 		t.Fatal(err)
 	}
+	// A reconciler tick immediately after down must not adopt cached
+	// running status and then restart the machine session.
+	f.controller.ReconcileDelegation()
 	if session.isRunning() {
 		t.Fatal("down left the delegated takeover running in the machine session")
 	}
 	if f.controller.Delegated() {
 		t.Fatal("down left the runtime claiming a delegated takeover")
+	}
+}
+
+func TestSystemProxySwitchKeepsDelegatedCoreRunning(t *testing.T) {
+	if localTunCapable() {
+		t.Skip("running privileged; delegation is not the chosen path")
+	}
+	defer overrideSystemInstalled(true)()
+
+	session := &fakeMachineSession{}
+	srv := httptest.NewServer(session.mux())
+	defer srv.Close()
+
+	f := newRuntimeFixture(t)
+	f.controller.delegate = newTestDelegate(srv)
+	ctx := context.Background()
+	if err := f.controller.Configure(ctx, runtimeOptions{Mode: engine.ModeTun}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Model the delegated core owning the controller port. Switching only
+	// the system proxy must work with that listener still accepting.
+	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", f.controller.Preferences().ClashPort))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	proxy := sysproxy.Snapshot{}
+	f.controller.proxyGet = func() (sysproxy.Snapshot, error) { return proxy, nil }
+	f.controller.proxySet = func(server, _ string) error {
+		proxy = sysproxy.Snapshot{Enabled: true, Server: server}
+		return nil
+	}
+	f.controller.proxyRestore = func(snapshot sysproxy.Snapshot) error { proxy = snapshot; return nil }
+
+	for _, enabled := range []bool{true, false} {
+		if err := f.controller.Configure(ctx, runtimeOptions{SystemProxy: &enabled}); err != nil {
+			t.Fatal(err)
+		}
+		prefs := f.controller.Preferences()
+		if proxy.Enabled != enabled || prefs.SystemProxy != enabled || !prefs.Tun {
+			t.Fatalf("proxy switch changed the wrong state: proxy=%v preferences=(proxy=%v, tun=%v)", proxy.Enabled, prefs.SystemProxy, prefs.Tun)
+		}
+	}
+	if session.applyCount() != 1 || !session.isRunning() || f.core.IsRunning() {
+		t.Fatal("switching the proxy restarted or moved the delegated core")
 	}
 }
 

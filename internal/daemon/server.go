@@ -108,6 +108,9 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	token := hex.EncodeToString(tokenBytes)
 
 	core := engine.NewManager(1000)
+	if systemScope {
+		core.EnablePortHandoff()
+	}
 	s := &Server{
 		token:       token,
 		engineMgr:   core,
