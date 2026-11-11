@@ -1,0 +1,14 @@
+# Opt-in: install with `pnpm hooks:install`. The repo does not force hooks on
+# anyone, and CI runs the same gates, so a skipped hook never hides a failure.
+pre-commit:
+  commands:
+    oxfmt:
+      # Same delivery check as AGENTS.md's verification matrix, scoped to the
+      # files actually being committed.
+      glob: "*.{ts,tsx,js,mjs,jsx,json,md}"
+      run: pnpm exec oxfmt --check {staged_files}
+    oxlint:
+      glob: "*.{ts,tsx,js,mjs,jsx}"
+      run: pnpm exec oxlint --deny-warnings {staged_files}
+    whitespace:
+      run: git diff --check --cached

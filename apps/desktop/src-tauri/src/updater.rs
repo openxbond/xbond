@@ -1,0 +1,246 @@
+use serde::Serialize;
+use std::sync::Mutex;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Manager, State};
+use tauri_plugin_updater::{Update, UpdaterExt};
+
+const CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
+
+#[derive(Default)]
+pub struct UpdateState {
+    inner: Mutex<UpdateStatus>,
+}
+
+#[derive(Default)]
+struct UpdateStatus {
+    phase: Phase,
+    update: Option<Update>,
+    reconciling_daemon: bool,
+    daemon_error: bool,
+    machine_update_error: bool,
+}
+
+#[derive(Clone, Copy, Default, Serialize)]
+#[serde(rename_all = "camelCase", tag = "status")]
+enum Phase {
+    #[default]
+    Idle,
+    Checking,
+    Current,
+    Available,
+    Downloading {
+        received: u64,
+        total: Option<u64>,
+    },
+    Installing,
+    Failed,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateSnapshot {
+    enabled: bool,
+    #[serde(flatten)]
+    phase: Phase,
+    version: Option<String>,
+    daemon_error: bool,
+    machine_update_error: bool,
+    reconciling_daemon: bool,
+}
+
+fn enabled() -> bool {
+    crate::daemon::packaged()
+        && (!cfg!(target_os = "linux") || std::env::var_os("APPIMAGE").is_some())
+}
+
+fn release_asset(update: &Update) -> bool {
+    let (os, extension) = match std::env::consts::OS {
+        "windows" => ("windows", "exe"),
+        "macos" => ("darwin", "app.tar.gz"),
+        "linux" => ("linux", "AppImage"),
+        _ => return false,
+    };
+    let arch = match std::env::consts::ARCH {
+        "x86_64" => "amd64",
+        "aarch64" => "arm64",
+        _ => return false,
+    };
+    let tag = format!("v{}", update.version);
+    update.download_url.as_str()
+        == format!(
+            "https://github.com/openxbond/xbond/releases/download/{tag}/xbond-desktop-{tag}-{os}-{arch}.{extension}"
+        )
+}
+
+#[tauri::command]
+pub fn desktop_update_status(state: State<'_, UpdateState>) -> UpdateSnapshot {
+    let status = state.inner.lock().unwrap_or_else(|err| err.into_inner());
+    UpdateSnapshot {
+        enabled: enabled(),
+        phase: status.phase,
+        version: status.update.as_ref().map(|update| update.version.clone()),
+        daemon_error: status.daemon_error,
+        machine_update_error: status.machine_update_error,
+        reconciling_daemon: status.reconciling_daemon,
+    }
+}
+
+async fn check(app: &AppHandle, state: &UpdateState, automatic: bool) -> Result<(), String> {
+    if !enabled() {
+        return Err("Updates are managed by your installer".into());
+    }
+    {
+        let mut status = state.inner.lock().map_err(|err| err.to_string())?;
+        if matches!(
+            status.phase,
+            Phase::Checking | Phase::Downloading { .. } | Phase::Installing
+        ) {
+            return Ok(());
+        }
+        let marker = app
+            .path()
+            .app_cache_dir()
+            .map_err(|err| err.to_string())?
+            .join("last-update-check");
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|err| err.to_string())?
+            .as_secs();
+        let last = std::fs::read_to_string(&marker)
+            .ok()
+            .and_then(|value| value.parse::<u64>().ok());
+        if automatic && last.is_some_and(|last| now.saturating_sub(last) < CHECK_INTERVAL.as_secs())
+        {
+            return Ok(());
+        }
+        if let Some(parent) = marker.parent() {
+            std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+        }
+        std::fs::write(&marker, now.to_string()).map_err(|err| err.to_string())?;
+        status.phase = Phase::Checking;
+        status.update = None;
+    }
+    let result = async {
+        app.updater_builder()
+            .header("Cache-Control", "no-cache")?
+            .timeout(Duration::from_secs(30))
+            .build()?
+            .check()
+            .await
+    }
+    .await;
+    let mut status = state.inner.lock().map_err(|err| err.to_string())?;
+    match result {
+        Ok(Some(update)) if !release_asset(&update) => {
+            status.phase = Phase::Failed;
+            Err("Unexpected update download URL".into())
+        }
+        Ok(update) => {
+            status.phase = if update.is_some() {
+                Phase::Available
+            } else {
+                Phase::Current
+            };
+            status.update = update;
+            Ok(())
+        }
+        Err(error) => {
+            status.phase = Phase::Failed;
+            Err(error.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn check_desktop_update(
+    app: AppHandle,
+    state: State<'_, UpdateState>,
+) -> Result<(), String> {
+    check(&app, &state, false).await
+}
+
+#[tauri::command]
+pub async fn install_desktop_update(
+    app: AppHandle,
+    state: State<'_, UpdateState>,
+    version: String,
+) -> Result<(), String> {
+    let mut update = {
+        let mut status = state.inner.lock().map_err(|err| err.to_string())?;
+        if !enabled()
+            || status.reconciling_daemon
+            || !matches!(status.phase, Phase::Available)
+            || status
+                .update
+                .as_ref()
+                .is_none_or(|update| update.version != version)
+        {
+            return Err("Check for the selected update again".into());
+        }
+        status.phase = Phase::Downloading {
+            received: 0,
+            total: None,
+        };
+        status.update.take().expect("update was checked")
+    };
+    update.timeout = Some(Duration::from_secs(20 * 60));
+    let mut received = 0;
+    let result = update
+        .download_and_install(
+            |chunk, total| {
+                received += chunk as u64;
+                if let Ok(mut status) = state.inner.lock() {
+                    status.phase = Phase::Downloading { received, total };
+                }
+            },
+            || {
+                if let Ok(mut status) = state.inner.lock() {
+                    status.phase = Phase::Installing;
+                }
+            },
+        )
+        .await;
+    if let Err(error) = result {
+        let mut status = state.inner.lock().map_err(|err| err.to_string())?;
+        status.phase = Phase::Failed;
+        return Err(error.to_string());
+    }
+    app.request_restart();
+    Ok(())
+}
+
+pub fn on_launch(app: AppHandle) {
+    if !crate::daemon::packaged() {
+        let _ = crate::daemon::ensure_daemon();
+        return;
+    }
+    if let Ok(mut status) = app.state::<UpdateState>().inner.lock() {
+        status.reconciling_daemon = true;
+    }
+    tauri::async_runtime::spawn(async move {
+        let state = app.state::<UpdateState>();
+        let reconciliation =
+            tauri::async_runtime::spawn_blocking(crate::daemon::reconcile_packaged_daemon).await;
+        let (daemon_error, machine_update_error) = match reconciliation {
+            Ok(Ok(Some(error))) => {
+                eprintln!("[XBond Desktop] Machine daemon update failed: {error}");
+                (false, true)
+            }
+            Ok(Ok(None)) => (false, false),
+            error => {
+                eprintln!("[XBond Desktop] Packaged daemon reconciliation failed: {error:?}");
+                (true, false)
+            }
+        };
+        if let Ok(mut status) = state.inner.lock() {
+            status.reconciling_daemon = false;
+            status.daemon_error = daemon_error;
+            status.machine_update_error = machine_update_error;
+        }
+        if enabled() {
+            if let Err(error) = check(&app, &state, true).await {
+                eprintln!("[XBond Desktop] Automatic update check failed: {error}");
+            }
+        }
+    });
+}

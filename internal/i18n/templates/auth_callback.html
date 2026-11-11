@@ -1,0 +1,1262 @@
+<!doctype html>
+<html lang="{{LANG}}" dir="{{DIR}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title id="page-title">{{PAGE_TITLE}}</title>
+    <script>
+      // Same bootstrap as the console: storage key "theme", JSON-encoded, applied before first paint.
+      (() => {
+        let preference;
+        try {
+          preference = JSON.parse(localStorage.getItem("theme"));
+        } catch (e) {}
+        const dark =
+          preference === "dark" ||
+          (preference !== "light" &&
+            matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      })();
+    </script>
+    <style>
+      /* Tokens mirror the console's globals.css (light = Daylight, .dark = Titanium). */
+      :root {
+        --background: #f7f7f7;
+        --foreground: #0a0a0a;
+        --card: #ffffff;
+        --popover: #ffffff;
+        --inset: #f1f1f1;
+        --primary: #171717;
+        --primary-foreground: #fafafa;
+        --muted-foreground: #737373;
+        --accent: #f5f5f5;
+        --border: #e5e5e5;
+        --border-strong: #d4d4d4;
+        --brand: #f38020;
+        --brand-text: #b4540b;
+        --success-text: #1f7a45;
+        --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        --elevation-card:
+          0 1px 3px rgba(10, 10, 10, 0.03), 0 6px 20px rgba(10, 10, 10, 0.05);
+        --elevation-raised:
+          0 4px 12px rgba(10, 10, 10, 0.06), 0 18px 36px rgba(10, 10, 10, 0.08);
+        --dot: rgba(10, 10, 10, 0.07);
+        --sidebar: #ffffff;
+        --sidebar-foreground: #2a2826;
+        --sidebar-accent: rgba(0, 0, 0, 0.04);
+        --sidebar-border: rgba(0, 0, 0, 0.06);
+        --font-sans:
+          "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system,
+          "Segoe UI", Roboto, sans-serif;
+        --font-mono:
+          ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .dark {
+        --background: #0a0a0a;
+        --foreground: #fafafa;
+        --card: #191817;
+        --popover: #232120;
+        --inset: #0d0c0b;
+        --primary: #e5e5e5;
+        --primary-foreground: #171717;
+        --muted-foreground: #a3a3a3;
+        --accent: #262626;
+        --border: rgba(255, 255, 255, 0.08);
+        --border-strong: rgba(255, 255, 255, 0.14);
+        --brand-text: #f7a35c;
+        --success-text: #4cc77a;
+        --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+        --elevation-card:
+          inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 8px rgba(0, 0, 0, 0.25);
+        --elevation-raised:
+          inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.45);
+        --dot: rgba(255, 255, 255, 0.07);
+        --sidebar: #141312;
+        --sidebar-foreground: #ececec;
+        --sidebar-accent: rgba(255, 255, 255, 0.07);
+        --sidebar-border: rgba(255, 255, 255, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100svh;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        min-height: 100svh;
+      }
+
+      @media (min-width: 1024px) {
+        .layout {
+          grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+        }
+      }
+
+      /* Brand panel: the console's sidebar tier, white in light and titanium in dark. */
+      .panel {
+        display: none;
+        position: relative;
+        overflow: hidden;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 40px;
+        background: var(--sidebar);
+        color: var(--sidebar-foreground);
+        border-inline-end: 1px solid var(--sidebar-border);
+      }
+
+      @media (min-width: 1024px) {
+        .panel {
+          display: flex;
+        }
+      }
+
+      @media (min-width: 1280px) {
+        .panel {
+          padding: 56px;
+        }
+      }
+
+      .panel-glow-a,
+      .panel-glow-b {
+        position: absolute;
+        border-radius: 9999px;
+        filter: blur(64px);
+        pointer-events: none;
+      }
+
+      .panel-glow-a {
+        top: -128px;
+        left: 50%;
+        width: 384px;
+        height: 384px;
+        margin-left: -192px;
+        background: rgba(243, 128, 32, 0.2);
+      }
+
+      .panel-glow-b {
+        right: -96px;
+        bottom: -160px;
+        width: 448px;
+        height: 448px;
+        background: rgba(243, 128, 32, 0.1);
+      }
+
+      .panel-dots {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: radial-gradient(
+          color-mix(in oklab, currentColor 9%, transparent) 1px,
+          transparent 1px
+        );
+        background-size: 28px 28px;
+        -webkit-mask-image: radial-gradient(
+          ellipse at 70% 35%,
+          #000 20%,
+          transparent 70%
+        );
+        mask-image: radial-gradient(
+          ellipse at 70% 35%,
+          #000 20%,
+          transparent 70%
+        );
+      }
+
+      .logo {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .logo svg {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+
+      .logo-name {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+      }
+
+      .panel-body {
+        position: relative;
+      }
+
+      .tagline {
+        max-width: 28rem;
+        font-size: 36px;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+
+      @media (min-width: 1280px) {
+        .tagline {
+          font-size: 48px;
+        }
+      }
+
+      .points {
+        margin-top: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        list-style: none;
+      }
+
+      .points li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        color: color-mix(in srgb, currentColor 80%, transparent);
+      }
+
+      .point-icon {
+        display: flex;
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid var(--sidebar-border);
+        background: var(--sidebar-accent);
+        color: var(--brand);
+      }
+
+      .point-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .copyright {
+        position: relative;
+        font-size: 12px;
+        color: color-mix(in srgb, currentColor 45%, transparent);
+      }
+
+      /* Content column follows the theme. */
+      .main {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .main-glow {
+        position: absolute;
+        top: -96px;
+        left: 50%;
+        width: 288px;
+        height: 288px;
+        margin-left: -144px;
+        border-radius: 9999px;
+        background: rgba(243, 128, 32, 0.1);
+        filter: blur(64px);
+        pointer-events: none;
+      }
+
+      @media (min-width: 1024px) {
+        .main-glow {
+          display: none;
+        }
+      }
+
+      .controls {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        justify-content: flex-end;
+        gap: 4px;
+        padding: 16px;
+      }
+
+      @media (min-width: 640px) {
+        .controls {
+          padding: 24px;
+        }
+      }
+
+      .menu-wrap {
+        position: relative;
+      }
+
+      .icon-btn {
+        display: inline-flex;
+        width: 40px;
+        height: 40px;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--foreground);
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+
+      @media (min-width: 640px) {
+        .icon-btn {
+          width: 36px;
+          height: 36px;
+        }
+      }
+
+      .icon-btn:hover,
+      .icon-btn[aria-expanded="true"] {
+        background: var(--accent);
+      }
+
+      .icon-btn:focus-visible,
+      .menu-item:focus-visible,
+      .btn:focus-visible {
+        outline: 2px solid rgba(243, 128, 32, 0.6);
+        outline-offset: 2px;
+      }
+
+      .icon-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        inset-inline-end: 0;
+        z-index: 10;
+        display: none;
+        min-width: 140px;
+        padding: 4px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--popover);
+        box-shadow: var(--elevation-raised);
+      }
+
+      .menu.open {
+        display: block;
+        animation: menuIn 0.12s var(--ease-out-expo);
+      }
+
+      @keyframes menuIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px) scale(0.97);
+        }
+      }
+
+      .menu-item {
+        position: relative;
+        display: flex;
+        width: 100%;
+        align-items: center;
+        padding: 6px 8px;
+        padding-inline-start: 32px;
+        border: none;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--foreground);
+        font: inherit;
+        font-size: 14px;
+        text-align: start;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+
+      .menu-item:hover {
+        background: var(--accent);
+      }
+
+      .menu-item .tick {
+        position: absolute;
+        inset-inline-start: 8px;
+        display: none;
+        width: 14px;
+        height: 14px;
+      }
+
+      .menu-item[aria-checked="true"] .tick {
+        display: block;
+      }
+
+      .stage {
+        position: relative;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      @media (min-width: 640px) {
+        .stage {
+          padding: 40px;
+        }
+      }
+
+      /* Pass card: face above the perforation, stub below. */
+      .pass {
+        position: relative;
+        width: 100%;
+        max-width: 384px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: var(--highlight), var(--elevation-card);
+        animation: enter 0.5s var(--ease-out-expo);
+      }
+
+      @keyframes enter {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+
+      .face {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 28px 24px 24px;
+        text-align: center;
+      }
+
+      @media (min-width: 640px) {
+        .face {
+          padding-inline: 32px;
+        }
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        margin: 16px auto 12px;
+        border-radius: 9999px;
+        background: color-mix(in srgb, var(--success-text) 12%, transparent);
+        color: var(--success-text);
+      }
+
+      .status-pill svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 600;
+        line-height: 1.33;
+        letter-spacing: -0.02em;
+      }
+
+      .card-logo svg {
+        width: 36px;
+        height: 36px;
+      }
+
+      .card-logo {
+        gap: 10px;
+      }
+
+      .card-logo .logo-name {
+        font-size: 20px;
+      }
+
+      #stars {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .desc {
+        max-width: 300px;
+        margin-top: 6px;
+        font-size: 14px;
+        color: var(--muted-foreground);
+      }
+
+      .facts {
+        width: 100%;
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--inset);
+        text-align: start;
+      }
+
+      .fact {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 12px;
+      }
+
+      .fact-label {
+        color: var(--muted-foreground);
+        white-space: nowrap;
+      }
+
+      .fact-value {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        text-align: end;
+      }
+
+      .fact-value.live {
+        color: var(--success-text);
+      }
+
+      .dot {
+        position: relative;
+        display: inline-flex;
+        width: 8px;
+        height: 8px;
+        flex-shrink: 0;
+      }
+
+      .dot i {
+        position: absolute;
+        inset: 0;
+        border-radius: 9999px;
+        background: var(--success-text);
+      }
+
+      .dot i:first-child {
+        opacity: 0.6;
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .dot i:first-child {
+          animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+      }
+
+      @keyframes ping {
+        75%,
+        100% {
+          transform: scale(2.2);
+          opacity: 0;
+        }
+      }
+
+      .perforation {
+        position: relative;
+        display: flex;
+        align-items: center;
+        height: 20px;
+        user-select: none;
+      }
+
+      .perforation::before {
+        content: "";
+        width: 100%;
+        border-top: 1px dashed var(--border-strong);
+      }
+
+      .notch {
+        position: absolute;
+        top: 50%;
+        width: 20px;
+        height: 20px;
+        margin-top: -10px;
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        background: var(--background);
+      }
+
+      .notch.start {
+        inset-inline-start: -10px;
+      }
+
+      .notch.end {
+        inset-inline-end: -10px;
+      }
+
+      .stub {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 24px 24px;
+        background: color-mix(in srgb, var(--card) 60%, transparent);
+      }
+
+      @media (min-width: 640px) {
+        .stub {
+          padding-inline: 32px;
+        }
+      }
+
+      .btn {
+        display: inline-flex;
+        width: 100%;
+        height: 36px;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: 8px;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: opacity 0.15s ease;
+      }
+
+      .btn:hover {
+        opacity: 0.9;
+      }
+
+      .hint {
+        font-size: 12px;
+        text-align: center;
+        color: var(--muted-foreground);
+      }
+
+      .foot {
+        position: relative;
+        padding-bottom: 24px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--muted-foreground);
+      }
+
+      @media (min-width: 1024px) {
+        .foot {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="panel">
+        <div class="panel-glow-a" aria-hidden="true"></div>
+        <div class="panel-glow-b" aria-hidden="true"></div>
+        <div class="panel-dots" aria-hidden="true"></div>
+        <canvas id="stars" aria-hidden="true"></canvas>
+        <span class="logo">
+          <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+            <path
+              d="M14 14H35.5L58 50L35.5 86H14L36.5 50L14 14Z"
+              fill="#F38020"
+            />
+            <path
+              d="M64.5 14H86L65.25 47.2L54.5 30Z M54.5 70L65.25 52.8L86 86H64.5Z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="logo-name">XBond</span>
+        </span>
+        <div class="panel-body">
+          <h2 class="tagline">
+            <span id="t-tag-top"></span><br /><span id="t-tag-bottom"></span>
+          </h2>
+          <ul class="points">
+            <li>
+              <span class="point-icon"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+                  <path d="M2 12h20" /></svg
+              ></span>
+              <span id="t-p1"></span>
+            </li>
+            <li>
+              <span class="point-icon"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8"
+                  />
+                  <path d="M10 19v-3.96 3.15" />
+                  <path d="M7 19h5" />
+                  <rect width="6" height="10" x="16" y="12" rx="2" /></svg
+              ></span>
+              <span id="t-p2"></span>
+            </li>
+            <li>
+              <span class="point-icon"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m12 14 4-4" />
+                  <path d="M3.34 19a10 10 0 1 1 17.32 0" /></svg
+              ></span>
+              <span id="t-p3"></span>
+            </li>
+          </ul>
+        </div>
+        <p class="copyright">© <span class="year"></span> XBond</p>
+      </aside>
+
+      <main class="main">
+        <div class="main-glow" aria-hidden="true"></div>
+
+        <div class="controls">
+          <div class="menu-wrap">
+            <button
+              id="theme-btn"
+              class="icon-btn"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            ></button>
+            <div id="theme-menu" class="menu" role="menu"></div>
+          </div>
+          <div class="menu-wrap">
+            <button
+              id="lang-btn"
+              class="icon-btn"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m5 8 6 6" />
+                <path d="m4 14 6-6 2-3" />
+                <path d="M2 5h12" />
+                <path d="M7 2h1" />
+                <path d="m22 22-5-10-5 10" />
+                <path d="M14 18h6" />
+              </svg>
+            </button>
+            <div id="lang-menu" class="menu" role="menu"></div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <section class="pass">
+            <div class="face">
+              <span class="logo card-logo">
+                <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+                  <path
+                    d="M14 14H35.5L58 50L35.5 86H14L36.5 50L14 14Z"
+                    fill="#F38020"
+                  />
+                  <path
+                    d="M64.5 14H86L65.25 47.2L54.5 30Z M54.5 70L65.25 52.8L86 86H64.5Z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <span class="logo-name">XBond</span>
+              </span>
+              <div class="status-pill" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <h1 id="t-title">{{TITLE}}</h1>
+              <p id="t-description" class="desc">{{DESC}}</p>
+
+              <div class="facts">
+                <div class="fact">
+                  <span id="t-lbl-meta" class="fact-label"></span>
+                  <span id="t-meta" class="fact-value">{{META}}</span>
+                </div>
+                <div class="fact">
+                  <span id="t-lbl-status" class="fact-label"></span>
+                  <span class="fact-value live">
+                    <span class="dot"><i></i><i></i></span>
+                    <span id="t-status">{{STATUS}}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="perforation" aria-hidden="true">
+              <span class="notch start"></span>
+              <span class="notch end"></span>
+            </div>
+
+            <div class="stub">
+              <button id="t-button" class="btn" onclick="window.close()">
+                {{BUTTON}}
+              </button>
+              <p id="t-hint" class="hint">{{HINT}}</p>
+            </div>
+          </section>
+        </div>
+
+        <p class="foot">© <span class="year"></span> XBond</p>
+      </main>
+    </div>
+
+    <script>
+      // Language codes follow the console's storage contract: key "lang", JSON string, "zh" = Simplified.
+      const LANGS = [
+        { code: "zh-HK", store: "zh-HK", label: "繁體中文", dir: "ltr" },
+        { code: "zh-CN", store: "zh", label: "简体中文", dir: "ltr" },
+        { code: "en", store: "en", label: "English", dir: "ltr" },
+        { code: "ko", store: "ko", label: "한국어", dir: "ltr" },
+        { code: "fa", store: "fa", label: "فارسی", dir: "rtl" },
+      ];
+
+      const T = {
+        "zh-HK": {
+          pageTitle: "XBond CLI 授權成功",
+          title: "授權成功",
+          description: "你的 XBond 訂閱憑據已自動同步至本地終端客戶端。",
+          status: "終端客戶端已就緒",
+          meta: "OAuth 2.0 PKCE 憑據換取完成",
+          lblMeta: "認證",
+          lblStatus: "狀態",
+          button: "關閉此分頁",
+          hint: "你現在可以關閉瀏覽器，並返回終端開始使用。",
+          tagTop: "讓每一次連線",
+          tagBottom: "快速、穩定、從容",
+          p1: "BGP 專線直連，支援 AI 與串流存取",
+          p2: "macOS、Windows、iOS、Android 全端支援",
+          p3: "用量清晰透明，續費隨時可取消",
+          themeTrigger: "切換主題",
+          light: "淺色",
+          dark: "深色",
+          system: "跟隨系統",
+          langTrigger: "切換語言",
+        },
+        "zh-CN": {
+          pageTitle: "XBond CLI 授权成功",
+          title: "授权成功",
+          description: "你的 XBond 订阅凭据已自动同步至本地终端客户端。",
+          status: "终端客户端已就绪",
+          meta: "OAuth 2.0 PKCE 凭据换取完成",
+          lblMeta: "认证",
+          lblStatus: "状态",
+          button: "关闭此标签页",
+          hint: "你现在可以关闭浏览器，并返回终端开始使用。",
+          tagTop: "让每一次连接",
+          tagBottom: "快速、稳定、从容",
+          p1: "BGP 专线直连，支持 AI 与流媒体访问",
+          p2: "macOS、Windows、iOS、Android 全端支持",
+          p3: "用量清晰透明，续费随时可取消",
+          themeTrigger: "切换主题",
+          light: "浅色",
+          dark: "深色",
+          system: "跟随系统",
+          langTrigger: "切换语言",
+        },
+        en: {
+          pageTitle: "XBond CLI Authorization Successful",
+          title: "Authorization Successful",
+          description:
+            "Your XBond subscription credentials have been synchronized to your local CLI.",
+          status: "Terminal client is ready",
+          meta: "OAuth 2.0 PKCE token exchange completed",
+          lblMeta: "Auth",
+          lblStatus: "Status",
+          button: "Close This Tab",
+          hint: "You may now close this browser tab and return to your terminal.",
+          tagTop: "Make every connection",
+          tagBottom: "fast, stable, and effortless",
+          p1: "Dedicated BGP lines, with access to AI and streaming",
+          p2: "Works on macOS, Windows, iOS, and Android",
+          p3: "Transparent usage, and you can cancel renewal anytime",
+          themeTrigger: "Theme",
+          light: "Light",
+          dark: "Dark",
+          system: "System",
+          langTrigger: "Language",
+        },
+        ko: {
+          pageTitle: "XBond CLI 인증 성공",
+          title: "인증 성공",
+          description:
+            "XBond 구독 자격 증명이 로컬 터미널 클라이언트에 자동으로 동기화되었습니다.",
+          status: "터미널 클라이언트 준비 완료",
+          meta: "OAuth 2.0 PKCE 토큰 교환 완료",
+          lblMeta: "인증",
+          lblStatus: "상태",
+          button: "이 탭 닫기",
+          hint: "이제 브라우저 탭을 닫고 터미널로 돌아가 사용할 수 있습니다.",
+          tagTop: "모든 연결을",
+          tagBottom: "빠르고, 안정적이고, 여유롭게",
+          p1: "BGP 전용선 직연결, AI와 스트리밍 접속 지원",
+          p2: "macOS, Windows, iOS, Android 전 기기 지원",
+          p3: "사용량은 투명하게, 갱신은 언제든 취소 가능",
+          themeTrigger: "테마",
+          light: "라이트",
+          dark: "다크",
+          system: "시스템",
+          langTrigger: "언어",
+        },
+        fa: {
+          pageTitle: "احراز هویت XBond CLI با موفقیت انجام شد",
+          title: "احراز هویت موفقیت‌آمیز بود",
+          description:
+            "اطلاعات اشتراک XBond شما به طور خودکار با کلاینت ترمینال محلی همگام‌سازی شد.",
+          status: "کلاینت ترمینال آماده است",
+          meta: "مبادله توکن OAuth 2.0 PKCE انجام شد",
+          lblMeta: "احراز هویت",
+          lblStatus: "وضعیت",
+          button: "بستن این برگه",
+          hint: "اکنون می‌توانید این برگه را بسته و به ترمینال بازگردید.",
+          tagTop: "هر اتصال،",
+          tagBottom: "سریع، پایدار و بی‌دغدغه",
+          p1: "خط اختصاصی BGP، با دسترسی به AI و استریمینگ",
+          p2: "پشتیبانی کامل از macOS، Windows، iOS و Android",
+          p3: "مصرف شفاف و امکان لغو تمدید در هر زمان",
+          themeTrigger: "پوسته",
+          light: "روشن",
+          dark: "تاریک",
+          system: "هماهنگ با سیستم",
+          langTrigger: "زبان",
+        },
+      };
+
+      const ICON_ATTR =
+        'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+      const SUN = `<svg ${ICON_ATTR}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-15.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`;
+      const MOON = `<svg ${ICON_ATTR}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+      const TICK = `<svg class="tick" ${ICON_ATTR.replace('stroke-width="2"', 'stroke-width="2.5"')}><polyline points="20 6 9 17 4 12"/></svg>`;
+
+      let lang = "zh-HK";
+      let themePref = "system";
+      const media = matchMedia("(prefers-color-scheme: dark)");
+      const $ = (id) => document.getElementById(id);
+
+      function normalizeLang(code) {
+        if (!code) return "zh-HK";
+        const lower = String(code).toLowerCase().replace("_", "-");
+        if (/^zh-(cn|sg|hans)/.test(lower) || lower === "zh") return "zh-CN";
+        if (lower.startsWith("zh")) return "zh-HK";
+        if (lower.startsWith("ko")) return "ko";
+        if (lower.startsWith("fa")) return "fa";
+        if (lower.startsWith("en")) return "en";
+        return "zh-HK";
+      }
+
+      function readJSON(key) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return null;
+          try {
+            return JSON.parse(raw);
+          } catch (e) {
+            return raw;
+          }
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function writeJSON(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {}
+      }
+
+      function isDark() {
+        return (
+          themePref === "dark" || (themePref === "system" && media.matches)
+        );
+      }
+
+      function applyTheme() {
+        const dark = isDark();
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        $("theme-btn").innerHTML = dark ? MOON : SUN;
+      }
+
+      function setText(id, value) {
+        $(id).textContent = value;
+      }
+
+      function renderMenu(menuId, items, current, onPick) {
+        const menu = $(menuId);
+        menu.innerHTML = "";
+        for (const item of items) {
+          const el = document.createElement("button");
+          el.className = "menu-item";
+          el.setAttribute("role", "menuitemradio");
+          el.setAttribute("aria-checked", String(item.value === current));
+          el.innerHTML = TICK;
+          el.append(item.label);
+          el.addEventListener("click", () => {
+            closeMenus();
+            onPick(item.value);
+          });
+          menu.append(el);
+        }
+      }
+
+      function renderThemeMenu() {
+        const t = T[lang];
+        renderMenu(
+          "theme-menu",
+          [
+            { value: "light", label: t.light },
+            { value: "dark", label: t.dark },
+            { value: "system", label: t.system },
+          ],
+          themePref,
+          setTheme,
+        );
+        $("theme-btn").setAttribute("aria-label", t.themeTrigger);
+      }
+
+      function renderLangMenu() {
+        renderMenu(
+          "lang-menu",
+          LANGS.map((l) => ({ value: l.code, label: l.label })),
+          lang,
+          setLanguage,
+        );
+        $("lang-btn").setAttribute("aria-label", T[lang].langTrigger);
+      }
+
+      function setTheme(pref) {
+        themePref = pref;
+        writeJSON("theme", pref);
+        applyTheme();
+        renderThemeMenu();
+      }
+
+      function setLanguage(code, persist = true) {
+        lang = normalizeLang(code);
+        const t = T[lang];
+        const meta = LANGS.find((l) => l.code === lang);
+        document.documentElement.lang = lang;
+        document.documentElement.dir = meta.dir;
+        document.title = t.pageTitle;
+        setText("t-title", t.title);
+        setText("t-description", t.description);
+        setText("t-meta", t.meta);
+        setText("t-status", t.status);
+        setText("t-lbl-meta", t.lblMeta);
+        setText("t-lbl-status", t.lblStatus);
+        setText("t-button", t.button);
+        setText("t-hint", t.hint);
+        setText("t-tag-top", t.tagTop);
+        setText("t-tag-bottom", t.tagBottom);
+        setText("t-p1", t.p1);
+        setText("t-p2", t.p2);
+        setText("t-p3", t.p3);
+        if (persist) writeJSON("lang", meta.store);
+        renderLangMenu();
+        renderThemeMenu();
+      }
+
+      function closeMenus() {
+        for (const id of ["theme", "lang"]) {
+          $(id + "-menu").classList.remove("open");
+          $(id + "-btn").setAttribute("aria-expanded", "false");
+        }
+      }
+
+      for (const id of ["theme", "lang"]) {
+        $(id + "-btn").addEventListener("click", (e) => {
+          e.stopPropagation();
+          const menu = $(id + "-menu");
+          const willOpen = !menu.classList.contains("open");
+          closeMenus();
+          if (willOpen) {
+            menu.classList.add("open");
+            $(id + "-btn").setAttribute("aria-expanded", "true");
+          }
+        });
+      }
+      document.addEventListener("click", closeMenus);
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeMenus();
+      });
+      media.addEventListener("change", applyTheme);
+
+      for (const el of document.querySelectorAll(".year")) {
+        el.textContent = new Date().getFullYear();
+      }
+
+      // Frozen-or-drifting star map: the console's constellation, simplified.
+      (() => {
+        const canvas = $("stars");
+        const host = canvas.parentElement;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const still = matchMedia("(prefers-reduced-motion: reduce)");
+        let w = 0;
+        let h = 0;
+        let nodes = [];
+        let raf = 0;
+        let last = 0;
+        const LINK = 110;
+
+        function seed() {
+          const r = host.getBoundingClientRect();
+          const dpr = Math.min(devicePixelRatio || 1, 2);
+          w = r.width;
+          h = r.height;
+          canvas.width = Math.max(1, Math.round(w * dpr));
+          canvas.height = Math.max(1, Math.round(h * dpr));
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          const n = Math.max(24, Math.min(64, Math.round((w * h) / 16000)));
+          nodes = Array.from({ length: n }, (_, i) => {
+            const a = Math.random() * Math.PI * 2;
+            const v = 2 + Math.random() * 4;
+            return {
+              x: i === 0 ? w * 0.72 : Math.random() * w,
+              y: i === 0 ? h * 0.3 : Math.random() * h,
+              vx: Math.cos(a) * v,
+              vy: Math.sin(a) * v,
+            };
+          });
+          draw(0);
+        }
+
+        function draw(t) {
+          const style = getComputedStyle(host);
+          const ink = style.color;
+          const brand = style.getPropertyValue("--brand").trim() || "#f38020";
+          ctx.clearRect(0, 0, w, h);
+          ctx.lineWidth = 1;
+          for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+              const d = Math.hypot(
+                nodes[i].x - nodes[j].x,
+                nodes[i].y - nodes[j].y,
+              );
+              if (d > LINK) continue;
+              ctx.globalAlpha = (1 - d / LINK) * 0.16;
+              ctx.strokeStyle = ink;
+              ctx.beginPath();
+              ctx.moveTo(nodes[i].x, nodes[i].y);
+              ctx.lineTo(nodes[j].x, nodes[j].y);
+              ctx.stroke();
+            }
+          }
+          ctx.fillStyle = ink;
+          ctx.globalAlpha = 0.3;
+          for (let i = 1; i < nodes.length; i++) {
+            ctx.beginPath();
+            ctx.arc(nodes[i].x, nodes[i].y, 1.6, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          const hub = nodes[0];
+          const pulse = still.matches ? 0 : (t % 2400) / 2400;
+          ctx.fillStyle = brand;
+          ctx.globalAlpha = 0.28 * (1 - pulse);
+          ctx.beginPath();
+          ctx.arc(hub.x, hub.y, 6 + pulse * 18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.beginPath();
+          ctx.arc(hub.x, hub.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        function tick(ts) {
+          const dt = Math.min(0.05, (ts - last) / 1000);
+          last = ts;
+          for (const n of nodes) {
+            n.x += n.vx * dt;
+            n.y += n.vy * dt;
+            if (n.x < 0 || n.x > w) n.vx *= -1;
+            if (n.y < 0 || n.y > h) n.vy *= -1;
+          }
+          draw(ts);
+          raf = requestAnimationFrame(tick);
+        }
+
+        function start() {
+          cancelAnimationFrame(raf);
+          if (still.matches || !w) return;
+          last = performance.now();
+          raf = requestAnimationFrame(tick);
+        }
+
+        new ResizeObserver(() => {
+          seed();
+          start();
+        }).observe(host);
+        still.addEventListener("change", start);
+        document.addEventListener("visibilitychange", () =>
+          document.hidden ? cancelAnimationFrame(raf) : start(),
+        );
+      })();
+
+      // Initial language: ?lang= → the console's saved choice → what the CLI rendered server-side.
+      const urlLang = new URLSearchParams(location.search).get("lang");
+      const stored = readJSON("lang");
+      const storedTheme = readJSON("theme");
+      themePref = ["light", "dark", "system"].includes(storedTheme)
+        ? storedTheme
+        : "system";
+      applyTheme();
+      setLanguage(urlLang || stored || document.documentElement.lang, false);
+    </script>
+  </body>
+</html>

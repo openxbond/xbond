@@ -1,0 +1,625 @@
+/* Tailwind v4 entry. tokens.css stays the single token source: it is
+   unlayered, so its :root/.dark values win over Tailwind's layered theme
+   defaults (fonts, --radius). Utilities map onto it via @theme inline,
+   which inlines the var() reference so light/dark switch on the .dark
+   class without regenerating utilities.
+
+   Convention (DESIGN.md): raw palette classes (bg-emerald-500, …) are
+   banned — status and surfaces go through these token colors so light and
+   dark stay isomorphic. */
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@import "./tokens.css";
+@import "../features/configuration/configuration.css";
+
+/* Shared UI and the Vite hosts that consume this stylesheet. */
+@source "..";
+@source "../../../../apps/dashboard";
+@source "../../../../apps/desktop/src";
+
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant host-macos (:root[data-host="macos"] &);
+@custom-variant host-windows (:root[data-host="windows"] &);
+@custom-variant host-ios (:root[data-host="ios"] &);
+@custom-variant host-android (:root[data-host="android"] &);
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-inset: var(--surface-inset);
+  --color-surface-raised: var(--surface-raised);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-text: var(--destructive-text);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-text: var(--brand-text);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-action: var(--brand-action);
+  --color-brand-action-foreground: var(--brand-action-foreground);
+  --color-brand-action-hover: var(--brand-action-hover);
+  --color-accent-mint: var(--accent-mint);
+  --color-accent-mint-text: var(--accent-mint-text);
+  --color-accent-mint-soft: var(--accent-mint-soft);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-blue-text: var(--accent-blue-text);
+  --color-accent-blue-soft: var(--accent-blue-soft);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-violet-text: var(--accent-violet-text);
+  --color-accent-violet-soft: var(--accent-violet-soft);
+  --shadow-brand-action: var(--brand-action-shadow);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-text: var(--success-text);
+  --color-success-soft: var(--success-soft);
+  --color-upload: var(--upload);
+  --color-control-border: var(--control-border);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-text: var(--warning-text);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-text: var(--info-text);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-foreground-muted: var(--sidebar-foreground-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-row-hover: var(--row-hover);
+  --color-overlay: var(--overlay);
+  --color-switch-thumb: var(--switch-thumb);
+
+  /* Type scale (DESIGN.md typography roles). Custom names carry font-size
+     only, so authored line-heights stay intact. Default Tailwind steps snap
+     onto the ramp: xs==caption, sm==label, base==body. */
+  --text-caption: 0.75rem;
+  --text-label: 0.875rem;
+  --text-body: 1rem;
+  --text-subtitle: 0.9375rem;
+  --text-title: 1.375rem;
+  --text-headline: 2.125rem;
+  --text-metric: 1.75rem;
+  --text-display: 2.75rem;
+  --text-xs: var(--text-caption);
+  --text-sm: var(--text-label);
+  --text-base: var(--text-body);
+
+  --color-latency-good: var(--latency-good-bg);
+  --color-latency-good-text: var(--latency-good-text);
+  --color-latency-good-dot: var(--latency-good-dot);
+  --color-latency-medium: var(--latency-medium-bg);
+  --color-latency-medium-text: var(--latency-medium-text);
+  --color-latency-medium-dot: var(--latency-medium-dot);
+  --color-latency-slow: var(--latency-slow-bg);
+  --color-latency-slow-text: var(--latency-slow-text);
+  --color-latency-slow-dot: var(--latency-slow-dot);
+  --color-latency-failed: var(--latency-failed-bg);
+  --color-latency-failed-text: var(--latency-failed-text);
+  --color-latency-failed-dot: var(--latency-failed-dot);
+
+  --shadow-brand: 0 1px 4px oklch(0.66 0.18 52 / 35%);
+
+  /* Motion easings from tokens.css, exposed as ease-* utilities. */
+  --ease-expo: var(--ease-out-expo);
+  --ease-spring: var(--ease-spring);
+
+  /* Legacy radius utilities snap onto the new scale instead of keeping the
+     old 12/24px glass radii. New code uses rounded-control / rounded-card. */
+  --radius-sm: 6px;
+  --radius-md: var(--radius-control);
+  --radius-lg: 12px;
+  --radius-xl: var(--radius-card);
+  --radius-2xl: var(--radius-card);
+  --radius-3xl: var(--radius-hero);
+  --radius-control: var(--radius-control);
+  --radius-card: var(--radius-card);
+  --radius-hero: var(--radius-hero);
+
+  --shadow-elevation-card: var(--elevation-card);
+  --shadow-elevation-raised: var(--elevation-raised);
+  --shadow-window-frame: var(--window-frame);
+}
+
+/* Trim half-leading so single-line labels center on glyph ink instead of
+   font metrics (ascent/descent asymmetry reads as ~1px off-center). CJK
+   UIs use `text` edges; `cap alphabetic` is the Latin-only pairing.
+   Engines without text-box ignore it and fall back to the integer
+   leading baked into the primitives. Only combine with controls whose
+   height comes from flex + min-h/padding, never from line-height. */
+@utility optical-center {
+  text-box: trim-both text text;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    background: var(--background);
+    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+  }
+
+  /* The ambient light sits behind the workspace and stays static. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        30rem 24rem at 10% 86%,
+        var(--aurora-peach),
+        transparent 68%
+      ),
+      radial-gradient(
+        26rem 22rem at 86% 14%,
+        var(--aurora-slate),
+        transparent 68%
+      );
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.5;
+    color: var(--foreground);
+    background-color: var(--background);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+  }
+
+  /* Numeric readouts align without forcing tabular figures on prose. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* Browser chrome belongs to the design: numerals in data align, the caret
+     and selection carry the brand, scrollbars follow the theme. */
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 25%, transparent);
+  }
+
+  ::-webkit-scrollbar {
+    background: transparent;
+  }
+
+  /* Chromium 经典滚动条默认带 ▲▼ 步进按钮，与圆角细拇指风格不符。 */
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: var(--radius-sm);
+    background: var(--border-strong);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+
+  ::-webkit-scrollbar:vertical {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar:horizontal {
+    height: 8px;
+  }
+
+  /* Firefox 走標準屬性；-webkit-* 對它無效。 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  button,
+  input,
+  select,
+  textarea,
+  [contenteditable] {
+    caret-color: var(--brand-text);
+  }
+
+  /* 減少動態：取消循環、旋轉與位移，資訊由靜態文字保留
+     （DESIGN.md「動畫與回饋」），不只處理捲動行為。 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared page-shell classes: page scaffolding and repeated control    */
+/* patterns used across containers as stable hooks (Activity targets   */
+/* `.page`/`.header` descendants, table pages use `.table-header`).    */
+/* Everything else lives as utilities in the JSX.                      */
+/* ------------------------------------------------------------------ */
+@layer components {
+  /* Locate feedback on proxy node tiles: the tile JS-toggles `.is-located`,
+     so the wash stays here instead of per-call-site utilities. */
+  .node-grid-tile.is-located::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--brand);
+    opacity: 0;
+    pointer-events: none;
+    animation: located-pulse 1.4s ease-out;
+  }
+
+  @keyframes located-pulse {
+    0% {
+      opacity: 0.16;
+    }
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .node-grid-tile.is-located::after {
+      animation: none;
+      opacity: 0.16;
+    }
+  }
+
+  .page {
+    padding: var(--page-pad);
+    width: 100%;
+    /* Definite height so flex-1 data surfaces (connections, logs, proxy
+       groups) fill the workspace exactly; taller content overflows visibly
+       and the main scroller takes it. Mobile resets to natural height. */
+    height: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    /* Route continuity: each route mounts a fresh .page, so this runs once
+       per navigation — a quiet arrival, not page-load choreography. */
+    animation: page-enter 200ms var(--ease-out-expo) backwards;
+  }
+
+  @keyframes page-enter {
+    from {
+      opacity: 0.4;
+      /* Slides down into place. A downward from-offset (+6px) would keep
+         counting as bottom scrollable overflow in Chromium even after the
+         animation ends, leaving full-height pages 6px of phantom scroll. */
+      transform: translateY(-6px);
+    }
+  }
+
+  @media (width >= 64rem) and (height <= 46rem) {
+    .home-page {
+      padding-block: 12px;
+    }
+
+    .home-greeting {
+      display: none;
+    }
+  }
+
+  @media (width < 48rem) {
+    .page {
+      padding: 14px 14px 24px;
+      height: auto;
+      gap: 14px;
+    }
+  }
+
+  .bento,
+  .glass-bar {
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--elevation-card);
+  }
+
+  .bento {
+    position: relative;
+    border-radius: var(--radius-card);
+    background: var(--glass-surface);
+  }
+
+  .bento-hero {
+    border-radius: var(--radius-hero);
+    box-shadow:
+      0 0 0 1px oklch(0.2 0.03 265 / 5%),
+      inset 0 1px 0 oklch(1 0 0 / 55%),
+      0 2px 4px oklch(0.2 0.03 265 / 4%),
+      0 22px 48px -28px oklch(0.7 0.19 45 / 22%);
+    border-color: color-mix(in oklab, var(--brand) 14%, var(--glass-border));
+    background:
+      radial-gradient(
+        40% 50% at 88% 0%,
+        color-mix(in oklab, var(--brand) 10%, transparent),
+        transparent 72%
+      ),
+      var(--glass-surface);
+  }
+
+  .bento-inset {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--glass-inset);
+  }
+
+  .bento-interactive {
+    transition:
+      border-color var(--duration-base),
+      background-color var(--duration-base);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bento-interactive {
+      transition: none;
+    }
+  }
+
+  .bento-interactive:hover {
+    border-color: var(--control-border);
+  }
+
+  .glass-bar {
+    background: var(--glass-sidebar);
+  }
+
+  /* 移动端顶栏与底栏浮在滚动内容上：近实色面遮住下层文字（DESIGN.md「浮層」）。 */
+  .glass-bar-solid {
+    background: var(--card);
+  }
+
+  .glass-button {
+    border: 1px solid color-mix(in srgb, var(--control-border) 55%, transparent);
+    box-shadow:
+      inset 0 1px 0 var(--glass-border),
+      0 2px 5px oklch(0.2 0.03 265 / 6%);
+  }
+
+  .field-glass {
+    border: 1px solid var(--control-border);
+  }
+
+  .glass-button {
+    background: var(--card);
+  }
+
+  .glass-track,
+  .field-glass {
+    background: var(--surface-inset);
+  }
+
+  .glass-track {
+    border: 1px solid var(--border);
+  }
+
+  .gradient-brand {
+    background-image: var(--gradient-brand);
+    border: 1px solid var(--brand-highlight);
+  }
+
+  .gradient-ink {
+    background-image: var(--gradient-ink);
+  }
+
+  /* One shared loading shimmer for cards, rows and inline placeholders. */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--foreground) 7%, transparent);
+  }
+
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklab, var(--card) 65%, transparent) 50%,
+      transparent 80%
+    );
+    transform: translateX(-100%);
+    animation: skeleton-sweep 1.4s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-sweep {
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  .section-link {
+    color: var(--brand-text);
+    text-decoration: none;
+    font-size: var(--text-body);
+    font-weight: 600;
+  }
+
+  .section-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .section-heading {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .section-heading h2 {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  /* Empty-state next action: a quiet outlined button, shared by the
+     connections and logs empty states. */
+  .empty-state-action {
+    margin-top: 10px;
+    padding: 5px 14px;
+    font-size: var(--text-body);
+    font-family: inherit;
+    color: var(--foreground);
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) ease;
+  }
+
+  .empty-state-action:hover {
+    border-color: var(--ring);
+  }
+
+  @media (width < 48rem) {
+    .empty-state-action {
+      min-height: 44px;
+    }
+  }
+
+  /* Tiny circular live-state indicator. `.online` marks a ready state (success),
+     `.info` an active data stream (info); the glow keeps the dot legible on
+     both themes. State changes fade so a stream flipping tone reads as one
+     dot changing, not two dots swapped. */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted-foreground);
+    flex-shrink: 0;
+    transition:
+      background-color var(--duration-base) ease,
+      box-shadow var(--duration-base) ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .status-dot {
+      transition: none;
+    }
+  }
+
+  .status-dot.online {
+    background: var(--success);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--success) 14%, transparent);
+  }
+
+  .status-dot.info {
+    background: var(--info);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--info) 14%, transparent);
+  }
+
+  /* Header strip above tabular lists (rules, logs, connections): quiet label
+     type on the inset surface with a hairline separator. Column layout,
+     sticky behavior and resizers stay with each table. */
+  .table-header {
+    min-height: 32px;
+    font-size: var(--text-label);
+    font-weight: 500;
+    color: var(--muted-foreground);
+    background: var(--surface-inset);
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Toolbar above a page's data surface: search, filters and actions in one
+     bordered card, matching the proxies command card. */
+  .page-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--glass-surface);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--elevation-card);
+  }
+}
+
+/* Spinner referenced by arbitrary animation utility
+   (animate-[native-spin_...]); keyframes are unaffected by cascade
+   layers, so it stays un-layered at the end of the entry. */
+@keyframes native-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* AuroraWave slow drift: transform-only so the blurred texture is reused by
+   the compositor instead of re-filtered per frame; disabled for reduced
+   motion (DESIGN.md 性能預算). */
+
+/* Desktop shell removes browser residue (Tauri only — the class is added by
+   initDesktopShellDom): no native right-click menu outside inputs, no
+   accidental selection on chrome, no file-drop navigation. Inputs, editable
+   hosts and technical strings stay selectable (DESIGN.md: 網址與技術字串保留
+   完整查看或複製方式). */
+html.desktop-shell {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.desktop-shell input,
+html.desktop-shell textarea,
+html.desktop-shell [contenteditable="true"],
+html.desktop-shell code,
+html.desktop-shell pre {
+  user-select: text;
+  -webkit-user-select: text;
+}

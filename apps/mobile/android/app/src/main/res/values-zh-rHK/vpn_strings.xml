@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tile_connected">已連線</string>
+    <string name="tile_disconnected">未連線</string>
+    <string name="notification_establishing">正在建立 XBond VPN…</string>
+    <string name="notification_needs_permission">XBond VPN 需要授權</string>
+    <string name="notification_active">XBond VPN 運行中</string>
+    <string name="notification_disconnect">斷線</string>
+</resources>

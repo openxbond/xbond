@@ -1,0 +1,71 @@
+# Editor, tooling and dependency state
+.idea/
+.impeccable
+__pycache__/
+node_modules/
+
+# Web and desktop build outputs (any app)
+dist/
+dist-desktop/
+
+# Tauri desktop shell
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/schemas/
+apps/desktop/src-tauri/binaries/xbond-daemon-*
+
+# Compiled JSX and coverage output
+packages/client-ui/src/**/*.jsx
+packages/*/tests/**/*.jsx
+packages/*/tests/__coverage__/
+
+# Go binaries built at the repo root, plus the wintun DLL the TUN gate
+# extracts beside the executable
+/xbond
+/xbond.exe
+/xbond.exe.old
+*.exe~
+/wintun.dll
+
+# Runtime state when the repo root is used as XBOND_DATA_DIR. Anchor these:
+# an unanchored `subscriptions/` also hides packages/client-ui/src/features/configuration/subscriptions
+# on case-insensitive filesystems.
+/subscriptions/
+/subscriptions.json
+/runtime_state.json
+/sysproxy.snapshot.json
+/localapi.token
+/localapi.addr
+
+# Local data and logs
+*.db
+*.db-*
+*.log
+*~
+
+# Release outputs
+release-assets/
+release/
+
+# Mobile Android build outputs
+apps/mobile/android/xbond-mobile.aar
+apps/mobile/android/xbond-mobile-sources.jar
+apps/mobile/android/.gradle/
+apps/mobile/android/build/
+apps/mobile/android/app/build/
+apps/mobile/android/app/src/main/assets/
+apps/mobile/android/local.properties
+
+# Mobile iOS build outputs
+apps/mobile/ios/build/
+apps/mobile/ios/XBondMobile.xcframework/
+apps/mobile/ios/XBond.xcodeproj/
+
+# Local task records; only the README is tracked
+/docs/tasks/*
+!/docs/tasks/README.md
+
+# ZCode session workspace
+.zcode/
+
+temp/
+.temp/

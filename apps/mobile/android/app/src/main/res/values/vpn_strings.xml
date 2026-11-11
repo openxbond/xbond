@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tile_connected">Connected</string>
+    <string name="tile_disconnected">Disconnected</string>
+    <string name="notification_establishing">Establishing XBond VPN…</string>
+    <string name="notification_needs_permission">XBond VPN needs permission</string>
+    <string name="notification_active">XBond VPN active</string>
+    <string name="notification_disconnect">Disconnect</string>
+</resources>

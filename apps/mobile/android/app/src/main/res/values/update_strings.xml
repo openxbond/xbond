@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_development">This development build uses manual updates.</string>
+    <string name="update_current">XBond is up to date.</string>
+    <string name="update_available">XBond %1$s is available</string>
+    <string name="update_confirm">Download the update and open the Android installer?</string>
+    <string name="update_download">Download update</string>
+    <string name="update_downloading">Downloading the update…</string>
+    <string name="update_failed">Could not check or install the update. Try again.</string>
+    <string name="update_permission_denied">Allow XBond to install apps to complete this update.</string>
+</resources>

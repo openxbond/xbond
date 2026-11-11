@@ -1,0 +1,18 @@
+# Keep the build context to what the two builder stages actually read.
+.git
+.github
+.zcode
+.impeccable
+**/node_modules
+dist
+dist-desktop
+release
+release-assets
+apps/desktop
+docs
+*.md
+!README.md
+Dockerfile
+docker-compose.yml
+.e2e
+tmp

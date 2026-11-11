@@ -1,0 +1,985 @@
+package sub
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"maps"
+	"net/url"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/openxbond/xbond/internal/platform/atomicfile"
+	"github.com/openxbond/xbond/internal/platform/paths"
+)
+
+// FetchProgress reports the in-flight subscription config download so
+// LocalAPI consumers can render progress while a blocking update runs.
+type FetchProgress struct {
+	Active    bool      `json:"active"`
+	SubID     string    `json:"subId,omitempty"`
+	Name      string    `json:"name,omitempty"`
+	Bytes     int64     `json:"bytes"`
+	Total     int64     `json:"total"` // 0 = size unknown (chunked response)
+	StartedAt time.Time `json:"startedAt,omitempty"`
+}
+
+type Manager struct {
+	mu         sync.RWMutex
+	store      SubscriptionsStore
+	progressMu sync.Mutex
+	progress   FetchProgress
+}
+
+func NewManager() (*Manager, error) {
+	if err := paths.EnsureDirs(); err != nil {
+		return nil, err
+	}
+
+	m := &Manager{}
+	if err := m.loadStore(); err != nil {
+		// A corrupt store must not masquerade as "no subscriptions": the
+		// corrupt bytes are preserved beside the original and the failure is
+		// loud, while the manager stays usable so the user can rebuild from
+		// their source.
+		fmt.Fprintf(os.Stderr, "xbond: %v\n", err)
+		m.store = emptyStore()
+	}
+	return m, nil
+}
+
+// emptyStore is the safe starting point after a load failure: an empty list
+// that marshals as [] (not null) in every response shape.
+func emptyStore() SubscriptionsStore {
+	return SubscriptionsStore{Subscriptions: make([]SubscriptionMeta, 0)}
+}
+
+func (m *Manager) loadStore() error {
+	data, err := os.ReadFile(paths.SubListPath())
+	if err != nil {
+		m.store = SubscriptionsStore{
+			Subscriptions: make([]SubscriptionMeta, 0),
+		}
+		return nil
+	}
+
+	var store SubscriptionsStore
+	if err := json.Unmarshal(data, &store); err != nil {
+		// The corrupt bytes are preserved beside the original so nothing is
+		// silently lost; the manager starts empty and the failure is loud.
+		corrupt := paths.SubListPath() + ".corrupt"
+		if renameErr := os.Rename(paths.SubListPath(), corrupt); renameErr != nil {
+			return fmt.Errorf("decode subscription store: %w (preserving the corrupt copy failed: %v)", err, renameErr)
+		}
+		return fmt.Errorf("decode subscription store (bytes preserved as %s): %w", corrupt, err)
+	}
+	for i := range store.Subscriptions {
+		if store.Subscriptions[i].Type == "" {
+			// 舊存儲沒有 type 字段：保守回填為 universal（登出不刪、更新走
+			// URL），不猜測原始來源。
+			store.Subscriptions[i].Type = SubTypeUniversal
+		}
+		if !store.Subscriptions[i].NameCustomized && strings.Contains(store.Subscriptions[i].Name, ";") {
+			parts := strings.Split(store.Subscriptions[i].Name, ";")
+			name := strings.Trim(parts[0], `"' `)
+			name = strings.TrimSuffix(name, ".json")
+			name = strings.TrimSuffix(name, ".yaml")
+			store.Subscriptions[i].Name = name
+		}
+		if store.Subscriptions[i].Kind == "" {
+			if store.Subscriptions[i].Type == SubTypeXBond {
+				store.Subscriptions[i].Kind = KindCloud
+			} else if strings.HasPrefix(store.Subscriptions[i].SourceURL, "http://") || strings.HasPrefix(store.Subscriptions[i].SourceURL, "https://") {
+				store.Subscriptions[i].Kind = KindRemote
+			} else if strings.HasSuffix(store.Subscriptions[i].SourceURL, "pasted.source") {
+				store.Subscriptions[i].Kind = KindInline
+				store.Subscriptions[i].AutoUpdate = false
+				store.Subscriptions[i].UpdateIntervalHours = 0
+			} else {
+				store.Subscriptions[i].Kind = KindLocal
+				store.Subscriptions[i].AutoUpdate = false
+				store.Subscriptions[i].UpdateIntervalHours = 0
+			}
+		}
+		if store.Subscriptions[i].Type == SubTypeXBond || store.Subscriptions[i].Kind == KindCloud {
+			if store.Subscriptions[i].Token != "" && (store.Subscriptions[i].SourceURL == "" || strings.Contains(store.Subscriptions[i].SourceURL, "target=clash")) {
+				store.Subscriptions[i].SourceURL = BuildXBondURL(store.Subscriptions[i].Origin, store.Subscriptions[i].Token, store.Subscriptions[i].Protocol, store.Subscriptions[i].Lang)
+			}
+			if store.Subscriptions[i].UpdateIntervalHours == 0 && !store.Subscriptions[i].UpdateIntervalCustomized {
+				store.Subscriptions[i].AutoUpdate = true
+				store.Subscriptions[i].UpdateIntervalHours = 24
+			}
+		}
+	}
+	m.store = store
+	return nil
+}
+
+func (m *Manager) saveStoreLocked() error {
+	data, err := json.MarshalIndent(m.store, "", "  ")
+	if err != nil {
+		return err
+	}
+	return atomicfile.Write(paths.SubListPath(), data, 0o600)
+}
+
+func (m *Manager) ActiveID() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.store.ActiveID
+}
+
+func (m *Manager) List() []SubscriptionMeta {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	list := make([]SubscriptionMeta, len(m.store.Subscriptions))
+	copy(list, m.store.Subscriptions)
+	for i := range list {
+		list[i].SavedSelections = maps.Clone(list[i].SavedSelections)
+	}
+	return list
+}
+
+func (m *Manager) Get(idOrName string) (*SubscriptionMeta, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, s := range m.store.Subscriptions {
+		if s.ID == idOrName || s.Name == idOrName {
+			cp := s
+			cp.SavedSelections = maps.Clone(s.SavedSelections)
+			return &cp, nil
+		}
+	}
+	return nil, fmt.Errorf("subscription %q not found", idOrName)
+}
+
+func (m *Manager) Use(idOrName string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	var targetID string
+	for _, s := range m.store.Subscriptions {
+		if s.ID == idOrName || s.Name == idOrName {
+			targetID = s.ID
+			break
+		}
+	}
+	if targetID == "" {
+		return fmt.Errorf("subscription %q not found", idOrName)
+	}
+
+	previous := m.store.ActiveID
+	m.store.ActiveID = targetID
+	if err := m.saveStoreLocked(); err != nil {
+		m.store.ActiveID = previous
+		return err
+	}
+	return nil
+}
+
+func (m *Manager) Remove(idOrName string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	idx := -1
+	for i, s := range m.store.Subscriptions {
+		if s.ID == idOrName || s.Name == idOrName {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("subscription %q not found", idOrName)
+	}
+
+	subID := m.store.Subscriptions[idx].ID
+	subDir, err := filepath.Abs(paths.SubDir(subID))
+	if err != nil {
+		return err
+	}
+	root, err := filepath.Abs(paths.SubscriptionsDir())
+	if err != nil {
+		return err
+	}
+	relative, err := filepath.Rel(root, subDir)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("subscription directory is outside the managed directory")
+	}
+	previous := m.store
+	next := append([]SubscriptionMeta(nil), m.store.Subscriptions[:idx]...)
+	m.store.Subscriptions = append(next, m.store.Subscriptions[idx+1:]...)
+	if m.store.ActiveID == subID {
+		if len(m.store.Subscriptions) > 0 {
+			m.store.ActiveID = m.store.Subscriptions[0].ID
+		} else {
+			m.store.ActiveID = ""
+		}
+	}
+
+	if err := m.saveStoreLocked(); err != nil {
+		m.store = previous
+		return err
+	}
+	return os.RemoveAll(subDir)
+}
+
+// Rename changes the display name without replacing configuration or credentials.
+func (m *Manager) ChangeSourceURL(id, source string) error {
+	parsed, err := url.Parse(source)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return errors.New("subscription source must be an HTTP or HTTPS URL")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, item := range m.store.Subscriptions {
+		if item.ID != id {
+			continue
+		}
+		if item.Type != SubTypeUniversal {
+			return errors.New("account subscription URLs are managed by the account")
+		}
+		m.store.Subscriptions[i].SourceURL = source
+		m.store.Subscriptions[i].ETag = ""
+		if err := m.saveStoreLocked(); err != nil {
+			m.store.Subscriptions[i] = item
+			return err
+		}
+		return nil
+	}
+	return errors.New("subscription not found")
+}
+
+func (m *Manager) Rename(id, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || len([]rune(name)) > 256 {
+		return fmt.Errorf("subscription name must contain 1 to 256 characters")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	index := -1
+	for i, item := range m.store.Subscriptions {
+		if item.ID == id {
+			index = i
+		}
+		if item.ID != id && item.Name == name {
+			return fmt.Errorf("subscription name already exists")
+		}
+	}
+	if index < 0 {
+		return fmt.Errorf("subscription not found")
+	}
+	previous := m.store.Subscriptions[index].Name
+	previousCustomized := m.store.Subscriptions[index].NameCustomized
+	m.store.Subscriptions[index].Name = name
+	m.store.Subscriptions[index].NameCustomized = true
+	if err := m.saveStoreLocked(); err != nil {
+		m.store.Subscriptions[index].Name = previous
+		m.store.Subscriptions[index].NameCustomized = previousCustomized
+		return err
+	}
+	return nil
+}
+
+func (m *Manager) SaveSelection(subID, group, node string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i := range m.store.Subscriptions {
+		if m.store.Subscriptions[i].ID == subID {
+			if m.store.Subscriptions[i].SavedSelections == nil {
+				m.store.Subscriptions[i].SavedSelections = make(map[string]string)
+			}
+			m.store.Subscriptions[i].SavedSelections[group] = node
+			return m.saveStoreLocked()
+		}
+	}
+	return fmt.Errorf("subscription %q not found", subID)
+}
+
+func (m *Manager) AddXBond(
+	token, origin string,
+	fallbackOrigins []string,
+	protocol, lang, name string,
+	intervalHours int,
+	activate bool,
+) (*SubscriptionMeta, error) {
+	if token == "" {
+		return nil, fmt.Errorf("subscription token cannot be empty")
+	}
+	if !strings.HasPrefix(token, "sub-") {
+		return nil, fmt.Errorf("xbond token must start with 'sub-'")
+	}
+
+	if origin == "" {
+		origin = "https://www.xbond.net"
+	}
+	if protocol == "" {
+		protocol = "vless-reality"
+	}
+	lang = normalizeRenderLang(lang)
+	if intervalHours <= 0 {
+		intervalHours = 24
+	}
+
+	subID := fmt.Sprintf("sub_%s", hashString(token)[:12])
+	if name == "" {
+		name = fmt.Sprintf("XBond-%s", subID[4:8])
+	}
+
+	meta := SubscriptionMeta{
+		ID:                  subID,
+		Name:                name,
+		Type:                SubTypeXBond,
+		Token:               token,
+		Origin:              origin,
+		FallbackOrigins:     fallbackOrigins,
+		Protocol:            protocol,
+		Lang:                lang,
+		AutoUpdate:          true,
+		UpdateIntervalHours: intervalHours,
+		Health:              HealthOK,
+		SavedSelections:     make(map[string]string),
+	}
+
+	return m.upsertAndInit(meta, activate)
+}
+
+// RetokenXBond swaps the XBond subscription's credential in place: the
+// identity, selections, overrides and schedule survive a server-side token
+// rotation, which is exactly when the old token can no longer fetch. The
+// first XBond source is updated, mirroring bindLink's existing-source pick.
+func (m *Manager) RetokenXBond(newToken string) (*SubscriptionMeta, error) {
+	if !strings.HasPrefix(newToken, "sub-") {
+		return nil, fmt.Errorf("xbond token must start with 'sub-'")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.store.Subscriptions {
+		if m.store.Subscriptions[i].Type == SubTypeXBond {
+			m.store.Subscriptions[i].Token = newToken
+			m.store.Subscriptions[i].Health = HealthOK
+			m.store.Subscriptions[i].LastErrorMessage = ""
+			m.saveStoreLocked()
+			meta := m.store.Subscriptions[i]
+			return &meta, nil
+		}
+	}
+	return nil, errors.New("no XBond subscription to retoken")
+}
+
+// BindAccount keeps an account source's identity across credential rotation.
+// A manually imported source is adopted only when its token matches the
+// authenticated account; unrelated sources and their overrides stay intact.
+func (m *Manager) BindAccount(token, issuer, origin string, fallbacks []string, protocol, lang, name string) (*SubscriptionMeta, error) {
+	if !strings.HasPrefix(token, "sub-") || issuer == "" {
+		return nil, errors.New("account subscription credentials are missing")
+	}
+	var existing *SubscriptionMeta
+	for _, item := range m.List() {
+		if item.Type == SubTypeXBond && (item.AccountIssuer == issuer || (item.AccountIssuer == "" && item.Token == token)) {
+			copy := item
+			existing = &copy
+			break
+		}
+	}
+	if existing == nil {
+		if name == "" {
+			name = "XBond Cloud"
+		}
+		existing = &SubscriptionMeta{ID: "account_" + hashString(issuer)[:12], Name: name, Type: SubTypeXBond, Kind: KindCloud, AutoUpdate: true, UpdateIntervalHours: 24, Health: HealthOK}
+	} else if existing.UpdateIntervalHours == 0 && !existing.UpdateIntervalCustomized {
+		existing.AutoUpdate = true
+		existing.UpdateIntervalHours = 24
+	}
+	existing.Kind = KindCloud
+	existing.Token = token
+	existing.AccountIssuer = issuer
+	existing.Origin = origin
+	existing.FallbackOrigins = fallbacks
+	if protocol != "" {
+		existing.Protocol = protocol
+	}
+	if existing.Protocol == "" {
+		existing.Protocol = "vless-reality"
+	}
+	if lang != "" {
+		existing.Lang = normalizeRenderLang(lang)
+	}
+	existing.SourceURL = BuildXBondURL(existing.Origin, existing.Token, existing.Protocol, existing.Lang)
+	return m.upsertAndInit(*existing, false)
+}
+
+func (m *Manager) AddUniversal(
+	urlOrPath, name string,
+	intervalHours int,
+	activate bool,
+) (*SubscriptionMeta, error) {
+	if urlOrPath == "" {
+		return nil, fmt.Errorf("url or path cannot be empty")
+	}
+	if intervalHours <= 0 {
+		intervalHours = 24
+	}
+
+	subID := fmt.Sprintf("uni_%s", hashString(urlOrPath)[:12])
+	if name == "" {
+		name = fmt.Sprintf("Universal-%s", subID[4:8])
+	}
+
+	isURL := strings.HasPrefix(urlOrPath, "http://") || strings.HasPrefix(urlOrPath, "https://")
+	kind := KindLocal
+	autoUpdate := false
+	if isURL {
+		kind = KindRemote
+		autoUpdate = true
+	} else {
+		intervalHours = 0
+	}
+
+	meta := SubscriptionMeta{
+		ID:                  subID,
+		Name:                name,
+		Type:                SubTypeUniversal,
+		Kind:                kind,
+		SourceURL:           urlOrPath,
+		AutoUpdate:          autoUpdate,
+		UpdateIntervalHours: intervalHours,
+		Health:              HealthOK,
+		SavedSelections:     make(map[string]string),
+	}
+
+	return m.upsertAndInit(meta, activate)
+}
+
+// AddUniversalContent imports pasted configuration text. The content is
+// snapshotted into the subscription directory as a static inline profile.
+func (m *Manager) AddUniversalContent(
+	content, name string,
+	intervalHours int,
+	activate bool,
+) (*SubscriptionMeta, error) {
+	if strings.TrimSpace(content) == "" {
+		return nil, fmt.Errorf("content cannot be empty")
+	}
+
+	subID := fmt.Sprintf("uni_%s", hashString(content)[:12])
+	if name == "" {
+		name = fmt.Sprintf("Universal-%s", subID[4:8])
+	}
+
+	_ = os.MkdirAll(paths.SubDir(subID), 0o700)
+	sourcePath := filepath.Join(paths.SubDir(subID), "pasted.source")
+	if err := atomicfile.Write(sourcePath, []byte(content), 0o600); err != nil {
+		return nil, fmt.Errorf("save pasted configuration: %w", err)
+	}
+
+	meta := SubscriptionMeta{
+		ID:                  subID,
+		Name:                name,
+		Type:                SubTypeUniversal,
+		Kind:                KindInline,
+		SourceURL:           sourcePath,
+		AutoUpdate:          false,
+		UpdateIntervalHours: 0,
+		Health:              HealthOK,
+		SavedSelections:     make(map[string]string),
+	}
+
+	return m.upsertAndInit(meta, activate)
+}
+
+func (m *Manager) upsertAndInit(meta SubscriptionMeta, activate bool) (*SubscriptionMeta, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := os.MkdirAll(paths.SubDir(meta.ID), 0o700); err != nil {
+		return nil, err
+	}
+	previous := m.store
+	previous.Subscriptions = append([]SubscriptionMeta(nil), m.store.Subscriptions...)
+
+	found := false
+	for i, s := range m.store.Subscriptions {
+		if s.ID == meta.ID {
+			// Re-import may fail its next conversion. Keep the confirmed
+			// configuration metadata and selections until an update succeeds.
+			meta.ETag = s.ETag
+			meta.ContentHash = s.ContentHash
+			meta.Quota = s.Quota
+			meta.WebPageURL = s.WebPageURL
+			meta.Health = s.Health
+			meta.LastErrorMessage = s.LastErrorMessage
+			meta.LastCheckedAt = s.LastCheckedAt
+			meta.LastUpdatedAt = s.LastUpdatedAt
+			meta.SavedSelections = maps.Clone(s.SavedSelections)
+			meta.LastDiff = s.LastDiff
+			m.store.Subscriptions[i] = meta
+			found = true
+			break
+		}
+	}
+	if !found {
+		m.store.Subscriptions = append(m.store.Subscriptions, meta)
+	}
+
+	if activate {
+		m.store.ActiveID = meta.ID
+	}
+
+	if err := m.saveStoreLocked(); err != nil {
+		m.store = previous
+		return nil, err
+	}
+
+	return &meta, nil
+}
+
+func (m *Manager) setFetchProgress(active bool, subID, name string) {
+	m.progressMu.Lock()
+	defer m.progressMu.Unlock()
+	if active {
+		m.progress = FetchProgress{Active: true, SubID: subID, Name: name, StartedAt: time.Now()}
+		return
+	}
+	m.progress = FetchProgress{}
+}
+
+func (m *Manager) setFetchProgressBytes(read, total int64) {
+	m.progressMu.Lock()
+	defer m.progressMu.Unlock()
+	m.progress.Bytes = read
+	m.progress.Total = total
+}
+
+// Progress snapshots the current fetch progress; inactive when nothing is
+// downloading.
+func (m *Manager) Progress() FetchProgress {
+	m.progressMu.Lock()
+	defer m.progressMu.Unlock()
+	return m.progress
+}
+
+func (m *Manager) Update(
+	idOrName string,
+	force bool,
+	proxyURL string,
+) (*UpdateResult, error) {
+	subMeta, err := m.Get(idOrName)
+	if err != nil {
+		return nil, err
+	}
+	defer m.setFetchProgress(false, "", "")
+
+	// The context must outlast the fetch client's own timeout (120s) and the
+	// fallback-origin probes that run after a transient primary failure.
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
+	defer cancel()
+
+	var rawContent []byte
+	var quotaFromResp *QuotaInfo
+	var etagFromResp string
+	var intervalFromResp int
+	var webPageURL string
+	var filename string
+	var statusNotModified bool
+
+	etag := subMeta.ETag
+	if force {
+		etag = ""
+	}
+
+	if subMeta.Type == SubTypeXBond {
+		fetchURL := BuildXBondURL(subMeta.Origin, subMeta.Token, subMeta.Protocol, subMeta.Lang)
+		m.setFetchProgress(true, subMeta.ID, subMeta.Name)
+		resp, err := FetchSubscription(ctx, fetchURL, FetchOptions{
+			ETag:       etag,
+			ProxyURL:   proxyURL,
+			OnProgress: m.setFetchProgressBytes,
+		})
+
+		// Try fallback origins if primary fails with transient error
+		if err != nil && len(subMeta.FallbackOrigins) > 0 {
+			for _, fallback := range subMeta.FallbackOrigins {
+				if ok, _ := ProbeGatewayHealth(ctx, fallback, proxyURL); ok {
+					subMeta.Origin = fallback
+					fetchURL = BuildXBondURL(fallback, subMeta.Token, subMeta.Protocol, subMeta.Lang)
+					m.setFetchProgress(true, subMeta.ID, subMeta.Name)
+					resp, err = FetchSubscription(ctx, fetchURL, FetchOptions{
+						ETag:       etag,
+						ProxyURL:   proxyURL,
+						OnProgress: m.setFetchProgressBytes,
+					})
+					if err == nil {
+						break
+					}
+				}
+			}
+		}
+
+		if resp != nil {
+			subMeta.Health = resp.Health
+			subMeta.LastErrorMessage = resp.ErrorMessage
+			etagFromResp = resp.ETag
+			quotaFromResp = resp.Quota
+			intervalFromResp = resp.UpdateInterval
+			webPageURL = resp.WebPageURL
+			filename = resp.Filename
+			statusNotModified = resp.NotModified
+			rawContent = resp.Body
+		}
+
+		if err != nil {
+			m.recordError(subMeta.ID, subMeta.Health, subMeta.LastErrorMessage)
+			return nil, err
+		}
+
+	} else {
+		// Universal subscription (URL or local file)
+		if strings.HasPrefix(subMeta.SourceURL, "http://") || strings.HasPrefix(subMeta.SourceURL, "https://") {
+			m.setFetchProgress(true, subMeta.ID, subMeta.Name)
+			resp, err := FetchSubscription(ctx, subMeta.SourceURL, FetchOptions{
+				ETag:       etag,
+				ProxyURL:   proxyURL,
+				OnProgress: m.setFetchProgressBytes,
+			})
+			if resp != nil {
+				subMeta.Health = resp.Health
+				subMeta.LastErrorMessage = resp.ErrorMessage
+				etagFromResp = resp.ETag
+				quotaFromResp = resp.Quota
+				intervalFromResp = resp.UpdateInterval
+				webPageURL = resp.WebPageURL
+				filename = resp.Filename
+				statusNotModified = resp.NotModified
+				rawContent = resp.Body
+			}
+			if err != nil {
+				m.recordError(subMeta.ID, subMeta.Health, subMeta.LastErrorMessage)
+				return nil, err
+			}
+		} else {
+			// Local file
+			fileData, err := os.ReadFile(subMeta.SourceURL)
+			if err != nil {
+				m.recordError(subMeta.ID, HealthTransientError, err.Error())
+				return nil, fmt.Errorf("failed to read local file %q: %w", subMeta.SourceURL, err)
+			}
+			rawContent = fileData
+		}
+	}
+
+	// 1. Handle 304 Not Modified
+	if statusNotModified {
+		if err := m.recordCheck(subMeta.ID, etagFromResp, quotaFromResp, intervalFromResp, webPageURL); err != nil {
+			return nil, err
+		}
+		return &UpdateResult{
+			Meta:         subMeta,
+			StatusNotMod: true,
+		}, nil
+	}
+
+	// 2. Format detection & validation gate
+	convertedJSON, format, quotaFromYAML, err := DetectAndConvert(rawContent)
+	if err != nil {
+		m.recordError(subMeta.ID, HealthTransientError, fmt.Sprintf("format detection failed: %v", err))
+		return nil, err
+	}
+	if quotaFromResp == nil && quotaFromYAML != nil {
+		quotaFromResp = quotaFromYAML
+	}
+
+	if err := m.checkOverrideGate(subMeta.ID, convertedJSON, "update"); err != nil {
+		return nil, err
+	}
+
+	// 3. Compute SHA-256 hash & check if content changed
+	newHash := hashBytes(convertedJSON)
+	oldSource, readErr := os.ReadFile(paths.SubSourcePath(subMeta.ID))
+	if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
+		return nil, fmt.Errorf("read previous source configuration: %w", readErr)
+	}
+	oldHash := hashBytes(oldSource)
+
+	contentChanged := (oldHash != newHash) || len(oldSource) == 0
+
+	var diff *UpdateDiff
+	if len(oldSource) > 0 {
+		diff, _ = ComputeUpdateDiff(oldSource, convertedJSON)
+	} else {
+		diff = &UpdateDiff{ReloadRequired: true}
+	}
+
+	if !contentChanged {
+		if err := m.recordCheck(subMeta.ID, etagFromResp, quotaFromResp, intervalFromResp, webPageURL); err != nil {
+			return nil, err
+		}
+		return &UpdateResult{
+			Meta:           subMeta,
+			Diff:           diff,
+			ContentChanged: false,
+		}, nil
+	}
+
+	// 4. Atomically write source config. The outgoing source becomes a
+	// rollback version first; a snapshot failure fails the update loudly.
+	if len(oldSource) > 0 {
+		if err := m.snapshotVersion(subMeta.ID, oldSource); err != nil {
+			return nil, fmt.Errorf("snapshot previous source version: %w", err)
+		}
+	}
+	if err := atomicfile.Write(paths.SubSourcePath(subMeta.ID), convertedJSON, 0o600); err != nil {
+		return nil, fmt.Errorf("failed to write source config: %w", err)
+	}
+
+	// 5. Update metadata
+	m.mu.Lock()
+	previousMetadata := append([]SubscriptionMeta(nil), m.store.Subscriptions...)
+	for i := range m.store.Subscriptions {
+		if m.store.Subscriptions[i].ID == subMeta.ID {
+			m.store.Subscriptions[i].Health = HealthOK
+			m.store.Subscriptions[i].LastErrorMessage = ""
+			m.store.Subscriptions[i].LastCheckedAt = time.Now()
+			m.store.Subscriptions[i].LastUpdatedAt = time.Now()
+			m.store.Subscriptions[i].ContentHash = newHash
+			m.store.Subscriptions[i].Format = format
+			if etagFromResp != "" {
+				m.store.Subscriptions[i].ETag = etagFromResp
+			}
+			if quotaFromResp != nil {
+				m.store.Subscriptions[i].Quota = *quotaFromResp
+			}
+			if intervalFromResp > 0 && !m.store.Subscriptions[i].UpdateIntervalCustomized {
+				m.store.Subscriptions[i].UpdateIntervalHours = intervalFromResp
+			}
+			if webPageURL != "" {
+				m.store.Subscriptions[i].WebPageURL = webPageURL
+			}
+			if filename != "" && !m.store.Subscriptions[i].NameCustomized && strings.HasPrefix(m.store.Subscriptions[i].Name, "XBond-") {
+				m.store.Subscriptions[i].Name = filename
+			}
+			m.store.Subscriptions[i].LastDiff = diff
+			updated := m.store.Subscriptions[i]
+			updated.SavedSelections = maps.Clone(updated.SavedSelections)
+			subMeta = &updated
+			break
+		}
+	}
+	if err := m.saveStoreLocked(); err != nil {
+		m.store.Subscriptions = previousMetadata
+		m.mu.Unlock()
+		var restoreErr error
+		if readErr == nil {
+			restoreErr = atomicfile.Write(paths.SubSourcePath(subMeta.ID), oldSource, 0o600)
+		} else {
+			restoreErr = os.Remove(paths.SubSourcePath(subMeta.ID))
+			if errors.Is(restoreErr, os.ErrNotExist) {
+				restoreErr = nil
+			}
+		}
+		if restoreErr != nil {
+			return nil, errors.Join(fmt.Errorf("save subscription metadata: %w", err), fmt.Errorf("restore source configuration: %w", restoreErr))
+		}
+		return nil, fmt.Errorf("save subscription metadata: %w", err)
+	}
+	m.mu.Unlock()
+
+	return &UpdateResult{
+		Meta:           subMeta,
+		Diff:           diff,
+		ContentChanged: true,
+	}, nil
+}
+
+func (m *Manager) recordCheck(
+	id string,
+	etag string,
+	quota *QuotaInfo,
+	interval int,
+	webPageURL string,
+) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	previous := append([]SubscriptionMeta(nil), m.store.Subscriptions...)
+
+	for i := range m.store.Subscriptions {
+		if m.store.Subscriptions[i].ID == id {
+			m.store.Subscriptions[i].Health = HealthOK
+			m.store.Subscriptions[i].LastErrorMessage = ""
+			m.store.Subscriptions[i].LastCheckedAt = time.Now()
+			if etag != "" {
+				m.store.Subscriptions[i].ETag = etag
+			}
+			if quota != nil {
+				m.store.Subscriptions[i].Quota = *quota
+			}
+			if interval > 0 && !m.store.Subscriptions[i].UpdateIntervalCustomized {
+				m.store.Subscriptions[i].UpdateIntervalHours = interval
+			}
+			if webPageURL != "" {
+				m.store.Subscriptions[i].WebPageURL = webPageURL
+			}
+			break
+		}
+	}
+	if err := m.saveStoreLocked(); err != nil {
+		m.store.Subscriptions = previous
+		return fmt.Errorf("save subscription check: %w", err)
+	}
+	return nil
+}
+
+func (m *Manager) recordError(id string, health SubscriptionHealth, msg string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i := range m.store.Subscriptions {
+		if m.store.Subscriptions[i].ID == id {
+			m.store.Subscriptions[i].Health = health
+			m.store.Subscriptions[i].LastErrorMessage = msg
+			m.store.Subscriptions[i].LastCheckedAt = time.Now()
+			break
+		}
+	}
+	_ = m.saveStoreLocked()
+}
+
+func ComputeUpdateDiff(oldSource, newSource []byte) (*UpdateDiff, error) {
+	oldNodes, oldGroups, err := extractOutbounds(oldSource)
+	if err != nil {
+		return nil, err
+	}
+	newNodes, newGroups, err := extractOutbounds(newSource)
+	if err != nil {
+		return nil, err
+	}
+
+	addedNodes := difference(newNodes, oldNodes)
+	removedNodes := difference(oldNodes, newNodes)
+	addedGroups := difference(newGroups, oldGroups)
+	removedGroups := difference(oldGroups, newGroups)
+
+	reloadReq := len(addedNodes) > 0 || len(removedNodes) > 0 || len(addedGroups) > 0 || len(removedGroups) > 0
+
+	return &UpdateDiff{
+		AddedNodes:      addedNodes,
+		RemovedNodes:    removedNodes,
+		AddedGroups:     addedGroups,
+		RemovedGroups:   removedGroups,
+		ResetSelections: make(map[string]string),
+		ReloadRequired:  reloadReq,
+	}, nil
+}
+
+func extractOutbounds(source []byte) (nodes []string, groups []string, err error) {
+	// sing-box 订阅原样存储（DetectAndConvert 透传），diff 必须按其原生
+	// 结构读：outbounds 数组里 selector/urltest 是策略组，其余是节点。
+	var singBox struct {
+		Outbounds []struct {
+			Tag  string `json:"tag"`
+			Type string `json:"type"`
+		} `json:"outbounds"`
+	}
+	if err := json.Unmarshal(source, &singBox); err == nil && len(singBox.Outbounds) > 0 {
+		for _, outbound := range singBox.Outbounds {
+			if outbound.Tag == "" {
+				continue
+			}
+			if outbound.Type == "selector" || outbound.Type == "urltest" {
+				groups = append(groups, outbound.Tag)
+			} else {
+				nodes = append(nodes, outbound.Tag)
+			}
+		}
+		sort.Strings(nodes)
+		sort.Strings(groups)
+		return nodes, groups, nil
+	}
+
+	var raw struct {
+		Proxies []struct {
+			Name string `yaml:"name"`
+		} `yaml:"proxies"`
+		ProxyGroups []struct {
+			Name string `yaml:"name"`
+		} `yaml:"proxy-groups"`
+	}
+	if err := yaml.Unmarshal(source, &raw); err != nil {
+		return nil, nil, err
+	}
+
+	for _, proxy := range raw.Proxies {
+		if proxy.Name != "" {
+			nodes = append(nodes, proxy.Name)
+		}
+	}
+	for _, group := range raw.ProxyGroups {
+		if group.Name != "" {
+			groups = append(groups, group.Name)
+		}
+	}
+	sort.Strings(nodes)
+	sort.Strings(groups)
+	return nodes, groups, nil
+}
+
+func difference(a, b []string) []string {
+	bMap := make(map[string]struct{}, len(b))
+	for _, x := range b {
+		bMap[x] = struct{}{}
+	}
+	var diff []string
+	for _, x := range a {
+		if _, found := bMap[x]; !found {
+			diff = append(diff, x)
+		}
+	}
+	return diff
+}
+
+func NextScheduledTick(now time.Time, interval time.Duration) time.Duration {
+	if interval < 10*time.Minute {
+		interval = 10 * time.Minute
+	}
+	if interval > 168*time.Hour {
+		interval = 168 * time.Hour
+	}
+
+	// Anchor: 04:00:00 local time
+	anchorToday := time.Date(now.Year(), now.Month(), now.Day(), 4, 0, 0, 0, now.Location())
+	target := anchorToday
+
+	for target.Before(now) || target.Equal(now) {
+		target = target.Add(interval)
+	}
+
+	return target.Sub(now)
+}
+
+func NextDailyTick(now time.Time, targetHour, targetMin int) time.Duration {
+	target := time.Date(now.Year(), now.Month(), now.Day(), targetHour, targetMin, 0, 0, now.Location())
+	if target.Before(now) || target.Equal(now) {
+		target = target.Add(24 * time.Hour)
+	}
+	return target.Sub(now)
+}
+
+func hashString(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
+}
+
+func hashBytes(b []byte) string {
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:])
+}
