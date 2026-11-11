@@ -52,7 +52,7 @@ const rustOS =
       ? "apple-darwin"
       : "unknown-linux-gnu";
 const rustTarget = `${arch === "amd64" ? "x86_64" : "aarch64"}-${rustOS}`;
-const { bundle, extension, installer, updater } = desktopRelease(
+const { bundle, extension, installer, updater, packages } = desktopRelease(
   tag,
   releaseOS,
   arch,
@@ -84,10 +84,11 @@ function copyBundle(
   signed: boolean,
 ) {
   const directory = join(bundleDirectory, folder);
+  const versionMarker = folder === "rpm" ? `-${version}-` : `_${version}_`;
   const names = readdirSync(directory).filter(
     (name) =>
       name.endsWith(suffix) &&
-      (suffix === ".app.tar.gz" || name.includes(`_${version}_`)),
+      (suffix === ".app.tar.gz" || name.includes(versionMarker)),
   );
   if (names.length !== 1) {
     throw new Error(`Expected exactly one ${suffix} artifact in ${directory}`);
@@ -209,6 +210,9 @@ try {
   const staging = mkdtempSync(join(dirname(output), ".bundle-"));
   try {
     copyBundle(staging, bundle, extension, installer, os !== "darwin");
+    for (const { format, name } of packages) {
+      copyBundle(staging, format, `.${format}`, name, false);
+    }
     if (os === "darwin") {
       copyBundle(staging, "macos", ".app.tar.gz", updater, true);
       if (!macRehearsal && macIdentity && notaryArgs) {

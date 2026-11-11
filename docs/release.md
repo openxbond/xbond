@@ -11,7 +11,7 @@
 | 目錄 | 產物 |
 | --- | --- |
 | `web/`、`core/` | `pnpm release:build v0.4.3` 產出網頁、`dashboard.zip`、`SHA256SUMS`，以及 Windows、macOS 和 Linux 各兩個架構的獨立 CLI，例如 `xbond-v0.4.3-windows-amd64.exe`。 |
-| `desktop/<os>-<arch>/` | Windows 為 NSIS `.exe`、macOS 為 `.dmg`、Linux 為 `.AppImage`，例如 `xbond-desktop-v0.4.3-linux-arm64.AppImage`。Windows 和 Linux 為安裝包產生 `.sig`，macOS 另外產生自動更新用的 `.app.tar.gz` 及其簽名。 |
+| `desktop/<os>-<arch>/` | Windows 為 NSIS `.exe`、macOS 為 `.dmg`、Linux 提供 `.deb`、`.rpm` 和 `.AppImage`，例如 `xbond-desktop-v0.4.3-linux-arm64.AppImage`。Windows NSIS 及 Linux AppImage 隨附自動更新用的 `.sig`，macOS 另外產生自動更新用的 `.app.tar.gz` 及其簽名。 |
 | `android/` | 以 Android SDK Build-Tools 36.0.0 簽名並校驗應用 ID、版本及簽名指紋的通用 APK `xbond-android-v0.4.3.apk`。 |
 | `ios/` | App Store Connect 用的 `xbond-ios-v0.4.3.ipa`，經 TestFlight 或 App Store 安裝。 |
 | `oci/` | `xbond-oci-v0.4.3.tar`，含 Linux amd64 和 arm64 鏡像。 |
@@ -20,6 +20,8 @@
 本機可先跑 `pnpm release:build v0.4.3`。有目標平台工具鏈及簽名材料時，再在相應宿主跑 `pnpm release:desktop v0.4.3 linux amd64`（按宿主換成 `windows`、`darwin` 或 `linux`，架構用 `amd64` 或 `arm64`）。桌面封裝從同版 `core/` 取出 daemon。Tauri、Gradle 及 Xcode 的原生中間檔由各自工具管理。
 
 Tauri 在 `tauri.<platform>.conf.json` 選擇平台的安裝包格式，桌面發佈再疊加 `tauri.release.conf.json` 啟用 daemon sidecar 及更新產物。封裝指令帶入本次版本及簽名設定。
+
+Linux 在 Debian／Ubuntu 可用 `sudo apt install ./xbond-desktop-v0.4.3-linux-amd64.deb`，在 Fedora 可用 `sudo dnf install ./xbond-desktop-v0.4.3-linux-amd64.rpm`。請選擇本機架構對應的檔案。更新這兩種套件時，使用相同命令安裝新版。
 
 ## 1. 推 Tag
 

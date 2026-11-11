@@ -56,6 +56,10 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
     put(installer);
     put(updater);
     put(updater + ".sig", Buffer.from("fixture").toString("base64"));
+    if (osName === "linux") {
+      put(stem + ".deb");
+      put(stem + ".rpm");
+    }
   }
   put(
     "dashboard.zip",
@@ -64,12 +68,20 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
   put("release-evidence.json", "{}");
   assert.throws(() => assemble(directory, tag, "", pem, key), /android/);
   put(`xbond-android-${tag}.apk`);
+  const rpm = `xbond-desktop-${tag}-linux-arm64.rpm`;
+  fs.unlinkSync(path.join(directory, rpm));
+  assert.throws(
+    () => assemble(directory, tag, "", pem, key),
+    /linux-arm64\.rpm/,
+  );
+  put(rpm);
   assert.throws(
     () => assemble(directory, tag, "", pem, "wrong"),
     /does not match/,
   );
   assemble(directory, tag, "<script>test</script>", pem, key);
   verifyManifestAsset(directory, tag, "release-evidence", key);
+  verifyManifestAsset(directory, tag, "desktop-linux-arm64-rpm", key);
   put("release-evidence.json", '{"mode":"release"}');
   assert.throws(
     () => verifyManifestAsset(directory, tag, "release-evidence", key),
@@ -88,6 +100,10 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
   );
   assert.match(downloads, /&lt;script&gt;/);
   assert.match(downloads, /xbond-desktop-v0\.4\.2-linux-arm64\.AppImage/);
+  for (const arch of ["amd64", "arm64"]) {
+    assert.ok(downloads.includes(`xbond-desktop-${tag}-linux-${arch}.deb`));
+    assert.ok(downloads.includes(`xbond-desktop-${tag}-linux-${arch}.rpm`));
+  }
   assert.match(downloads, /App Store/);
   buildPages(directory, pages, tag, [], key);
   const directDownloads = fs.readFileSync(

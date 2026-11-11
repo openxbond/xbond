@@ -15,6 +15,7 @@ import {
   androidAsset,
   cliAsset,
   desktopRelease,
+  linuxPackageFormats,
   releaseTargets,
   releaseVersion,
 } from "./release-version.ts";
@@ -118,6 +119,9 @@ export function assemble(
     asset(`cli-${os}-${arch}`, cliAsset(tag, os, arch));
     const names = desktopRelease(tag, os, arch);
     const installer = asset(`desktop-${os}-${arch}`, names.installer);
+    for (const { format, name } of names.packages) {
+      asset(`desktop-${os}-${arch}-${format}`, name);
+    }
     const updater =
       os === "darwin"
         ? asset(`updater-${os}-${arch}`, names.updater)
@@ -266,7 +270,18 @@ export function buildPages(
         .map((arch) => {
           const desktop = assets[`desktop-${os}-${arch}`];
           const cli = assets[`cli-${os}-${arch}`];
-          return `<li><strong>${arch === "amd64" ? "x64" : "ARM64"}</strong><a href="${escape(desktop.url)}">Desktop installer</a><a href="${escape(cli.url)}">CLI binary</a></li>`;
+          const nativePackages =
+            os === "linux"
+              ? linuxPackageFormats
+                  .map((format) => {
+                    const pkg = assets[`desktop-linux-${arch}-${format}`];
+                    return pkg
+                      ? `<a href="${escape(pkg.url)}">.${format}</a>`
+                      : "";
+                  })
+                  .join("")
+              : "";
+          return `<li><strong>${arch === "amd64" ? "x64" : "ARM64"}</strong>${nativePackages}<a href="${escape(desktop.url)}">${os === "linux" ? "AppImage" : "Desktop installer"}</a><a href="${escape(cli.url)}">CLI binary</a></li>`;
         })
         .join("");
       return `<section><h2>${label}</h2><ul>${links}</ul></section>`;

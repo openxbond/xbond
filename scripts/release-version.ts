@@ -34,6 +34,8 @@ const desktopFormats = {
   linux: { bundle: "appimage", extension: ".AppImage" },
 };
 
+export const linuxPackageFormats = ["deb", "rpm"] as const;
+
 export function desktopRelease(
   tag: string,
   os: keyof typeof desktopFormats,
@@ -47,6 +49,13 @@ export function desktopRelease(
     extension,
     installer,
     updater: os === "darwin" ? stem + ".app.tar.gz" : installer,
+    packages:
+      os === "linux"
+        ? linuxPackageFormats.map((format) => ({
+            format,
+            name: `${stem}.${format}`,
+          }))
+        : [],
   };
 }
 
