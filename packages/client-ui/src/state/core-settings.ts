@@ -17,7 +17,9 @@ export function useVersion() {
         meta: !!data.meta,
       };
     },
-    { shouldRetryOnError: false },
+    // 允許出錯重試：核心常在頁面掛載之後才啟動（移動端尤其如此），首拉
+    // 失敗後若禁重試，版本與 capabilities 會一直停在空態，關於卡顯示
+    // 「Clash —」。本地回環上的重試代價可忽略。
   );
   return result.data ?? emptyVersion;
 }
