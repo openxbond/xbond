@@ -79,6 +79,8 @@ const HK = {
     disconnect: "中斷連線",
     connected: "代理運作中",
     stopped: "尚未連線",
+    connecting: "連接中",
+    disconnecting: "斷開中",
     coreReachable: "核心可達",
     portConflictTitle: "連接埠衝突",
     portConflictDesc: "預設連接埠已被佔用，無法啟動核心監聽。",

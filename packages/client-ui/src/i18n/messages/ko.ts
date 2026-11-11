@@ -80,6 +80,8 @@ const KO = {
     disconnect: "연결 해제",
     connected: "프록시 실행 중",
     stopped: "연결되지 않음",
+    connecting: "연결 중",
+    disconnecting: "연결 해제 중",
     coreReachable: "코어 연결됨",
     portConflictTitle: "포트 충돌",
     portConflictDesc: "기본 포트가 다른 프로그램에서 이미 사용 중입니다.",

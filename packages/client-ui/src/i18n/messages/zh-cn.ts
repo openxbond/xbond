@@ -79,6 +79,8 @@ const CN = {
     disconnect: "断开连接",
     connected: "代理运行中",
     stopped: "尚未连接",
+    connecting: "连接中",
+    disconnecting: "断开中",
     coreReachable: "核心可达",
     portConflictTitle: "本地端口冲突",
     portConflictDesc: "默认端口已被其他应用占用，无法启动核心监听。",

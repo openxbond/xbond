@@ -80,6 +80,8 @@ const FA = {
     disconnect: "قطع اتصال",
     connected: "پروکسی در حال اجرا",
     stopped: "متصل نیست",
+    connecting: "در حال اتصال",
+    disconnecting: "در حال قطع اتصال",
     coreReachable: "هسته در دسترس است",
     portConflictTitle: "تداخل پورت",
     portConflictDesc: "پورت پیش‌فرض توسط برنامه دیگری اشغال شده است.",

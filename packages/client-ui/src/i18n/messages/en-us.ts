@@ -80,6 +80,8 @@ const EN = {
     disconnect: "Disconnect",
     connected: "Proxy running",
     stopped: "Not connected",
+    connecting: "Connecting",
+    disconnecting: "Disconnecting",
     coreReachable: "Core reachable",
     portConflictTitle: "Port Conflict",
     portConflictDesc:
