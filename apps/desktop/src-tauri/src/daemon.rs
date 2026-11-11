@@ -204,7 +204,7 @@ fn sidecar_name(base: &str) -> String {
 }
 
 /// Ordered CLI candidates for supervisor verbs. Packaged builds reach for the
-/// sidecar beside the app; dev runs prefer the workspace-root binary that
+/// sidecar beside the app; dev runs prefer the binary in dist/cli that
 /// `pnpm cli:build` emits.
 pub(crate) fn cli_candidates() -> Vec<std::path::PathBuf> {
     let mut paths = Vec::new();
@@ -218,7 +218,7 @@ pub(crate) fn cli_candidates() -> Vec<std::path::PathBuf> {
     } else {
         paths.push(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../..")
+                .join("../../../dist/cli")
                 .join(sidecar_name("xbond")),
         );
         if let Ok(current) = std::env::current_exe() {
@@ -319,11 +319,11 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
     let exe_name = if cfg!(windows) { "xbond.exe" } else { "xbond" };
     let mut candidate_paths = Vec::new();
 
-    // Tauri dev runs from src-tauri; cli:build emits into the workspace root.
+    // Tauri dev runs from src-tauri.
     #[cfg(debug_assertions)]
     candidate_paths.push(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../..")
+            .join("../../../dist/cli")
             .join(exe_name),
     );
 

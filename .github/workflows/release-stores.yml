@@ -66,16 +66,16 @@ jobs:
           name: app-store-build
           run-id: ${{ steps.candidate.outputs.run }}
           github-token: ${{ github.token }}
-          path: release/ios
+          path: release/${{ inputs.tag }}/ios
       - name: Verify the staged IPA
         env:
           IOS_SHA256: ${{ steps.candidate.outputs.ios_sha256 }}
         run: |
-          printf '%s  %s\n' "$IOS_SHA256" release/ios/xbond.ipa | shasum -a 256 -c -
+          printf '%s  %s\n' "$IOS_SHA256" "release/$TAG/ios/xbond-ios-$TAG.ipa" | shasum -a 256 -c -
       - name: Upload the verified IPA to TestFlight
         uses: Apple-Actions/upload-testflight-build@665328adbecbc3ad929d3da710696d928b8a7ba9 # v5
         with:
-          app-path: release/ios/xbond.ipa
+          app-path: release/${{ inputs.tag }}/ios/xbond-ios-${{ inputs.tag }}.ipa
           app-type: ios
           backend: altool
           wait-for-processing: "false"

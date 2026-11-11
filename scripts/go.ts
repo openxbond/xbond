@@ -27,11 +27,23 @@ export type GoInvocation = { file: string; args: string[] };
 // appended verbatim (pnpm forwards everything after the script name).
 export function goCommand(command: string, extra: string[] = []): GoInvocation {
   switch (command) {
-    case "build":
+    case "build": {
+      const goos = process.env.GOOS || process.platform;
       return {
         file: "go",
-        args: ["build", "-tags", BUILD_TAGS, "./cmd/xbond", ...extra],
+        args: [
+          "build",
+          "-tags",
+          BUILD_TAGS,
+          "-o",
+          goos === "windows" || goos === "win32"
+            ? "dist/cli/xbond.exe"
+            : "dist/cli/xbond",
+          ...extra,
+          "./cmd/xbond",
+        ],
       };
+    }
     case "run":
       return {
         file: "go",

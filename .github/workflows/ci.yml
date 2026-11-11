@@ -42,8 +42,8 @@ jobs:
       # Empty output must fail even when the build command exits successfully.
       - name: Verify build output
         run: |
-          if [[ -z "$(find dist -type f -print -quit)" ]]; then
-            echo "::error::dist/ holds no files – the dashboard build is incomplete."
+          if [[ -z "$(find dist/web -type f -print -quit)" ]]; then
+            echo "::error::dist/web/ holds no files – the dashboard build is incomplete."
             exit 1
           fi
 

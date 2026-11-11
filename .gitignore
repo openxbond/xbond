@@ -4,9 +4,12 @@
 __pycache__/
 node_modules/
 
-# Web and desktop build outputs (any app)
-dist/
-dist-desktop/
+# Local build outputs
+/dist/
+/dist-desktop/
+/xbond
+/xbond.exe
+/xbond.exe.old
 
 # Tauri desktop shell
 apps/desktop/src-tauri/target/
@@ -18,11 +21,7 @@ packages/client-ui/src/**/*.jsx
 packages/*/tests/**/*.jsx
 packages/*/tests/__coverage__/
 
-# Go binaries built at the repo root, plus the wintun DLL the TUN gate
-# extracts beside the executable
-/xbond
-/xbond.exe
-/xbond.exe.old
+# Wintun and rollback binaries can be extracted beside a copied executable
 *.exe~
 /wintun.dll
 
@@ -43,8 +42,8 @@ packages/*/tests/__coverage__/
 *~
 
 # Release outputs
-release-assets/
-release/
+/release/
+/release-assets/
 
 # Mobile Android build outputs
 apps/mobile/android/xbond-mobile.aar

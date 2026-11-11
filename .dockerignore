@@ -8,7 +8,11 @@ dist
 dist-desktop
 release
 release-assets
+xbond
+xbond.exe
+xbond.exe.old
 apps/desktop
+apps/mobile
 docs
 *.md
 !README.md

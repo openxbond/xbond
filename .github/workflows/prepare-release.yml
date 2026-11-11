@@ -96,19 +96,19 @@ jobs:
           go: "true"
       - run: |
           test -n "$XBOND_RELEASE_PUBLIC_KEY"
-          node scripts/build-release.ts "$TAG"
+          pnpm release:build "$TAG"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cli-assets
           path: |
-            release/${{ needs.preflight.outputs.tag }}/xbond-*
-            release/${{ needs.preflight.outputs.tag }}/dashboard.zip
+            release/${{ needs.preflight.outputs.tag }}/core/xbond-*
+            release/${{ needs.preflight.outputs.tag }}/core/dashboard.zip
           compression-level: 0
           if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: web-dist
-          path: dist
+          path: release/${{ needs.preflight.outputs.tag }}/web
           if-no-files-found: error
 
   desktop:
@@ -141,7 +141,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: cli-assets
-          path: release/core
+          path: release/${{ needs.preflight.outputs.tag }}/core
       - uses: ./.github/actions/setup-tauri-deps
         if: runner.os == 'Linux'
         with:
@@ -171,11 +171,11 @@ jobs:
           XBOND_DESKTOP_REHEARSAL: ${{ runner.os == 'macOS' && env.RELEASE_APPLE_SIGNING == 'false' && '1' || '' }}
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
-          node scripts/build-desktop-release.ts "$TAG" "$TARGET_OS" "$TARGET_ARCH" release/core release/desktop
+          pnpm release:desktop "$TAG" "$TARGET_OS" "$TARGET_ARCH"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-${{ matrix.os }}-${{ matrix.arch }}
-          path: release/desktop/*
+          path: release/${{ needs.preflight.outputs.tag }}/desktop/${{ matrix.os }}-${{ matrix.arch }}/*
           compression-level: 0
           if-no-files-found: error
 
@@ -210,7 +210,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: web-dist
-          path: dist
+          path: dist/web
       - name: Build and sign the release APK
         env:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -222,11 +222,11 @@ jobs:
           test -n "$XBOND_RELEASE_PUBLIC_KEY"
           pnpm mobile:ensure
           gradle -p apps/mobile/android :app:assembleRelease
-          node scripts/release-android.ts sign "$TAG" apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk "release/android/xbond-android-$TAG.apk"
+          node scripts/release-android.ts sign "$TAG" apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk "release/$TAG/android"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: android
-          path: release/android/*.apk
+          path: release/${{ needs.preflight.outputs.tag }}/android/xbond-android-${{ needs.preflight.outputs.tag }}.apk
           compression-level: 0
           if-no-files-found: error
 
@@ -240,6 +240,7 @@ jobs:
     outputs:
       sha256: ${{ steps.archive.outputs.sha256 }}
     env:
+      TAG: ${{ needs.preflight.outputs.tag }}
       XBOND_VERSION: ${{ needs.preflight.outputs.version }}
       XBOND_BUILD_NUMBER: ${{ needs.preflight.outputs.build }}
     steps:
@@ -253,7 +254,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: web-dist
-          path: dist
+          path: dist/web
       - name: Build the Go framework
         run: |
           brew install xcodegen
@@ -269,12 +270,13 @@ jobs:
           IOS_APP_PROFILE: ${{ secrets.IOS_APP_PROFILE }}
           IOS_TUNNEL_PROFILE: ${{ secrets.IOS_TUNNEL_PROFILE }}
         run: |
-          bash scripts/release-ios.sh archive release/ios
-          echo "sha256=$(shasum -a 256 release/ios/xbond.ipa | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          bash scripts/release-ios.sh archive "release/$TAG/ios"
+          ipa_sha256="$(shasum -a 256 "release/$TAG/ios/xbond-ios-$TAG.ipa")"
+          echo "sha256=${ipa_sha256%% *}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: app-store-build
-          path: release/ios/xbond.ipa
+          path: release/${{ needs.preflight.outputs.tag }}/ios/xbond-ios-${{ needs.preflight.outputs.tag }}.ipa
           compression-level: 0
           retention-days: 90
           if-no-files-found: error
@@ -299,15 +301,16 @@ jobs:
       - id: image
         run: |
           set -euo pipefail
+          mkdir -p "release/$TAG/oci"
           docker buildx build --platform linux/amd64,linux/arm64 \
             --build-arg "XBOND_VERSION=$XBOND_VERSION" --label "org.opencontainers.image.version=$TAG" \
             --label "org.opencontainers.image.revision=$COMMIT" --label "org.opencontainers.image.source=https://github.com/openxbond/xbond" \
-            --provenance=false --output "type=oci,dest=xbond-image.tar" --metadata-file image.json .
-          jq -er '"digest=" + ."containerimage.digest"' image.json >> "$GITHUB_OUTPUT"
+            --provenance=false --output "type=oci,dest=release/$TAG/oci/xbond-oci-$TAG.tar" --metadata-file "release/$TAG/oci/image.json" .
+          jq -er '"digest=" + ."containerimage.digest"' "release/$TAG/oci/image.json" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-image
-          path: xbond-image.tar
+          path: release/${{ needs.preflight.outputs.tag }}/oci/xbond-oci-${{ needs.preflight.outputs.tag }}.tar
           compression-level: 0
           retention-days: 90
           if-no-files-found: error
@@ -338,7 +341,7 @@ jobs:
         with:
           pattern: "{cli-assets,desktop-*,android}"
           merge-multiple: true
-          path: release/assets
+          path: release/${{ needs.preflight.outputs.tag }}/assets
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-notes
@@ -352,13 +355,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y minisign
-          node scripts/release-ci.ts evidence "$TAG" release/assets
-          node scripts/release-assets.ts assemble "$TAG" release/assets release-notes.md
-          node scripts/release-assets.ts pages "$TAG" release/assets release/pages
+          node scripts/release-ci.ts evidence "$TAG" "release/$TAG/assets"
+          node scripts/release-assets.ts assemble "$TAG" "release/$TAG/assets" release-notes.md
+          node scripts/release-assets.ts pages "$TAG" "release/$TAG/assets" "release/$TAG/pages"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: verified-release
-          path: release/assets/*
+          path: release/${{ needs.preflight.outputs.tag }}/assets/*
           compression-level: 0
           retention-days: 90
           if-no-files-found: error
@@ -382,7 +385,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: verified-release
-          path: release/assets
+          path: release/${{ needs.preflight.outputs.tag }}/assets
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-notes

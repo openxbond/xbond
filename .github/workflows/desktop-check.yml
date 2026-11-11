@@ -48,7 +48,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # tauri::generate_context! embeds the frontend dist at compile time, so
-      # cargo check needs dist-desktop/ to exist and be current.
+      # cargo check needs dist/desktop/ to exist and be current.
       - run: pnpm build:desktop
 
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1

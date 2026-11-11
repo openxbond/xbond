@@ -24,12 +24,14 @@ fi
 ios="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$1"
 out="$(cd "$1" && pwd)"
-test -f "$ios/../../../dist/index.html"
+test -f "$ios/../../../dist/web/index.html"
+work="$(mktemp -d "$out/.ios-build-XXXXXX")"
+trap 'rm -rf -- "$work"' EXIT
 test -f "$ios/XBondMobile.xcframework/Info.plist"
 xcodegen generate --spec "$ios/project.yml" --project "$ios"
 
 xcodebuild -project "$ios/XBond.xcodeproj" -scheme XBond \
-  -destination 'generic/platform=iOS' -archivePath "$out/XBond.xcarchive" \
+  -destination 'generic/platform=iOS' -archivePath "$work/XBond.xcarchive" \
   MARKETING_VERSION="$XBOND_VERSION" CURRENT_PROJECT_VERSION="$XBOND_BUILD_NUMBER" \
   XBOND_APP_STORE_URL="$XBOND_APP_STORE_URL" \
   DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Manual \
@@ -37,14 +39,14 @@ xcodebuild -project "$ios/XBond.xcodeproj" -scheme XBond \
   XBOND_APP_PROFILE="$APPLE_APP_PROFILE" XBOND_TUNNEL_PROFILE="$APPLE_TUNNEL_PROFILE" \
   archive
 
-app="$out/XBond.xcarchive/Products/Applications/XBond.app"
+app="$work/XBond.xcarchive/Products/Applications/XBond.app"
 codesign --verify --deep --strict "$app"
 for bundle in "$app" "$app/PlugIns/PacketTunnel.appex"; do
   [[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$bundle/Info.plist")" == "$XBOND_VERSION" ]]
   [[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$bundle/Info.plist")" == "$XBOND_BUILD_NUMBER" ]]
 done
 
-python3 - "$out/ExportOptions.plist" <<'PY'
+python3 - "$work/ExportOptions.plist" <<'PY'
 import os
 import plistlib
 import sys
@@ -63,6 +65,6 @@ with open(sys.argv[1], "wb") as output:
         },
     }, output)
 PY
-xcodebuild -exportArchive -archivePath "$out/XBond.xcarchive" \
-  -exportPath "$out/export" -exportOptionsPlist "$out/ExportOptions.plist"
-mv "$out/export/XBond.ipa" "$out/xbond.ipa"
+xcodebuild -exportArchive -archivePath "$work/XBond.xcarchive" \
+  -exportPath "$work/export" -exportOptionsPlist "$work/ExportOptions.plist"
+mv "$work/export/XBond.ipa" "$out/xbond-ios-v$XBOND_VERSION.ipa"

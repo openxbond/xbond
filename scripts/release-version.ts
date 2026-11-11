@@ -27,3 +27,29 @@ export const releaseTargets = [
 export function cliAsset(tag: string, os: string, arch: string) {
   return `xbond-${tag}-${os}-${arch}${os === "windows" ? ".exe" : ""}`;
 }
+
+const desktopFormats = {
+  windows: { bundle: "nsis", extension: ".exe" },
+  darwin: { bundle: "dmg", extension: ".dmg" },
+  linux: { bundle: "appimage", extension: ".AppImage" },
+};
+
+export function desktopRelease(
+  tag: string,
+  os: keyof typeof desktopFormats,
+  arch: string,
+) {
+  const { bundle, extension } = desktopFormats[os];
+  const stem = `xbond-desktop-${tag}-${os}-${arch}`;
+  const installer = stem + extension;
+  return {
+    bundle,
+    extension,
+    installer,
+    updater: os === "darwin" ? stem + ".app.tar.gz" : installer,
+  };
+}
+
+export function androidAsset(tag: string) {
+  return `xbond-android-${tag}.apk`;
+}

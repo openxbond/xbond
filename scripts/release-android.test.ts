@@ -18,9 +18,9 @@ test("parseSignerDigest reads the first signer certificate digest", () => {
 test("parsePackageBadging reads the application identity", () => {
   assert.deepEqual(
     parsePackageBadging(
-      "package: name='net.xbond.app' versionCode='40300' versionName='0.4.3'\nlaunchable-activity: name='net.xbond.app.MainActivity'",
+      "package: name='net.xbond.app' versionCode='403' versionName='0.4.3' platformBuildVersionName='16' compileSdkVersion='36'\nlaunchable-activity: name='net.xbond.app.MainActivity'",
     ),
-    { name: "net.xbond.app", versionCode: "40300", versionName: "0.4.3" },
+    { name: "net.xbond.app", versionCode: "403", versionName: "0.4.3" },
   );
   assert.equal(parsePackageBadging("sdkVersion:'34'"), undefined);
 });

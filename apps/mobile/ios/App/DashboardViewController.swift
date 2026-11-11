@@ -406,7 +406,7 @@ final class DashboardViewController: UIViewController, WKNavigationDelegate, WKU
         let marker = directory.appendingPathComponent("web-version")
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
 
-        guard let source = Bundle.main.url(forResource: "dist", withExtension: nil),
+        guard let source = Bundle.main.url(forResource: "web", withExtension: nil),
               files.fileExists(atPath: source.appendingPathComponent("index.html").path) else {
             throw MobileFailure("The XBond dashboard was not packaged.")
         }

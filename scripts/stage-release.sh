@@ -2,7 +2,7 @@
 set -euo pipefail
 
 tag=$1
-directory=release/assets
+directory="release/$tag/assets"
 (cd "$directory" && sha256sum --strict --check SHA256SUMS)
 jq -e '.mode == "release"' "$directory/release-evidence.json" > /dev/null
 if ! release=$(gh release view "$tag" --json isDraft,assets); then

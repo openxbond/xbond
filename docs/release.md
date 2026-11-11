@@ -2,6 +2,23 @@
 
 一次發佈只用一個 `vX.Y.Z`。**推 Tag → 驗收安裝 → 批准公開。** iOS 首發透過 TestFlight 安裝，App Store 可之後上架。
 
+## 產物目錄
+
+日常建置用 `dist/`。`pnpm build` 產出 `dist/web/`，`pnpm build:desktop` 產出 `dist/desktop/`，`pnpm cli:build` 產出 `dist/cli/xbond`（Windows 為 `xbond.exe`）。`pnpm desktop:build` 編譯本機桌面執行檔，封裝安裝包使用 `pnpm release:desktop`。
+
+發佈候選以 `release/<tag>/` 為根目錄。下列路徑使用 `v0.4.3` 作例子。
+
+| 目錄 | 產物 |
+| --- | --- |
+| `web/`、`core/` | `pnpm release:build v0.4.3` 產出網頁、`dashboard.zip`、`SHA256SUMS`，以及 Windows、macOS 和 Linux 各兩個架構的獨立 CLI，例如 `xbond-v0.4.3-windows-amd64.exe`。 |
+| `desktop/<os>-<arch>/` | Windows 為 NSIS `.exe`、macOS 為 `.dmg`、Linux 為 `.AppImage`，例如 `xbond-desktop-v0.4.3-linux-arm64.AppImage`。Windows 和 Linux 為安裝包產生 `.sig`，macOS 另外產生自動更新用的 `.app.tar.gz` 及其簽名。 |
+| `android/` | 以 Android SDK Build-Tools 36.0.0 簽名並校驗應用 ID、版本及簽名指紋的通用 APK `xbond-android-v0.4.3.apk`。 |
+| `ios/` | App Store Connect 用的 `xbond-ios-v0.4.3.ipa`，經 TestFlight 或 App Store 安裝。 |
+| `oci/` | `xbond-oci-v0.4.3.tar`，含 Linux amd64 和 arm64 鏡像。 |
+| `assets/`、`pages/` | GitHub Release 的平鋪資產、簽名清單與 `SHA256SUMS`，以及從同批資產產生的 Pages 網站。 |
+
+本機可先跑 `pnpm release:build v0.4.3`。有目標平台工具鏈及簽名材料時，再在相應宿主跑 `pnpm release:desktop v0.4.3 linux amd64`（按宿主換成 `windows`、`darwin` 或 `linux`，架構用 `amd64` 或 `arm64`）。桌面封裝從同版 `core/` 取出 daemon。Tauri、Gradle 及 Xcode 的原生中間檔由各自工具管理。
+
 ## 1. 推 Tag
 
 選擇遠端 `main` 上已通過 CI 的提交。版本高於上一個正式版，三段各為 0–99、無前置零，整體大於零。

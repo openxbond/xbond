@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { releaseVersion } from "./release-version.ts";
+import { androidAsset, releaseVersion } from "./release-version.ts";
 
 // Signs the Android release APK and verifies the pinned signing identity.
 //
@@ -15,10 +15,11 @@ import { releaseVersion } from "./release-version.ts";
 //   ANDROID_KEY_ALIAS        signing key alias
 //   ANDROID_SIGNER_SHA256    lowercase hex SHA-256 of the signing certificate
 //
-// Usage: node scripts/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-apk>
+// Usage: node scripts/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-directory>
 
 const APPLICATION_ID = "net.xbond.app";
 const MAX_APK_BYTES = 512 * 1024 * 1024;
+const BUILD_TOOLS_VERSION = "36.0.0";
 
 export function parseSignerDigest(output: string): string | undefined {
   return /^Signer #1 certificate SHA-256 digest: ([a-f0-9]{64})$/m.exec(
@@ -30,7 +31,7 @@ export function parsePackageBadging(
   output: string,
 ): { name: string; versionCode: string; versionName: string } | undefined {
   const match =
-    /^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'$/m.exec(
+    /^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'(?: |$)/m.exec(
       output,
     );
   if (!match) return undefined;
@@ -56,34 +57,17 @@ function capture(command: string, args: string[]): string {
 function buildTools(): string {
   const home = process.env.ANDROID_HOME;
   if (!home) throw new Error("Set ANDROID_HOME to the Android SDK root");
-  const root = path.join(home, "build-tools");
-  const versions = fs
-    .readdirSync(root)
-    .filter((name) => /^\d+(\.\d+)*$/.test(name))
-    .sort((a, b) => {
-      const [aParts, bParts] = [a, b].map((value) =>
-        value.split(".").map(Number),
-      );
-      for (
-        let index = 0;
-        index < Math.max(aParts.length, bParts.length);
-        index += 1
-      ) {
-        const delta = (bParts[index] ?? 0) - (aParts[index] ?? 0);
-        if (delta !== 0) return delta;
-      }
-      return 0;
-    });
-  if (versions.length === 0)
-    throw new Error(`No build-tools found under ${root}`);
-  return path.join(root, versions[0]);
+  const directory = path.join(home, "build-tools", BUILD_TOOLS_VERSION);
+  if (!fs.existsSync(directory))
+    throw new Error(`Install Android SDK Build-Tools ${BUILD_TOOLS_VERSION}`);
+  return directory;
 }
 
 function main() {
-  const [command, tag, unsigned, output] = process.argv.slice(2);
-  if (command !== "sign" || !tag || !unsigned || !output)
+  const [command, tag, unsigned, directory] = process.argv.slice(2);
+  if (command !== "sign" || !tag || !unsigned || !directory)
     throw new Error(
-      "Usage: node scripts/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-apk>",
+      "Usage: node scripts/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-directory>",
     );
   const { version, build } = releaseVersion(tag);
   const keystore = process.env.KEYSTORE ?? "";
@@ -99,12 +83,14 @@ function main() {
   const zipalign = path.join(tools, "zipalign");
   const apksigner = path.join(tools, "apksigner");
   const aapt = path.join(tools, "aapt");
-  fs.mkdirSync(path.dirname(output), { recursive: true });
+  fs.mkdirSync(directory, { recursive: true });
+  const output = path.join(directory, androidAsset(tag));
 
-  const work = fs.mkdtempSync(path.join(path.dirname(output), "xbond-apk-"));
+  const work = fs.mkdtempSync(path.join(directory, "xbond-apk-"));
   try {
     const keystoreFile = path.join(work, "keystore");
     const aligned = path.join(work, "aligned.apk");
+    const signed = path.join(work, "signed.apk");
     fs.writeFileSync(keystoreFile, Buffer.from(keystore, "base64"));
     run(zipalign, ["-P", "16", "-f", "4", unsigned, aligned]);
     run(apksigner, [
@@ -120,40 +106,45 @@ function main() {
       "--key-pass",
       "env:ANDROID_KEY_PASSWORD",
       "--out",
-      output,
+      signed,
       aligned,
     ]);
+
+    const bytes = fs.statSync(signed).size;
+    if (bytes > MAX_APK_BYTES)
+      throw new Error(
+        `APK size ${bytes} bytes exceeds the Android updater's 512 MiB limit`,
+      );
+
+    const certificates = capture(apksigner, [
+      "verify",
+      "--print-certs",
+      signed,
+    ]);
+    const digest = parseSignerDigest(certificates);
+    if (!digest || digest !== signerSha256.toLowerCase())
+      throw new Error(
+        `The APK signing certificate does not match ANDROID_SIGNER_SHA256: ${digest ?? "none"}`,
+      );
+
+    const badging = capture(aapt, ["dump", "badging", signed]);
+    const pkg = parsePackageBadging(badging);
+    if (
+      !pkg ||
+      pkg.name !== APPLICATION_ID ||
+      pkg.versionCode !== String(build) ||
+      pkg.versionName !== version
+    )
+      throw new Error(
+        `Unexpected APK identity: ${pkg ? JSON.stringify(pkg) : "no package entry"}`,
+      );
+    fs.renameSync(signed, output);
+    console.log(
+      `signed ${output}: ${pkg.name} ${pkg.versionName} (versionCode ${pkg.versionCode})`,
+    );
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
   }
-
-  const bytes = fs.statSync(output).size;
-  if (bytes > MAX_APK_BYTES)
-    throw new Error(
-      `APK size ${bytes} bytes exceeds the Android updater's 512 MiB limit`,
-    );
-
-  const certificates = capture(apksigner, ["verify", "--print-certs", output]);
-  const digest = parseSignerDigest(certificates);
-  if (!digest || digest !== signerSha256.toLowerCase())
-    throw new Error(
-      `The APK signing certificate does not match ANDROID_SIGNER_SHA256: ${digest ?? "none"}`,
-    );
-
-  const badging = capture(aapt, ["dump", "badging", output]);
-  const pkg = parsePackageBadging(badging);
-  if (
-    !pkg ||
-    pkg.name !== APPLICATION_ID ||
-    pkg.versionCode !== String(build) ||
-    pkg.versionName !== version
-  )
-    throw new Error(
-      `Unexpected APK identity: ${pkg ? JSON.stringify(pkg) : "no package entry"}`,
-    );
-  console.log(
-    `signed ${output}: ${pkg.name} ${pkg.versionName} (versionCode ${pkg.versionCode})`,
-  );
 }
 
 if (

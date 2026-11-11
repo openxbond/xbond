@@ -51,7 +51,7 @@ client 的 interface 包含控制器身份、操作結果及資料語義；HTTP�
 
 client-ui 擁有呈現與互動；client 不向 client-ui 或 apps 導入，不直接探測 window、document、localStorage 或 chrome。共用 package 不反向導入宿主。pnpm check:architecture 解析 TypeScript／TSX 導入與 re-export，檢查方向、package exports、直接依賴、宿主探測及跨 package 循環；pnpm lint 會執行此檢查。這個門禁補充型別檢查，不宣稱驗證所有執行期動態載入。
 
-配置及資料的磁碟位置由 internal/platform/paths 決定，原始碼搬遷不改變 XBOND_DATA_DIR、訂閱來源、憑據與偏好格式。桌面及網頁各有 HTML／JS 入口，共享 client-ui；Vite 產物仍為根目錄 dist 與 dist-desktop。
+配置及資料的磁碟位置由 internal/platform/paths 決定，原始碼搬遷不改變 XBOND_DATA_DIR、訂閱來源、憑據與偏好格式。桌面及網頁各有 HTML／JS 入口，共享 client-ui；Vite 分別輸出到 `dist/desktop/` 及 `dist/web/`。
 
 ## 帳號與服務管理的責任
 

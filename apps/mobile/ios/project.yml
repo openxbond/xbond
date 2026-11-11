@@ -17,7 +17,7 @@ targets:
       - path: App
         excludes: [Info.plist, App.entitlements]
       - Shared
-      - path: ../../../dist
+      - path: ../../../dist/web
         type: folder
         buildPhase: resources
     dependencies:

@@ -85,7 +85,7 @@ Code-first 不限定先寫實作還是先寫測試；已知 bug 先取得失敗�
 
 1. 確認本次授權涵蓋的目標、版本及平台。一般實作可完成本機檢查、建置、封裝及待審產物，不自動延伸為公開發佈。
 2. 以指定提交建立產物，記錄工作樹是否乾淨、工具鏈、驗證與摘要。未提交改動產物標明開發用途，不冠以可重現正式版本。
-3. Web 產物使用 `pnpm build`、`pnpm release:package dist release-assets/<version>`、`pnpm release:validate release-assets/<version>/dashboard.zip release-assets/<version>/SHA256SUMS`。目錄中的版本須換成實際版本。
+3. Web 與 CLI 候選使用 `pnpm release:build <tag>`，在 `release/<tag>/core/` 核對 `SHA256SUMS`。單獨封裝 Web 時，使用 `pnpm build`、`pnpm release:package dist/web release/<tag>/dashboard`、`pnpm release:validate release/<tag>/dashboard/dashboard.zip release/<tag>/dashboard/SHA256SUMS`。將 `<tag>` 換成實際的 `vX.Y.Z`。各平台的格式及路徑見[發佈手冊](../release.md)。
 4. 桌面使用目標宿主建置／簽署／安裝冒煙；移動端須相應 SDK、簽署與裝置驗收。Web zip、Go 測試及 Rust 編譯均不能代替這些結果。
 5. `pnpm release:transfer <tag> <directory>` 會寫公開產物倉庫並觸發下游；只在明確授權後執行。先讀當前腳本確認 tag、目標及內容；不覆蓋已發佈版本。
 6. 發佈前指明上一個已驗證產物及其恢復／安裝步驟，涉及持久化變更時交代兼容和恢復。發佈後驗證啟動、關鍵操作及版本；失敗回到缺陷入口，回退同樣遵守授權。

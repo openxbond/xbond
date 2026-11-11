@@ -11,7 +11,13 @@ import os from "node:os";
 import path from "node:path";
 
 import { checksum, validateArchive } from "./artifact.ts";
-import { cliAsset, releaseTargets, releaseVersion } from "./release-version.ts";
+import {
+  androidAsset,
+  cliAsset,
+  desktopRelease,
+  releaseTargets,
+  releaseVersion,
+} from "./release-version.ts";
 
 const repo = "https://github.com/openxbond/xbond";
 
@@ -110,13 +116,11 @@ export function assemble(
   const platforms: Record<string, { url: string; signature: string }> = {};
   for (const [os, arch] of releaseTargets) {
     asset(`cli-${os}-${arch}`, cliAsset(tag, os, arch));
-    const stem = `xbond-desktop-${tag}-${os}-${arch}`;
-    const suffix =
-      os === "windows" ? ".exe" : os === "linux" ? ".AppImage" : ".dmg";
-    const installer = asset(`desktop-${os}-${arch}`, stem + suffix);
+    const names = desktopRelease(tag, os, arch);
+    const installer = asset(`desktop-${os}-${arch}`, names.installer);
     const updater =
       os === "darwin"
-        ? asset(`updater-${os}-${arch}`, stem + ".app.tar.gz")
+        ? asset(`updater-${os}-${arch}`, names.updater)
         : installer;
     const signatureName = updater.name + ".sig";
     const signature = fs
@@ -137,7 +141,7 @@ export function assemble(
       signature,
     };
   }
-  asset("android-universal", `xbond-android-${tag}.apk`);
+  asset("android-universal", androidAsset(tag));
   asset("dashboard", "dashboard.zip");
   putJSON(directory, "desktop.json", { version, notes, platforms });
   asset("desktop-manifest", "desktop.json");

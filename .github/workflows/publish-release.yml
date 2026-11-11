@@ -56,10 +56,10 @@ jobs:
           fi
           node scripts/release-ci.ts preflight "$TAG" publish
           gh release view "$TAG" --json isDraft,isPrerelease --jq 'if .isPrerelease then error("Prerelease cannot be promoted") else "draft=" + (.isDraft | tostring) end' >> "$GITHUB_OUTPUT"
-          gh release download "$TAG" --dir release/assets
-          node scripts/release-ci.ts verify-evidence "$TAG" release/assets/release-evidence.json
+          gh release download "$TAG" --dir "release/$TAG/assets"
+          node scripts/release-ci.ts verify-evidence "$TAG" "release/$TAG/assets/release-evidence.json"
           # The pages command appends pages_digest to GITHUB_OUTPUT.
-          node scripts/release-assets.ts pages "$TAG" release/assets release/pages "$APP_STORE_URL" "$IOS_TESTFLIGHT_URL"
+          node scripts/release-assets.ts pages "$TAG" "release/$TAG/assets" "release/$TAG/pages" "$APP_STORE_URL" "$IOS_TESTFLIGHT_URL"
       - id: registry
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
@@ -78,11 +78,11 @@ jobs:
           name: release-image
           run-id: ${{ steps.candidate.outputs.run }}
           github-token: ${{ github.token }}
-          path: release/oci
+          path: release/${{ inputs.tag }}/oci
       - if: steps.registry.outputs.present == 'false'
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
-        run: node scripts/release-registry.ts push "$TAG" "$IMAGE_DIGEST" release/oci/xbond-image.tar
+        run: node scripts/release-registry.ts push "$TAG" "$IMAGE_DIGEST" "release/$TAG/oci/xbond-oci-$TAG.tar"
       - name: Verify anonymous GHCR access
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
@@ -92,7 +92,7 @@ jobs:
         run: gh release edit "$TAG" --draft=false --latest
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: release/pages
+          path: release/${{ inputs.tag }}/pages
 
   pages:
     needs: publish

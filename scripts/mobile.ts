@@ -311,7 +311,7 @@ function ensureAppInstalled(rebuild: boolean): void {
     const res = buildAndroidAAR();
     if (!res.ok) throw new Error(res.message);
   }
-  if (!fs.existsSync(path.join(root, "dist", "index.html"))) {
+  if (!fs.existsSync(path.join(root, "dist", "web", "index.html"))) {
     console.log("[mobile:dev] web dist missing; building (pnpm build)…");
     spawnSync("pnpm", ["build"], { cwd: root, stdio: "inherit" });
   }
@@ -515,7 +515,7 @@ export function runMobileIOS(): void {
     if (!res.ok) throw new Error(res.message);
   }
 
-  const distHtml = path.join(root, "dist", "index.html");
+  const distHtml = path.join(root, "dist", "web", "index.html");
   if (!fs.existsSync(distHtml)) {
     console.log("[mobile:ios] web dist missing; building (pnpm build)…");
     const build = spawnSync("pnpm", ["build"], {

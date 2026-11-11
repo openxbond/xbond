@@ -12,7 +12,7 @@
 
 `pnpm desktop`、`pnpm desktop:check` 與 `pnpm desktop:build` 需要 Rust stable(rustup)及平台建置依賴。缺失的典型症狀:cargo 編譯 `soup3-sys`、`javascriptcore-rs-sys` 等 `-sys` crate 時 pkg-config 報 `Package ... was not found`。
 
-`pnpm desktop` 另一前提:首次開發運行前先 `pnpm cli:build`,桌面殼在工作區根目錄找 `xbond` CLI 來註冊並啟動本機服務;CLI 缺失時殼會輸出指引,介面停留在本機服務未連線狀態。本機服務已安裝並運行時不需要。
+`pnpm desktop` 另一前提:首次開發運行前先 `pnpm cli:build`,桌面殼在 `dist/cli/` 找 `xbond` CLI 來註冊並啟動本機服務;CLI 缺失時殼會輸出指引,介面停留在本機服務未連線狀態。本機服務已安裝並運行時不需要。
 
 | 環境 | 安裝 |
 | --- | --- |
@@ -23,7 +23,7 @@
 | macOS | Xcode;只做桌面可用 Command Line Tools(`xcode-select --install`) |
 | Windows | Microsoft C++ Build Tools,勾選「使用 C++ 的桌面開發」工作負載;WebView2 在 Windows 10 1803+ 已內置 |
 
-Linux 發行版命令取自 [Tauri v2 前置依賴](https://v2.tauri.app/start/prerequisites/);Ubuntu 26.04 已核對 `libsoup-3.0`、`javascriptcoregtk-4.1`、`webkit2gtk-4.1` 均由 `libwebkit2gtk-4.1-dev` 提供。Linux 上安裝後可用 `pkg-config --exists webkit2gtk-4.1` 自檢。打包 Windows MSI 時另需啟用 VBSCRIPT 選用功能,缺失症狀是 `failed to run light.exe`。
+Linux 發行版命令取自 [Tauri v2 前置依賴](https://v2.tauri.app/start/prerequisites/);Ubuntu 26.04 已核對 `libsoup-3.0`、`javascriptcoregtk-4.1`、`webkit2gtk-4.1` 均由 `libwebkit2gtk-4.1-dev` 提供。Linux 上安裝後可用 `pkg-config --exists webkit2gtk-4.1` 自檢。正式安裝包的格式、輸出位置與簽名設定見[發佈手冊](release.md)。
 
 ## 移動端
 

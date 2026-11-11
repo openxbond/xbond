@@ -43,7 +43,7 @@ RUN apk add --no-cache ca-certificates tzdata wget \
     && mkdir -p /data /app/dist \
     && chown -R xbond:xbond /data /app
 COPY --from=build /out/xbond /usr/local/bin/xbond
-COPY --from=web --chown=xbond:xbond /src/dist /app/dist
+COPY --from=web --chown=xbond:xbond /src/dist/web /app/dist
 
 # Headless defaults: port takeover (sysproxy/TUN are meaningless in a
 # container), LAN binding so published ports work, fixed proxy port, and the

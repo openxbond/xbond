@@ -90,7 +90,7 @@ export default defineConfig((env) => ({
     tsconfigPaths: true,
   },
   build: {
-    outDir: path.resolve(env.mode === "tauri" ? "dist-desktop" : "dist"),
+    outDir: path.resolve(env.mode === "tauri" ? "dist/desktop" : "dist/web"),
     emptyOutDir: true,
     target:
       env.mode === "tauri"

@@ -13,25 +13,33 @@ if (releaseVersion != null || releaseBuild != null || releaseKey != null) {
 }
 
 // The shared web UI (packages/client-ui, built by `pnpm build` into the repo
-// dist/) ships inside the APK; MainActivity extracts it into the data dir
+// dist/web/) ships inside the APK; MainActivity extracts it into the data dir
 // where the in-process LocalAPI serves it.
-val copyWebDist = tasks.register<Copy>("copyWebDist") {
-    from("../../../../dist")
-    into("src/main/assets/web")
+val webDist = file("../../../../dist/web")
+val generatedAssets = layout.buildDirectory.dir("generated/xbond-assets")
+val generatedWeb = generatedAssets.map { it.dir("web") }
+val copyWebDist = tasks.register<Sync>("copyWebDist") {
+    from(webDist)
+    into(generatedWeb)
     doLast {
         // Marker for MainActivity's extraction check: re-extract only when
         // the packaged dist actually changed (path+size fingerprint).
-        val distDir = file("../../../../dist")
-        val files = fileTree(distDir).files.sortedBy { it.relativeTo(distDir).path }
-        val fingerprint = files.joinToString("|") { it.relativeTo(distDir).path + ":" + it.length() }
-        file("src/main/assets/web/xbond-dist-version.txt").writeText(fingerprint.hashCode().toString())
+        val files = fileTree(webDist).files.sortedBy { it.relativeTo(webDist).path }
+        val fingerprint = files.joinToString("|") { it.relativeTo(webDist).path + ":" + it.length() }
+        generatedWeb.get().file("xbond-dist-version.txt").asFile.writeText(fingerprint.hashCode().toString())
     }
 }
-tasks.named("preBuild") { dependsOn(copyWebDist) }
+tasks.named("preBuild") {
+    dependsOn(copyWebDist)
+    doLast {
+        check(webDist.resolve("index.html").isFile) { "Run pnpm build before packaging Android" }
+    }
+}
 
 android {
     namespace = "net.xbond.app"
     compileSdk = 36
+    sourceSets["main"].assets.setSrcDirs(listOf(generatedAssets))
 
     defaultConfig {
         applicationId = "net.xbond.app"
