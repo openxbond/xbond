@@ -599,13 +599,18 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 			}
 			// A crashed predecessor leaves the machine session's core behind:
 			// it keeps owning the takeover ports while this daemon freshly
-			// knows nothing about being delegated. When the ports are still
-			// held, stop it through the delegation channel — known-delegated
-			// or not — before the local core binds.
-			if held := waitTakeoverPorts(next.MixedPort, next.ClashPort); held != nil {
-				_ = c.delegate.Stop()
+			// knows nothing about being delegated. When the local core is not
+			// already the port holder, wait for — or stop through the
+			// delegation channel — whatever still holds them before binding.
+			// A running local core owns the ports itself: its Reload stops it
+			// before starting the fresh one, so probing here would only
+			// condemn healthy re-applies.
+			if !wasRunning {
 				if held := waitTakeoverPorts(next.MixedPort, next.ClashPort); held != nil {
-					return rollback(held)
+					_ = c.delegate.Stop()
+					if held := waitTakeoverPorts(next.MixedPort, next.ClashPort); held != nil {
+						return rollback(held)
+					}
 				}
 			}
 			if err := c.engine.Reload(runtimeJSON, selected.SavedSelections); err != nil {
