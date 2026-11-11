@@ -593,9 +593,9 @@ const CN = {
   settings: {
     title: "设置",
     preferences: "外观与语言",
-    generalDesc: "界面外观、语言与日常连接偏好",
+    generalDesc: "界面外观与语言",
     network: "网络与端口",
-    networkDesc: "混合代理端口、局域网共享与终端环境变量",
+    networkDesc: "混合代理端口、局域网共享、节点变更与终端环境变量",
     advanced: "进阶与核心",
     advancedDesc: "核心日志级别、运行环境与快速排障通道",
     aboutDesc: "客户端版本、内核状态与开源信息",

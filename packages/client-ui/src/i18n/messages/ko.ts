@@ -607,9 +607,10 @@ const KO = {
   settings: {
     title: "설정",
     preferences: "화면과 언어",
-    generalDesc: "인터페이스 테마, 언어 및 연결 환경설정",
+    generalDesc: "인터페이스 테마 및 언어",
     network: "네트워크와 포트",
-    networkDesc: "혼합 프록시 포트, 로컬 네트워크 공유 및 터미널 환경 변수",
+    networkDesc:
+      "혼합 프록시 포트, 로컬 네트워크 공유, 노드 변경 및 터미널 환경 변수",
     advanced: "고급 및 코어",
     advancedDesc: "코어 로그 레벨, 런타임 환경 및 문제 해결 바로가기",
     aboutDesc: "클라이언트 버전, 코어 상태 및 오픈 소스 세부 정보",

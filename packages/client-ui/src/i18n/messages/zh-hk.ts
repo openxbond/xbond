@@ -593,9 +593,9 @@ const HK = {
   settings: {
     title: "設定",
     preferences: "外觀與語言",
-    generalDesc: "介面外觀、語言與日常連線偏好",
+    generalDesc: "介面外觀與語言",
     network: "網絡與連接埠",
-    networkDesc: "混合代理連接埠、區域網絡共享與終端環境變數",
+    networkDesc: "混合代理連接埠、區域網絡共享、節點變更與終端環境變數",
     advanced: "進階與核心",
     advancedDesc: "核心日誌等級、運行環境與快速排障通道",
     aboutDesc: "用戶端版本、內核狀態與開源資訊",

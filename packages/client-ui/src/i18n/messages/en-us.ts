@@ -615,10 +615,10 @@ const EN = {
   settings: {
     title: "Settings",
     preferences: "Appearance & language",
-    generalDesc: "Interface appearance, language, and connection preferences",
+    generalDesc: "Interface appearance and language",
     network: "Network & ports",
     networkDesc:
-      "Mixed proxy port, local network sharing, and terminal environment commands",
+      "Mixed proxy port, local network sharing, node changes, and terminal environment commands",
     advanced: "Advanced & Core",
     advancedDesc:
       "Core log verbosity, runtime environment, and troubleshooting shortcuts",

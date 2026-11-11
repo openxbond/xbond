@@ -490,18 +490,6 @@ export default function Settings() {
               </Select>
             </SettingRow>
 
-            {/* Break Connections */}
-            <SettingRow
-              title={t("breakConnections")}
-              description={t("breakConnectionsDesc")}
-            >
-              <Switch
-                aria-label={t("breakConnections")}
-                checked={profile.breakConnections}
-                onCheckedChange={(val) => setProfile("breakConnections", val)}
-              />
-            </SettingRow>
-
             {/* Desktop Host Capabilities (when isDesktop) */}
             {isDesktop && (
               <>
@@ -700,6 +688,18 @@ export default function Settings() {
                     }
                   })
                 }
+              />
+            </SettingRow>
+
+            {/* Break Connections */}
+            <SettingRow
+              title={t("breakConnections")}
+              description={t("breakConnectionsDesc")}
+            >
+              <Switch
+                aria-label={t("breakConnections")}
+                checked={profile.breakConnections}
+                onCheckedChange={(val) => setProfile("breakConnections", val)}
               />
             </SettingRow>
 
