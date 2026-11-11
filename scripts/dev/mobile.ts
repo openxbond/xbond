@@ -398,6 +398,20 @@ function runMobileAndroid(): void {
   console.log("[mobile:android] packaged app launched");
 }
 
+const XCODEBUILD_SHIM = path.join(root, "scripts", "dev", "xcodebuild-shim.sh");
+const SHIM_STAGE_DIR = path.join(os.tmpdir(), "xbond-xcodebuild-shim");
+
+/** Stage the xcodebuild destination shim where the dev loop's PATH can find
+ * it: mutagen does not preserve the executable bit, so the committed script
+ * is copied to a fixed temp dir and made executable on every run. */
+function stageXcodebuildShim(): string {
+  fs.mkdirSync(SHIM_STAGE_DIR, { recursive: true });
+  const shim = path.join(SHIM_STAGE_DIR, "xcodebuild");
+  fs.copyFileSync(XCODEBUILD_SHIM, shim);
+  fs.chmodSync(shim, 0o755);
+  return SHIM_STAGE_DIR;
+}
+
 /** `pnpm dev:ios`: the canonical `tauri ios dev` loop on macOS — ensure
  * the gomobile xcframework is bound, then hand over to the Tauri CLI, which
  * builds, installs and launches on the iOS simulator against devUrl. */
@@ -421,6 +435,13 @@ export function runMobileIOS(args: string[] = []): void {
   const dev = spawn(process.execPath, [tauri, "ios", "dev", ...args], {
     cwd: root,
     stdio: "inherit",
+    // PATH-only shim: rewrites `xcodebuild archive -configuration debug` to
+    // the generic simulator destination inside this loop (see
+    // scripts/dev/xcodebuild-shim.sh for the Xcode bug it works around).
+    env: {
+      ...process.env,
+      PATH: `${stageXcodebuildShim()}${path.delimiter}${process.env.PATH ?? ""}`,
+    },
   });
   dev.on("error", (error) => {
     console.error(error.message);
