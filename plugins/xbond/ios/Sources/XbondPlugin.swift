@@ -38,6 +38,15 @@ class XbondPlugin: Plugin {
 
   override func load(webview: WKWebView) {
     super.load(webview: webview)
+    // wry 0.57 snapshots the parent frame once at webview creation and sets
+    // no autoresizing mask on iOS (macOS only), so a frame captured before
+    // the final layout pass leaves the webview shorter than the screen by
+    // the safe-area height forever: fixed-position UI hangs above the
+    // bottom and env(safe-area-inset-bottom) misreports. Align to the
+    // window once it is attached and let autoresizing follow later changes
+    // (rotation, scene transitions).
+    webview.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    alignWebviewToWindow(webview, attempts: 10)
     NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, _ in
       DispatchQueue.main.async {
         guard let self else { return }
@@ -48,6 +57,19 @@ class XbondPlugin: Plugin {
       }
     }
     startBrowserPolling()
+  }
+
+  /// Retries briefly on the main queue: plugin load can run before the
+  /// webview joins a window, and a zero-sized window bound is worthless.
+  private func alignWebviewToWindow(_ webview: WKWebView, attempts: Int) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      if let window = webview.window, window.bounds.size.width > 0 {
+        webview.frame = window.bounds
+      } else if attempts > 0 {
+        self.alignWebviewToWindow(webview, attempts: attempts - 1)
+      }
+    }
   }
 
   // MARK: - Commands

@@ -3,6 +3,50 @@ import { listen } from "@tauri-apps/api/event";
 import { invokeTauri } from "./local-api-bootstrap.ts";
 
 /**
+ * Splits a custom-scheme deep link into its scheme, authority "action" and
+ * query params. The authority is read from the raw string instead of
+ * `URL.hostname`: Chromium below ~126 (the Android System WebView still
+ * shipping in some hosts) parses `xbond://callback?…` as an opaque path,
+ * leaving `hostname` empty with the authority inside `pathname`, while
+ * current engines expose it as the host. Matching the raw string keeps one
+ * contract across engines, mirroring the desktop shell's strict
+ * `strip_prefix` route match in Rust.
+ */
+function parseCustomScheme(raw: string): {
+  scheme: string;
+  action: string;
+  path: string;
+  params: URLSearchParams;
+} | null {
+  const match = /^(xbond|clash|sing-box):\/\/([^?#]*)(?:\?([^#]*))?/i.exec(raw);
+  if (!match) return null;
+  const authority = match[2];
+  const action = authority.split("/", 1)[0].toLowerCase();
+  const path = authority.slice(action.length).replace(/\/+$/, "");
+  return {
+    scheme: match[1].toLowerCase(),
+    action,
+    path,
+    params: new URLSearchParams(match[3] ?? ""),
+  };
+}
+
+/** The `xbond://callback` OAuth landing: code/state from the deep link's
+ * query, `null` for any other route or missing params. Strict like the
+ * desktop shell — extra path segments must not masquerade as the landing. */
+export function accountCallbackFromDeepLink(
+  raw: string,
+): { code: string; state: string } | null {
+  const parsed = parseCustomScheme(raw);
+  if (!parsed || parsed.scheme !== "xbond") return null;
+  if (parsed.action !== "callback" || parsed.path !== "") return null;
+  const code = parsed.params.get("code");
+  const state = parsed.params.get("state");
+  if (!code || !state) return null;
+  return { code, state };
+}
+
+/**
  * Native shell deep links:
  * - `xbond://install-config?url=…`, `clash://install-config?url=…` and
  *   `sing-box://import-remote-profile?url=…` land on the import form
@@ -17,24 +61,15 @@ export function handleDeepLink(
   navigate: (to: string) => void,
 ): boolean {
   if (!raw || typeof raw !== "string") return false;
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    return false;
-  }
-  const scheme = parsed.protocol.replace(":", "").toLowerCase();
-  if (scheme !== "xbond" && scheme !== "clash" && scheme !== "sing-box") {
-    return false;
-  }
-  const action = parsed.hostname.toLowerCase();
+  const parsed = parseCustomScheme(raw);
+  if (!parsed) return false;
+  const { action, path, params } = parsed;
   const isImport =
     action === "install-config" ||
     action === "import-remote-profile" ||
-    parsed.pathname.includes("install-config") ||
-    parsed.pathname.includes("import-remote-profile");
+    /^\/(install-config|import-remote-profile)(\/|$)/.test(path);
   if (isImport) {
-    const urlParam = parsed.searchParams.get("url");
+    const urlParam = params.get("url");
     if (urlParam) {
       navigate(`/config?item=add-profile&url=${encodeURIComponent(urlParam)}`);
       return true;
@@ -42,7 +77,7 @@ export function handleDeepLink(
     return false;
   }
   if (action === "navigate" || action === "route") {
-    const to = parsed.searchParams.get("to") || parsed.pathname;
+    const to = params.get("to") || path;
     if (to) {
       navigate(to);
       return true;
@@ -55,23 +90,14 @@ export function handleDeepLink(
  * code/state itself; now the frontend routes it through the xbond plugin,
  * which answers true once the LocalAPI accepted the delivery. */
 async function deliverAccountCallback(raw: string): Promise<boolean> {
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    return false;
-  }
-  if (parsed.protocol.replace(":", "").toLowerCase() !== "xbond") return false;
-  if (parsed.hostname.toLowerCase() !== "callback") return false;
-  const code = parsed.searchParams.get("code");
-  const state = parsed.searchParams.get("state");
-  if (!code || !state) return false;
+  const callback = accountCallbackFromDeepLink(raw);
+  if (!callback) return false;
   const invoke = invokeTauri();
   if (!invoke) return false;
   try {
     const delivered = (await invoke("plugin:xbond|deliver_account_callback", {
-      code,
-      state,
+      code: callback.code,
+      state: callback.state,
     })) as boolean;
     if (delivered) {
       window.dispatchEvent(new CustomEvent("xbond-account-updated"));

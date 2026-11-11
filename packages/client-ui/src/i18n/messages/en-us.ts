@@ -88,6 +88,9 @@ const EN = {
     tunDeniedTitle: "TUN Privilege Required",
     tunDeniedDesc:
       "TUN virtual network adapter requires administrator privileges or installing the background helper service.",
+    vpnConsentTitle: "VPN authorization required",
+    vpnConsentDesc:
+      "Allow the VPN connection in the system prompt; connecting resumes automatically once granted.",
     fallbackSysproxy: "Fallback to System Proxy",
     connectFailed: "Connection Failed",
     quotaUnavailable: "Quota unavailable from this controller",
@@ -615,10 +618,10 @@ const EN = {
   settings: {
     title: "Settings",
     preferences: "Appearance & language",
-    generalDesc: "Interface appearance, language, and connection preferences",
+    generalDesc: "Interface appearance and language",
     network: "Network & ports",
     networkDesc:
-      "Mixed proxy port, local network sharing, and terminal environment commands",
+      "Mixed proxy port, local network sharing, node changes, and terminal environment commands",
     advanced: "Advanced & Core",
     advancedDesc:
       "Core log verbosity, runtime environment, and troubleshooting shortcuts",

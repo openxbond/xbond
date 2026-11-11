@@ -4,7 +4,7 @@
 
 ## 專案與入口
 
-本倉庫是 XBond 客戶端；Cloud 控制面在另一個倉庫。本倉庫使用 pnpm、Go 及 Rust，命令以根目錄 `package.json` 為準。
+本倉庫是 XBond 客戶端；Cloud 控制面在另一個倉庫。跨倉庫引用單向：本倉庫的文檔與腳本不引用組織的私有倉庫（密鑰備份、組織自動化等），私有倉庫可引用本倉庫。本倉庫使用 pnpm、Go 及 Rust，命令以根目錄 `package.json` 為準。
 
 - `cmd/xbond/`：單一二進位的 CLI；`daemon` 子命令本機前景運行，`daemon install|uninstall|start|stop|restart|status` 管理服務註冊（`--scope user`／`system`）。`internal/daemon/`：本機服務與 LocalAPI；`internal/daemon/service/`：平台託管（systemd --user／LaunchAgent／HKCU Run；機器級：Windows SCM 服務、macOS LaunchDaemon）。
 - `internal/engine/`：雙核心（mihomo v1.19.33 主核心跑 Clash YAML，sing-box v1.13.21 副核心跑 sing-box JSON，同一時間僅一個，引用包模式）；`internal/sub/`：訂閱與配置；`internal/platform/`：資料位置與系統代理；`internal/diag/`：診斷與脫敏。

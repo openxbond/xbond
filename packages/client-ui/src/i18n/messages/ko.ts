@@ -87,6 +87,9 @@ const KO = {
     tunDeniedTitle: "TUN 권한 필요",
     tunDeniedDesc:
       "TUN 가상 네트워크 어댑터는 관리자 권한 또는 백그라운드 서비스 설치가 필요합니다.",
+    vpnConsentTitle: "VPN 권한 필요",
+    vpnConsentDesc:
+      "시스템 대화상자에서 VPN 연결을 허용하세요. 승인되면 연결이 자동으로 계속됩니다.",
     fallbackSysproxy: "시스템 프록시 모드로 전환",
     connectFailed: "연결 실패",
     quotaUnavailable: "이 컨트롤러에서는 할당량을 제공하지 않습니다",
@@ -607,9 +610,10 @@ const KO = {
   settings: {
     title: "설정",
     preferences: "화면과 언어",
-    generalDesc: "인터페이스 테마, 언어 및 연결 환경설정",
+    generalDesc: "인터페이스 테마 및 언어",
     network: "네트워크와 포트",
-    networkDesc: "혼합 프록시 포트, 로컬 네트워크 공유 및 터미널 환경 변수",
+    networkDesc:
+      "혼합 프록시 포트, 로컬 네트워크 공유, 노드 변경 및 터미널 환경 변수",
     advanced: "고급 및 코어",
     advancedDesc: "코어 로그 레벨, 런타임 환경 및 문제 해결 바로가기",
     aboutDesc: "클라이언트 버전, 코어 상태 및 오픈 소스 세부 정보",
