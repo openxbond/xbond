@@ -26,18 +26,26 @@ test("extra args append after the fixed form", () => {
   const run = goCommand("run", ["--version"]);
   assert.equal(run.args.at(-1), "--version");
   const targeted = goCommand("test", ["./internal/sub", "-run", "TestUpdate"]);
-  assert.ok(targeted.args.includes("./internal/sub"));
-  assert.ok(targeted.args.includes("-run"));
+  assert.deepEqual(targeted.args.slice(3), [
+    "./internal/sub",
+    "-run",
+    "TestUpdate",
+  ]);
+  assert.deepEqual(goCommand("test", ["-run", "TestUpdate"]).args.slice(3), [
+    "./...",
+    "-run",
+    "TestUpdate",
+  ]);
 });
 
 test("the Dockerfile builds with the shared build tags", () => {
   const dockerfile = readFileSync(
-    new URL("../Dockerfile", import.meta.url),
+    new URL("../../Dockerfile", import.meta.url),
     "utf8",
   );
   assert.ok(
     dockerfile.includes(`ARG BUILD_TAGS=${BUILD_TAGS}`),
-    "Dockerfile must default BUILD_TAGS to scripts/go.ts's value",
+    "Dockerfile must default BUILD_TAGS to scripts/dev/go.ts's value",
   );
   assert.ok(
     dockerfile.includes("-tags ${BUILD_TAGS}"),

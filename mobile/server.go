@@ -52,7 +52,7 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 	mux := http.NewServeMux()
 	auth := func(h http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			// Same CORS contract as the daemon: the pnpm mobile:dev flow loads
+			// Same CORS contract as the daemon: the pnpm dev:android flow loads
 			// the UI from the Vite origin and talks cross-origin to the
 			// loopback LocalAPI inside the emulator.
 			w.Header().Set("Access-Control-Allow-Origin", "*")

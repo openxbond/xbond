@@ -16,17 +16,17 @@ description: >-
 
 ```bash
 # 1. 構建 Go 移動端 AAR (gomobile bind)
-pnpm mobile:bind:android
+pnpm android:bind
 
 # 2. 編譯 Web 前端資產並打包安裝 APK (Waydroid/ADB)
-node scripts/mobile.ts android
+pnpm android:install
 ```
 
 ### 僅重新編譯與安裝 APK（AAR 未變更時）
 
 ```bash
 # 用 Tauri 打包並安裝至在線設備
-pnpm mobile:android
+pnpm android:install
 
 # 只生成 debug APK
 pnpm tauri android build --debug --apk
@@ -35,7 +35,7 @@ pnpm tauri android build --debug --apk
 > [!IMPORTANT]
 >
 > - Android Gradle Plugin (AGP 8.x) 要求 JDK 17 或 JDK 21，高於 JDK 21（如 JDK 27）可能導致編譯異常。若系統默認 JDK 過高，可通過環境變量 `JAVA_HOME` 或用戶個人配置 `~/.gradle/gradle.properties`（設置 `org.gradle.java.home=...`）指定，切勿在倉庫受控文件中硬編碼本地絕對路徑。
-> - 不要手動調用未帶 tags 的 `gomobile`，始終使用 `pnpm mobile:bind:android`，其集中管理 `MOBILE_ANDROID_TAGS`。
+> - 不要手動調用未帶 tags 的 `gomobile`，始終使用 `pnpm android:bind`，其集中管理 `MOBILE_ANDROID_TAGS`。
 
 ---
 

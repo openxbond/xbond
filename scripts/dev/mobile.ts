@@ -14,7 +14,8 @@ const IOS_FRAMEWORK = "plugins/xbond/ios/Frameworks/XBondMobile.xcframework";
 /** Vite dev server port the mobile dev loop binds and adb-reverses. */
 const MOBILE_DEV_PORT = 1421;
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../..", import.meta.url));
+const tauri = path.join(root, "node_modules", "@tauri-apps", "cli", "tauri.js");
 
 export function checkGomobileInstalled(): boolean {
   const res = spawnSync("gomobile", ["version"], {
@@ -94,30 +95,6 @@ export function resolveAndroidNdk(): string {
   return path.join(ndkRoot, versions[0]);
 }
 
-export function runMobileCheck(): { ok: boolean; message: string } {
-  // 1. go vet on mobile package
-  const vet = spawnSync("go", ["vet", "-tags", BUILD_TAGS, "./mobile/..."], {
-    stdio: "pipe",
-  });
-  if (vet.status !== 0) {
-    const err =
-      vet.stderr?.toString() || vet.stdout?.toString() || "vet failed";
-    return { ok: false, message: `go vet failed: ${err}` };
-  }
-
-  // 2. go test on mobile package
-  const test = spawnSync("go", ["test", "-tags", BUILD_TAGS, "./mobile/..."], {
-    stdio: "pipe",
-  });
-  if (test.status !== 0) {
-    const err =
-      test.stderr?.toString() || test.stdout?.toString() || "test failed";
-    return { ok: false, message: `go test failed: ${err}` };
-  }
-
-  return { ok: true, message: "Mobile Go package passed vet and unit tests" };
-}
-
 export function buildAndroidAAR(outputPath = ANDROID_AAR): {
   ok: boolean;
   message: string;
@@ -127,12 +104,7 @@ export function buildAndroidAAR(outputPath = ANDROID_AAR): {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  if (!checkGomobileInstalled()) {
-    return {
-      ok: false,
-      message: "gomobile is not installed in PATH. Run: pnpm mobile:ensure",
-    };
-  }
+  ensureGomobile();
 
   const res = spawnSync(
     "gomobile",
@@ -175,7 +147,7 @@ export function buildIOSFramework(outputPath = IOS_FRAMEWORK): {
       ok: false,
       message:
         "gomobile bind for iOS requires macOS with Xcode installed. " +
-        "If you are developing via a macOS VM, please run 'pnpm mobile:bind:ios' inside your macOS environment.",
+        "If you are developing via a macOS VM, please run 'pnpm ios:bind' inside your macOS environment.",
     };
   }
 
@@ -184,12 +156,7 @@ export function buildIOSFramework(outputPath = IOS_FRAMEWORK): {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  if (!checkGomobileInstalled()) {
-    return {
-      ok: false,
-      message: "gomobile is not installed in PATH. Run: pnpm mobile:ensure",
-    };
-  }
+  ensureGomobile();
 
   const res = spawnSync(
     "gomobile",
@@ -225,6 +192,11 @@ function adb(args: string[], options: { capture?: boolean } = {}): string {
     encoding: "utf8",
     stdio: options.capture ? "pipe" : "inherit",
   });
+  if (res.error) throw res.error;
+  if (res.status !== 0)
+    throw new Error(
+      `adb ${args[0]} failed (${res.status})${res.stderr ? `: ${res.stderr.trim()}` : ""}`,
+    );
   if (options.capture) return `${res.stdout ?? ""}${res.stderr ?? ""}`;
   return "";
 }
@@ -254,18 +226,11 @@ function detectAndroidHome(): string | null {
 
 /** Installs the debug APK (building the AAR and the web dist when missing).
  * Returns once `net.xbond.app` is present on the connected device. */
-function ensureAppInstalled(rebuild: boolean): void {
+function installDebugAPK(): void {
   const devices = onlineDevices();
   if (devices.length === 0) throw new Error("no online Android device");
-  const installed = adb(["shell", "pm", "list", "packages", ANDROID_APP_ID], {
-    capture: true,
-  }).includes(ANDROID_APP_ID);
-  if (installed && !rebuild) return;
-
   if (!fs.existsSync(path.join(root, ANDROID_AAR))) {
-    console.log(
-      "[mobile:dev] AAR missing; binding (pnpm mobile:bind:android)…",
-    );
+    console.log("[mobile:dev] AAR missing; binding (pnpm android:bind)…");
     const res = buildAndroidAAR();
     if (!res.ok) throw new Error(res.message);
   }
@@ -288,8 +253,8 @@ function ensureAppInstalled(rebuild: boolean): void {
     NDK_HOME: process.env.NDK_HOME ?? resolveAndroidNdk(),
   };
   const res = spawnSync(
-    "pnpm",
-    ["tauri", "android", "build", "--debug", "--apk", "--target", target],
+    process.execPath,
+    [tauri, "android", "build", "--debug", "--apk", "--target", target],
     { cwd: root, stdio: "inherit", env },
   );
   if (res.error) throw res.error;
@@ -370,7 +335,7 @@ function ensureDeviceOnline(): void {
   throw new Error("emulator did not finish booting within 180s");
 }
 
-/** `pnpm mobile:dev`: the canonical `tauri android dev` loop. The script
+/** `pnpm dev:android`: the canonical `tauri android dev` loop. The script
  * boots an emulator, makes sure the gomobile AAR is bound, forwards the Vite
  * dev port over adb (the CLI knows nothing about devices), then hands over
  * to the Tauri CLI, which starts the dev server (beforeDevCommand), builds
@@ -378,13 +343,11 @@ function ensureDeviceOnline(): void {
  * through the reverse; the LocalAPI credentials arrive through the xbond
  * plugin, so no dev_url bootstrap exists anymore. Ctrl-C tears everything
  * down, including the reverse. */
-function runMobileDev(): void {
+function runMobileDev(args: string[]): void {
   ensureDeviceOnline();
 
   if (!fs.existsSync(path.join(root, ANDROID_AAR))) {
-    console.log(
-      "[mobile:dev] AAR missing; binding (pnpm mobile:bind:android)…",
-    );
+    console.log("[mobile:dev] AAR missing; binding (pnpm android:bind)…");
     const res = buildAndroidAAR();
     if (!res.ok) throw new Error(res.message);
   }
@@ -394,7 +357,7 @@ function runMobileDev(): void {
     `[mobile:dev] adb reverse tcp:${MOBILE_DEV_PORT} — starting tauri android dev…`,
   );
 
-  const dev = spawn("pnpm", ["tauri", "android", "dev"], {
+  const dev = spawn(process.execPath, [tauri, "android", "dev", ...args], {
     cwd: root,
     stdio: "inherit",
     env: {
@@ -404,7 +367,11 @@ function runMobileDev(): void {
     },
   });
   const cleanup = () => {
-    adb(["reverse", "--remove", `tcp:${MOBILE_DEV_PORT}`], { capture: true });
+    try {
+      adb(["reverse", "--remove", `tcp:${MOBILE_DEV_PORT}`], { capture: true });
+    } catch (error) {
+      console.warn(error instanceof Error ? error.message : error);
+    }
   };
   process.on("SIGINT", () => {
     dev.kill("SIGINT");
@@ -412,61 +379,61 @@ function runMobileDev(): void {
   process.on("SIGTERM", () => {
     dev.kill("SIGTERM");
   });
+  dev.on("error", (error) => {
+    cleanup();
+    console.error(error.message);
+    process.exitCode = 1;
+  });
   dev.on("exit", (code) => {
     cleanup();
-    process.exit(code ?? 0);
+    process.exit(code ?? 1);
   });
 }
 
-/** `pnpm mobile:android`: install and launch the packaged Tauri APK. */
+/** `pnpm android:install`: install and launch the packaged Tauri APK. */
 function runMobileAndroid(): void {
   ensureDeviceOnline();
-  ensureAppInstalled(true);
+  installDebugAPK();
   adb(["shell", "am", "start", "-n", `${ANDROID_APP_ID}/.MainActivity`]);
   console.log("[mobile:android] packaged app launched");
 }
 
-/** `pnpm mobile:ios`: the canonical `tauri ios dev` loop on macOS — ensure
+/** `pnpm dev:ios`: the canonical `tauri ios dev` loop on macOS — ensure
  * the gomobile xcframework is bound, then hand over to the Tauri CLI, which
  * builds, installs and launches on the iOS simulator against devUrl. */
 export function runMobileIOS(args: string[] = []): void {
   if (process.platform !== "darwin") {
     throw new Error(
-      "pnpm mobile:ios requires macOS with Xcode installed. " +
-        "If you are developing via a macOS VM, please run 'pnpm mobile:ios' inside your macOS environment.",
+      "pnpm dev:ios requires macOS with Xcode installed. " +
+        "If you are developing via a macOS VM, please run 'pnpm dev:ios' inside your macOS environment.",
     );
   }
 
   if (!fs.existsSync(path.join(root, IOS_FRAMEWORK))) {
     console.log(
-      "[mobile:ios] XBondMobile.xcframework missing; binding (pnpm mobile:bind:ios)…",
+      "[mobile:ios] XBondMobile.xcframework missing; binding (pnpm ios:bind)…",
     );
     const res = buildIOSFramework();
     if (!res.ok) throw new Error(res.message);
   }
 
   console.log("[mobile:ios] starting tauri ios dev…");
-  const dev = spawn("pnpm", ["tauri", "ios", "dev", ...args], {
+  const dev = spawn(process.execPath, [tauri, "ios", "dev", ...args], {
     cwd: root,
     stdio: "inherit",
   });
+  dev.on("error", (error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
   dev.on("exit", (code) => {
-    process.exit(code ?? 0);
+    process.exitCode = code ?? 1;
   });
 }
 
 function main(): void {
   const command = process.argv[2];
-  if (command === "check") {
-    const res = runMobileCheck();
-    if (res.ok) {
-      console.log(`[mobile:check] ${res.message}`);
-      process.exit(0);
-    } else {
-      console.error(`[mobile:check] Error: ${res.message}`);
-      process.exit(1);
-    }
-  } else if (command === "bind:android") {
+  if (command === "bind:android") {
     const res = buildAndroidAAR();
     if (res.ok) {
       console.log(`[mobile:bind:android] ${res.message}`);
@@ -484,14 +451,11 @@ function main(): void {
       console.error(`[mobile:bind:ios] Error: ${res.message}`);
       process.exit(1);
     }
-  } else if (command === "ensure") {
-    ensureGomobile();
-    console.log("[mobile:ensure] gomobile and gobind match go.mod");
-  } else if (command === "dev") {
-    runMobileDev();
-  } else if (command === "android") {
+  } else if (command === "dev:android") {
+    runMobileDev(process.argv.slice(3));
+  } else if (command === "install:android") {
     runMobileAndroid();
-  } else if (command === "ios") {
+  } else if (command === "dev:ios") {
     try {
       runMobileIOS(process.argv.slice(3));
     } catch (err) {
@@ -502,7 +466,7 @@ function main(): void {
     }
   } else {
     console.error(
-      "Usage: node scripts/mobile.ts [check|ensure|bind:android|bind:ios|dev|android|ios]",
+      "Usage: node scripts/dev/mobile.ts [bind:android|bind:ios|dev:android|install:android|dev:ios]",
     );
     process.exit(1);
   }

@@ -39,7 +39,7 @@ kotlin {
 
 dependencies {
     implementation(project(":tauri-android"))
-    // gomobile binding (pnpm mobile:bind:android): TunnelService, PlatformBridge
+    // gomobile binding (pnpm android:bind): TunnelService, PlatformBridge
     // and the release-signature verification used by AppUpdates.
     implementation(files("libs/xbond-mobile.aar"))
     implementation("androidx.core:core-ktx:1.13.1")

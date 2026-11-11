@@ -12,8 +12,7 @@ type Release = { tag_name: string; draft: boolean; prerelease: boolean };
 // - preflight <tag> <prepare|publish|store>  resolves the release commit,
 //   enforces version ordering, and emits tag/version/build/commit plus the
 //   derived mode and Apple signing flag. Raw event context arrives through
-//   RELEASE_EVENT / RELEASE_REHEARSAL / RELEASE_REHEARSAL_APPLE so no
-//   conditional logic lives in the workflow YAML.
+//   GITHUB_EVENT_NAME and RELEASE_MODE.
 // - evidence <tag> <dir>                      writes release-evidence.json.
 // - verify-evidence <tag> <file>              re-validates evidence and emits
 //   run/digest/ios_sha256 for cross-run artifact downloads.
@@ -22,21 +21,20 @@ type Release = { tag_name: string; draft: boolean; prerelease: boolean };
 
 const repository = process.env.GITHUB_REPOSITORY ?? "openxbond/xbond";
 
-export function deriveReleaseMode(
+export function releaseSettings(
   event: string | undefined,
-  rehearsal: string | undefined,
-): "release" | "rehearsal" {
-  return event === "workflow_dispatch" && rehearsal === "true"
-    ? "rehearsal"
-    : "release";
-}
-
-export function deriveAppleSigning(
-  event: string | undefined,
-  mode: "release" | "rehearsal",
-  rehearsalApple: string | undefined,
-): boolean {
-  return event === "push" || mode === "release" || rehearsalApple === "true";
+  requested: string | undefined,
+): { mode: "release" | "rehearsal"; appleSigning: boolean } {
+  if (event === "push" || requested === "release") {
+    return { mode: "release", appleSigning: true };
+  }
+  if (requested === "rehearsal" || requested === "rehearsal-with-apple") {
+    return {
+      mode: "rehearsal",
+      appleSigning: requested === "rehearsal-with-apple",
+    };
+  }
+  throw new Error("Expected release, rehearsal or rehearsal-with-apple.");
 }
 
 function git(...args: string[]) {
@@ -78,14 +76,9 @@ function preflightContext(
 function preflight(tag: string, context: "prepare" | "publish" | "store") {
   const { version, build } = releaseVersion(tag);
   const ref = `refs/tags/${tag}`;
-  const mode = deriveReleaseMode(
-    process.env.RELEASE_EVENT,
-    process.env.RELEASE_REHEARSAL,
-  );
-  const appleSigning = deriveAppleSigning(
-    process.env.RELEASE_EVENT,
-    mode,
-    process.env.RELEASE_REHEARSAL_APPLE,
+  const { mode, appleSigning } = releaseSettings(
+    process.env.GITHUB_EVENT_NAME,
+    context === "prepare" ? process.env.RELEASE_MODE : "release",
   );
   if (context === "prepare") {
     const problems = releaseVariableProblems(process.env, appleSigning);

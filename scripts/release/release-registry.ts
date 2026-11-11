@@ -51,7 +51,7 @@ function main() {
   const [command, tag, digest, archive] = process.argv.slice(2);
   if (!command || !tag || !digest)
     throw new Error(
-      "Usage: node scripts/release-registry.ts <check|push|verify-public> <vX.Y.Z> <sha256:...> [oci-archive.tar]",
+      "Usage: node scripts/release/release-registry.ts <check|push|verify-public> <vX.Y.Z> <sha256:...> [oci-archive.tar]",
     );
   releaseVersion(tag);
 

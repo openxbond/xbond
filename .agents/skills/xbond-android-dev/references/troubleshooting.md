@@ -21,9 +21,9 @@
 - **症狀**：`mobile:bind:android` 失敗，提示缺少環境變量或 build tags 錯誤。
 - **解決**：統一使用倉庫腳本構建，不要手動拼參數：
   ```bash
-  pnpm mobile:bind:android
+  pnpm android:bind
   ```
-  構建參數集中在 `scripts/go.ts` 的 `MOBILE_ANDROID_TAGS`（包含 `with_gvisor,with_quic,with_utls,with_clash_api,cmfa`）。
+  構建參數集中在 `scripts/dev/go.ts` 的 `MOBILE_ANDROID_TAGS`（包含 `with_gvisor,with_quic,with_utls,with_clash_api,cmfa`）。
 
 ---
 

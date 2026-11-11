@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../..", import.meta.url));
 const LSREGISTER =
   "/System/Library/Frameworks/CoreServices.framework/Frameworks/" +
   "LaunchServices.framework/Support/lsregister";
@@ -84,7 +84,7 @@ export function registerDevLinks(): { ok: boolean; message: string } {
     return {
       ok: false,
       message:
-        "dev binary not found — run `pnpm desktop` once so tauri builds it, then retry",
+        "dev binary not found — run `pnpm dev:desktop` once so tauri builds it, then retry",
     };
   }
 
@@ -148,7 +148,7 @@ function main(): void {
       process.exit(1);
     }
   } else {
-    console.error("Usage: node scripts/desktop.ts [register-links]");
+    console.error("Usage: node scripts/dev/desktop.ts [register-links]");
     process.exit(1);
   }
 }

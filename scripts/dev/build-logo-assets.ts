@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "..");
+const ROOT = path.resolve(__dirname, "../..");
 
 export const PATH_ORANGE = "M14 14H35.5L58 50L35.5 86H14L36.5 50L14 14Z";
 export const PATH_RIGHT =

@@ -108,7 +108,7 @@ pub const KO: TrayI18n = TrayI18n {};`,
 });
 
 test("checkI18n passes cleanly on actual xbond codebase", async () => {
-  const rootDir = fileURLToPath(new URL("..", import.meta.url));
+  const rootDir = fileURLToPath(new URL("../..", import.meta.url));
   const problems = await checkI18n(rootDir);
   assert.deepEqual(problems, []);
 });

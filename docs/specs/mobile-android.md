@@ -5,7 +5,7 @@
 ## 範圍與入口
 
 - **應用殼**：根 `src-tauri/`（crate `xbond-app`）。`run()` 按 feature 分流：`desktop` feature 註冊托盤／單實例／自動啟動／全局快捷鍵／更新器；移動面（默認 features）只註冊 `deep-link`、`opener`、`xbond` 插件，窗口由生成的原生 Activity 承載。
-- **插件**：`plugins/xbond/`——Rust crate（命令面 + `permissions/default.toml`）+ Android 庫模塊（Kotlin：`XbondPlugin`、`XbondVpnService`、`XbondTileService`、`SplitTunnelPrefs`、`AppUpdates`、`UpdatesFileProvider`）+ iOS Swift 包（`XbondPlugin.swift` 等，見 iOS 切片）。gomobile AAR 由 `pnpm mobile:bind:android` 產出到 `plugins/xbond/android/libs/xbond-mobile.aar`（全 Android 架構）。
+- **插件**：`plugins/xbond/`——Rust crate（命令面 + `permissions/default.toml`）+ Android 庫模塊（Kotlin：`XbondPlugin`、`XbondVpnService`、`XbondTileService`、`SplitTunnelPrefs`、`AppUpdates`、`UpdatesFileProvider`）+ iOS Swift 包（`XbondPlugin.swift` 等，見 iOS 切片）。gomobile AAR 由 `pnpm android:bind` 產出到 `plugins/xbond/android/libs/xbond-mobile.aar`（全 Android 架構）。
 - **生成工程**：`src-tauri/gen/android/`（`pnpm tauri android init` 產物，提交進倉）。包名 `net.xbond.app`；gen 內手改見「gen 再生成清單」。
 - **平台分工**：Kotlin 擁有權限申請、TUN 構建（地址／路由／分應用分流）、前台通知與 `protect()`；Go 側（gomobile `mobile.TunnelService`）擁有核心生命週期、按訂閱格式的雙核心選擇與派生。UI 由 Tauri 從打包資產供給（`tauri://localhost`），數據面走進程內 LocalAPI（僅回環、token 鑑權）。
 
@@ -58,22 +58,22 @@ release 包帶 `BuildConfig.RELEASE_PUBLIC_KEY`（gradle 環境變量 `XBOND_REL
 1. `app/src/main/AndroidManifest.xml`：`android:roundIcon`、`android:networkSecurityConfig="@xml/network_security_config"`、`android:theme="@style/Theme.XBond"`（插件庫資源）、activity `windowSoftInputMode="adjustResize"`、`xbond`/`clash`/`sing-box` 的 BROWSABLE intent-filter。
 2. `app/build.gradle.kts`：`versionName`=`XBOND_VERSION`、`versionCode`=`XBOND_BUILD_NUMBER`（回退 `tauri.properties`）。
 3. `app/src/main/java/net/xbond/app/MainActivity.kt`：`onWebViewCreate` 捕獲 WebView + `onBackPressed`（先求值 `window.__xbondHandleBack`，未處理則 `moveTaskToBack(true)`）。不加 `enableEdgeToEdge()`：Android 14 及以下 WebView 的 `env(safe-area-inset-*)` 恆為 0，內容會鑽到狀態欄下；15+ 系統本就強制 edge-to-edge。
-4. 啟動圖標資源（`res/mipmap-*`、`drawable/ic_launcher_*`、`values/ic_launcher_background.xml`，來源 `scripts/build-logo-assets.ts` 測試斷言）；刪除模板殘留（`values/colors.xml`、模板主題、layout）。
+4. 啟動圖標資源（`res/mipmap-*`、`drawable/ic_launcher_*`、`values/ic_launcher_background.xml`，來源 `scripts/dev/build-logo-assets.ts` 測試斷言）；刪除模板殘留（`values/colors.xml`、模板主題、layout）。
 
 插件側（`plugins/xbond/android/`）在 gen 之外，再生成不受影響。
 
 ## 開發與運行命令
 
-- `pnpm mobile:dev`：標準 `tauri android dev` 迴圈——腳本只負責拉起 AVD（無在線設備時，優先 `Medium_Phone_API_37.0`）、確保 AAR 已綁、`adb reverse tcp:1421`（CLI 不感知設備），隨後交給 Tauri CLI：`beforeDevCommand` 起 Vite（127.0.0.1:1421）→ 構建 debug APK → 安裝並以 devUrl 啟動。Vite HMR 直達 WebView；LocalAPI 憑據經 `get_localapi_config` 插件命令送達，`dev_url` 機制已刪除。Ctrl-C 清理 reverse。
-- `pnpm mobile:android`：`tauri android build --debug --apk --target <abi>`（ABI 取自設備 `ro.product.cpu.abi`）→ `adb install -r` 打包 APK → 拉起，驗證最終獨立發版包體驗。
-- `pnpm mobile:bind:android`：gomobile bind 全架構 AAR 到插件目錄（`cmfa` build tag 見下）。
+- `pnpm dev:android`：標準 `tauri android dev` 迴圈——腳本只負責拉起 AVD（無在線設備時，優先 `Medium_Phone_API_37.0`）、確保 AAR 已綁、`adb reverse tcp:1421`（CLI 不感知設備），隨後交給 Tauri CLI：`beforeDevCommand` 起 Vite（127.0.0.1:1421）→ 構建 debug APK → 安裝並以 devUrl 啟動。Vite HMR 直達 WebView；LocalAPI 憑據經 `get_localapi_config` 插件命令送達，`dev_url` 機制已刪除。Ctrl-C 清理 reverse。
+- `pnpm android:install`：`tauri android build --debug --apk --target <abi>`（ABI 取自設備 `ro.product.cpu.abi`）→ `adb install -r` 打包 APK → 拉起，驗證最終獨立發版包體驗。
+- `pnpm android:bind`：gomobile bind 全架構 AAR 到插件目錄（`cmfa` build tag 見下）。
 - Rust 兩態檢查：`cargo check --manifest-path src-tauri/Cargo.toml --features desktop`（桌面）與不帶 features（移動面，含 `compile_error!` 守衛——桌面構建漏 feature 會大聲失敗）。
 
 ### 構建與依賴（原生模塊接入）
 
 **mihomo v1.19.33** 與 **sing-box v1.13.21** 均直接引用上游模塊（無 vendored 副本、無 `replace`）：
 
-- **mihomo Android 嵌入（`cmfa` build tag）**：`scripts/mobile.ts` 在 Android bind 時傳入 `MOBILE_ANDROID_TAGS`（`with_gvisor,with_quic,with_utls,with_clash_api,cmfa`），啟用上游內建的 Android VPN 宿主嵌入模式（跳過 SELinux 禁止的 `/data/system/packages.xml` 直讀與 netlink 監聽，分應用由平台 `VpnService` 承擔）。
+- **mihomo Android 嵌入（`cmfa` build tag）**：`scripts/dev/mobile.ts` 在 Android bind 時傳入 `MOBILE_ANDROID_TAGS`（`with_gvisor,with_quic,with_utls,with_clash_api,cmfa`），啟用上游內建的 Android VPN 宿主嵌入模式（跳過 SELinux 禁止的 `/data/system/packages.xml` 直讀與 netlink 監聽，分應用由平台 `VpnService` 承擔）。
 - **sing-box 移動端接入（`adapter.PlatformInterface`）**：`NewBoxContext()` 經 `OpenInterface` 注入平台 VPN fd、`CreateDefaultInterfaceMonitor` 提供非 nil 空監視器、日誌訂閱使 `cache_file.enabled=false` 原生生效；`go:linkname` 補齊被內聯消除的 `http2` 符號，消除 `gomobile bind` 重定位錯誤（`internal/engine/tun_fd.go`）。
 
 ## 驗收條件
@@ -87,7 +87,7 @@ release 包帶 `BuildConfig.RELEASE_PUBLIC_KEY`（gradle 環境變量 `XBOND_REL
 | MOB-18 | 插件命令面上機：`get_localapi_config`／分應用列表／split tunnel 讀寫／`sync_system_bars`／`deliver_account_callback` 經 tauri IPC 實調 | 模擬器 logcat + UI 走查（**殼層重驗，進行中**） |
 | MOB-19 | UI 資產走 tauri 協議：打包 app 從 `http://tauri.localhost` 載入共享 UI，數據面連進程內 LocalAPI，Connect/Disconnect 全循環 | 模擬器 screencap + logcat（**殼層重驗，進行中**） |
 | MOB-20 | 深鏈：`adb` 注入 `xbond://install-config` 與 `xbond://callback`，事件路由到導入表單與 `/account/callback` 投遞 | adb + logcat（**殼層重驗，待做**） |
-| MOB-21 | `tauri android dev` 迴圈：HMR 直達 WebView、Ctrl-C 清理 reverse | `pnpm mobile:dev`（**待驗**） |
+| MOB-21 | `tauri android dev` 迴圈：HMR 直達 WebView、Ctrl-C 清理 reverse | `pnpm dev:android`（**待驗**） |
 
 ## 已知限制
 

@@ -6,7 +6,7 @@ name: Desktop Check
 on:
   push:
     branches: [main]
-    paths:
+    paths: &desktop_paths
       - "src-tauri/**"
       - "plugins/**"
       - "apps/dashboard/**"
@@ -15,19 +15,12 @@ on:
       - "packages/client-ui/**"
       - "vite.config.ts"
       - "pnpm-lock.yaml"
+      - "package.json"
+      - ".github/actions/**"
       - ".github/workflows/desktop-check.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "src-tauri/**"
-      - "plugins/**"
-      - "apps/dashboard/**"
-      - "apps/desktop/**"
-      - "packages/client/**"
-      - "packages/client-ui/**"
-      - "vite.config.ts"
-      - "pnpm-lock.yaml"
-      - ".github/workflows/desktop-check.yml"
+    paths: *desktop_paths
   workflow_dispatch:
 
 concurrency:
@@ -47,23 +40,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/toolchain
 
-      # tauri::generate_context! embeds the frontend dist at compile time;
-      # the shared crate's base config points at dist/web, so cargo check
-      # needs it to exist. Desktop assets ride the desktop config overlay
-      # and are exercised by the release pipeline.
-      - run: pnpm build
-
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
         with:
           components: rustfmt
 
@@ -72,5 +54,4 @@ jobs:
 
       # The release workflow builds the same crate for the Android and iOS
       # targets. A desktop target always requires the desktop feature.
-      - run: pnpm desktop:fmt:check
-      - run: pnpm desktop:check
+      - run: pnpm check:desktop

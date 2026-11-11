@@ -8,11 +8,11 @@
 #   XBOND_VERSION / XBOND_BUILD_NUMBER / XBOND_APP_STORE_URL
 #   APPLE_SIGNING_IDENTITY   defaults to "Apple Distribution"
 #
-# Usage: bash scripts/build-ios-release.sh <output directory>
+# Usage: bash scripts/release/build-ios-release.sh <output directory>
 set -euo pipefail
 
 if [[ $# != 1 ]]; then
-  echo "Usage: bash scripts/build-ios-release.sh <output directory>" >&2
+  echo "Usage: bash scripts/release/build-ios-release.sh <output directory>" >&2
   exit 2
 fi
 : "${XBOND_VERSION:?Set the release version}"
@@ -31,7 +31,7 @@ if [[ "${sdk_version%%.*}" -lt 26 ]]; then
   exit 1
 fi
 
-repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 apple="$repo/src-tauri/gen/apple"
 mkdir -p "$1"
 out="$(cd "$1" && pwd)"

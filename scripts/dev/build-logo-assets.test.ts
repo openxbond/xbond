@@ -15,7 +15,10 @@ import {
   PATH_RIGHT,
 } from "./build-logo-assets.ts";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 test("canonical brand paths and vector assets include correct geometry and colors", () => {
   assert.match(LOGO_SVG, new RegExp(PATH_ORANGE));

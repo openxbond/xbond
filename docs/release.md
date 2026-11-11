@@ -4,20 +4,20 @@
 
 ## 產物目錄
 
-日常建置用 `dist/`。`pnpm build` 產出 `dist/web/`，`pnpm build:desktop` 產出 `dist/desktop/`，`pnpm cli:build` 產出 `dist/cli/xbond`（Windows 為 `xbond.exe`）。`pnpm desktop:compile` 編譯本機桌面執行檔，封裝安裝包使用 `pnpm release:desktop`。
+日常建置用 `dist/`。`pnpm build` 產出 `dist/web/`，`pnpm cli:build` 產出 `dist/cli/xbond`（Windows 為 `xbond.exe`）。`pnpm build:desktop` 先構建 `dist/desktop/` 再編譯本機桌面執行檔，封裝安裝包使用 `pnpm release:desktop`。
 
 發佈候選以 `release/<tag>/` 為根目錄。下列路徑使用 `v0.4.3` 作例子。
 
 | 目錄 | 產物 |
 | --- | --- |
-| `web/`、`core/` | `pnpm release:build v0.4.3` 產出網頁、`dashboard.zip`、`SHA256SUMS`，以及 Windows、macOS 和 Linux 各兩個架構的獨立 CLI，例如 `xbond-v0.4.3-windows-amd64.exe`。 |
+| `web/`、`core/` | `pnpm release:core v0.4.3` 產出網頁、`dashboard.zip`、`SHA256SUMS`，以及 Windows、macOS 和 Linux 各兩個架構的獨立 CLI，例如 `xbond-v0.4.3-windows-amd64.exe`。 |
 | `desktop/<os>-<arch>/` | Windows 為 NSIS `.exe`、macOS 為 `.dmg`、Linux 提供 `.deb`、`.rpm` 和 `.AppImage`，例如 `xbond-desktop-v0.4.3-linux-arm64.AppImage`。Windows NSIS 及 Linux AppImage 隨附自動更新用的 `.sig`，macOS 另外產生自動更新用的 `.app.tar.gz` 及其簽名。 |
 | `android/` | 以 Android SDK Build-Tools 36.0.0 簽名並校驗應用 ID、版本及簽名指紋的通用 APK `xbond-android-v0.4.3.apk`。 |
 | `ios/` | App Store Connect 用的 `xbond-ios-v0.4.3.ipa`，經 TestFlight 或 App Store 安裝。 |
 | `oci/` | `xbond-oci-v0.4.3.tar`，含 Linux amd64 和 arm64 鏡像。 |
 | `assets/`、`pages/` | GitHub Release 的平鋪資產、簽名清單與 `SHA256SUMS`，以及從同批資產產生的 Pages 網站。 |
 
-本機可先跑 `pnpm release:build v0.4.3`。有目標平台工具鏈及簽名材料時，再在相應宿主跑 `pnpm release:desktop v0.4.3 linux amd64`（按宿主換成 `windows`、`darwin` 或 `linux`，架構用 `amd64` 或 `arm64`）。桌面封裝從同版 `core/` 取出 daemon。Tauri、Gradle 及 Xcode 的原生中間檔由各自工具管理。
+本機可先跑 `pnpm release:core v0.4.3`。有目標平台工具鏈及簽名材料時，再在相應宿主跑 `pnpm release:desktop v0.4.3 linux amd64`（按宿主換成 `windows`、`darwin` 或 `linux`，架構用 `amd64` 或 `arm64`）。桌面封裝從同版 `core/` 取出 daemon。Tauri、Gradle 及 Xcode 的原生中間檔由各自工具管理。
 
 Tauri 在 `tauri.<platform>.conf.json` 選擇平台的安裝包格式，桌面發佈再疊加 `tauri.release.conf.json` 啟用 daemon sidecar 及更新產物。封裝指令帶入本次版本及簽名設定。
 
@@ -36,9 +36,9 @@ if ($LASTEXITCODE -ne 0) { throw '建立 Tag 失敗' }
 git push origin "refs/tags/$ReleaseTag"
 ```
 
-**Prepare XBond release** 由推 Tag 觸發，依序是 preflight（版本、模式與 Apple 簽名旗標單點派生）、check（TS 與 Go 門禁）、cli（CLI 六目標編譯與 dashboard 打包），其後六個桌面目標、Android、iOS與 OCI 鏡像並行建置，最後 assemble 匯整為一份帶 evidence 的候選並寫入草稿。等 `draft` 成功，從該 run 的摘要進入 Release 草稿，再使用草稿的安裝包及同一 run 的 IPA、OCI 鏡像。提交 SHA、run ID 和兩份摘要可在 `release-evidence.json` 核對。
+**Prepare XBond release** 在推 Tag 時自動執行。候選依序經過 preflight（版本、模式與 Apple 簽名旗標單點派生）、check（重用日常 CI 的 Web 與 Go 門禁）、core（CLI 六目標編譯與 dashboard 打包）。Android、iOS 與 OCI 鏡像可與 core 並行，桌面安裝包使用 core 產物中的 daemon，最後 assemble 匯整為一份帶 evidence 的候選並寫入草稿。等 `draft` 成功，從該 run 的摘要進入 Release 草稿，再使用草稿的安裝包及同一 run 的 IPA、OCI 鏡像。提交 SHA、run ID 和兩份摘要可在 `release-evidence.json` 核對。
 
-桌面與移動端共用根目錄的 Tauri 專案。Android 工作流執行 `pnpm mobile:bind:android` 和 `pnpm tauri android build --apk`，再用發行金鑰簽署通用 APK。iOS 工作流執行 `pnpm mobile:bind:ios`，透過 `pnpm tauri ios build --archive-only` 歸檔主程式及 PacketTunnel，再以兩份 provisioning profiles 匯出 IPA。
+桌面與移動端共用根目錄的 Tauri 專案。Android 工作流執行 `pnpm android:bind` 和 `pnpm tauri android build --apk`，再用發行金鑰簽署通用 APK。iOS 工作流執行 `pnpm ios:bind`，透過 `pnpm tauri ios build --archive-only` 歸檔主程式及 PacketTunnel，再以兩份 provisioning profiles 匯出 IPA。
 
 ## 2. 驗收同版產物
 
@@ -46,7 +46,7 @@ git push origin "refs/tags/$ReleaseTag"
 | --- | --- |
 | CLI、桌面 | Windows、macOS、Linux 各驗證 amd64 和 arm64 安裝包或獨立二進位。核對 `xbond version --json`，驗證桌面與隨附 daemon 啟動，並在受控環境測試覆蓋安裝、升級及服務失敗恢復。 |
 | Android | 安裝簽名 APK，核對版本並驗證 VPN。用同簽名的舊版測試覆蓋安裝和資料保留。 |
-| iOS | 從 `main` 執行 **XBond store operations**，填同一 Tag、`store=ios`、`operation=submit`。工作流上傳已校驗的 IPA。在 App Store Connect 把該 build 加入 TestFlight 內部測試群組，實機安裝並驗證隧道、斷線和重連。 |
+| iOS | 從 `main` 執行 **Submit XBond to TestFlight**，填同一 Tag。工作流上傳已校驗的 IPA。在 App Store Connect 把該 build 加入 TestFlight 內部測試群組，實機安裝並驗證隧道、斷線和重連。 |
 | Dashboard、Docker | 解壓 `dashboard.zip` 驗證頁面。用候選 OCI 鏡像驗證 Linux amd64 和 arm64，重建容器後確認 `/data` 持續可讀。 |
 
 TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號。外部測試可另設邀請連結，首次外部 build 需經 Beta 審核。 [Apple TestFlight](https://developer.apple.com/testflight/)
@@ -82,7 +82,7 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 
 ## 演練與故障恢復
 
-- **演練**：從 `main` 手動執行 **Prepare XBond release**，勾選 `rehearsal` 並填擬定版本。預設以臨時 macOS 簽名演練並跳過 iOS 歸檔。Apple 憑據齊備時可勾選 `rehearsal_apple_signing`。演練只產生 Actions artifacts。
+- **演練**：從 `main` 手動執行 **Prepare XBond release**，填擬定版本並選 `rehearsal`。此模式用臨時 macOS 簽名，跳過 iOS 歸檔。Apple 憑據齊備時選 `rehearsal-with-apple`。已有正式 Tag 時可用 `release` 準備正式候選。演練只產生 Actions artifacts。
 - **準備失敗**：重跑原 run 的失敗工作。草稿已收到的檔案會核對後沿用。要改源碼則用更高版本。IPA 和 OCI artifacts 最多保留 90 天，送審或公開前保留原始已校驗檔案。
 - **GHCR 或 Pages 失敗**：重跑同一 Tag 的公開工作流。GHCR 首推若套件是私有，先在 Package settings 設為公開。同 Tag 已有不同 digest 時先停止並查明原因。Pages 失敗時先核對目前在線的版本。 [GHCR 套件可見性](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
 - **已公開版本需要修正**：用更高版本發佈修正。Docker 可改用原 digest 重建，保留 `/data`。

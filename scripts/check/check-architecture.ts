@@ -212,7 +212,7 @@ if (
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const problems = checkArchitecture(
-    fileURLToPath(new URL("..", import.meta.url)),
+    fileURLToPath(new URL("../..", import.meta.url)),
   );
   if (problems.length) {
     for (const problem of problems) console.error(problem);

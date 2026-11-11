@@ -1,5 +1,5 @@
-name: Release toolchain
-description: Set up the XBond release build toolchain
+name: XBond toolchain
+description: Set up Node, pnpm and optional Go dependencies
 inputs:
   go:
     description: Install the Go toolchain
@@ -10,12 +10,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+    - uses: pnpm/action-setup@v6.1.1
+    - uses: actions/setup-node@v7.1.0
       with:
         node-version: 24
         cache: ${{ inputs.install == 'true' && 'pnpm' || '' }}
-    - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+    - uses: actions/setup-go@v7.0.0
       if: inputs.go == 'true'
       with:
         go-version-file: go.mod

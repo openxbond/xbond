@@ -3,19 +3,22 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { BUILD_TAGS } from "../dev/go.ts";
 import { checksum, packageDistribution } from "./artifact.ts";
-import { BUILD_TAGS } from "./go.ts";
 import { cliAsset, releaseTargets, releaseVersion } from "./release-version.ts";
 
 // Cross-builds the daemon binary matrix for a release and lays out the
 // release directory: the compiled web tree, standalone CLI binaries,
 // dashboard.zip and their checksums.
 //
-// Usage: node scripts/build-release.ts <vX.Y.Z>   (tag form v-prefixed)
+// Usage: node scripts/release/build-release.ts <vX.Y.Z>   (tag form v-prefixed)
 
 const VERSION_PACKAGE = "github.com/openxbond/xbond/internal/version.Version";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 const { tag, version } = releaseVersion(process.argv[2] ?? "");
 const publicKey = process.env.XBOND_RELEASE_PUBLIC_KEY ?? "";
@@ -58,7 +61,7 @@ function buildRelease(staging: string) {
   if (web.error) throw web.error;
   if (web.status !== 0) throw new Error("Dashboard build failed");
 
-  packageDistribution(webDir, outDir);
+  const dashboardDigest = packageDistribution(webDir, outDir);
   const checksums: string[] = [];
   for (const [osName, arch] of releaseTargets) {
     const name = cliAsset(tag, osName, arch);
@@ -114,8 +117,7 @@ function buildRelease(staging: string) {
     );
   }
 
-  const dashboardZip = path.join(outDir, "dashboard.zip");
-  checksums.push(`${checksum(dashboardZip)}  dashboard.zip`);
+  checksums.push(`${dashboardDigest}  dashboard.zip`);
   fs.writeFileSync(
     path.join(outDir, "SHA256SUMS"),
     checksums.join("\n") + "\n",

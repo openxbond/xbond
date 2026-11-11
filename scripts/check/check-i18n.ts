@@ -258,7 +258,7 @@ if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  const rootDir = fileURLToPath(new URL("..", import.meta.url));
+  const rootDir = fileURLToPath(new URL("../..", import.meta.url));
   const problems = await checkI18n(rootDir);
 
   if (problems.length > 0) {

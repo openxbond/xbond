@@ -31,7 +31,7 @@ import mobile.TunnelService
  *  - The fd stays valid across subscription reloads ([TunnelService.reload]
  *    restarts only the core), so content updates never bounce the VPN.
  *
- * This file needs the gomobile AAR (`pnpm mobile:bind:android` →
+ * This file needs the gomobile AAR (`pnpm android:bind` →
  * xbond-mobile.aar) on the app's compile classpath; it cannot compile
  * standalone. Real-device acceptance (prepare prompt, sleep/network
  * switches, Always-On) is a separate mobile slice.

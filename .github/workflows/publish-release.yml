@@ -40,11 +40,11 @@ jobs:
       APP_STORE_URL: ${{ vars.APP_STORE_URL }}
       IOS_TESTFLIGHT_URL: ${{ vars.IOS_TESTFLIGHT_URL }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/release-toolchain
+      - uses: ./.github/actions/toolchain
         with:
           install: "false"
       - id: candidate
@@ -54,26 +54,26 @@ jobs:
             echo "::error::Verify installation on all supported platforms before publishing."
             exit 1
           fi
-          node scripts/release-ci.ts preflight "$TAG" publish
+          node scripts/release/release-ci.ts preflight "$TAG" publish
           gh release view "$TAG" --json isDraft,isPrerelease --jq 'if .isPrerelease then error("Prerelease cannot be promoted") else "draft=" + (.isDraft | tostring) end' >> "$GITHUB_OUTPUT"
           gh release download "$TAG" --dir "release/$TAG/assets"
-          node scripts/release-ci.ts verify-evidence "$TAG" "release/$TAG/assets/release-evidence.json"
+          node scripts/release/release-ci.ts verify-evidence "$TAG" "release/$TAG/assets/release-evidence.json"
           # The pages command appends pages_digest to GITHUB_OUTPUT.
-          node scripts/release-assets.ts pages "$TAG" "release/$TAG/assets" "release/$TAG/pages" "$APP_STORE_URL" "$IOS_TESTFLIGHT_URL"
+          node scripts/release/release-assets.ts pages "$TAG" "release/$TAG/assets" "release/$TAG/pages" "$APP_STORE_URL" "$IOS_TESTFLIGHT_URL"
       - id: registry
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
         run: |
           sudo apt-get update
           sudo apt-get install -y skopeo
-          node scripts/release-registry.ts check "$TAG" "$IMAGE_DIGEST"
+          node scripts/release/release-registry.ts check "$TAG" "$IMAGE_DIGEST"
       - name: Require the prepare artifacts
         if: steps.registry.outputs.present == 'false'
         env:
           RUN_ID: ${{ steps.candidate.outputs.run }}
-        run: node scripts/release-ci.ts require-artifact "$RUN_ID" release-image
+        run: node scripts/release/release-ci.ts require-artifact "$RUN_ID" release-image
       - if: steps.registry.outputs.present == 'false'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@v8.0.2
         with:
           name: release-image
           run-id: ${{ steps.candidate.outputs.run }}
@@ -82,15 +82,15 @@ jobs:
       - if: steps.registry.outputs.present == 'false'
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
-        run: node scripts/release-registry.ts push "$TAG" "$IMAGE_DIGEST" "release/$TAG/oci/xbond-oci-$TAG.tar"
+        run: node scripts/release/release-registry.ts push "$TAG" "$IMAGE_DIGEST" "release/$TAG/oci/xbond-oci-$TAG.tar"
       - name: Verify anonymous GHCR access
         env:
           IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
-        run: node scripts/release-registry.ts verify-public "$TAG" "$IMAGE_DIGEST"
+        run: node scripts/release/release-registry.ts verify-public "$TAG" "$IMAGE_DIGEST"
       - name: Publish GitHub Release
         if: steps.candidate.outputs.draft == 'true'
         run: gh release edit "$TAG" --draft=false --latest
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      - uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: release/${{ inputs.tag }}/pages
 
@@ -105,17 +105,17 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/release-toolchain
+      - uses: ./.github/actions/toolchain
         with:
           install: "false"
       - id: deploy
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        uses: actions/deploy-pages@v5.0.1
       - name: Verify deployed pages and update feeds
         env:
           PAGES_URL: ${{ steps.deploy.outputs.page_url }}
           TAG: ${{ inputs.tag }}
           EXPECTED_DIGEST: ${{ needs.publish.outputs.pages_digest }}
-        run: node scripts/release-assets.ts pages-verify "$TAG" "$PAGES_URL" "$EXPECTED_DIGEST"
+        run: node scripts/release/release-assets.ts pages-verify "$TAG" "$PAGES_URL" "$EXPECTED_DIGEST"

@@ -4,9 +4,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import zlib from "node:zlib";
 
-const TAG_PATTERN =
-  /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
-
 const EXTENSIONS = new Set([
   ".js",
   ".css",
@@ -58,23 +55,6 @@ interface ParsedZipEntry {
   externalAttr: number;
   localHeaderOffset: number;
   data: Buffer;
-}
-
-export function validateTag(tag: string): {
-  version: [number, number, number];
-  prerelease: string | null;
-} {
-  if (tag.includes("\n") || tag.includes("\r")) {
-    throw new Error("Expected a version tag such as v0.4.0");
-  }
-  const match = TAG_PATTERN.exec(tag);
-  if (!match) {
-    throw new Error("Expected a version tag such as v0.4.0");
-  }
-  return {
-    version: [Number(match[1]), Number(match[2]), Number(match[3])],
-    prerelease: match[4] ?? null,
-  };
 }
 
 export function checksum(filePath: string): string {
@@ -272,9 +252,16 @@ export function validateArchive(
 ): string {
   const digest = checksum(archivePath);
   if (checksumsPath) {
-    const expected = `${digest}  dashboard.zip\n`;
-    const actual = fs.readFileSync(checksumsPath, "utf8");
-    if (actual !== expected) {
+    const entries = fs
+      .readFileSync(checksumsPath, "utf8")
+      .split(/\r?\n/)
+      .filter((line) => / [ *]dashboard\.zip$/.test(line));
+    if (
+      entries.length !== 1 ||
+      ![`${digest}  dashboard.zip`, `${digest} *dashboard.zip`].includes(
+        entries[0],
+      )
+    ) {
       throw new Error("SHA256SUMS does not match dashboard.zip");
     }
   }
@@ -393,13 +380,7 @@ export function packageDistribution(
 
   const archivePath = path.join(outputDir, "dashboard.zip");
   fs.writeFileSync(archivePath, buildZipBuffer(zipInputs));
-  const digest = validateArchive(archivePath);
-  fs.writeFileSync(
-    path.join(outputDir, "SHA256SUMS"),
-    `${digest}  dashboard.zip\n`,
-    "utf8",
-  );
-  return digest;
+  return validateArchive(archivePath);
 }
 
 if (
@@ -407,13 +388,7 @@ if (
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const [, , command, ...rest] = process.argv;
-  if (command === "package") {
-    const [directory, output] = rest;
-    if (!directory || !output) {
-      throw new Error("Usage: artifact.ts package <directory> <output>");
-    }
-    console.log(packageDistribution(directory, output));
-  } else if (command === "validate") {
+  if (command === "validate") {
     const [archive, checksums, maybeExtractFlag, extractDir] = rest;
     if (!archive || !checksums) {
       throw new Error(

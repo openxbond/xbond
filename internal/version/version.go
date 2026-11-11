@@ -16,7 +16,7 @@ var (
 var ReleasePublicKey string
 
 // Version is a var so release builds stamp it via -ldflags -X (see
-// scripts/build-release.ts); the rest stay compile-time constants.
+// scripts/release/build-release.ts); the rest stay compile-time constants.
 
 type Info struct {
 	ClientVersion  string `json:"clientVersion"`

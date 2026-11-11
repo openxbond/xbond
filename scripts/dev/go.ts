@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Single source of the Go build tags: every go invocation must run against the
-// same feature set, and the gomobile binds in scripts/mobile.ts consume this
+// same feature set, and the gomobile binds in scripts/dev/mobile.ts consume this
 // too, so a tag can never drift between the CLI and the mobile bindings.
 // sing-box needs with_quic/with_utls/with_clash_api; mihomo ignores them and
 // uses with_gvisor for its TUN stack.
@@ -52,7 +52,13 @@ export function goCommand(command: string, extra: string[] = []): GoInvocation {
     case "test":
       return {
         file: "go",
-        args: ["test", "-tags", BUILD_TAGS, "./...", ...extra],
+        args: [
+          "test",
+          "-tags",
+          BUILD_TAGS,
+          ...(extra[0]?.startsWith("-") || !extra.length ? ["./..."] : []),
+          ...extra,
+        ],
       };
     case "vet":
       return {
@@ -91,7 +97,7 @@ function runFmtCheck(): boolean {
 }
 
 const USAGE =
-  "Usage: node scripts/go.ts [build|run|test|vet|fmt|fmt:check|check] [extra args...]";
+  "Usage: node scripts/dev/go.ts [build|run|test|vet|fmt|fmt:check|check] [extra args...]";
 
 function main(): void {
   // pnpm appends script arguments verbatim, `--` included when someone writes
@@ -99,6 +105,7 @@ function main(): void {
   const [command, ...extra] = process.argv.slice(2).filter((a) => a !== "--");
 
   if (command === "check") {
+    if (!runFmtCheck()) process.exit(1);
     for (const step of ["vet", "test", "build"]) {
       if (!run(goCommand(step))) {
         console.error(`[go:check] ${step} failed`);

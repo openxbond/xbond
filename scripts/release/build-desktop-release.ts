@@ -43,7 +43,7 @@ const appleID = process.env.APPLE_ID;
 const applePassword = process.env.APPLE_PASSWORD;
 const appleTeam = process.env.APPLE_TEAM_ID;
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../..", import.meta.url));
 const tauriDirectory = join(root, "src-tauri");
 const rustOS =
   os === "win32"

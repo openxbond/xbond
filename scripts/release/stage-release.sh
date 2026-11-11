@@ -32,7 +32,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     printf '### %s is ready for installation checks\n\n' "$tag"
     printf '[Release draft](%s)\n\n' "$draft_url"
     printf '1. Verify the installers.\n'
-    printf '2. Run **XBond store operations** for this tag with `ios` / `submit`, then verify installation through TestFlight.\n'
+    printf '2. Run **Submit XBond to TestFlight** for this tag, then verify installation through TestFlight.\n'
     printf '3. Run **Publish XBond release** for this tag and confirm installation verification. Use the same candidate for later store submissions.\n'
   } >> "$GITHUB_STEP_SUMMARY"
 fi

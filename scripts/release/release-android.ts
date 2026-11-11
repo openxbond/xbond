@@ -15,7 +15,7 @@ import { androidAsset, releaseVersion } from "./release-version.ts";
 //   ANDROID_KEY_ALIAS        signing key alias
 //   ANDROID_SIGNER_SHA256    lowercase hex SHA-256 of the signing certificate
 //
-// Usage: node scripts/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-directory>
+// Usage: node scripts/release/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-directory>
 
 const APPLICATION_ID = "net.xbond.app";
 const MAX_APK_BYTES = 512 * 1024 * 1024;
@@ -67,7 +67,7 @@ function main() {
   const [command, tag, unsigned, directory] = process.argv.slice(2);
   if (command !== "sign" || !tag || !unsigned || !directory)
     throw new Error(
-      "Usage: node scripts/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-directory>",
+      "Usage: node scripts/release/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-directory>",
     );
   const { version, build } = releaseVersion(tag);
   const keystore = process.env.KEYSTORE ?? "";

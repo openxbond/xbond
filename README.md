@@ -71,6 +71,8 @@ XBond 客戶端不提供購買流程。帳號登入、套餐與服務權益在 X
 
 ## 開發者
 
+- [開發環境](docs/dev-env.md)：工具鏈及 Web、桌面、移動與 CLI 的日常入口。
+
 - [AGENTS.md](AGENTS.md)：倉庫結構、開發命令及共通規則。
 - [開發管線](docs/specs/dev-pipeline.md)：入口路由、實作、UI、審查與維護。
 - [驗證矩陣](docs/agents/verification.md)：按變更範圍選命令及平台驗收。

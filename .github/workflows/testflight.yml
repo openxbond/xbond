@@ -1,4 +1,4 @@
-name: XBond store operations
+name: Submit XBond to TestFlight
 
 on:
   workflow_dispatch:
@@ -7,61 +7,46 @@ on:
         description: Prepared stable Tag
         required: true
         type: string
-      store:
-        description: Store
-        type: choice
-        options: [ios]
-        required: true
-      operation:
-        description: Submit build
-        type: choice
-        options: [submit]
-        required: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-store-${{ inputs.store }}
+  group: release-store-ios
   cancel-in-progress: false
 
 jobs:
   ios:
-    if: github.repository == 'openxbond/xbond' && github.ref == 'refs/heads/main' && inputs.store == 'ios'
+    if: github.repository == 'openxbond/xbond' && github.ref == 'refs/heads/main'
     runs-on: macos-26
     timeout-minutes: 25
     environment: release-store-ios
     permissions:
       actions: read
-      contents: read
+      contents: write # Draft release assets require push access.
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ inputs.tag }}
       XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
     steps:
-      - name: Reject unsupported operations
-        if: inputs.operation != 'submit'
-        run: |
-          echo "::error::The iOS store supports operation=submit only."
-          exit 1
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/release-toolchain
+      - uses: ./.github/actions/toolchain
         with:
           install: "false"
       - id: candidate
         run: |
-          node scripts/release-ci.ts preflight "$TAG" store
+          node scripts/release/release-ci.ts preflight "$TAG" store
           gh release download "$TAG" --pattern release-evidence.json --pattern release.json
-          node scripts/release-assets.ts verify "$TAG" . release-evidence
-          node scripts/release-ci.ts verify-evidence "$TAG" release-evidence.json
+          node scripts/release/release-assets.ts verify "$TAG" . release-evidence
+          node scripts/release/release-ci.ts verify-evidence "$TAG" release-evidence.json
       - name: Require the prepare artifacts
         env:
           RUN_ID: ${{ steps.candidate.outputs.run }}
-        run: node scripts/release-ci.ts require-artifact "$RUN_ID" app-store-build
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        run: node scripts/release/release-ci.ts require-artifact "$RUN_ID" app-store-build
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: app-store-build
           run-id: ${{ steps.candidate.outputs.run }}
@@ -73,7 +58,7 @@ jobs:
         run: |
           printf '%s  %s\n' "$IOS_SHA256" "release/$TAG/ios/xbond-ios-$TAG.ipa" | shasum -a 256 -c -
       - name: Upload the verified IPA to TestFlight
-        uses: Apple-Actions/upload-testflight-build@665328adbecbc3ad929d3da710696d928b8a7ba9 # v5
+        uses: Apple-Actions/upload-testflight-build@v5.9.0
         with:
           app-path: release/${{ inputs.tag }}/ios/xbond-ios-${{ inputs.tag }}.ipa
           app-type: ios

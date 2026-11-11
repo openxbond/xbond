@@ -1,9 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "build": {
-    "beforeDevCommand": "pnpm dev:desktop",
+    "beforeDevCommand": "pnpm exec vite --mode tauri",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeBuildCommand": "pnpm build:desktop",
+    "beforeBuildCommand": "pnpm exec vite build --mode tauri",
     "frontendDist": "../dist/desktop"
   },
   "app": {
