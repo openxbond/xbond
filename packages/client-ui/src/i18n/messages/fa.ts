@@ -87,6 +87,9 @@ const FA = {
     tunDeniedTitle: "مجوز TUN مورد نیاز است",
     tunDeniedDesc:
       "فعال‌سازی حالت TUN نیازمند مجوز مدیریت یا نصب سرویس پس‌زمینه است.",
+    vpnConsentTitle: "نیاز به مجوز VPN",
+    vpnConsentDesc:
+      "اتصال VPN را در پنجرهٔ سیستم تأیید کنید؛ پس از تأیید، اتصال به‌طور خودکار ادامه می‌یابد.",
     fallbackSysproxy: "بازگشت به حالت پروکسی سیستم",
     connectFailed: "اتصال ناموفق بود",
     quotaUnavailable: "سهمیه از این کنترلر در دسترس نیست",

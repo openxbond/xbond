@@ -85,6 +85,8 @@ const HK = {
     switchPortAndRetry: "切換為連接埠 7891 並重試",
     tunDeniedTitle: "TUN 虛擬網卡權限不足",
     tunDeniedDesc: "啟用虛擬網卡需要系統管理員權限或安裝後台服務。",
+    vpnConsentTitle: "需要 VPN 授權",
+    vpnConsentDesc: "請在系統彈窗中允許 VPN 連線，授權後連線會自動繼續。",
     fallbackSysproxy: "降級為系統代理模式",
     connectFailed: "連線失敗",
     quotaUnavailable: "此控制器不提供配額資料",

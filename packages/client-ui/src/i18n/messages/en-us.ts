@@ -88,6 +88,9 @@ const EN = {
     tunDeniedTitle: "TUN Privilege Required",
     tunDeniedDesc:
       "TUN virtual network adapter requires administrator privileges or installing the background helper service.",
+    vpnConsentTitle: "VPN authorization required",
+    vpnConsentDesc:
+      "Allow the VPN connection in the system prompt; connecting resumes automatically once granted.",
     fallbackSysproxy: "Fallback to System Proxy",
     connectFailed: "Connection Failed",
     quotaUnavailable: "Quota unavailable from this controller",

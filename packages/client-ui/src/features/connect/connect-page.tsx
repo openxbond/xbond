@@ -64,6 +64,7 @@ import { useAPIInfo, useClient, identityAtom } from "@/state/controller-target";
 import { useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
 
+import { classifyConnectError, type ConnectError } from "./connect-error";
 import { ExternalControllerOnboarding } from "./external-controller-onboarding";
 import { NodePicker } from "./node-picker";
 import { OnboardingGuide } from "./onboarding-guide";
@@ -248,10 +249,9 @@ export default function Connect() {
   const [changingService, setChangingService] = useState(false);
   const [privilegeDialogOpen, setPrivilegeDialogOpen] = useState(false);
   const connectButtonRef = useRef<HTMLButtonElement>(null);
-  const [connectError, setConnectError] = useState<{
-    kind: "port_conflict" | "tun_denied" | "generic";
-    message: string;
-  } | null>(null);
+  const [connectError, setConnectError] = useState<ConnectError | null>(null);
+  // 授权弹窗返回后的一次性自动重试（见 connectUp）。
+  const consentRetryRef = useRef<(() => void) | null>(null);
 
   // Sleep/wake recovery: re-synchronize when device wakes or network reconnects
   useEffect(() => {
@@ -266,11 +266,21 @@ export default function Connect() {
     };
   }, [refresh]);
 
-  const handleToggleConnection = async () => {
+  // Android 授权弹窗关闭、App 回到前景时直接续连一次，不用再手动按连接。
+  // 只重试一次：再次失败（弹窗被取消或拒绝）就停在带「重试」的错误框上。
+  function disarmConsentRetry() {
+    const retry = consentRetryRef.current;
+    if (retry) {
+      window.removeEventListener("visibilitychange", retry);
+      window.removeEventListener("focus", retry);
+      consentRetryRef.current = null;
+    }
+  }
+
+  function connectUp() {
+    disarmConsentRetry();
     setConnectError(null);
-    if (running) {
-      await run(() => down(), false);
-    } else {
+    void (async () => {
       let caught: unknown = null;
       const ok = await run(async () => {
         try {
@@ -286,23 +296,30 @@ export default function Connect() {
             ?.data?.error ||
           (caught as Error)?.message ||
           String(caught);
-        if (
-          /already in use|failed to bind|bind: |socket address/i.test(resMsg)
-        ) {
-          // Real bind failures only: a bare "port" in the message used to
-          // route unrelated errors into the switch-port dialog.
-          setConnectError({ kind: "port_conflict", message: resMsg });
-        } else if (
-          /TUN takeover unavailable|privilege|admin|permission/i.test(resMsg)
-        ) {
-          // Only the daemon's capability gate means "elevate and install";
-          // delegate runtime failures (config, device) carry "tun" in the
-          // message too but elevation cannot fix them.
-          setConnectError({ kind: "tun_denied", message: resMsg });
-        } else {
-          setConnectError({ kind: "generic", message: resMsg });
+        const error = classifyConnectError(resMsg);
+        setConnectError(error);
+        if (error.kind === "vpn_consent") {
+          const retry = () => {
+            // 授权弹窗盖上时 webview 先转隐藏：只在真正回到前景时重试。
+            if (document.visibilityState !== "visible") return;
+            disarmConsentRetry();
+            connectUp();
+          };
+          consentRetryRef.current = retry;
+          window.addEventListener("visibilitychange", retry);
+          window.addEventListener("focus", retry);
         }
       }
+    })();
+  }
+
+  const handleToggleConnection = () => {
+    if (running) {
+      disarmConsentRetry();
+      setConnectError(null);
+      void run(() => down(), false);
+    } else {
+      connectUp();
     }
   };
 
@@ -1531,7 +1548,10 @@ export default function Connect() {
       <AlertDialog
         open={connectError !== null}
         onOpenChange={(open) => {
-          if (!open) setConnectError(null);
+          if (!open) {
+            disarmConsentRetry();
+            setConnectError(null);
+          }
         }}
       >
         <AlertDialogContent
@@ -1546,18 +1566,27 @@ export default function Connect() {
                 ? t("portConflictTitle")
                 : connectError?.kind === "tun_denied"
                   ? t("tunDeniedTitle")
-                  : t("connectFailed")}
+                  : connectError?.kind === "vpn_consent"
+                    ? t("vpnConsentTitle")
+                    : t("connectFailed")}
             </AlertDialogTitle>
             <AlertDialogDescription className="[overflow-wrap:anywhere]">
               {connectError?.kind === "port_conflict"
                 ? t("portConflictDesc")
                 : connectError?.kind === "tun_denied"
                   ? t("tunDeniedDesc")
-                  : connectError?.message}
+                  : connectError?.kind === "vpn_consent"
+                    ? t("vpnConsentDesc")
+                    : connectError?.message}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-wrap">
             <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+            {connectError?.kind === "vpn_consent" && (
+              <AlertDialogAction onClick={() => connectUp()}>
+                {tc("retry")}
+              </AlertDialogAction>
+            )}
             {connectError?.kind === "port_conflict" && (
               <AlertDialogAction
                 onClick={() => void run(() => up({ port: 7891 }), false)}

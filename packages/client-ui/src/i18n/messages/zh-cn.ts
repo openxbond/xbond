@@ -85,6 +85,8 @@ const CN = {
     switchPortAndRetry: "切换为端口 7891 并重试",
     tunDeniedTitle: "TUN 虚拟网卡权限不足",
     tunDeniedDesc: "启用虚拟网卡需要系统管理员权限或安装后台服务。",
+    vpnConsentTitle: "需要 VPN 授权",
+    vpnConsentDesc: "请在系统弹窗中允许 VPN 连接，授权后连接会自动继续。",
     fallbackSysproxy: "降级为系统代理模式",
     connectFailed: "连接失败",
     quotaUnavailable: "此控制器不提供配额数据",

@@ -87,6 +87,9 @@ const KO = {
     tunDeniedTitle: "TUN 권한 필요",
     tunDeniedDesc:
       "TUN 가상 네트워크 어댑터는 관리자 권한 또는 백그라운드 서비스 설치가 필요합니다.",
+    vpnConsentTitle: "VPN 권한 필요",
+    vpnConsentDesc:
+      "시스템 대화상자에서 VPN 연결을 허용하세요. 승인되면 연결이 자동으로 계속됩니다.",
     fallbackSysproxy: "시스템 프록시 모드로 전환",
     connectFailed: "연결 실패",
     quotaUnavailable: "이 컨트롤러에서는 할당량을 제공하지 않습니다",
