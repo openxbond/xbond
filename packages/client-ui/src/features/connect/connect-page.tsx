@@ -228,7 +228,12 @@ export default function Connect() {
   const client = useClient();
   const { general, update } = useGeneral();
   const nodeSelection = useNodeSelection();
-  const { groups, global, isLoading: proxiesLoading } = useProxy();
+  const {
+    groups,
+    global,
+    isLoading: proxiesLoading,
+    update: updateProxies,
+  } = useProxy();
   const mapping = useProxyMapping();
   const {
     hasLocalAPI,
@@ -397,6 +402,28 @@ export default function Connect() {
   const running = hasLocalAPI && (status?.engine.running ?? false);
   const sub = hasLocalAPI ? (status?.activeSub ?? null) : null;
   const quota = subscriptionQuota(sub);
+
+  // 首頁掛載時核心尚未運行，/proxies 首拉必然失敗且 SWR 不會自行重試；
+  // 連接成功後補拉，直到節點鏈落到真實葉子——首個快照不僅可能整體缺失，
+  // URLTest 的首次健康檢查也要一兩分鐘才給出 now，鏈會停在半途的策略組。
+  // 5s×60 上限（約 5 分鐘）兜底，落定即停。
+  const hasProxyData = groups.length > 0 || global.all.length > 0;
+  const proxyChainSettled =
+    chain.length > 0 &&
+    !("all" in (mapping.get(chain[chain.length - 1]) ?? {}));
+  useEffect(() => {
+    if (!running || (hasProxyData && proxyChainSettled)) return;
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      if (attempts > 60) {
+        window.clearInterval(timer);
+        return;
+      }
+      void updateProxies();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [running, hasProxyData, proxyChainSettled, updateProxies]);
   const coreOpen = trafficState === "open" || Boolean(general.mode);
   const active = hasLocalAPI ? running : !isLocalTarget && coreOpen;
   const remote =
