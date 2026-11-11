@@ -38,13 +38,17 @@ class XbondPlugin: Plugin {
 
   override func load(webview: WKWebView) {
     super.load(webview: webview)
-    // wry 0.57 snapshots the parent frame once at webview creation and sets
-    // no autoresizing mask on iOS (macOS only), so a frame captured before
-    // the final layout pass leaves the webview shorter than the screen by
-    // the safe-area height forever: fixed-position UI hangs above the
-    // bottom and env(safe-area-inset-bottom) misreports. Align to the
-    // window once it is attached and let autoresizing follow later changes
-    // (rotation, scene transitions).
+    // wry leaves the scroll view's contentInsetAdjustmentBehavior at the
+    // .automatic default, so iOS subtracts the safe areas (59 top + 34
+    // bottom) from the page's layout viewport even though the page asks for
+    // viewport-fit=cover: window.innerHeight loses 93pt, fixed-position UI
+    // hangs above the bottom edge, and the safe-area strips paint white.
+    // The page owns the insets (env() reads them correctly), so drop the
+    // automatic adjustment entirely.
+    webview.scrollView.contentInsetAdjustmentBehavior = .never
+    // wry snapshots the parent frame once at webview creation, which can run
+    // before the final layout pass. Align to the window once attached and
+    // let autoresizing follow later changes (rotation, scene transitions).
     webview.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     alignWebviewToWindow(webview, attempts: 10)
     NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, _ in

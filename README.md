@@ -20,7 +20,7 @@ XBond 是一款跨平台網絡代理用戶端：匯入連線配置、建立連�
 
 | 平台 | 形態 |
 | --- | --- |
-| Windows · macOS · Linux | 桌面應用（amd64 / arm64），內含本機服務與 Web 管理介面 |
+| Windows（10+）· macOS · Linux | 桌面應用（amd64 / arm64），內含本機服務與 Web 管理介面 |
 | Android | APK 安裝包，以 VPN 方式接管流量 |
 | iOS | TestFlight |
 | 命令列 | `xbond` 獨立二進位 |

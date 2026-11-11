@@ -44,7 +44,7 @@ git push origin "refs/tags/$ReleaseTag"
 
 | 平台 | 安裝與驗收 |
 | --- | --- |
-| CLI、桌面 | Windows、macOS、Linux 各驗證 amd64 和 arm64 安裝包或獨立二進位。核對 `xbond version --json`，驗證桌面與隨附 daemon 啟動，並在受控環境測試覆蓋安裝、升級及服務失敗恢復。 |
+| CLI、桌面 | Windows（10+）、macOS、Linux 各驗證 amd64 和 arm64 安裝包或獨立二進位。核對 `xbond version --json`，驗證桌面與隨附 daemon 啟動，並在受控環境測試覆蓋安裝、升級及服務失敗恢復。 |
 | Android | 安裝簽名 APK，核對版本並驗證 VPN。用同簽名的舊版測試覆蓋安裝和資料保留。 |
 | iOS | 從 `main` 執行 **Submit XBond to TestFlight**，填同一 Tag。工作流上傳已校驗的 IPA。在 App Store Connect 把該 build 加入 TestFlight 內部測試群組，實機安裝並驗證隧道、斷線和重連。 |
 | Dashboard、Docker | 解壓 `dashboard.zip` 驗證頁面。用候選 OCI 鏡像驗證 Linux amd64 和 arm64，重建容器後確認 `/data` 持續可讀。 |

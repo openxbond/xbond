@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import { Search, Smartphone } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -56,7 +56,7 @@ function PerAppVpnPanel() {
   const [apps, setApps] = useState<InstalledApp[] | null>(null);
   const [query, setQuery] = useState("");
   const [showSystem, setShowSystem] = useState(false);
-  const [saveTimer, setSaveTimer] = useState<number | null>(null);
+  const saveTimerRef = useRef<number | null>(null);
 
   // 面板打開時掛載：橋接配置異步讀入，到達前保持「全部應用」初值。
   useEffect(() => {
@@ -74,10 +74,13 @@ function PerAppVpnPanel() {
     };
   }, []);
 
-  // 勾選即存：防抖 800ms 合併連續點擊，一次寫盤一次隧道重建。
+  // 勾選即存：防抖 800ms 合併連續點擊，一次寫盤一次隧道重建。定時器放
+  // ref——存 state 會在連續點擊時讀到過期閉包，清不掉上一個定時器。
   function persist(nextMode: SplitTunnelMode, nextPackages: Set<string>) {
-    if (saveTimer !== null) window.clearTimeout(saveTimer);
-    const timer = window.setTimeout(() => {
+    if (saveTimerRef.current !== null)
+      window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
       void setSplitTunnelConfig({
         mode: nextMode,
         packages: [...nextPackages],
@@ -85,17 +88,16 @@ function PerAppVpnPanel() {
         if (!ok) toast.error(t("perAppVpn.saveFailed"), { duration: 6000 });
       });
     }, 800);
-    setSaveTimer(timer);
   }
 
   function togglePackage(pkg: string) {
-    setPackages((previous) => {
-      const next = new Set(previous);
-      if (next.has(pkg)) next.delete(pkg);
-      else next.add(pkg);
-      persist(mode, next);
-      return next;
-    });
+    // next 在事件處理器裡算好，persist 移出 updater：updater 必須是純函數，
+    // StrictMode（dev）與並發渲染都可能二次調用它，副作用會翻倍寫盤重建。
+    const next = new Set(packages);
+    if (next.has(pkg)) next.delete(pkg);
+    else next.add(pkg);
+    setPackages(next);
+    persist(mode, next);
   }
 
   function switchMode(nextMode: SplitTunnelMode) {
