@@ -115,6 +115,7 @@ const CN = {
     routingStrategy: "分流策略",
     strategyGroups: "策略组",
     allStrategies: "全部策略",
+    viewProxies: "查看代理",
     latencyDistribution: "延迟分布",
     latencyGood: "良好",
     latencyMedium: "中等",
@@ -168,11 +169,6 @@ const CN = {
     portOnly: "仅端口",
     portListeningHint: "混合代理端口常驻监听 ({{port}})",
     currentConfig: "当前配置",
-    greeting: {
-      morning: "早上好 👋",
-      afternoon: "下午好 👋",
-      evening: "晚上好 👋",
-    },
     window: {
       live: "实时",
       m1: "1 分钟",

@@ -115,6 +115,7 @@ const HK = {
     routingStrategy: "分流策略",
     strategyGroups: "策略組",
     allStrategies: "全部策略",
+    viewProxies: "查看代理",
     latencyDistribution: "延遲分布",
     latencyGood: "良好",
     latencyMedium: "中等",
@@ -168,11 +169,6 @@ const HK = {
     portOnly: "僅端口",
     portListeningHint: "混合代理端口常駐監聽 ({{port}})",
     currentConfig: "當前配置",
-    greeting: {
-      morning: "早晨 👋",
-      afternoon: "下午好 👋",
-      evening: "晚上好 👋",
-    },
     window: {
       live: "實時",
       m1: "1 分鐘",

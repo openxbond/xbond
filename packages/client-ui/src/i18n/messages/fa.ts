@@ -120,6 +120,7 @@ const FA = {
     routingStrategy: "استراتژی مسیریابی",
     strategyGroups: "گروه‌های استراتژی",
     allStrategies: "همه استراتژی‌ها",
+    viewProxies: "مشاهده پروکسی‌ها",
     latencyDistribution: "توزیع تأخیر",
     latencyGood: "خوب",
     latencyMedium: "متوسط",
@@ -175,11 +176,6 @@ const FA = {
     portOnly: "فقط پورت",
     portListeningHint: "پورت پروکسی ترکیبی در حال شنود ({{port}})",
     currentConfig: "پیکربندی فعلی",
-    greeting: {
-      morning: "صبح بخیر 👋",
-      afternoon: "ظهر بخیر 👋",
-      evening: "شب بخیر 👋",
-    },
     window: {
       live: "زنده",
       m1: "۱ دقیقه",

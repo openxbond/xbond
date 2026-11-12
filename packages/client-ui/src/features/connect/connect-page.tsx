@@ -554,15 +554,6 @@ export default function Connect() {
     : remote
       ? remoteName || remote.url
       : controller.hostname || t("currentConfig");
-  // 問候語是裝飾：掛載時取一次時段即可，不在每次渲染重算（純渲染約束）。
-  const [greeting] = useState(() => {
-    const hour = new Date().getHours();
-    return hour < 12
-      ? t("greeting.morning")
-      : hour < 18
-        ? t("greeting.afternoon")
-        : t("greeting.evening");
-  });
   const trafficWindowOptions: { value: TrafficWindow; label: string }[] = [
     { value: "live", label: t("window.live") },
     { value: "m1", label: t("window.m1") },
@@ -583,7 +574,8 @@ export default function Connect() {
       ? t("coreReachable")
       : r(trafficState);
   const connectionAction = running ? t("disconnect") : t("connect");
-  // 運行時的副行交代接管方式；未運行交代下一步，遠端交代管理歸屬。
+  // 運行時的副行交代接管方式；未運行交代下一步。遠端形態不渲染此行
+  // （管理歸屬已由身份行與事實線交代）。
   const stateNote = hasLocalAPI
     ? running
       ? isSysproxy && isTun
@@ -596,7 +588,7 @@ export default function Connect() {
       : sub
         ? t("readyToConnect")
         : t("noConfig")
-    : t("remoteNote");
+    : "";
 
   const coreReachable = hasLocalAPI
     ? egress?.coreReachable === true
@@ -666,11 +658,6 @@ export default function Connect() {
       ),
     }),
   );
-  // 策略卡內的路由模式行用緊湊單行分段；移動端頂部仍用上圖下字雙行形態。
-  const modeOptions = (["rule", "global", "direct"] as const).map((mode) => ({
-    value: mode,
-    label: tc(`routingMode.${mode}`),
-  }));
   const routingValue = routingOptions.find(
     (option) => option.value === currentMode,
   )?.value;
@@ -730,12 +717,6 @@ export default function Connect() {
             {isMobile ? (
               <div className="relative flex min-w-0 flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <p
-                    aria-hidden="true"
-                    className="home-greeting text-body font-medium text-muted-foreground"
-                  >
-                    {greeting}
-                  </p>
                   {/* 移動端配置藥丸：取代底部/二級卡片重複資訊 */}
                   <Link
                     to="/config"
@@ -777,16 +758,18 @@ export default function Connect() {
                     )}
                   </h1>
 
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {stateNote}
-                    {currentSnapshot?.connections && (
-                      <span className="font-mono">
-                        {" "}
-                        · {currentSnapshot.connections.length}{" "}
-                        {t("activeConnections")}
-                      </span>
-                    )}
-                  </p>
+                  {hasLocalAPI && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {stateNote}
+                      {currentSnapshot?.connections && (
+                        <span className="font-mono">
+                          {" "}
+                          · {currentSnapshot.connections.length}{" "}
+                          {t("activeConnections")}
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
 
                 {hasLocalAPI && (
@@ -816,12 +799,6 @@ export default function Connect() {
             ) : (
               <div className="relative flex min-w-0 flex-col gap-3">
                 <div className="flex min-w-0 flex-col gap-1">
-                  <p
-                    aria-hidden="true"
-                    className="home-greeting text-body font-medium text-muted-foreground"
-                  >
-                    {greeting}
-                  </p>
                   <h1 className="flex flex-wrap items-center gap-x-3 text-headline leading-tight font-bold tracking-tight text-foreground 2xl:text-display">
                     {remote && (
                       <span
@@ -866,11 +843,13 @@ export default function Connect() {
                       </span>
                     </div>
                   )}
-                  <p className="max-w-[52ch] text-sm text-muted-foreground xl:text-body">
-                    {stateNote}
-                  </p>
+                  {hasLocalAPI && (
+                    <p className="max-w-[52ch] text-sm text-muted-foreground xl:text-body">
+                      {stateNote}
+                    </p>
+                  )}
                 </div>
-                {hasLocalAPI && (
+                {hasLocalAPI ? (
                   <div className="flex flex-wrap items-center gap-3 pt-0.5">
                     <Button
                       type="button"
@@ -892,6 +871,22 @@ export default function Connect() {
                       {connectionAction}
                     </Button>
                   </div>
+                ) : (
+                  // 遠端形態沒有連線操作，主操作讓給代理頁入口（與連接按鈕同一形制）。
+                  remote && (
+                    <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                      <Button
+                        asChild
+                        variant="brand"
+                        className="h-10 w-full gap-2 px-5 text-sm font-semibold max-md:min-h-11 sm:w-auto sm:min-w-36 xl:h-12 xl:min-w-40 xl:text-body"
+                      >
+                        <Link to="/proxies">
+                          <Globe aria-hidden="true" className="size-4" />
+                          {t("viewProxies")}
+                        </Link>
+                      </Button>
+                    </div>
+                  )
                 )}
                 {/* 開場帶底部事實線：身份、三層狀態與管理入口落在一條畫布細線上，
                     取代獨立狀態條卡——少一層薄卡，開場更完整。移動端仍走頂部藥丸。 */}
@@ -1154,24 +1149,6 @@ export default function Connect() {
                 </Link>
               </div>
 
-              {/* 路由模式：引擎级走向（规则/全局/直连）。移动端已在顶部提供分段，
-                    桌面端把它与策略组、节点收进同一张路由控制卡。 */}
-              {!isMobile && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                    {t("prefs")}
-                  </span>
-                  <SegmentedControl
-                    ariaLabel={tc("routingMode.title")}
-                    options={modeOptions}
-                    value={routingValue ?? null}
-                    disabled={pending}
-                    size="sm"
-                    onChange={(mode) => void switchRouting(mode)}
-                  />
-                </div>
-              )}
-
               {/* 策略组切换器：独占一行 */}
               <div className="flex items-center justify-between gap-2">
                 <label
@@ -1407,165 +1384,208 @@ export default function Connect() {
             </section>
           </div>
 
-          {/* 第四行：本機 daemon 形態的流量接管卡（路由模式已收進策略卡）；
+          {/* 第四行：路由模式與流量接管一行（遠端形態只有路由模式卡，佔半寬）；
               移動端已在頂部提供分流模式。 */}
-          {!isMobile && hasLocalAPI && (
-            <section
-              className="bento relative z-10 flex min-w-0 shrink-0 flex-col justify-between gap-2 p-3 lg:flex-row lg:flex-wrap lg:items-center xl:gap-3 xl:p-4"
-              aria-label={t("takeoverMode")}
-            >
-              {/* 左欄身份與接管說明 */}
-              <div className="flex min-w-0 items-center gap-2.5 lg:shrink-0">
-                <span
-                  aria-hidden="true"
-                  className="grid size-9 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground lg:hidden"
-                >
-                  <Layers className="size-4.5" strokeWidth={1.75} />
-                </span>
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-foreground">
-                    {t("takeoverMode")}
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    {t("takeoverDesc")}
-                  </p>
-                </div>
-              </div>
-              <div className="grid min-w-0 grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:items-center sm:divide-x sm:divide-y-0 lg:min-w-64 lg:flex-1 lg:grid-cols-[calc(50%+1rem)_minmax(0,1fr)] lg:ps-3">
-                {/* System Proxy */}
-                <div className="flex min-w-0 items-center justify-between gap-2 py-2 sm:pe-2.5 sm:py-0 lg:justify-end">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Network
-                      aria-hidden="true"
-                      className="size-4 shrink-0 text-muted-foreground lg:hidden"
+          {!isMobile && (
+            <div className="relative z-10 grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] xl:gap-4">
+              <section
+                className="bento flex min-w-0 flex-col justify-between gap-2 p-3 lg:flex-row lg:flex-wrap lg:items-center xl:gap-3 xl:p-4"
+                aria-label={t("prefs")}
+              >
+                {/* 左欄身份：圖示 + 標題 + 描述，右欄留給路由模式上圖下字分段塊。 */}
+                <div className="flex min-w-0 items-center gap-2.5 lg:shrink-0">
+                  <span
+                    aria-hidden="true"
+                    className="grid size-9 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground lg:hidden"
+                  >
+                    <SlidersHorizontal
+                      className="size-4.5"
+                      strokeWidth={1.75}
                     />
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <strong className="text-sm leading-tight font-semibold text-foreground lg:whitespace-nowrap">
-                        {t("sysproxy")}
-                      </strong>
-                      <span className="text-xs leading-4 text-muted-foreground lg:hidden">
-                        {st("takeover.sysproxyDesc")}
-                      </span>
-                    </div>
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-semibold text-foreground lg:whitespace-nowrap">
+                      {t("prefs")}
+                    </h2>
+                    <p className="text-xs text-muted-foreground lg:whitespace-nowrap">
+                      {t("prefsDesc")}
+                    </p>
                   </div>
-                  <Switch
-                    checked={isSysproxy}
+                </div>
+                <div className="flex min-w-0 shrink-0 flex-col">
+                  <SegmentedControl
+                    ariaLabel={tc("routingMode.title")}
+                    options={routingOptions}
+                    value={routingValue ?? null}
                     disabled={pending}
-                    onCheckedChange={(checked: boolean) =>
-                      void run(() => setMode({ systemProxy: checked }), false)
-                    }
-                    aria-label={t("sysproxy")}
+                    className="grid w-full grid-cols-3 lg:w-auto"
+                    onChange={(mode) => void switchRouting(mode)}
                   />
                 </div>
+              </section>
 
-                {/* Virtual NIC (TUN) */}
-                <div className="flex min-w-0 items-center justify-between gap-2 py-2 sm:ps-2.5 sm:py-0 lg:justify-end">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Shield
+              {hasLocalAPI && (
+                <section
+                  className="bento flex min-w-0 flex-col justify-between gap-2 p-3 lg:flex-row lg:flex-wrap lg:items-center xl:gap-3 xl:p-4"
+                  aria-label={t("takeoverMode")}
+                >
+                  {/* 左欄身份與接管說明 */}
+                  <div className="flex min-w-0 items-center gap-2.5 lg:shrink-0">
+                    <span
                       aria-hidden="true"
-                      className="size-4 shrink-0 text-muted-foreground lg:hidden"
-                    />
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <div className="flex items-center gap-1">
-                        <strong className="text-sm leading-tight font-semibold text-foreground lg:whitespace-nowrap">
-                          {t("tun")}
-                        </strong>
-                        <HoverCard openDelay={150} closeDelay={200}>
-                          <HoverCardTrigger asChild>
-                            <button
-                              type="button"
-                              className={cn(
-                                "inline-flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                                isServiceInstalled
-                                  ? "text-muted-foreground/60 hover:text-foreground"
-                                  : "text-warning-text hover:text-foreground",
-                              )}
-                              aria-label={
-                                isServiceInstalled
-                                  ? st("takeover.serviceInstalled")
-                                  : st("takeover.tunPrivilegeHint")
-                              }
-                            >
-                              <AlertCircle className="size-3.5" />
-                            </button>
-                          </HoverCardTrigger>
-                          <HoverCardContent
-                            align="start"
-                            side="top"
-                            className="flex flex-col gap-2.5 w-68 p-3 text-xs"
-                          >
-                            <div className="flex flex-col gap-1">
-                              <div className="flex items-center gap-1.5 font-medium text-foreground">
-                                <AlertCircle
-                                  className={cn(
-                                    "size-3.5 shrink-0",
-                                    isServiceInstalled
-                                      ? "text-success-text"
-                                      : "text-warning-text",
-                                  )}
-                                />
-                                <span>
-                                  {isServiceInstalled
-                                    ? st("takeover.serviceInstalled")
-                                    : st("takeover.tunPrivilegeRequired")}
-                                </span>
-                              </div>
-                              <p className="text-muted-foreground leading-relaxed text-xs">
-                                {isServiceInstalled
-                                  ? st("takeover.serviceInstalledDesc")
-                                  : status?.capabilities?.tunReasonCode
-                                    ? st(
-                                        `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
-                                      )
-                                    : st("takeover.tunPrivilegeHint")}
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant={
-                                isServiceInstalled ? "outline" : "default"
-                              }
-                              disabled={changingService}
-                              className={cn(
-                                "h-7 w-full text-xs font-medium cursor-pointer",
-                                !isServiceInstalled &&
-                                  "bg-brand-action text-brand-action-foreground hover:bg-brand-action-hover",
-                              )}
-                              onClick={() =>
-                                isServiceInstalled
-                                  ? void handleChangeService(false)
-                                  : setPrivilegeDialogOpen(true)
-                              }
-                            >
-                              {changingService
-                                ? st("takeover.installingService")
-                                : isServiceInstalled
-                                  ? st("takeover.uninstallService")
-                                  : st("takeover.installService")}
-                            </Button>
-                          </HoverCardContent>
-                        </HoverCard>
-                      </div>
-                      <span className="text-xs leading-4 text-muted-foreground lg:hidden">
-                        {st("takeover.tunDesc")}
-                      </span>
+                      className="grid size-9 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground lg:hidden"
+                    >
+                      <Layers className="size-4.5" strokeWidth={1.75} />
+                    </span>
+                    <div className="min-w-0">
+                      <h2 className="text-base font-semibold text-foreground">
+                        {t("takeoverMode")}
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        {t("takeoverDesc")}
+                      </p>
                     </div>
                   </div>
-                  <Switch
-                    checked={isTun}
-                    disabled={pending || changingService}
-                    onCheckedChange={(checked: boolean) => {
-                      if (checked && !isTunCapable) {
-                        setPrivilegeDialogOpen(true);
-                        return;
-                      }
-                      void run(() => setMode({ tun: checked }), false);
-                    }}
-                    aria-label={t("tun")}
-                  />
-                </div>
-              </div>
-            </section>
+                  <div className="grid min-w-0 grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:items-center sm:divide-x sm:divide-y-0 lg:min-w-64 lg:flex-1 lg:grid-cols-[calc(50%+1rem)_minmax(0,1fr)] lg:ps-3">
+                    {/* System Proxy */}
+                    <div className="flex min-w-0 items-center justify-between gap-2 py-2 sm:pe-2.5 sm:py-0 lg:justify-end">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Network
+                          aria-hidden="true"
+                          className="size-4 shrink-0 text-muted-foreground lg:hidden"
+                        />
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <strong className="text-sm leading-tight font-semibold text-foreground lg:whitespace-nowrap">
+                            {t("sysproxy")}
+                          </strong>
+                          <span className="text-xs leading-4 text-muted-foreground lg:hidden">
+                            {st("takeover.sysproxyDesc")}
+                          </span>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={isSysproxy}
+                        disabled={pending}
+                        onCheckedChange={(checked: boolean) =>
+                          void run(
+                            () => setMode({ systemProxy: checked }),
+                            false,
+                          )
+                        }
+                        aria-label={t("sysproxy")}
+                      />
+                    </div>
+
+                    {/* Virtual NIC (TUN) */}
+                    <div className="flex min-w-0 items-center justify-between gap-2 py-2 sm:ps-2.5 sm:py-0 lg:justify-end">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Shield
+                          aria-hidden="true"
+                          className="size-4 shrink-0 text-muted-foreground lg:hidden"
+                        />
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <div className="flex items-center gap-1">
+                            <strong className="text-sm leading-tight font-semibold text-foreground lg:whitespace-nowrap">
+                              {t("tun")}
+                            </strong>
+                            <HoverCard openDelay={150} closeDelay={200}>
+                              <HoverCardTrigger asChild>
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    "inline-flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                    isServiceInstalled
+                                      ? "text-muted-foreground/60 hover:text-foreground"
+                                      : "text-warning-text hover:text-foreground",
+                                  )}
+                                  aria-label={
+                                    isServiceInstalled
+                                      ? st("takeover.serviceInstalled")
+                                      : st("takeover.tunPrivilegeHint")
+                                  }
+                                >
+                                  <AlertCircle className="size-3.5" />
+                                </button>
+                              </HoverCardTrigger>
+                              <HoverCardContent
+                                align="start"
+                                side="top"
+                                className="flex flex-col gap-2.5 w-68 p-3 text-xs"
+                              >
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-1.5 font-medium text-foreground">
+                                    <AlertCircle
+                                      className={cn(
+                                        "size-3.5 shrink-0",
+                                        isServiceInstalled
+                                          ? "text-success-text"
+                                          : "text-warning-text",
+                                      )}
+                                    />
+                                    <span>
+                                      {isServiceInstalled
+                                        ? st("takeover.serviceInstalled")
+                                        : st("takeover.tunPrivilegeRequired")}
+                                    </span>
+                                  </div>
+                                  <p className="text-muted-foreground leading-relaxed text-xs">
+                                    {isServiceInstalled
+                                      ? st("takeover.serviceInstalledDesc")
+                                      : status?.capabilities?.tunReasonCode
+                                        ? st(
+                                            `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                                          )
+                                        : st("takeover.tunPrivilegeHint")}
+                                  </p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant={
+                                    isServiceInstalled ? "outline" : "default"
+                                  }
+                                  disabled={changingService}
+                                  className={cn(
+                                    "h-7 w-full text-xs font-medium cursor-pointer",
+                                    !isServiceInstalled &&
+                                      "bg-brand-action text-brand-action-foreground hover:bg-brand-action-hover",
+                                  )}
+                                  onClick={() =>
+                                    isServiceInstalled
+                                      ? void handleChangeService(false)
+                                      : setPrivilegeDialogOpen(true)
+                                  }
+                                >
+                                  {changingService
+                                    ? st("takeover.installingService")
+                                    : isServiceInstalled
+                                      ? st("takeover.uninstallService")
+                                      : st("takeover.installService")}
+                                </Button>
+                              </HoverCardContent>
+                            </HoverCard>
+                          </div>
+                          <span className="text-xs leading-4 text-muted-foreground lg:hidden">
+                            {st("takeover.tunDesc")}
+                          </span>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={isTun}
+                        disabled={pending || changingService}
+                        onCheckedChange={(checked: boolean) => {
+                          if (checked && !isTunCapable) {
+                            setPrivilegeDialogOpen(true);
+                            return;
+                          }
+                          void run(() => setMode({ tun: checked }), false);
+                        }}
+                        aria-label={t("tun")}
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
+            </div>
           )}
         </div>
       )}

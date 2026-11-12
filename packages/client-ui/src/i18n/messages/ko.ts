@@ -119,6 +119,7 @@ const KO = {
     routingStrategy: "라우팅 전략",
     strategyGroups: "전략 그룹",
     allStrategies: "전체 전략",
+    viewProxies: "프록시 보기",
     latencyDistribution: "지연 분포",
     latencyGood: "양호",
     latencyMedium: "보통",
@@ -174,11 +175,6 @@ const KO = {
     portOnly: "포트만",
     portListeningHint: "혼합 프록시 포트 상시 수신 ({{port}})",
     currentConfig: "현재 구성",
-    greeting: {
-      morning: "좋은 아침이에요 👋",
-      afternoon: "좋은 오후예요 👋",
-      evening: "좋은 저녁이에요 👋",
-    },
     window: {
       live: "실시간",
       m1: "1분",
