@@ -91,10 +91,40 @@ func validateMachineWindowsPath(path, acl string, directory bool) error {
 	if err != nil {
 		return err
 	}
-	if actual.String() == "" || actual.String() != want.String() {
+	if actual.String() == "" ||
+		stripAutoInheritControls(actual.String()) != stripAutoInheritControls(want.String()) {
 		return fmt.Errorf("unexpected ownership or access rules for machine path: %s", path)
 	}
 	return nil
+}
+
+// stripAutoInheritControls removes the auto-inherit control flags (AI, AR)
+// from the DACL and SACL flag sections of an SDDL string. Windows marks a
+// descriptor auto-inherited when the ACL arrived through the inheritance
+// engine and keeps that control bit when SetNamedSecurityInfo rewrites the
+// ACL protected; the flag carries no security meaning for descriptors we
+// provision explicitly, and comparing it makes every staged file mismatch.
+func stripAutoInheritControls(sddl string) string {
+	var b strings.Builder
+	for i := 0; i < len(sddl); {
+		c := sddl[i]
+		if (c == 'D' || c == 'S') && i+1 < len(sddl) && sddl[i+1] == ':' {
+			b.WriteString(sddl[i : i+2])
+			i += 2
+			for i < len(sddl) && sddl[i] != '(' {
+				if sddl[i] == 'A' && i+1 < len(sddl) && (sddl[i+1] == 'I' || sddl[i+1] == 'R') {
+					i += 2
+					continue
+				}
+				b.WriteByte(sddl[i])
+				i++
+			}
+			continue
+		}
+		b.WriteByte(c)
+		i++
+	}
+	return b.String()
 }
 
 func protectMachineCandidate(path string) error {

@@ -46,3 +46,21 @@ func TestBackgroundCommandHidesConsole(t *testing.T) {
 		}
 	}
 }
+
+// Windows keeps SE_*_AUTO_INHERITED on staged files even after a protected
+// rewrite, so the machine-file validation must compare without it.
+func TestStripAutoInheritControls(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"O:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FRFX;;;BU)", "O:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FRFX;;;BU)"},
+		{"O:BAD:PAI(A;;FA;;;SY)", "O:BAD:P(A;;FA;;;SY)"},
+		{"O:BAD:PAR(A;;FA;;;SY)", "O:BAD:P(A;;FA;;;SY)"},
+		{"O:BAD:PAI", "O:BAD:P"},
+		{"O:BAD:P", "O:BAD:P"},
+		{"O:BAD:PAIS:SAI", "O:BAD:PS:S"},
+		{"O:BAG:S-1-5-32-544D:P(A;OICI;FA;;;SY)", "O:BAG:S-1-5-32-544D:P(A;OICI;FA;;;SY)"},
+	} {
+		if got := stripAutoInheritControls(tc.in); got != tc.want {
+			t.Errorf("stripAutoInheritControls(%q): got %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}

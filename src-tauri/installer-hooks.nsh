@@ -1,15 +1,35 @@
 ; XBond installer hooks (wired via bundle.windows.nsis.installerHooks).
-;
+
+; This include is evaluated before Tauri declares the MUI2 pages.
+!define MUI_BGCOLOR "FBFBFE"
+!define MUI_TEXTCOLOR "101622"
+!define MUI_HEADERIMAGE_RIGHT
+!define MUI_CUSTOMFUNCTION_GUIINIT XBondStyleInstaller
+!define MUI_LANGDLL_WINDOWTITLE "XBond"
+
+; Tauri loads the MUI language files after this include.
+!define XBOND_LANG_ENGLISH 1033
+!define XBOND_LANG_SIMPCHINESE 2052
+!define XBOND_LANG_TRADCHINESE 1028
+!define XBOND_LANG_KOREAN 1042
+!define XBOND_LANG_FARSI 1065
+
+!include "${__FILEDIR__}\installer-welcome.nsh"
+
+Function XBondStyleInstaller
+  SetCtlColors $mui.Header.SubText "525B6C" "${MUI_BGCOLOR}"
+FunctionEnd
+
 ; Windows 10 is the documented minimum: the Evergreen WebView2 installer and
 ; the Tauri 2.12 stack no longer run on Windows 7/8.1. CurrentMajorVersionNumber
 ; only exists on Windows 10 / Server 2016 and newer; older systems read an
 ; empty string and are rejected before any file is copied.
 
-LangString XBondRequiresWin10 ${LANG_ENGLISH} "XBond requires Windows 10 or later."
-LangString XBondRequiresWin10 ${LANG_SIMPCHINESE} "XBond 需要 Windows 10 或更高版本。"
-LangString XBondRequiresWin10 ${LANG_TRADCHINESE} "XBond 需要 Windows 10 或更新版本。"
-LangString XBondRequiresWin10 ${LANG_KOREAN} "XBond에는 Windows 10 이상이 필요합니다."
-LangString XBondRequiresWin10 ${LANG_FARSI} "XBond به Windows 10 یا جدیدتر نیاز دارد."
+LangString XBondRequiresWin10 ${XBOND_LANG_ENGLISH} "XBond requires Windows 10 or later."
+LangString XBondRequiresWin10 ${XBOND_LANG_SIMPCHINESE} "XBond 需要 Windows 10 或更高版本。"
+LangString XBondRequiresWin10 ${XBOND_LANG_TRADCHINESE} "XBond 需要 Windows 10 或更新版本。"
+LangString XBondRequiresWin10 ${XBOND_LANG_KOREAN} "XBond에는 Windows 10 이상이 필요합니다."
+LangString XBondRequiresWin10 ${XBOND_LANG_FARSI} "XBond به Windows 10 یا جدیدتر نیاز دارد."
 
 !macro NSIS_HOOK_PREINSTALL
   Push $R0

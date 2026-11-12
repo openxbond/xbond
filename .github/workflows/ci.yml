@@ -51,3 +51,9 @@ jobs:
           go: "true"
           install: "false"
       - run: pnpm cli:check
+      # Windows-tagged sources never compile under the Linux vet above; this
+      # is what let the SDDL machine-install bug reach a release candidate.
+      - name: Vet Windows sources
+        env:
+          GOOS: windows
+        run: node scripts/dev/go.ts vet

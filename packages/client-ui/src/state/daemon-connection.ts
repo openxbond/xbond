@@ -21,6 +21,7 @@ const daemonConfigReadyAtom = atom<boolean>(
 const daemonStatusAtom = atom<LocalAPIStatusResponse | null>(null);
 
 let globalLastReresolveAt = 0;
+const STATUS_POLL_MS = 4_000;
 
 /**
  * Connection core for the daemon that owns this window: config resolution
@@ -81,8 +82,11 @@ export function useDaemonConnection() {
       return res;
     },
     {
-      refreshInterval: 4000,
-      shouldRetryOnError: false,
+      refreshInterval: STATUS_POLL_MS,
+      // SWR pauses interval revalidation while the cache has an error.
+      onErrorRetry: (_error, _key, _config, retry, options) => {
+        setTimeout(() => retry(options), STATUS_POLL_MS);
+      },
       fallbackData: cachedStatus ?? undefined,
     },
   );

@@ -52,8 +52,25 @@ export function useLocalAPI() {
 
   const down = useCallback(async () => {
     if (!daemonClient) throw new Error("LocalAPI not available");
-    const res = await daemonClient.down();
-    await mutateStatus();
+    const res = await daemonClient.down().catch((error: unknown) => {
+      if (!(error instanceof TypeError)) throw error;
+      return error;
+    });
+
+    // Restoring the system proxy can interrupt the response. Read the
+    // daemon's current state without sending a second stop request.
+    for (const delay of [0, 300]) {
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      const status = await mutateStatus(
+        () => daemonClient.getStatus(),
+        false,
+      ).catch(() => undefined);
+      if (status && !(res instanceof TypeError)) return res;
+      if (status?.engine.running === false) return { ok: true };
+    }
+
+    void mutateStatus().catch(() => undefined);
+    if (res instanceof TypeError) throw res;
     return res;
   }, [daemonClient, mutateStatus]);
 
