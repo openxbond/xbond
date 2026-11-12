@@ -708,7 +708,9 @@ export default function Connect() {
         <ExternalControllerOnboarding className="my-auto animate-in fade-in-50 slide-in-from-bottom-2 py-6 duration-300" />
       ) : (
         <div className="relative mx-auto flex w-full min-w-0 flex-1 flex-col gap-3 xl:gap-4">
-          <AuroraWave className="home-wave -top-4 -end-[var(--page-pad)] h-64 w-[62%] opacity-80 xl:-top-8 xl:h-80" />
+          {/* 波浪外扩过 page 右 padding（抵消 shell 12px + 滚动条），贴住视口可视右缘，
+              不在右上角留出画布空带；超界部分由 main 溢出裁切。 */}
+          <AuroraWave className="home-wave -top-4 -end-[calc(var(--page-pad)+2.5rem)] h-64 w-[62%] opacity-80 xl:-top-8 xl:h-80" />
           {/* 開放式 Hero：狀態直接落在畫布上，品牌波形裝飾在右後方。 */}
           <section
             className="relative z-20 flex min-w-0 shrink-0 flex-col justify-center gap-3 px-1 pb-1 lg:px-2 2xl:pb-6"
