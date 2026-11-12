@@ -1003,7 +1003,8 @@ export default function Connect() {
             </section>
           )}
 
-          <div className="relative z-10 grid grid-cols-1 gap-3 lg:max-h-[40rem] lg:flex-1 lg:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] xl:gap-4">
+          {/* 下半内容区限宽居中：卡片密度区不随视口无限拉伸，开场带仍满幅。 */}
+          <div className="relative z-10 mx-auto grid w-full max-w-[90rem] grid-cols-1 gap-3 lg:max-h-[36rem] lg:flex-1 lg:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] xl:gap-4">
             <section
               className="bento flex min-w-0 flex-col justify-between gap-3 p-3.5 xl:gap-4 xl:p-5 max-lg:order-2"
               aria-label={t("trafficStats")}
@@ -1390,7 +1391,7 @@ export default function Connect() {
           {/* 第四行：路由模式與流量接管一行（遠端形態只有路由模式卡，佔半寬）；
               移動端已在頂部提供分流模式。 */}
           {!isMobile && (
-            <div className="relative z-10 grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] xl:gap-4">
+            <div className="relative z-10 mx-auto grid w-full max-w-[90rem] shrink-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] xl:gap-4">
               <section
                 className="bento flex min-w-0 flex-col justify-between gap-2 p-3 lg:flex-row lg:flex-wrap lg:items-center xl:gap-3 xl:p-4"
                 aria-label={t("prefs")}
