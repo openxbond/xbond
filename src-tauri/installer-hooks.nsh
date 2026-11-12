@@ -19,6 +19,26 @@ LangString XBondRequiresWin10 ${XBOND_LANG_TRADCHINESE} "XBond 需要 Windows 10
 LangString XBondRequiresWin10 ${XBOND_LANG_KOREAN} "XBond에는 Windows 10 이상이 필요합니다."
 LangString XBondRequiresWin10 ${XBOND_LANG_FARSI} "XBond به ویندوز ۱۰ یا جدیدتر نیاز دارد."
 
+; The NSIS template only registers the main binary with the Restart Manager
+; (CheckIfAppIsRunning), but xbond-daemon.exe is a second product executable:
+; the desktop app supervises it, and it keeps running after the app is closed.
+; A daemon left running locks its binary, and the default NSIS SetOverwrite
+; silently skips locked or same-date files, so an upgrade would report success
+; while leaving the old daemon on disk. Stop it through its LocalAPI and, if
+; it survives that, force-kill it before files are copied or deleted.
+!macro XBondStopProductDaemon
+  !define XBOND_STOP_ID ${__LINE__}
+  IfFileExists "$INSTDIR\xbond-daemon.exe" 0 xbond_daemon_stopped_${XBOND_STOP_ID}
+    nsExec::ExecToLog '"$INSTDIR\xbond-daemon.exe" daemon stop'
+    Pop $R9
+    Sleep 1000
+    nsExec::Exec 'taskkill /IM xbond-daemon.exe /F'
+    Pop $R9
+    Sleep 500
+  xbond_daemon_stopped_${XBOND_STOP_ID}:
+  !undef XBOND_STOP_ID
+!macroend
+
 !macro NSIS_HOOK_PREINSTALL
   Push $R0
   ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows NT\CurrentVersion" "CurrentMajorVersionNumber"
@@ -27,4 +47,10 @@ LangString XBondRequiresWin10 ${XBOND_LANG_FARSI} "XBond به ویندوز ۱۰ 
     Abort
   ${EndIf}
   Pop $R0
+
+  !insertmacro XBondStopProductDaemon
+!macroend
+
+!macro NSIS_HOOK_PREUNINSTALL
+  !insertmacro XBondStopProductDaemon
 !macroend
