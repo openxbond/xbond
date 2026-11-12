@@ -76,7 +76,7 @@ const focusAtom = atomWithStorage<Record<string, string>>(
   "xbond_focus_groups.v3",
   {},
 );
-const overviewColumns = "lg:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)]";
+const overviewColumns = "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]";
 
 /** 格式化流量速率，如 12.5 MB/s, 3.2 MB/s */
 function formatDisplayRate(bytesPerSec: number): string {
