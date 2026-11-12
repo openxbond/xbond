@@ -14,6 +14,7 @@ use std::time::Duration;
 
 const POLL_TIMEOUT: Duration = Duration::from_secs(2);
 const ACTION_TIMEOUT: Duration = Duration::from_secs(10);
+const INSTALL_TIMEOUT: Duration = Duration::from_secs(120);
 
 fn agent(timeout: Duration) -> ureq::Agent {
     static POLL: OnceLock<ureq::Agent> = OnceLock::new();
@@ -54,22 +55,20 @@ pub struct StatusResponse {
 pub struct EngineStatus {
     #[serde(default)]
     pub running: bool,
-    #[serde(default, rename = "takeoverMode")]
-    pub takeover_mode: String,
-    #[serde(default, rename = "routingMode")]
-    pub routing_mode: String,
 }
 
+/// The daemon's real takeover facts: system proxy and TUN are independent
+/// switches (runtime.go `reconcileTakeover`) and can run together; the
+/// collapsed `takeoverMode` enum is a derived view, so consumers that need
+/// the truth read the flags.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Preferences {
-    #[serde(default, rename = "mixedPort")]
-    pub mixed_port: u16,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct ActiveSub {
+    #[serde(default, rename = "systemProxy")]
+    pub system_proxy: bool,
     #[serde(default)]
-    pub name: String,
+    pub tun: bool,
+    #[serde(default, rename = "routingMode")]
+    pub routing_mode: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -78,6 +77,14 @@ pub struct Capabilities {
     pub tun: bool,
     #[serde(default, rename = "tunReasonCode")]
     pub tun_reason_code: String,
+    #[serde(default, rename = "serviceInstalled")]
+    pub service_installed: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ActiveSub {
+    #[serde(default)]
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -90,13 +97,12 @@ pub struct ProxyItem {
     pub all: Vec<String>,
 }
 
-/// The proxies object keeps the core's document order (serde_json's
-/// preserve_order feature), but Map only implements Deserialize for
-/// `Value`, so each entry is decoded separately.
-#[derive(Debug, Clone, Deserialize)]
-pub struct ProxiesResponse {
-    #[serde(default)]
-    pub proxies: serde_json::Map<String, serde_json::Value>,
+/// `/localapi/v0/nodes` returns the core's proxies document as a bare map —
+/// server.go `handleNodes` writes the engine's `GetProxies` map directly,
+/// with no `proxies` wrapper key. Order follows the core's document
+/// (serde_json's preserve_order feature); each entry is decoded separately.
+pub fn fetch_proxies() -> Result<serde_json::Map<String, serde_json::Value>, String> {
+    get_json("/localapi/v0/nodes")
 }
 
 fn request(
@@ -129,10 +135,6 @@ pub fn fetch_status() -> Result<StatusResponse, String> {
     get_json("/localapi/v0/status?light=1")
 }
 
-pub fn fetch_proxies() -> Result<ProxiesResponse, String> {
-    get_json("/localapi/v0/nodes")
-}
-
 fn post_action(path: &str, body: serde_json::Value) -> Result<(), String> {
     request(ACTION_TIMEOUT, "POST", path, Some(body)).map(|_| ())
 }
@@ -145,13 +147,35 @@ pub fn down() -> Result<(), String> {
     post_action("/localapi/v0/down", json!({}))
 }
 
-/// Switch takeover mode and/or routing mode; empty strings leave the other
-/// dimension untouched (runtimeOptions zero values are ignored by Configure).
-pub fn set_mode(mode: &str, routing: &str) -> Result<(), String> {
-    post_action(
-        "/localapi/v0/mode",
-        json!({ "mode": mode, "routing": routing }),
+/// Independent takeover switches: each POSTs one boolean flag, leaving the
+/// other switch and routing untouched (daemon `reconcileTakeover`). Both off
+/// is the port-only state.
+pub fn set_sysproxy(on: bool) -> Result<(), String> {
+    post_action("/localapi/v0/mode", json!({ "systemProxy": on }))
+}
+
+pub fn set_tun(on: bool) -> Result<(), String> {
+    post_action("/localapi/v0/mode", json!({ "tun": on }))
+}
+
+/// Routing-only switch; an empty mode field leaves takeover untouched.
+pub fn set_routing(routing: &str) -> Result<(), String> {
+    post_action("/localapi/v0/mode", json!({ "routing": routing }))
+}
+
+/// Registers the machine-scoped tunnel host. The daemon raises the native
+/// elevation prompt (UAC / osascript) and returns once the elevated helper
+/// is launched — callers confirm the outcome by polling
+/// `capabilities.serviceInstalled` (server.go `handleServiceInstall`).
+/// The long timeout covers a user deliberating over the OS prompt.
+pub fn install_service() -> Result<(), String> {
+    request(
+        INSTALL_TIMEOUT,
+        "POST",
+        "/localapi/v0/service/install",
+        Some(json!({})),
     )
+    .map(|_| ())
 }
 
 pub fn select_node(group: &str, node: &str) -> Result<(), String> {

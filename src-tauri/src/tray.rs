@@ -1,7 +1,11 @@
-//! Native tray surface. Daily connect/disconnect, takeover mode, routing
-//! mode and node switching happen here without opening the window — the
-//! tray polls LocalAPI directly (see `localapi.rs`) so it stays functional
-//! while the window is hidden. Closing the window never stops the proxy
+//! Native tray surface. Daily connect/disconnect, takeover switches,
+//! routing mode and proxy-group switching happen here without opening the
+//! window — the tray polls LocalAPI directly (see `localapi.rs`) so it
+//! stays functional while the window is hidden. Takeover is presented as
+//! the two independent switches the daemon actually owns (system proxy and
+//! TUN can run together); a 虚拟网卡 click never grays out — an incapable
+//! click raises the machine-service elevation prompt, the same flow the
+//! connect page uses. Closing the window never stops the proxy
 //! (daemon-runtime spec); quitting the GUI is an explicit transaction that
 //! asks first and stops the supervised service only on confirmation —
 //! always through the CLI's supervisor verbs, never a bare stop.
@@ -14,30 +18,30 @@ use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{image::Image, AppHandle, Manager, Wry};
 use tauri_plugin_autostart::ManagerExt as _;
-use tauri_plugin_clipboard_manager::ClipboardExt as _;
 use tauri_plugin_dialog::{DialogExt as _, MessageDialogButtons};
 use tauri_plugin_notification::NotificationExt as _;
 use tauri_plugin_window_state::AppHandleExt as _;
 
 const TRAY_TOGGLE_CONN: &str = "tray_toggle_conn";
-const TRAY_MODE_SYSPROXY: &str = "tray_mode_sysproxy";
-const TRAY_MODE_TUN: &str = "tray_mode_tun";
-const TRAY_MODE_PORT: &str = "tray_mode_port";
+const TRAY_TOGGLE_SYSPROXY: &str = "tray_toggle_sysproxy";
+const TRAY_TOGGLE_TUN: &str = "tray_toggle_tun";
 const TRAY_ROUTING_RULE: &str = "tray_routing_rule";
 const TRAY_ROUTING_GLOBAL: &str = "tray_routing_global";
 const TRAY_ROUTING_DIRECT: &str = "tray_routing_direct";
-const TRAY_COPY_ENV: &str = "tray_copy_env";
 const TRAY_AUTOSTART: &str = "tray_autostart";
 const TRAY_SHOW: &str = "tray_show_window";
 const TRAY_QUIT: &str = "tray_quit";
-/// Node items carry their position: `tray_node/{group_index}/{node_index}`
+/// Proxy items carry their position: `tray_node/{group_index}/{node_index}`
 /// resolved against the snapshot stored in `TrayShared`.
 const TRAY_NODE_PREFIX: &str = "tray_node/";
 
-const MAX_GROUPS: usize = 8;
-const MAX_NODES_PER_GROUP: usize = 30;
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 const INTENT_TIMEOUT: Duration = Duration::from_secs(10);
+/// Mirrors the connect page's SERVICE_CHANGE_TIMEOUT_MS (local-runtime.ts):
+/// how long a 虚拟网卡 click waits for `serviceInstalled` to flip after the
+/// elevation prompt was raised, before reporting the attempt as incomplete.
+const SERVICE_CHANGE_TIMEOUT: Duration = Duration::from_secs(60);
+const SERVICE_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Debug, Clone, Copy)]
 pub struct TrayI18n {
@@ -46,34 +50,29 @@ pub struct TrayI18n {
     pub connecting: &'static str,
     pub disconnecting: &'static str,
     pub disconnected: &'static str,
-    pub connected: &'static str,
     pub daemon_down: &'static str,
     pub sysproxy: &'static str,
     pub tun: &'static str,
     pub tun_short: &'static str,
-    pub tun_needs_admin: &'static str,
-    pub tun_needs_root: &'static str,
     pub tun_missing_wintun: &'static str,
+    pub tun_service_unreachable: &'static str,
     pub port_only: &'static str,
-    pub port_short: &'static str,
     pub routing_menu: &'static str,
     pub rule: &'static str,
     pub global: &'static str,
     pub direct: &'static str,
-    pub nodes: &'static str,
+    pub proxies: &'static str,
     pub autostart: &'static str,
-    pub copy_env_pwsh: &'static str,
-    pub copy_env_sh: &'static str,
     pub show_window: &'static str,
     pub quit: &'static str,
     pub notify_offline_title: &'static str,
     pub notify_offline_body: &'static str,
-    pub notify_copied_env: &'static str,
     pub notify_connect_failed: &'static str,
     pub notify_disconnect_failed: &'static str,
     pub notify_takeover_failed: &'static str,
     pub notify_routing_failed: &'static str,
-    pub notify_node_failed: &'static str,
+    pub notify_proxy_failed: &'static str,
+    pub notify_service_install_incomplete: &'static str,
     pub quit_confirm_title: &'static str,
     pub quit_confirm_connected: &'static str,
     pub quit_confirm_idle: &'static str,
@@ -84,38 +83,33 @@ pub struct TrayI18n {
 
 pub const ZH_HK: TrayI18n = TrayI18n {
     connect: "連線",
-    disconnect: "斷線",
-    connecting: "正在連線…",
-    disconnecting: "正在斷線…",
-    disconnected: "未連線",
-    connected: "已連線",
+    disconnect: "中斷連線",
+    connecting: "連接中…",
+    disconnecting: "斷開中…",
+    disconnected: "尚未連線",
     daemon_down: "核心離線",
     sysproxy: "系統代理",
-    tun: "TUN 模式",
+    tun: "虛擬網卡",
     tun_short: "TUN",
-    tun_needs_admin: "TUN 模式（需管理員權限）",
-    tun_needs_root: "TUN 模式（需要 root）",
-    tun_missing_wintun: "TUN 模式（缺少 wintun.dll）",
-    port_only: "僅本機埠",
-    port_short: "僅埠",
+    tun_missing_wintun: "缺少 wintun.dll，無法開啟虛擬網卡",
+    tun_service_unreachable: "系統服務已安裝但未回應，暫時無法開啟虛擬網卡",
+    port_only: "僅端口",
     routing_menu: "路由模式",
     rule: "規則",
-    global: "全域",
+    global: "全局",
     direct: "直連",
-    nodes: "節點",
+    proxies: "代理",
     autostart: "開機自動啟動",
-    copy_env_pwsh: "複製 PowerShell 代理命令",
-    copy_env_sh: "複製終端代理命令",
     show_window: "打開主視窗",
     quit: "退出 XBond",
     notify_offline_title: "XBond 核心離線",
     notify_offline_body: "後台服務失去回應；重新打開 XBond 可嘗試恢復。",
-    notify_copied_env: "代理環境變數已複製到剪貼簿。",
     notify_connect_failed: "連線失敗",
-    notify_disconnect_failed: "斷線失敗",
+    notify_disconnect_failed: "中斷連線失敗",
     notify_takeover_failed: "接管模式切換失敗",
     notify_routing_failed: "路由模式切換失敗",
-    notify_node_failed: "切換節點失敗",
+    notify_proxy_failed: "代理切換失敗",
+    notify_service_install_incomplete: "系統服務安裝未完成，已取消開啟虛擬網卡",
     quit_confirm_title: "退出 XBond",
     quit_confirm_connected: "連線仍在運行。退出將斷開連線、還原系統代理並停止後台服務；下次啟動 XBond 時服務會自動恢復。",
     quit_confirm_idle: "後台服務仍在運行。退出將停止後台服務；下次啟動 XBond 時會自動恢復。",
@@ -127,37 +121,32 @@ pub const ZH_HK: TrayI18n = TrayI18n {
 pub const ZH_CN: TrayI18n = TrayI18n {
     connect: "连接",
     disconnect: "断开连接",
-    connecting: "正在连接…",
-    disconnecting: "正在断开…",
-    disconnected: "未连接",
-    connected: "已连接",
+    connecting: "连接中…",
+    disconnecting: "断开中…",
+    disconnected: "尚未连接",
     daemon_down: "核心离线",
     sysproxy: "系统代理",
-    tun: "TUN 模式",
+    tun: "虚拟网卡",
     tun_short: "TUN",
-    tun_needs_admin: "TUN 模式（需管理员权限）",
-    tun_needs_root: "TUN 模式（需要 root）",
-    tun_missing_wintun: "TUN 模式（缺少 wintun.dll）",
-    port_only: "仅本机端口",
-    port_short: "仅端口",
+    tun_missing_wintun: "缺少 wintun.dll，无法开启虚拟网卡",
+    tun_service_unreachable: "系统服务已安装但未响应，暂时无法开启虚拟网卡",
+    port_only: "仅端口",
     routing_menu: "路由模式",
     rule: "规则",
     global: "全局",
     direct: "直连",
-    nodes: "节点",
+    proxies: "代理",
     autostart: "开机自启动",
-    copy_env_pwsh: "复制 PowerShell 代理命令",
-    copy_env_sh: "复制终端代理命令",
     show_window: "打开主窗口",
     quit: "退出 XBond",
     notify_offline_title: "XBond 核心离线",
     notify_offline_body: "后台服务失去响应；重新打开 XBond 可尝试恢复。",
-    notify_copied_env: "代理环境变量已复制到剪贴板。",
     notify_connect_failed: "连接失败",
     notify_disconnect_failed: "断开连接失败",
     notify_takeover_failed: "接管模式切换失败",
     notify_routing_failed: "路由模式切换失败",
-    notify_node_failed: "切换节点失败",
+    notify_proxy_failed: "代理切换失败",
+    notify_service_install_incomplete: "系统服务安装未完成，已取消开启虚拟网卡",
     quit_confirm_title: "退出 XBond",
     quit_confirm_connected: "连接仍在运行。退出将断开连接、还原系统代理并停止后台服务；下次启动 XBond 时服务会自动恢复。",
     quit_confirm_idle: "后台服务仍在运行。退出将停止后台服务；下次启动 XBond 时会自动恢复。",
@@ -171,35 +160,30 @@ pub const EN_US: TrayI18n = TrayI18n {
     disconnect: "Disconnect",
     connecting: "Connecting…",
     disconnecting: "Disconnecting…",
-    disconnected: "Disconnected",
-    connected: "Connected",
+    disconnected: "Not Connected",
     daemon_down: "Core Offline",
     sysproxy: "System Proxy",
-    tun: "TUN Mode",
+    tun: "TUN",
     tun_short: "TUN",
-    tun_needs_admin: "TUN Mode (Admin Required)",
-    tun_needs_root: "TUN Mode (Root Required)",
-    tun_missing_wintun: "TUN Mode (Missing wintun.dll)",
-    port_only: "Local Port Only",
-    port_short: "Port Only",
+    tun_missing_wintun: "wintun.dll is missing; TUN cannot start",
+    tun_service_unreachable: "System service installed but not responding; TUN cannot start",
+    port_only: "Port Only",
     routing_menu: "Routing Mode",
     rule: "Rule",
     global: "Global",
     direct: "Direct",
-    nodes: "Nodes",
+    proxies: "Proxies",
     autostart: "Launch on Startup",
-    copy_env_pwsh: "Copy PowerShell Proxy Command",
-    copy_env_sh: "Copy Terminal Proxy Command",
     show_window: "Open XBond",
     quit: "Quit XBond",
     notify_offline_title: "XBond Core Offline",
     notify_offline_body: "Backend service stopped responding. Reopen XBond to recover.",
-    notify_copied_env: "Proxy environment variables copied to clipboard.",
     notify_connect_failed: "Connection Failed",
     notify_disconnect_failed: "Disconnection Failed",
     notify_takeover_failed: "Failed to Switch Takeover Mode",
     notify_routing_failed: "Failed to Switch Routing Mode",
-    notify_node_failed: "Failed to Switch Node",
+    notify_proxy_failed: "Failed to Switch Proxy",
+    notify_service_install_incomplete: "Service installation did not finish; TUN was not enabled",
     quit_confirm_title: "Quit XBond",
     quit_confirm_connected: "A connection is still running. Quitting disconnects it, restores your system proxy and stops the background service; it starts again the next time you open XBond.",
     quit_confirm_idle: "The background service is still running. Quitting stops it; it starts again the next time you open XBond.",
@@ -213,35 +197,30 @@ pub const KO: TrayI18n = TrayI18n {
     disconnect: "연결 해제",
     connecting: "연결 중…",
     disconnecting: "연결 해제 중…",
-    disconnected: "연결 안 됨",
-    connected: "연결됨",
+    disconnected: "연결되지 않음",
     daemon_down: "코어 오프라인",
     sysproxy: "시스템 프록시",
-    tun: "TUN 모드",
+    tun: "TUN",
     tun_short: "TUN",
-    tun_needs_admin: "TUN 모드 (관리자 권한 필요)",
-    tun_needs_root: "TUN 모드 (root 필요)",
-    tun_missing_wintun: "TUN 모드 (wintun.dll 없음)",
-    port_only: "로컬 포트 전용",
-    port_short: "포트 전용",
+    tun_missing_wintun: "wintun.dll이 없어 TUN을 시작할 수 없습니다",
+    tun_service_unreachable: "시스템 서비스가 설치됐지만 응답하지 않아 TUN을 시작할 수 없습니다",
+    port_only: "포트만",
     routing_menu: "라우팅 모드",
     rule: "규칙",
     global: "전역",
-    direct: "직접 연결",
-    nodes: "노드",
+    direct: "직접",
+    proxies: "프록시",
     autostart: "시작 시 자동 실행",
-    copy_env_pwsh: "PowerShell 프록시 명령어 복사",
-    copy_env_sh: "터미널 프록시 명령어 복사",
     show_window: "XBond 열기",
     quit: "XBond 종료",
     notify_offline_title: "XBond 코어 오프라인",
-    notify_offline_body: "백엔드 서비스가 응답하지 않습니다. XBond를 다시 열어 복구하세요.",
-    notify_copied_env: "프록시 환경 변수가 클립보드에 복사되었습니다.",
+    notify_offline_body: "백그라운드 서비스가 응답하지 않습니다. XBond를 다시 열어 복구하세요.",
     notify_connect_failed: "연결 실패",
     notify_disconnect_failed: "연결 해제 실패",
     notify_takeover_failed: "인수 모드 전환 실패",
     notify_routing_failed: "라우팅 모드 전환 실패",
-    notify_node_failed: "노드 전환 실패",
+    notify_proxy_failed: "프록시 전환 실패",
+    notify_service_install_incomplete: "서비스 설치가 완료되지 않아 TUN을 켜지 않았습니다",
     quit_confirm_title: "XBond 종료",
     quit_confirm_connected: "연결이 아직 실행 중입니다. 종료하면 연결이 끊기고 시스템 프록시가 복원되며 백그라운드 서비스가 중지됩니다. XBond를 다시 열면 자동으로 시작됩니다.",
     quit_confirm_idle: "백그라운드 서비스가 아직 실행 중입니다. 종료하면 서비스가 중지됩니다. XBond를 다시 열면 자동으로 시작됩니다.",
@@ -256,34 +235,29 @@ pub const FA: TrayI18n = TrayI18n {
     connecting: "در حال اتصال…",
     disconnecting: "در حال قطع اتصال…",
     disconnected: "متصل نیست",
-    connected: "متصل شد",
     daemon_down: "هسته آفلاین",
     sysproxy: "پروکسی سیستم",
-    tun: "حالت TUN",
+    tun: "TUN",
     tun_short: "TUN",
-    tun_needs_admin: "حالت TUN (نیاز به مدیر)",
-    tun_needs_root: "حالت TUN (نیاز به root)",
-    tun_missing_wintun: "حالت TUN (فایل wintun.dll موجود نیست)",
-    port_only: "فقط درگاه محلی",
-    port_short: "فقط درگاه",
+    tun_missing_wintun: "wintun.dll موجود نیست؛ TUN راه‌اندازی نمی‌شود",
+    tun_service_unreachable: "سرویس سیستم نصب است اما پاسخ نمی‌دهد؛ TUN راه‌اندازی نمی‌شود",
+    port_only: "فقط پورت",
     routing_menu: "حالت مسیریابی",
     rule: "قاعده",
     global: "سراسری",
     direct: "مستقیم",
-    nodes: "گره‌ها",
+    proxies: "پروکسی‌ها",
     autostart: "اجرا هنگام راه‌اندازی",
-    copy_env_pwsh: "کپی دستور پروکسی PowerShell",
-    copy_env_sh: "کپی دستور پروکسی ترمینال",
     show_window: "باز کردن XBond",
     quit: "خروج از XBond",
     notify_offline_title: "هسته XBond آفلاین است",
     notify_offline_body: "سرویس پس‌زمینه پاسخ نمی‌دهد. برای بازیابی XBond را دوباره باز کنید.",
-    notify_copied_env: "متغیرهای محیطی پروکسی در بریده‌دان کپی شد.",
     notify_connect_failed: "اتصال ناموفق بود",
     notify_disconnect_failed: "قطع اتصال ناموفق بود",
     notify_takeover_failed: "تغییر حالت کنترل ناموفق بود",
     notify_routing_failed: "تغییر حالت مسیریابی ناموفق بود",
-    notify_node_failed: "تغییر گره ناموفق بود",
+    notify_proxy_failed: "تغییر پروکسی ناموفق بود",
+    notify_service_install_incomplete: "نصب سرویس کامل نشد؛ TUN روشن نشد",
     quit_confirm_title: "خروج از XBond",
     quit_confirm_connected: "اتصال همچنان فعال است. با خروج، اتصال قطع می‌شود، پروکسی سیستم بازنشانی و سرویس پس‌زمینه متوقف می‌شود؛ دفعهٔ بعد که XBond را باز کنید دوباره راه‌اندازی می‌شود.",
     quit_confirm_idle: "سرویس پس‌زمینه همچنان فعال است. با خروج متوقف می‌شود؛ دفعهٔ بعد که XBond را باز کنید دوباره راه‌اندازی می‌شود.",
@@ -333,15 +307,19 @@ fn detect_initial_language() -> String {
     "zh_HK".to_string()
 }
 
-/// One LocalAPI snapshot, flattened for menu/tooltip rendering.
+/// One LocalAPI snapshot, flattened for menu/tooltip rendering. The takeover
+/// facts are the daemon's independent switches (`preferences.systemProxy` /
+/// `preferences.tun`), not the collapsed mode enum, so dual takeover renders
+/// honestly.
 #[derive(Debug, Clone, Default)]
 struct TrayState {
     daemon_ok: bool,
     running: bool,
-    takeover: String,
+    sysproxy: bool,
+    tun_on: bool,
     routing: String,
-    mixed_port: u16,
     tun_capable: bool,
+    service_installed: bool,
     tun_reason: String,
     sub_name: String,
     node_now: String,
@@ -535,10 +513,11 @@ fn poll_state() -> TrayState {
     let mut state = TrayState {
         daemon_ok: true,
         running: status.engine.running,
-        takeover: status.engine.takeover_mode,
-        routing: status.engine.routing_mode,
-        mixed_port: status.preferences.mixed_port,
+        sysproxy: status.preferences.system_proxy,
+        tun_on: status.preferences.tun,
+        routing: status.preferences.routing_mode,
         tun_capable: status.capabilities.tun,
+        service_installed: status.capabilities.service_installed,
         tun_reason: status.capabilities.tun_reason_code,
         sub_name: status
             .active_sub
@@ -554,24 +533,65 @@ fn poll_state() -> TrayState {
     state
 }
 
-fn fill_groups(state: &mut TrayState, proxies: crate::localapi::ProxiesResponse) {
-    for (name, raw) in proxies.proxies {
-        let Ok(item) = serde_json::from_value::<crate::localapi::ProxyItem>(raw) else {
-            continue;
-        };
-        // Selector groups are the ones a click can actually switch; GLOBAL
-        // only becomes meaningful when routing mode is global.
-        if item.kind != "Selector" || (name == "GLOBAL" && state.routing != "global") {
-            continue;
+/// Builds the tray's group list from the core's proxies document. Order
+/// follows GLOBAL's member list — the config order the 代理 page shows
+/// (proxy-data.ts reads the same list) — because the bare map itself arrives
+/// alphabetically sorted: Go's JSON encoder orders map keys. A core without
+/// a GLOBAL group (sing-box) falls back to map order.
+fn fill_groups(state: &mut TrayState, proxies: serde_json::Map<String, serde_json::Value>) {
+    let global_order: Option<Vec<String>> = proxies
+        .get("GLOBAL")
+        .and_then(|raw| serde_json::from_value::<crate::localapi::ProxyItem>(raw.clone()).ok())
+        .filter(|g| !g.all.is_empty())
+        .map(|g| g.all);
+    let push_selector = |state: &mut TrayState, name: String, item: crate::localapi::ProxyItem| {
+        // Selector groups are the ones a click can actually switch. Every
+        // selector group is offered — the host menu scrolls, so a cap would
+        // silently hide groups the tray can otherwise switch.
+        if item.kind == "Selector" {
+            state.groups.push(TrayGroup {
+                name,
+                now: item.now,
+                nodes: item.all,
+            });
         }
-        if state.groups.len() >= MAX_GROUPS {
-            break;
+    };
+    match global_order {
+        Some(order) => {
+            for name in order {
+                if name == "GLOBAL" {
+                    continue;
+                }
+                if let Some(raw) = proxies.get(&name) {
+                    if let Ok(item) =
+                        serde_json::from_value::<crate::localapi::ProxyItem>(raw.clone())
+                    {
+                        push_selector(state, name, item);
+                    }
+                }
+            }
+            // GLOBAL stays switchable in global routing, listed last.
+            if state.routing == "global" {
+                if let Some(raw) = proxies.get("GLOBAL") {
+                    if let Ok(item) =
+                        serde_json::from_value::<crate::localapi::ProxyItem>(raw.clone())
+                    {
+                        push_selector(state, "GLOBAL".to_string(), item);
+                    }
+                }
+            }
         }
-        state.groups.push(TrayGroup {
-            name,
-            now: item.now,
-            nodes: item.all.into_iter().take(MAX_NODES_PER_GROUP).collect(),
-        });
+        None => {
+            for (name, raw) in proxies {
+                if let Ok(item) = serde_json::from_value::<crate::localapi::ProxyItem>(raw) {
+                    // GLOBAL only becomes meaningful when routing is global.
+                    if name == "GLOBAL" && state.routing != "global" {
+                        continue;
+                    }
+                    push_selector(state, name, item);
+                }
+            }
+        }
     }
     state.node_now = state
         .groups
@@ -676,6 +696,76 @@ fn display_tray(app: &AppHandle, state: &TrayState, i18n: &TrayI18n, lang: &str)
     }
 }
 
+/// Snapshot of the last poll, for click handlers to decide against.
+fn shared_state(app: &AppHandle) -> TrayState {
+    app.state::<TrayShared>()
+        .state
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+}
+
+/// What a 虚拟网卡 click should do given the daemon's capability facts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TunClick {
+    TurnOff,
+    TurnOn,
+    InstallServiceThenTurnOn,
+    ReportUnreachable,
+    ReportWintunMissing,
+}
+
+/// The menu item is never disabled: an incapable click routes to the
+/// machine-service elevation flow instead of graying out (connect page
+/// parity, connect-page.tsx `handleChangeService`).
+fn decide_tun_click(
+    tun_on: bool,
+    tun_capable: bool,
+    service_installed: bool,
+    reason: &str,
+) -> TunClick {
+    if tun_on {
+        return TunClick::TurnOff;
+    }
+    if tun_capable {
+        return TunClick::TurnOn;
+    }
+    if !service_installed {
+        return TunClick::InstallServiceThenTurnOn;
+    }
+    if reason == "wintun_missing" {
+        TunClick::ReportWintunMissing
+    } else {
+        TunClick::ReportUnreachable
+    }
+}
+
+fn run_tun_click(decision: TunClick, i18n: &TrayI18n) -> Result<(), String> {
+    match decision {
+        TunClick::TurnOff => crate::localapi::set_tun(false),
+        TunClick::TurnOn => crate::localapi::set_tun(true),
+        TunClick::InstallServiceThenTurnOn => {
+            crate::localapi::install_service()?;
+            // The endpoint returns once the elevated helper is launched;
+            // the outcome is the serviceInstalled fact, polled like the
+            // connect page does — never assumed.
+            let deadline = Instant::now() + SERVICE_CHANGE_TIMEOUT;
+            while Instant::now() < deadline {
+                std::thread::sleep(SERVICE_POLL_INTERVAL);
+                if crate::localapi::fetch_status()
+                    .map(|s| s.capabilities.service_installed)
+                    .unwrap_or(false)
+                {
+                    return crate::localapi::set_tun(true);
+                }
+            }
+            Err(i18n.notify_service_install_incomplete.to_string())
+        }
+        TunClick::ReportUnreachable => Err(i18n.tun_service_unreachable.to_string()),
+        TunClick::ReportWintunMissing => Err(i18n.tun_missing_wintun.to_string()),
+    }
+}
+
 fn set_intent(app: &AppHandle, want_running: bool) {
     let shared = app.state::<TrayShared>();
     *shared.intent.lock().unwrap_or_else(|e| e.into_inner()) = Some(Intent {
@@ -713,21 +803,10 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
 
     match id {
         TRAY_TOGGLE_CONN => {
-            let running = app
-                .state::<TrayShared>()
-                .state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .running;
-            let want_running = !running;
+            let state = shared_state(app);
+            let want_running = !state.running;
             set_intent(app, want_running);
             // Transitional display without waiting for the next poll tick.
-            let state = app
-                .state::<TrayShared>()
-                .state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .clone();
             display_tray(app, &state, i18n, &lang);
             run_action(
                 app,
@@ -745,33 +824,29 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
                 },
             );
         }
-        TRAY_MODE_SYSPROXY | TRAY_MODE_TUN | TRAY_MODE_PORT => {
-            let mode = id.trim_start_matches("tray_mode_");
-            let mode = mode.to_string();
+        TRAY_TOGGLE_SYSPROXY => {
+            let on = !shared_state(app).sysproxy;
             run_action(app, i18n.notify_takeover_failed, move || {
-                crate::localapi::set_mode(&mode, "")
+                crate::localapi::set_sysproxy(on)
+            });
+        }
+        TRAY_TOGGLE_TUN => {
+            let snapshot = shared_state(app);
+            let decision = decide_tun_click(
+                snapshot.tun_on,
+                snapshot.tun_capable,
+                snapshot.service_installed,
+                &snapshot.tun_reason,
+            );
+            run_action(app, i18n.notify_takeover_failed, move || {
+                run_tun_click(decision, i18n)
             });
         }
         TRAY_ROUTING_RULE | TRAY_ROUTING_GLOBAL | TRAY_ROUTING_DIRECT => {
             let routing = id.trim_start_matches("tray_routing_").to_string();
             run_action(app, i18n.notify_routing_failed, move || {
-                crate::localapi::set_mode("", &routing)
+                crate::localapi::set_routing(&routing)
             });
-        }
-        TRAY_COPY_ENV => {
-            let port = app
-                .state::<TrayShared>()
-                .state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .mixed_port;
-            if port == 0 {
-                return;
-            }
-            match app.clipboard().write_text(proxy_env_command(port)) {
-                Ok(()) => notify(app, "XBond", i18n.notify_copied_env),
-                Err(e) => eprintln!("[XBond Desktop] Failed to write clipboard: {e}"),
-            }
         }
         TRAY_AUTOSTART => {
             match app.autolaunch().is_enabled() {
@@ -827,7 +902,7 @@ fn select_tray_node(app: &AppHandle, spec: &str) {
         return;
     };
     let (group, node) = (group.name.clone(), node.clone());
-    run_action(app, i18n.notify_node_failed, move || {
+    run_action(app, i18n.notify_proxy_failed, move || {
         crate::localapi::select_node(&group, &node)
     });
 }
@@ -845,11 +920,13 @@ fn tooltip(state: &TrayState, connecting: bool, disconnecting: bool, i18n: &Tray
     if !state.running {
         return format!("XBond — {}", i18n.disconnected);
     }
-    let takeover = match state.takeover.as_str() {
-        "sysproxy" => i18n.sysproxy,
-        "tun" => i18n.tun_short,
-        "port" => i18n.port_short,
-        _ => "",
+    // The takeover facts are the two independent switches; the collapsed
+    // mode enum would hide dual takeover.
+    let takeover = match (state.sysproxy, state.tun_on) {
+        (true, true) => format!("{} + {}", i18n.sysproxy, i18n.tun_short),
+        (true, false) => i18n.sysproxy.to_string(),
+        (false, true) => i18n.tun_short.to_string(),
+        (false, false) => i18n.port_only.to_string(),
     };
     let routing = match state.routing.as_str() {
         "rule" => i18n.rule,
@@ -862,15 +939,12 @@ fn tooltip(state: &TrayState, connecting: bool, disconnecting: bool, i18n: &Tray
     } else {
         state.node_now.as_str()
     };
-    let mut parts: Vec<&str> = [takeover, routing]
-        .into_iter()
-        .filter(|p| !p.is_empty())
-        .collect();
-    if !node.is_empty() {
-        parts.push(node);
+    let mut parts: Vec<String> = vec![takeover];
+    if !routing.is_empty() {
+        parts.push(routing.to_string());
     }
-    if parts.is_empty() {
-        return format!("XBond — {}", i18n.connected);
+    if !node.is_empty() {
+        parts.push(node.to_string());
     }
     format!("XBond — {}", parts.join(" · "))
 }
@@ -883,14 +957,13 @@ fn menu_fingerprint(state: &TrayState, lang: &str, app: &AppHandle) -> String {
         .map(|g| format!("{}={}|{}", g.name, g.now, g.nodes.join(",")))
         .collect();
     format!(
-        "lang={} ok={} run={} mode={}/{} tun={}/{} auto={} groups={}",
+        "lang={} ok={} run={} sysproxy={} tun={} routing={} auto={} groups={}",
         lang,
         state.daemon_ok,
         state.running,
-        state.takeover,
+        state.sysproxy,
+        state.tun_on,
         state.routing,
-        state.tun_capable,
-        state.tun_reason,
         autostart,
         groups.join(";"),
     )
@@ -910,34 +983,23 @@ fn build_menu(
     let toggle = MenuItem::with_id(app, TRAY_TOGGLE_CONN, connect_label, enabled, None::<&str>)?;
     let separator_head = PredefinedMenuItem::separator(app)?;
 
+    // Independent takeover switches, the daemon's own model: both checked is
+    // dual takeover, both unchecked is port-only. 虚拟网卡 never grays out —
+    // an incapable click routes to the elevation flow (decide_tun_click).
     let sysproxy = CheckMenuItem::with_id(
         app,
-        TRAY_MODE_SYSPROXY,
+        TRAY_TOGGLE_SYSPROXY,
         i18n.sysproxy,
         enabled,
-        state.takeover == "sysproxy",
+        state.sysproxy,
         None::<&str>,
     )?;
-    let tun_label = match state.tun_reason.as_str() {
-        "not_elevated" => i18n.tun_needs_admin,
-        "not_root" => i18n.tun_needs_root,
-        "wintun_missing" => i18n.tun_missing_wintun,
-        _ => i18n.tun,
-    };
     let tun = CheckMenuItem::with_id(
         app,
-        TRAY_MODE_TUN,
-        tun_label,
-        enabled && state.tun_capable,
-        state.takeover == "tun",
-        None::<&str>,
-    )?;
-    let port_only = CheckMenuItem::with_id(
-        app,
-        TRAY_MODE_PORT,
-        i18n.port_only,
+        TRAY_TOGGLE_TUN,
+        i18n.tun,
         enabled,
-        state.takeover == "port",
+        state.tun_on,
         None::<&str>,
     )?;
 
@@ -973,20 +1035,14 @@ fn build_menu(
         &[&rule, &global, &direct],
     )?;
 
-    let mut items: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = vec![
-        &toggle,
-        &separator_head,
-        &sysproxy,
-        &tun,
-        &port_only,
-        &routing,
-    ];
+    let mut items: Vec<&dyn tauri::menu::IsMenuItem<Wry>> =
+        vec![&toggle, &separator_head, &sysproxy, &tun, &routing];
 
-    let node_menu = node_submenu(app, state, i18n)?;
-    let separator_before_nodes = PredefinedMenuItem::separator(app)?;
-    if let Some(node_menu) = &node_menu {
-        items.push(&separator_before_nodes);
-        items.push(node_menu);
+    let proxies_menu = proxies_submenu(app, state, i18n)?;
+    let separator_before_proxies = PredefinedMenuItem::separator(app)?;
+    if let Some(proxies_menu) = &proxies_menu {
+        items.push(&separator_before_proxies);
+        items.push(proxies_menu);
     }
 
     let autostart = CheckMenuItem::with_id(
@@ -997,17 +1053,6 @@ fn build_menu(
         app.autolaunch().is_enabled().unwrap_or(false),
         None::<&str>,
     )?;
-    let copy_env = MenuItem::with_id(
-        app,
-        TRAY_COPY_ENV,
-        if cfg!(windows) {
-            i18n.copy_env_pwsh
-        } else {
-            i18n.copy_env_sh
-        },
-        enabled && state.mixed_port > 0,
-        None::<&str>,
-    )?;
     let separator_tail = PredefinedMenuItem::separator(app)?;
     let show = MenuItem::with_id(app, TRAY_SHOW, i18n.show_window, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, TRAY_QUIT, i18n.quit, true, None::<&str>)?;
@@ -1015,7 +1060,6 @@ fn build_menu(
 
     items.push(&separator_tail);
     items.push(&autostart);
-    items.push(&copy_env);
     items.push(&separator_end);
     items.push(&show);
     items.push(&quit);
@@ -1023,13 +1067,41 @@ fn build_menu(
     Menu::with_items(app, &items)
 }
 
-fn node_submenu(
+/// The 代理 submenu: one entry per clickable Selector group. A subscription
+/// with a single group gets its members flattened directly into this menu —
+/// the common case skips the second nesting level.
+fn proxies_submenu(
     app: &AppHandle,
     state: &TrayState,
     i18n: &TrayI18n,
 ) -> Result<Option<Submenu<Wry>>, tauri::Error> {
     if !state.running || state.groups.is_empty() {
         return Ok(None);
+    }
+    if state.groups.len() == 1 {
+        let group = &state.groups[0];
+        let mut node_items: Vec<CheckMenuItem<Wry>> = Vec::with_capacity(group.nodes.len());
+        for (ni, node) in group.nodes.iter().enumerate() {
+            node_items.push(CheckMenuItem::with_id(
+                app,
+                format!("{TRAY_NODE_PREFIX}0/{ni}"),
+                node,
+                true,
+                *node == group.now,
+                None::<&str>,
+            )?);
+        }
+        let refs: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = node_items
+            .iter()
+            .map(|item| item as &dyn tauri::menu::IsMenuItem<Wry>)
+            .collect();
+        return Ok(Some(Submenu::with_id_and_items(
+            app,
+            "tray_nodes_menu",
+            i18n.proxies,
+            true,
+            &refs,
+        )?));
     }
     let mut group_menus: Vec<Submenu<Wry>> = Vec::with_capacity(state.groups.len());
     for (gi, group) in state.groups.iter().enumerate() {
@@ -1063,7 +1135,7 @@ fn node_submenu(
     Ok(Some(Submenu::with_id_and_items(
         app,
         "tray_nodes_menu",
-        i18n.nodes,
+        i18n.proxies,
         true,
         &refs,
     )?))
@@ -1097,18 +1169,6 @@ fn state_icon(app: &AppHandle, state: &TrayState, connecting: bool) -> Option<Im
     Some(Image::new_owned(data, width, height))
 }
 
-fn proxy_env_command(port: u16) -> String {
-    let base = format!("http://127.0.0.1:{port}");
-    #[cfg(windows)]
-    {
-        format!("$env:HTTP_PROXY=\"{base}\"; $env:HTTPS_PROXY=\"{base}\"")
-    }
-    #[cfg(not(windows))]
-    {
-        format!("export http_proxy={base} https_proxy={base} all_proxy={base}")
-    }
-}
-
 fn notify(app: &AppHandle, title: &str, body: &str) {
     let _ = app.notification().builder().title(title).body(body).show();
 }
@@ -1116,6 +1176,115 @@ fn notify(app: &AppHandle, title: &str, body: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The daemon serves `/localapi/v0/nodes` as a bare map (no `proxies`
+    /// wrapper key); a Selector group must survive parsing and GLOBAL is
+    /// only a group while routing mode is global.
+    #[test]
+    fn test_fill_groups_parses_bare_proxies_map() {
+        let entry = |kind: &str, now: &str, all: Vec<&str>| serde_json::json!({ "type": kind, "now": now, "all": all });
+        let mut proxies = serde_json::Map::new();
+        proxies.insert(
+            "漏网之鱼".to_string(),
+            entry("Selector", "香港 01", vec!["香港 01", "香港 02"]),
+        );
+        proxies.insert(
+            "自动选择".to_string(),
+            entry("URLTest", "香港 01", vec!["香港 01"]),
+        );
+        proxies.insert(
+            "GLOBAL".to_string(),
+            entry("Selector", "漏网之鱼", vec!["漏网之鱼"]),
+        );
+
+        let mut state = TrayState {
+            routing: "rule".to_string(),
+            ..TrayState::default()
+        };
+        fill_groups(&mut state, proxies.clone());
+        assert_eq!(state.groups.len(), 1);
+        assert_eq!(state.groups[0].name, "漏网之鱼");
+        assert_eq!(state.groups[0].now, "香港 01");
+        assert_eq!(state.groups[0].nodes, vec!["香港 01", "香港 02"]);
+        assert_eq!(state.node_now, "香港 01");
+
+        // Global routing admits the GLOBAL group; each poll builds a fresh
+        // state, so this pass starts empty again.
+        let mut state = TrayState {
+            routing: "global".to_string(),
+            ..TrayState::default()
+        };
+        fill_groups(&mut state, proxies);
+        assert_eq!(state.groups.len(), 2);
+        assert!(state.groups.iter().any(|g| g.name == "GLOBAL"));
+    }
+
+    /// Truncating the group list silently hid selector groups the tray could
+    /// otherwise switch (user-reported with a 12-group subscription): every
+    /// selector group must survive, however many the subscription defines.
+    /// Group order must follow GLOBAL's member list — the config order the
+    /// 代理 page shows — not the alphabetically sorted bare map.
+    #[test]
+    fn test_fill_groups_follows_global_member_order() {
+        let mut proxies = serde_json::Map::new();
+        // Map keys sort as GLOBAL, 手动切换, 漏网之鱼, 自动选择, 节点选择 —
+        // proving order came from GLOBAL.all, not the map.
+        proxies.insert(
+            "手动切换".to_string(),
+            serde_json::json!({ "type": "Selector", "now": "n1", "all": ["n1"] }),
+        );
+        proxies.insert(
+            "漏网之鱼".to_string(),
+            serde_json::json!({ "type": "Selector", "now": "n1", "all": ["n1"] }),
+        );
+        proxies.insert(
+            "自动选择".to_string(),
+            serde_json::json!({ "type": "URLTest", "now": "n1", "all": ["n1"] }),
+        );
+        proxies.insert(
+            "节点选择".to_string(),
+            serde_json::json!({ "type": "Selector", "now": "n1", "all": ["n1"] }),
+        );
+        proxies.insert(
+            "GLOBAL".to_string(),
+            serde_json::json!({
+                "type": "Selector",
+                "now": "漏网之鱼",
+                "all": ["漏网之鱼", "节点选择", "自动选择", "手动切换"]
+            }),
+        );
+        let mut state = TrayState::default();
+        fill_groups(&mut state, proxies);
+        let names: Vec<&str> = state.groups.iter().map(|g| g.name.as_str()).collect();
+        assert_eq!(names, vec!["漏网之鱼", "节点选择", "手动切换"]);
+    }
+
+    #[test]
+    fn test_fill_groups_keeps_all_selector_groups() {
+        let mut proxies = serde_json::Map::new();
+        for i in 0..12 {
+            proxies.insert(
+                format!("组{i}"),
+                serde_json::json!({ "type": "Selector", "now": "n1", "all": ["n1"] }),
+            );
+        }
+        let mut state = TrayState::default();
+        fill_groups(&mut state, proxies);
+        assert_eq!(state.groups.len(), 12);
+    }
+
+    #[test]
+    fn test_fill_groups_skips_non_selector_entries() {
+        let mut proxies = serde_json::Map::new();
+        proxies.insert(
+            "香港 01".to_string(),
+            serde_json::json!({ "type": "Shadowsocks", "now": "", "all": [] }),
+        );
+        let mut state = TrayState::default();
+        fill_groups(&mut state, proxies);
+        assert!(state.groups.is_empty());
+        assert!(state.node_now.is_empty());
+    }
 
     #[test]
     fn test_tray_i18n_selection() {
@@ -1128,5 +1297,49 @@ mod tests {
         assert_eq!(TrayI18n::for_lang("ko").connect, "연결");
         assert_eq!(TrayI18n::for_lang("fa").connect, "اتصال");
         assert_eq!(TrayI18n::for_lang("unknown").connect, "Connect");
+    }
+
+    /// Wording parity with the frontend (connect-page / nav), checked per
+    /// language so a rename can't drift back to the old tray vocabulary.
+    #[test]
+    fn test_tray_i18n_wording_alignment() {
+        assert_eq!(TrayI18n::for_lang("zh_CN").disconnected, "尚未连接");
+        assert_eq!(TrayI18n::for_lang("zh_CN").tun, "虚拟网卡");
+        assert_eq!(TrayI18n::for_lang("zh_CN").global, "全局");
+        assert_eq!(TrayI18n::for_lang("zh_CN").proxies, "代理");
+        assert_eq!(TrayI18n::for_lang("zh_HK").disconnected, "尚未連線");
+        assert_eq!(TrayI18n::for_lang("zh_HK").tun, "虛擬網卡");
+        assert_eq!(TrayI18n::for_lang("en_US").proxies, "Proxies");
+        assert_eq!(TrayI18n::for_lang("ko").proxies, "프록시");
+    }
+
+    #[test]
+    fn test_decide_tun_click() {
+        // Turning off never needs capability.
+        assert_eq!(
+            decide_tun_click(true, false, false, "not_elevated"),
+            TunClick::TurnOff
+        );
+        assert_eq!(decide_tun_click(true, true, true, ""), TunClick::TurnOff);
+        // Capable: plain toggle on.
+        assert_eq!(decide_tun_click(false, true, true, ""), TunClick::TurnOn);
+        // Service missing: raise the elevation flow.
+        assert_eq!(
+            decide_tun_click(false, false, false, "not_elevated"),
+            TunClick::InstallServiceThenTurnOn
+        );
+        assert_eq!(
+            decide_tun_click(false, false, false, "not_root"),
+            TunClick::InstallServiceThenTurnOn
+        );
+        // Service present but delegation unusable: report, don't fail blind.
+        assert_eq!(
+            decide_tun_click(false, false, true, "service_unreachable"),
+            TunClick::ReportUnreachable
+        );
+        assert_eq!(
+            decide_tun_click(false, false, true, "wintun_missing"),
+            TunClick::ReportWintunMissing
+        );
     }
 }
