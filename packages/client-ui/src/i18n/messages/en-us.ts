@@ -192,9 +192,9 @@ const EN = {
     sessionTotal: "This session",
     streamStopped: "Stopped updating",
     routingHint: {
-      rule: "Traffic is split by rules, balancing local and foreign access.",
-      global: "All traffic goes through the selected node.",
-      direct: "All traffic connects directly, bypassing the proxy.",
+      rule: "Use rules to decide which connections go through a proxy and which go direct.",
+      global: "Send all handled connections through the selected proxy.",
+      direct: "Connect directly for all handled connections, without a proxy.",
     },
     via: "Via",
     memory: "Memory",
@@ -682,8 +682,9 @@ const EN = {
       portSaveFailed: "Could not save the port. Check the core and retry.",
       allowLan: "Allow LAN connections",
       allowLanDesc: "Let other devices on the same LAN use this proxy",
-      sysproxyDesc: "Takes over browser and standard HTTP/SOCKS traffic",
-      tunDesc: "Takes over traffic from all applications",
+      sysproxyDesc:
+        "Use the proxy in browsers and apps that follow system settings.",
+      tunDesc: "Use the proxy in apps that ignore system proxy settings, too.",
       tunPrivilegeRequired: "System Service & Elevation Required",
       tunPrivilegeHint:
         "Virtual NIC (TUN) requires a privileged service to capture system traffic",

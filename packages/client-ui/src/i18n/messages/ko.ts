@@ -189,9 +189,9 @@ const KO = {
     sessionTotal: "이번 누계",
     streamStopped: "업데이트 중지됨",
     routingHint: {
-      rule: "규칙에 따라 트래픽을 분기합니다.",
-      global: "모든 트래픽이 선택한 노드를 경유합니다.",
-      direct: "모든 트래픽이 프록시를 거치지 않고 직접 연결됩니다.",
+      rule: "규칙에 따라 프록시를 거칠 연결과 직접 연결할 대상을 정합니다.",
+      global: "처리 중인 모든 연결에 선택한 프록시를 사용합니다.",
+      direct: "처리 중인 연결은 프록시를 거치지 않고 직접 연결합니다.",
     },
     via: "경유",
     memory: "메모리",
@@ -670,8 +670,9 @@ const KO = {
         "포트를 저장하지 못했습니다. 코어를 확인한 뒤 다시 시도하세요.",
       allowLan: "LAN 연결 허용",
       allowLanDesc: "같은 LAN의 다른 기기가 이 프록시를 사용하도록 허용",
-      sysproxyDesc: "브라우저와 표준 HTTP/SOCKS 트래픽을 인계합니다",
-      tunDesc: "모든 애플리케이션의 트래픽을 인계합니다",
+      sysproxyDesc:
+        "브라우저처럼 시스템 설정을 따르는 앱에서 프록시를 사용합니다.",
+      tunDesc: "시스템 프록시 설정을 따르지 않는 앱에서도 프록시를 사용합니다.",
       tunPrivilegeRequired: "시스템 서비스 및 관리자 권한 필요",
       tunPrivilegeHint:
         "가상 네트워크 카드(TUN)는 전체 시스템 트래픽을 처리하기 위해 권한 있는 서비스가 필요합니다",

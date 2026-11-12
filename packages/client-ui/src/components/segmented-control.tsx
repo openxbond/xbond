@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 
+import { ControlTooltip } from "./ui/control-tooltip";
 import { segmentedItem, segmentedTrack } from "./ui/segmented-styles";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 
@@ -11,6 +12,7 @@ interface SegmentedOption<T extends string> {
   label: ReactNode;
   disabled?: boolean;
   disabledReason?: string;
+  description?: string;
 }
 
 interface SegmentedControlProps<T extends string> {
@@ -87,7 +89,7 @@ export function SegmentedControl<T extends string>({
     >
       {options.map((option, index) => {
         const reasonId = option.disabledReason ? id + "-" + index : undefined;
-        return (
+        const item = (
           <ToggleGroupItem
             key={option.value}
             value={option.value}
@@ -110,6 +112,13 @@ export function SegmentedControl<T extends string>({
               </span>
             )}
           </ToggleGroupItem>
+        );
+        return option.description && !reasonId ? (
+          <ControlTooltip key={option.value} description={option.description}>
+            {item}
+          </ControlTooltip>
+        ) : (
+          item
         );
       })}
     </ToggleGroup>

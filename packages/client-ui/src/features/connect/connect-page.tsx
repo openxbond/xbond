@@ -44,6 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { ControlTooltip } from "@/components/ui/control-tooltip";
 import {
   HoverCard,
   HoverCardContent,
@@ -653,6 +654,7 @@ export default function Connect() {
   const routingOptions = (["rule", "global", "direct"] as const).map(
     (mode) => ({
       value: mode,
+      description: t(`routingHint.${mode}`),
       label: (
         <span className="inline-flex flex-col items-center justify-center gap-1 py-0.5 leading-tight">
           {routingIcons[mode]}
@@ -713,13 +715,13 @@ export default function Connect() {
         <div
           className={cn(
             "relative mx-auto flex w-full min-w-0 flex-1 flex-col gap-3 xl:gap-4",
-            isWeb && "max-w-[90rem]",
+            "max-w-[90rem]",
           )}
         >
           <AuroraWave
             className={cn(
               "home-wave -top-4 h-64 w-[62%] opacity-80 xl:-top-8 xl:h-80",
-              isWeb ? "mask-x-from-85%" : "-end-[calc(var(--page-pad)+2.5rem)]",
+              "mask-x-from-85%",
             )}
           />
           {/* 開放式 Hero：狀態直接落在畫布上，品牌波形裝飾在右後方。 */}
@@ -1513,17 +1515,21 @@ export default function Connect() {
                             </span>
                           </div>
                         </div>
-                        <Switch
-                          checked={isSysproxy}
-                          disabled={pending}
-                          onCheckedChange={(checked: boolean) =>
-                            void run(
-                              () => setMode({ systemProxy: checked }),
-                              false,
-                            )
-                          }
-                          aria-label={t("sysproxy")}
-                        />
+                        <ControlTooltip
+                          description={st("takeover.sysproxyDesc")}
+                        >
+                          <Switch
+                            checked={isSysproxy}
+                            disabled={pending}
+                            onCheckedChange={(checked: boolean) =>
+                              void run(
+                                () => setMode({ systemProxy: checked }),
+                                false,
+                              )
+                            }
+                            aria-label={t("sysproxy")}
+                          />
+                        </ControlTooltip>
                       </div>
 
                       {/* Virtual NIC (TUN) */}
@@ -1619,18 +1625,20 @@ export default function Connect() {
                             </span>
                           </div>
                         </div>
-                        <Switch
-                          checked={isTun}
-                          disabled={pending || changingService}
-                          onCheckedChange={(checked: boolean) => {
-                            if (checked && !isTunCapable) {
-                              setPrivilegeDialogOpen(true);
-                              return;
-                            }
-                            void run(() => setMode({ tun: checked }), false);
-                          }}
-                          aria-label={t("tun")}
-                        />
+                        <ControlTooltip description={st("takeover.tunDesc")}>
+                          <Switch
+                            checked={isTun}
+                            disabled={pending || changingService}
+                            onCheckedChange={(checked: boolean) => {
+                              if (checked && !isTunCapable) {
+                                setPrivilegeDialogOpen(true);
+                                return;
+                              }
+                              void run(() => setMode({ tun: checked }), false);
+                            }}
+                            aria-label={t("tun")}
+                          />
+                        </ControlTooltip>
                       </div>
                     </div>
                   </section>
