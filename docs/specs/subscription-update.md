@@ -12,9 +12,9 @@
 
 ### 更新通道
 
-每個訂閱持久保存更新通道：`direct`（默認）、`self`、`proxy`。`self` 經守護進程自身的 mixed 端口拉取，僅在核心運行時生效——首個配置尚不可用時不能依賴它自舉，此時按直連處理。`proxy` 經保存的 `http(s)://` 或 `socks5://` 代理拉取，保存時必須提供有效 URL；其餘通道清空該 URL。手動調用的每次覆寫（`--via-proxy`／`viaProxy` 顯式給出）優先於通道：true 強制本地代理，false 強制直連；未給出時跟隨通道。
+每個訂閱持久保存更新通道：`direct`、`self`、`proxy`。XBond Cloud 默認 `self`，其他訂閱默認 `direct`。`self` 經守護進程自身的 mixed 端口拉取，僅在核心運行時生效——首個配置尚不可用時不能依賴它自舉，此時按直連處理。`proxy` 經保存的 `http(s)://` 或 `socks5://` 代理拉取，保存時必須提供有效 URL；其餘通道清空該 URL。手動調用的每次覆寫（`--via-proxy`／`viaProxy` 顯式給出）優先於通道：true 強制本地代理，false 強制直連；未給出時跟隨通道。
 
-通道失效不靜默切換：經代理拉取失敗時返回可操作錯誤（說明通道使用了本地代理，可修復或改直連），由用戶決定是否改通道；定時更新同樣跟隨通道。設置入口為 LocalAPI `PATCH /localapi/v0/subs` 的 `updateChannel`／`updateProxy` 字段、CLI `sub channel`，配置頁每卡提供通道選擇（指定代理彈出 URL 輸入）。
+XBond Cloud 的 `self` 在代理請求失敗時自動重試直連；兩次失敗則報錯，所選通道不變。明確的單次覆寫、指定代理及其他訂閱不作此回退。定時更新同樣跟隨通道。設置入口為 LocalAPI `PATCH /localapi/v0/subs` 的 `updateChannel`／`updateProxy` 字段、CLI `sub channel`，配置頁每卡提供通道選擇（指定代理彈出 URL 輸入）。
 
 ### 版本回滾
 
@@ -30,7 +30,7 @@
 | UPDATE-02 | 通道設置校驗並持久化；proxy 缺 URL 拒絕；未知通道拒絕；與覆蓋層互不影響 | `internal/sub/channel_test.go` |
 | UPDATE-03 | 內容變化的更新快照上一份來源並裁剪至 5 份；內容不變不佔版本 | `internal/sub/versions_test.go` |
 | UPDATE-04 | 回滾恢復最新版本且可逆（當前來源先入版本）；hash/diff 更新；覆蓋隨回滾生效，衝突整體失敗保持原狀 | 同上 |
-| UPDATE-05 | 經代理拉取失敗返回含通道提示的可操作錯誤，通道不變 | `internal/daemon/runtime.go`（updateLocked 包裝） |
+| UPDATE-05 | Cloud 默認 self 並在請求失敗時回退直連；明確覆寫與其他通道不回退，失敗不改通道 | `internal/daemon/runtime.go`（updateLocked 包裝） |
 | UPDATE-06 | 原文編輯經三重閘（檢測／核心／覆蓋）拒絕時狀態不變；有效編輯落地、固定、入版本；定時更新跳過固定訂閱；手動更新與 unpin 解除固定 | `internal/sub/edit_test.go`、`internal/daemon/channel_test.go` |
 
 ## 已知限制

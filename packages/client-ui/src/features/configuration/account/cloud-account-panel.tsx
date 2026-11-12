@@ -658,6 +658,46 @@ export default function AccountPanel() {
             </dl>
           </div>
 
+          {/* Announcements Card：空狀態也保留卡片，交代「沒有公告」這個事實。 */}
+          <div className="flex flex-col gap-3 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5 2xl:p-6">
+            <h3 className="text-body font-semibold tracking-tight text-foreground">
+              {t("announcements")}
+            </h3>
+            {account.announcements && account.announcements.length > 0 ? (
+              <div className="divide-y divide-border/60">
+                {account.announcements.slice(0, 3).map((item) => (
+                  <article key={item.id} className="py-3 first:pt-1 last:pb-1">
+                    <h4 className="text-sm font-medium leading-snug text-foreground">
+                      {item.title}
+                    </h4>
+                    {item.summary && (
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {item.summary}
+                      </p>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3.5 py-1">
+                <span
+                  aria-hidden="true"
+                  className="grid size-10 shrink-0 place-items-center rounded-control bg-brand-soft text-brand-text"
+                >
+                  <Megaphone className="size-5" strokeWidth={1.75} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-foreground">
+                    {t("announcementsEmpty")}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    {t("announcementsEmptyDesc")}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Subscription Source & Auto-Update Card */}
           <div className="flex flex-col gap-3.5 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5 2xl:p-6">
             <h3 className="text-body font-semibold tracking-tight text-foreground">
@@ -709,7 +749,7 @@ export default function AccountPanel() {
               </span>
               <SegmentedControl<"direct" | "self" | "proxy">
                 ariaLabel={subT("channelTitle")}
-                value={cloudProfile?.updateChannel || "direct"}
+                value={cloudProfile?.updateChannel || "self"}
                 size="sm"
                 disabled={busy || !localClient || !cloudProfile}
                 options={[
@@ -720,46 +760,6 @@ export default function AccountPanel() {
                 onChange={(channel) => void changeUpdateChannel(channel)}
               />
             </div>
-          </div>
-
-          {/* Announcements Card：空狀態也保留卡片，交代「沒有公告」這個事實。 */}
-          <div className="flex flex-col gap-3 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5 2xl:p-6">
-            <h3 className="text-body font-semibold tracking-tight text-foreground">
-              {t("announcements")}
-            </h3>
-            {account.announcements && account.announcements.length > 0 ? (
-              <div className="divide-y divide-border/60">
-                {account.announcements.slice(0, 3).map((item) => (
-                  <article key={item.id} className="py-3 first:pt-1 last:pb-1">
-                    <h4 className="text-sm font-medium leading-snug text-foreground">
-                      {item.title}
-                    </h4>
-                    {item.summary && (
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        {item.summary}
-                      </p>
-                    )}
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-3.5 py-1">
-                <span
-                  aria-hidden="true"
-                  className="grid size-10 shrink-0 place-items-center rounded-control bg-brand-soft text-brand-text"
-                >
-                  <Megaphone className="size-5" strokeWidth={1.75} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-base font-semibold text-foreground">
-                    {t("announcementsEmpty")}
-                  </p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                    {t("announcementsEmptyDesc")}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </>
       ) : (

@@ -640,7 +640,7 @@ func (m *Manager) Update(
 
 		if err != nil {
 			m.recordError(subMeta.ID, subMeta.Health, subMeta.LastErrorMessage)
-			return nil, err
+			return nil, &FetchError{Err: err}
 		}
 
 	} else {

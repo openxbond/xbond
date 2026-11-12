@@ -814,6 +814,17 @@ func (c *runtimeController) updateLocked(ctx context.Context, id string, force b
 		return nil, err
 	}
 	result, err := c.subs.Update(id, force, proxyURL)
+	var fetchErr *sub.FetchError
+	if err != nil && proxyURL != "" && viaProxy == nil && errors.As(err, &fetchErr) {
+		meta, metaErr := c.subs.Get(id)
+		if metaErr == nil && meta.Kind == sub.KindCloud && (meta.UpdateChannel == "" || meta.UpdateChannel == sub.ChannelSelf) && ctx.Err() == nil {
+			proxyErr := err
+			result, err = c.subs.Update(id, force, "")
+			if err != nil {
+				return nil, fmt.Errorf("subscription update failed via XBond proxy and directly: %w", errors.Join(proxyErr, err))
+			}
+		}
+	}
 	if err != nil {
 		if proxyURL != "" {
 			return nil, fmt.Errorf("%w (the update channel used the local proxy; fix it or switch the subscription's update channel to direct)", err)
@@ -841,8 +852,8 @@ func (c *runtimeController) updateLocked(ctx context.Context, id string, force b
 // proxy URL. "self" rides the takeover's own mixed port only while the core
 // runs (locally or delegated — the delegated core binds the same loopback
 // port) — a first configuration can never bootstrap through itself. "proxy"
-// rides the stored proxy URL. The channel never silently switches: failures
-// return actionable errors.
+// rides the stored proxy URL. Cloud defaults to self and can fall back on
+// request failure; explicit overrides and other channels remain strict.
 func (c *runtimeController) resolveUpdateProxy(id string, override *bool) (string, error) {
 	meta, err := c.subs.Get(id)
 	if err != nil {
@@ -855,7 +866,12 @@ func (c *runtimeController) resolveUpdateProxy(id string, override *bool) (strin
 		return fmt.Sprintf("http://127.0.0.1:%d", c.Preferences().MixedPort), nil
 	}
 	switch meta.UpdateChannel {
-	case "", "direct":
+	case "":
+		if meta.Kind == sub.KindCloud && c.connectedLocked() {
+			return fmt.Sprintf("http://127.0.0.1:%d", c.Preferences().MixedPort), nil
+		}
+		return "", nil
+	case "direct":
 		return "", nil
 	case "self":
 		if !c.connectedLocked() {

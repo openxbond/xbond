@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +18,72 @@ import (
 )
 
 func boolPtr(v bool) *bool { return &v }
+
+func TestCloudUpdateProxyFallback(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	manager, err := sub.NewManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	core := &testRuntimeCore{}
+	controller := newRuntimeController(core, manager, DefaultPreferences())
+	directCalls, proxyCalls := 0, 0
+	proxyOK := false
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		directCalls++
+		_, _ = w.Write([]byte("proxies:\n  - {name: cloud, type: trojan, server: example.invalid, port: 443, password: fixture}\nrules:\n  - MATCH,DIRECT\n"))
+	}))
+	defer upstream.Close()
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyCalls++
+		if proxyOK {
+			_, _ = w.Write([]byte("proxies:\n  - {name: cloud, type: trojan, server: example.invalid, port: 443, password: fixture}\nrules:\n  - MATCH,DIRECT\n"))
+			return
+		}
+		http.Error(w, "proxy unavailable", http.StatusBadGateway)
+	}))
+	defer proxy.Close()
+	_, port, err := net.SplitHostPort(proxy.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller.prefs.MixedPort, err = strconv.Atoi(port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cloud, err := manager.BindAccount("sub-fixture", "https://example.invalid", upstream.URL, nil, "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	setCoreRunning(t, core, true)
+	if _, err := controller.Update(context.Background(), cloud.ID, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if proxyCalls != 1 || directCalls != 1 {
+		t.Fatalf("expected proxy then direct, got %d and %d", proxyCalls, directCalls)
+	}
+	if _, err := controller.Update(context.Background(), cloud.ID, true, boolPtr(true)); err == nil {
+		t.Fatal("explicit proxy override unexpectedly fell back")
+	}
+	if directCalls != 1 {
+		t.Fatal("explicit proxy override reached direct server")
+	}
+	setCoreRunning(t, core, false)
+	if _, err := controller.Update(context.Background(), cloud.ID, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if proxyCalls != 2 || directCalls != 2 {
+		t.Fatalf("disconnected update should be direct, got %d and %d", proxyCalls, directCalls)
+	}
+	proxyOK = true
+	setCoreRunning(t, core, true)
+	if _, err := controller.Update(context.Background(), cloud.ID, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if proxyCalls != 3 || directCalls != 2 {
+		t.Fatalf("successful proxy request should not use direct, got %d and %d", proxyCalls, directCalls)
+	}
+}
 
 func setCoreRunning(t *testing.T, core *testRuntimeCore, running bool) {
 	t.Helper()

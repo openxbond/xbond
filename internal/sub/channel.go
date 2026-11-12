@@ -7,10 +7,8 @@ import (
 )
 
 // Update channels for a subscription's fetches (client-rethink §四.5): the
-// empty value and "direct" fetch directly, "self" rides the daemon's own
-// mixed port while the core runs, "proxy" rides the saved proxy URL. A
-// failing channel is an actionable error — the channel never switches on
-// its own.
+// empty value defaults to self for Cloud and direct otherwise; "self" rides
+// the daemon's own mixed port while the core runs, and "proxy" uses the saved URL.
 const (
 	ChannelDirect = "direct"
 	ChannelSelf   = "self"

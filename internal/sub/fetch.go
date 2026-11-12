@@ -62,6 +62,12 @@ type FetchOptions struct {
 	OnProgress func(read, total int64)
 }
 
+// FetchError distinguishes a failed subscription request from validation or storage failures.
+type FetchError struct{ Err error }
+
+func (e *FetchError) Error() string { return e.Err.Error() }
+func (e *FetchError) Unwrap() error { return e.Err }
+
 type FetchResponse struct {
 	StatusCode       int
 	NotModified      bool
