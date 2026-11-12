@@ -5,6 +5,7 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
+        "installerIcon": "./icons/installer.ico",
         "languages": [
           "English",
           "SimpChinese",
