@@ -346,10 +346,6 @@
     .home-page {
       padding-block: 12px;
     }
-
-    .home-greeting {
-      display: none;
-    }
   }
 
   @media (width < 48rem) {

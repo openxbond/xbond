@@ -438,7 +438,17 @@ class XBondVpnService : VpnService() {
         override fun requestConnect() {
             // Mirrors the Go mobile package's StateConnected (not exported by
             // gomobile): getState() 2 = connected, and /up is idempotent then.
-            if (tunnel?.getState() == 2) {
+            // The state alone is not proof the core lives — a failed hot
+            // reload can leave state==2 with the core stopped and the TUN up
+            // (engine.running=false), where an early return would deadlock
+            // /up forever: /up must rebuild in that case, so require the
+            // status JSON's top-level running (state==Connected AND the core
+            // actually serving) before treating this as a no-op.
+            val coreActuallyRunning = runCatching {
+                org.json.JSONObject(tunnel?.getStatusJSON() ?: "{}")
+                    .optBoolean("running", false)
+            }.getOrDefault(false)
+            if (tunnel?.getState() == 2 && coreActuallyRunning) {
                 return
             }
             val consent = VpnService.prepare(this@XBondVpnService)

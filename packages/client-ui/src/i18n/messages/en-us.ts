@@ -80,6 +80,8 @@ const EN = {
     disconnect: "Disconnect",
     connected: "Proxy running",
     stopped: "Not connected",
+    connecting: "Connecting",
+    disconnecting: "Disconnecting",
     coreReachable: "Core reachable",
     portConflictTitle: "Port Conflict",
     portConflictDesc:
@@ -119,6 +121,11 @@ const EN = {
     routingStrategy: "Routing strategy",
     strategyGroups: "Strategy groups",
     allStrategies: "All strategies",
+    viewProxies: "View proxies",
+    latencyDistribution: "Latency mix",
+    latencyGood: "Good",
+    latencyMedium: "Fair",
+    latencySlow: "Slow",
     strategyMembers: "members",
     routingChain: "Routing chain",
     chooseGroup: "Policy group",
@@ -171,11 +178,6 @@ const EN = {
     portOnly: "Port only",
     portListeningHint: "Mixed proxy port listening at {{port}}",
     currentConfig: "Current configuration",
-    greeting: {
-      morning: "Good morning 👋",
-      afternoon: "Good afternoon 👋",
-      evening: "Good evening 👋",
-    },
     window: {
       live: "Live",
       m1: "1 min",
