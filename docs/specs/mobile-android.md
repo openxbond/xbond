@@ -64,7 +64,7 @@ release 包帶 `BuildConfig.RELEASE_PUBLIC_KEY`（gradle 環境變量 `XBOND_REL
 
 ## 開發與運行命令
 
-- `pnpm dev:android`：標準 `tauri android dev` 迴圈——腳本只負責拉起 AVD（無在線設備時，優先 `Medium_Phone_API_37.0`）、確保 AAR 已綁、`adb reverse tcp:1421`（CLI 不感知設備），隨後交給 Tauri CLI：`beforeDevCommand` 起 Vite（127.0.0.1:1421）→ 構建 debug APK → 安裝並以 devUrl 啟動。Vite HMR 直達 WebView；LocalAPI 憑據經 `get_localapi_config` 插件命令送達，`dev_url` 機制已刪除。Ctrl-C 清理 reverse。
+- `pnpm dev:android`：標準 `tauri android dev` 迴圈——腳本只負責拉起 AVD（無在線設備時，優先 `Medium_Phone_API_37.0`）、確保 AAR 已綁、`adb reverse tcp:1421`（CLI 不感知設備），隨後交給 Tauri CLI：`beforeDevCommand` 起 Vite（Android 開發時監聽 0.0.0.0:1421）→ 構建 debug APK → 安裝並以 devUrl 啟動。Vite HMR WebSocket 經裝置的 127.0.0.1:1421 與 ADB reverse 到達宿主；LocalAPI 憑據經 `get_localapi_config` 插件命令送達，`dev_url` 機制已刪除。Ctrl-C 清理 reverse。
 - `pnpm android:install`：`tauri android build --debug --apk --target <abi>`（ABI 取自設備 `ro.product.cpu.abi`）→ `adb install -r` 打包 APK → 拉起，驗證最終獨立發版包體驗。
 - `pnpm android:bind`：gomobile bind 全架構 AAR 到插件目錄（`cmfa` build tag 見下）。
 - Rust 兩態檢查：`cargo check --manifest-path src-tauri/Cargo.toml --features desktop`（桌面）與不帶 features（移動面，含 `compile_error!` 守衛——桌面構建漏 feature 會大聲失敗）。

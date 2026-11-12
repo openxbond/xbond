@@ -78,7 +78,14 @@ export default defineConfig((env) => ({
       }),
   ],
   server: {
-    host: process.env.TAURI_DEV_HOST ?? "127.0.0.1",
+    host:
+      process.env.TAURI_ENV_PLATFORM === "android"
+        ? "0.0.0.0"
+        : (process.env.TAURI_DEV_HOST ?? "127.0.0.1"),
+    ws:
+      process.env.TAURI_ENV_PLATFORM === "android"
+        ? { host: "127.0.0.1", clientPort: 1421 }
+        : undefined,
     port: env.mode === "tauri" ? 1420 : 3000,
     strictPort: env.mode === "tauri",
     watch: { ignored: ["**/src-tauri/**"] },

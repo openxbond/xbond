@@ -305,7 +305,7 @@ export default function Config() {
 
   return (
     <div className="page config-page relative">
-      <AuroraWave className="-top-8 end-0 h-60 w-[58%] opacity-40" />
+      <AuroraWave className="-top-8 end-0 h-60 w-[58%] opacity-80" />
       {offline && (
         <Alert role="status" className="relative z-10">
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">

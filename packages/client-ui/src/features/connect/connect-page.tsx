@@ -59,7 +59,8 @@ import { useNodeSelection } from "@/features/proxies/use-node-selection";
 import { errorKind, useAction } from "@/hooks/use-action";
 import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/platform/host";
+import { isClashX } from "@/platform/clashx-bridge";
+import { isTauriRuntime, useIsMobile } from "@/platform/host";
 import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
 import { useAPIInfo, useClient, identityAtom } from "@/state/controller-target";
 import { useGeneral } from "@/state/core-settings";
@@ -75,6 +76,7 @@ const focusAtom = atomWithStorage<Record<string, string>>(
   "xbond_focus_groups.v3",
   {},
 );
+const overviewColumns = "lg:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)]";
 
 /** 格式化流量速率，如 12.5 MB/s, 3.2 MB/s */
 function formatDisplayRate(bytesPerSec: number): string {
@@ -224,6 +226,7 @@ export default function Connect() {
   const { t: px } = useTranslation("proxies");
   const { t: st } = useTranslation("settings");
   const isMobile = useIsMobile();
+  const isWeb = !isTauriRuntime() && !isClashX();
   const controller = useAPIInfo();
   const location = useLocation();
   const client = useClient();
@@ -707,18 +710,29 @@ export default function Connect() {
       ) : !hasDaemonConfig() && !active ? (
         <ExternalControllerOnboarding className="my-auto animate-in fade-in-50 slide-in-from-bottom-2 py-6 duration-300" />
       ) : (
-        <div className="relative mx-auto flex w-full min-w-0 flex-1 flex-col gap-3 xl:gap-4">
-          {/* 波浪外扩过 page 右 padding（抵消 shell 12px + 滚动条），贴住视口可视右缘，
-              不在右上角留出画布空带；超界部分由 main 溢出裁切。 */}
-          <AuroraWave className="home-wave -top-4 -end-[calc(var(--page-pad)+2.5rem)] h-64 w-[62%] opacity-80 xl:-top-8 xl:h-80" />
+        <div
+          className={cn(
+            "relative mx-auto flex w-full min-w-0 flex-1 flex-col gap-3 xl:gap-4",
+            isWeb && "max-w-[90rem]",
+          )}
+        >
+          <AuroraWave
+            className={cn(
+              "home-wave -top-4 h-64 w-[62%] opacity-80 xl:-top-8 xl:h-80",
+              isWeb ? "mask-x-from-85%" : "-end-[calc(var(--page-pad)+2.5rem)]",
+            )}
+          />
           {/* 開放式 Hero：狀態直接落在畫布上，品牌波形裝飾在右後方。 */}
           <section
-            className="relative z-20 flex min-w-0 shrink-0 flex-col justify-center gap-3 px-1 pb-1 lg:px-2 2xl:pb-6"
+            className={cn(
+              "relative z-20 flex min-w-0 shrink-0 flex-col justify-center gap-3 pb-1 2xl:pb-6",
+              (!isWeb || isMobile) && "px-1 lg:px-2",
+            )}
             aria-label={t("connect")}
           >
             {isMobile ? (
               <div className="relative flex min-w-0 flex-col gap-2.5">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex justify-end">
                   {/* 移動端配置藥丸：取代底部/二級卡片重複資訊 */}
                   <Link
                     to="/config"
@@ -740,7 +754,7 @@ export default function Connect() {
                   </Link>
                 </div>
 
-                <div className="flex min-w-0 flex-col gap-1">
+                <div className="mt-2.5 flex min-w-0 flex-col gap-1">
                   <h1 className="flex flex-wrap items-center gap-x-2.5 text-headline leading-tight font-bold tracking-tight text-foreground">
                     <span
                       aria-hidden="true"
@@ -1003,594 +1017,627 @@ export default function Connect() {
             </section>
           )}
 
-          {/* 下半内容区限宽居中：卡片密度区不随视口无限拉伸，开场带仍满幅。 */}
-          <div className="relative z-10 mx-auto grid w-full max-w-[90rem] grid-cols-1 gap-3 lg:max-h-[36rem] lg:flex-1 lg:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] xl:gap-4">
-            <section
-              className="bento flex min-w-0 flex-col justify-between gap-3 p-3.5 xl:gap-4 xl:p-5 max-lg:order-2"
-              aria-label={t("trafficStats")}
+          <div
+            className={cn(
+              "contents",
+              isWeb &&
+                "lg:relative lg:z-10 lg:grid lg:max-h-[36rem] lg:flex-1 lg:grid-rows-[minmax(min-content,1fr)_auto] lg:gap-3 xl:gap-4",
+              isWeb && overviewColumns,
+            )}
+          >
+            <div
+              className={cn(
+                "relative z-10 mx-auto grid w-full max-w-[90rem] grid-cols-1 gap-3 lg:max-h-[36rem] lg:flex-1 xl:gap-4",
+                overviewColumns,
+                isWeb && "lg:contents",
+              )}
             >
-              {/* 卡头：标题「流量统计」，右侧时间窗控件；移动端控件独占一行，
-                  四段在窄卡头内硬挤会被全局 flex-wrap 折成 1+1 两截 */}
-              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
-                <h2 className="shrink-0 text-body font-semibold tracking-tight text-foreground">
-                  {t("trafficStats")}
-                </h2>
-                <SegmentedControl
-                  ariaLabel={t("trafficHistory")}
-                  options={trafficWindowOptions}
-                  value={trafficWindow}
-                  onChange={setTrafficWindow}
-                  disabled={trafficState !== "open"}
-                  size="sm"
-                  className="max-md:basis-full"
-                  itemClassName="max-md:flex-1"
-                />
-              </div>
-
-              {/* 核心速率与用量三列指标：下载 / 上传 / 本次累计；居中平均分布。
-                  自带上下呼吸：卡头与图表岛都是近邻，gap-3 不足以分隔 metric 级读数。 */}
-              <dl className="grid grid-cols-3 divide-x divide-border/70 py-2 text-center xl:py-2.5">
-                <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
-                  <dt className="w-full truncate text-xs font-medium text-muted-foreground mb-1 text-center">
-                    {t("download")}
-                  </dt>
-                  <dd className="w-full truncate text-metric font-semibold leading-none tracking-tight tabular-nums text-foreground max-md:text-subtitle text-center">
-                    {trafficState === "open" && speed?.down !== undefined
-                      ? formatDisplayRate(speed.down)
-                      : "0 B/s"}
-                  </dd>
-                </div>
-
-                <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
-                  <dt className="w-full truncate text-xs font-medium text-muted-foreground mb-1 text-center">
-                    {t("upload")}
-                  </dt>
-                  <dd className="w-full truncate text-metric font-semibold leading-none tracking-tight tabular-nums text-foreground max-md:text-subtitle text-center">
-                    {trafficState === "open" && speed?.up !== undefined
-                      ? formatDisplayRate(speed.up)
-                      : "0 B/s"}
-                  </dd>
-                </div>
-
-                <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
-                  <dt className="w-full truncate text-xs font-medium text-muted-foreground mb-1 text-center">
-                    {t("sessionTotal")}
-                  </dt>
-                  <dd className="w-full truncate text-metric font-semibold leading-none tracking-tight tabular-nums text-foreground max-md:text-subtitle text-center">
-                    {sessionTotal !== null
-                      ? formatDisplayTraffic(sessionTotal)
-                      : "0 B"}
-                  </dd>
-                </div>
-              </dl>
-
-              {/* 核心走势与配额岛：与右侧 Hero 节点卡规格对齐，自适应填满高度 */}
-              <div className="flex min-w-0 flex-1 flex-col justify-between rounded-2xl border border-border/80 bg-inset/50 p-3 xl:p-3.5">
-                {/* 实时走势平滑曲线图 */}
-                <div className="flex min-w-0 flex-1 items-stretch py-1">
-                  <TrafficChart
-                    samples={windowedSamples}
-                    title={t("trafficHistory")}
-                    stale={trafficState !== "open"}
-                    staleLabel={t("streamStopped")}
-                  />
-                </div>
-
-                {/* 岛底行：轻盈收纳的配额与微进度条（对齐右卡底行的「⇅ 节点选择 · 55 个成员 ›」） */}
-                <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
-                  <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground truncate">
-                    <Wallet
-                      className="size-3.5 text-muted-foreground/80 shrink-0"
-                      aria-hidden="true"
-                    />
-                    <span className="text-xs truncate">
-                      {t("quota.remaining")}
-                    </span>
-                  </span>
-
-                  {sub && quota ? (
-                    <div className="flex shrink-0 items-center gap-2.5">
-                      <span className="font-semibold tabular-nums text-foreground text-xs">
-                        {formatDisplayTraffic(quota.remaining)}
-                        <span className="text-[11px] font-normal text-muted-foreground">
-                          {" "}
-                          / {formatDisplayTraffic(sub.total)}
-                        </span>
-                      </span>
-                      <div
-                        className="h-1.5 w-16 sm:w-24 xl:w-28 overflow-hidden rounded-full bg-border/60"
-                        role="meter"
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={Math.round(quotaPercent ?? 0)}
-                        aria-label={t("quota.remaining")}
-                      >
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none",
-                            (quotaPercent ?? 0) <= 10
-                              ? "bg-destructive"
-                              : "bg-brand",
-                          )}
-                          style={{
-                            width: `${Math.min(100, Math.max(0, Math.round(quotaPercent ?? 0)))}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="truncate text-xs text-muted-foreground">
-                      {sub
-                        ? t("quota.unknown")
-                        : hasLocalAPI
-                          ? t("noConfig")
-                          : t("quotaUnavailable")}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            <section
-              className="bento flex min-w-0 flex-col gap-3 p-3.5 max-lg:order-1 xl:gap-4 xl:p-5"
-              aria-label={t("routingStrategy")}
-            >
-              {/* 卡头：标题「分流策略」，右侧全部策略链接 */}
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="shrink-0 text-body font-semibold tracking-tight text-foreground">
-                  {t("routingStrategy")}
-                </h2>
-
-                <Link
-                  to="/proxies"
-                  className="inline-flex shrink-0 min-h-7 items-center gap-0.5 text-xs font-medium text-muted-foreground hover:text-brand-text hover:underline hover:underline-offset-4 max-md:min-h-11 transition-colors"
-                >
-                  {t("allStrategies")}
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="size-3.5 rtl:rotate-180"
-                  />
-                </Link>
-              </div>
-
-              {/* 策略组切换器：独占一行 */}
-              <div className="flex items-center justify-between gap-2">
-                <label
-                  htmlFor="home-policy-group"
-                  className="text-xs font-medium text-muted-foreground shrink-0"
-                >
-                  {t("strategyGroups")}
-                </label>
-                {group && available.length > 1 ? (
-                  <div className="relative inline-flex min-w-0 flex-1 max-w-[210px]">
-                    <NativeSelect
-                      id="home-policy-group"
-                      size="sm"
-                      wrapperClassName="w-full"
-                      className="h-7 w-full truncate rounded-full border border-border/80 bg-inset px-2.5 pe-6 py-0 text-xs font-semibold text-foreground hover:border-brand/40 hover:bg-card focus-visible:ring-1 focus-visible:ring-ring cursor-pointer transition-colors"
-                      value={group.name}
-                      title={group.name}
-                      onChange={(event) => setFocusGroup(event.target.value)}
-                    >
-                      {available.map((item) => (
-                        <NativeSelectOption key={item.name} value={item.name}>
-                          {item.name}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                  </div>
-                ) : group ? (
-                  <span className="truncate rounded-full bg-muted/60 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                    {group.name}
-                  </span>
-                ) : null}
-              </div>
-
-              {/* 当前选择核心卡片：节点展示与选择合二为一，自适应填充高度，杜绝截断 */}
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                aria-haspopup="dialog"
-                className="group mt-auto flex min-w-0 flex-1 flex-col items-stretch justify-between rounded-2xl border border-border/80 bg-inset/50 p-3.5 text-start transition-[border-color,background-color,box-shadow] duration-150 ease-out max-h-[17rem] hover:border-brand/40 hover:bg-inset/80 hover:shadow-xs focus-visible:outline-2 focus-visible:outline-ring cursor-pointer motion-reduce:transition-none"
+              <section
+                className={cn(
+                  "bento flex min-w-0 flex-col justify-between gap-3 p-3.5 xl:gap-4 xl:p-5 max-lg:order-2",
+                  isWeb && "lg:col-start-1 lg:row-span-2 lg:row-start-1",
+                )}
+                aria-label={t("trafficStats")}
               >
-                {/* 卡片顶行：当前节点标签 + 独立延迟药丸 */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <span
-                      className="size-1.5 rounded-full bg-brand"
-                      aria-hidden="true"
-                    />
-                    {t("currentNode")}
-                  </span>
+                {/* 卡头：标题「流量统计」，右侧时间窗控件；移动端控件独占一行，
+                  四段在窄卡头内硬挤会被全局 flex-wrap 折成 1+1 两截 */}
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
+                  <h2 className="shrink-0 text-body font-semibold tracking-tight text-foreground">
+                    {t("trafficStats")}
+                  </h2>
+                  <SegmentedControl
+                    ariaLabel={t("trafficHistory")}
+                    options={trafficWindowOptions}
+                    value={trafficWindow}
+                    onChange={setTrafficWindow}
+                    disabled={trafficState !== "open"}
+                    size="sm"
+                    className="max-md:basis-full"
+                    itemClassName="max-md:flex-1"
+                  />
+                </div>
 
-                  {leafDelay ? (
-                    <span
-                      className={cn(
-                        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums shadow-2xs transition-colors duration-200",
-                        // Same traffic-light family as the proxies page
-                        // (DESIGN.md latency tokens), not status colors.
-                        leafDelay < 150
-                          ? "bg-latency-good text-latency-good-text"
-                          : leafDelay <= 400
-                            ? "bg-latency-medium text-latency-medium-text"
-                            : "bg-latency-slow text-latency-slow-text",
-                      )}
-                      title={t("lastMeasured")}
-                    >
-                      <span
+                {/* 核心速率与用量三列指标：下载 / 上传 / 本次累计；居中平均分布。
+                  自带上下呼吸：卡头与图表岛都是近邻，gap-3 不足以分隔 metric 级读数。 */}
+                <dl className="grid grid-cols-3 divide-x divide-border/70 py-2 text-center xl:py-2.5">
+                  <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
+                    <dt className="w-full truncate text-xs font-medium text-muted-foreground mb-1 text-center">
+                      {t("download")}
+                    </dt>
+                    <dd className="w-full truncate text-metric font-semibold leading-none tracking-tight tabular-nums text-foreground max-md:text-subtitle text-center">
+                      {trafficState === "open" && speed?.down !== undefined
+                        ? formatDisplayRate(speed.down)
+                        : "0 B/s"}
+                    </dd>
+                  </div>
+
+                  <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
+                    <dt className="w-full truncate text-xs font-medium text-muted-foreground mb-1 text-center">
+                      {t("upload")}
+                    </dt>
+                    <dd className="w-full truncate text-metric font-semibold leading-none tracking-tight tabular-nums text-foreground max-md:text-subtitle text-center">
+                      {trafficState === "open" && speed?.up !== undefined
+                        ? formatDisplayRate(speed.up)
+                        : "0 B/s"}
+                    </dd>
+                  </div>
+
+                  <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
+                    <dt className="w-full truncate text-xs font-medium text-muted-foreground mb-1 text-center">
+                      {t("sessionTotal")}
+                    </dt>
+                    <dd className="w-full truncate text-metric font-semibold leading-none tracking-tight tabular-nums text-foreground max-md:text-subtitle text-center">
+                      {sessionTotal !== null
+                        ? formatDisplayTraffic(sessionTotal)
+                        : "0 B"}
+                    </dd>
+                  </div>
+                </dl>
+
+                {/* 核心走势与配额岛：与右侧 Hero 节点卡规格对齐，自适应填满高度 */}
+                <div className="flex min-w-0 flex-1 flex-col justify-between rounded-2xl border border-border/80 bg-inset/50 p-3 xl:p-3.5">
+                  {/* 实时走势平滑曲线图 */}
+                  <div className="flex min-w-0 flex-1 items-stretch py-1">
+                    <TrafficChart
+                      samples={windowedSamples}
+                      title={t("trafficHistory")}
+                      stale={trafficState !== "open"}
+                      staleLabel={t("streamStopped")}
+                    />
+                  </div>
+
+                  {/* 岛底行：轻盈收纳的配额与微进度条（对齐右卡底行的「⇅ 节点选择 · 55 个成员 ›」） */}
+                  <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
+                    <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground truncate">
+                      <Wallet
+                        className="size-3.5 text-muted-foreground/80 shrink-0"
                         aria-hidden="true"
-                        className={cn(
-                          "size-1.5 rounded-full transition-colors duration-200",
-                          leafDelay < 150
-                            ? "bg-latency-good-dot"
-                            : leafDelay <= 400
-                              ? "bg-latency-medium-dot"
-                              : "bg-latency-slow-dot",
-                        )}
                       />
-                      {leafDelay} ms
+                      <span className="text-xs truncate">
+                        {t("quota.remaining")}
+                      </span>
                     </span>
-                  ) : leafNodeName ? (
-                    <span className="shrink-0 rounded-full bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                      {px("untested")}
+
+                    {sub && quota ? (
+                      <div className="flex shrink-0 items-center gap-2.5">
+                        <span className="font-semibold tabular-nums text-foreground text-xs">
+                          {formatDisplayTraffic(quota.remaining)}
+                          <span className="text-[11px] font-normal text-muted-foreground">
+                            {" "}
+                            / {formatDisplayTraffic(sub.total)}
+                          </span>
+                        </span>
+                        <div
+                          className="h-1.5 w-16 sm:w-24 xl:w-28 overflow-hidden rounded-full bg-border/60"
+                          role="meter"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={Math.round(quotaPercent ?? 0)}
+                          aria-label={t("quota.remaining")}
+                        >
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none",
+                              (quotaPercent ?? 0) <= 10
+                                ? "bg-destructive"
+                                : "bg-brand",
+                            )}
+                            style={{
+                              width: `${Math.min(100, Math.max(0, Math.round(quotaPercent ?? 0)))}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {sub
+                          ? t("quota.unknown")
+                          : hasLocalAPI
+                            ? t("noConfig")
+                            : t("quotaUnavailable")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section
+                className={cn(
+                  "bento flex min-w-0 flex-col gap-3 p-3.5 max-lg:order-1 xl:gap-4 xl:p-5",
+                  isWeb && "lg:col-start-2 lg:row-start-1",
+                )}
+                aria-label={t("routingStrategy")}
+              >
+                {/* 卡头：标题「分流策略」，右侧全部策略链接 */}
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="shrink-0 text-body font-semibold tracking-tight text-foreground">
+                    {t("routingStrategy")}
+                  </h2>
+
+                  <Link
+                    to="/proxies"
+                    className="inline-flex shrink-0 min-h-7 items-center gap-0.5 text-xs font-medium text-muted-foreground hover:text-brand-text hover:underline hover:underline-offset-4 max-md:min-h-11 transition-colors"
+                  >
+                    {t("allStrategies")}
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-3.5 rtl:rotate-180"
+                    />
+                  </Link>
+                </div>
+
+                {/* 策略组切换器：独占一行 */}
+                <div className="flex items-center justify-between gap-2">
+                  <label
+                    htmlFor="home-policy-group"
+                    className="text-xs font-medium text-muted-foreground shrink-0"
+                  >
+                    {t("strategyGroups")}
+                  </label>
+                  {group && available.length > 1 ? (
+                    <div className="relative inline-flex min-w-0 flex-1 max-w-[210px]">
+                      <NativeSelect
+                        id="home-policy-group"
+                        size="sm"
+                        wrapperClassName="w-full"
+                        className="h-7 w-full truncate rounded-full border border-border/80 bg-inset px-2.5 pe-6 py-0 text-xs font-semibold text-foreground hover:border-brand/40 hover:bg-card focus-visible:ring-1 focus-visible:ring-ring cursor-pointer transition-colors"
+                        value={group.name}
+                        title={group.name}
+                        onChange={(event) => setFocusGroup(event.target.value)}
+                      >
+                        {available.map((item) => (
+                          <NativeSelectOption key={item.name} value={item.name}>
+                            {item.name}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </div>
+                  ) : group ? (
+                    <span className="truncate rounded-full bg-muted/60 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                      {group.name}
                     </span>
                   ) : null}
                 </div>
 
-                {/* 卡片主内容：48px 国旗 + 全宽节点名（无右侧拥挤元素，彻底不截断） */}
-                <div className="my-3 flex min-w-0 flex-1 items-center gap-3.5">
-                  <span
-                    className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-card shadow-2xs group-hover:scale-105 transition-transform xl:size-12"
-                    aria-hidden="true"
-                  >
-                    {isDirect ? (
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="22"
-                        height="22"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                      </svg>
-                    ) : isReject ? (
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="22"
-                        height="22"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                      </svg>
-                    ) : leafFlag ? (
-                      <CountryFlag
-                        code={leafFlag}
-                        avatar
-                        className="size-full"
+                {/* 当前选择核心卡片：节点展示与选择合二为一，自适应填充高度，杜绝截断 */}
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  aria-haspopup="dialog"
+                  className="group mt-auto flex min-w-0 flex-1 flex-col items-stretch justify-between rounded-2xl border border-border/80 bg-inset/50 p-3.5 text-start transition-[border-color,background-color,box-shadow] duration-150 ease-out max-h-[17rem] hover:border-brand/40 hover:bg-inset/80 hover:shadow-xs focus-visible:outline-2 focus-visible:outline-ring cursor-pointer motion-reduce:transition-none"
+                >
+                  {/* 卡片顶行：当前节点标签 + 独立延迟药丸 */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <span
+                        className="size-1.5 rounded-full bg-brand"
+                        aria-hidden="true"
                       />
-                    ) : (
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="22"
-                        height="22"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="3" y="4" width="18" height="7" rx="2" />
-                        <rect x="3" y="13" width="18" height="7" rx="2" />
-                        <line x1="7" y1="7.5" x2="7.01" y2="7.5" />
-                        <line x1="7" y1="16.5" x2="7.01" y2="16.5" />
-                      </svg>
-                    )}
-                  </span>
+                      {t("currentNode")}
+                    </span>
 
-                  <div className="min-w-0 flex-1">
+                    {leafDelay ? (
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums shadow-2xs transition-colors duration-200",
+                          // Same traffic-light family as the proxies page
+                          // (DESIGN.md latency tokens), not status colors.
+                          leafDelay < 150
+                            ? "bg-latency-good text-latency-good-text"
+                            : leafDelay <= 400
+                              ? "bg-latency-medium text-latency-medium-text"
+                              : "bg-latency-slow text-latency-slow-text",
+                        )}
+                        title={t("lastMeasured")}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "size-1.5 rounded-full transition-colors duration-200",
+                            leafDelay < 150
+                              ? "bg-latency-good-dot"
+                              : leafDelay <= 400
+                                ? "bg-latency-medium-dot"
+                                : "bg-latency-slow-dot",
+                          )}
+                        />
+                        {leafDelay} ms
+                      </span>
+                    ) : leafNodeName ? (
+                      <span className="shrink-0 rounded-full bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {px("untested")}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {/* 卡片主内容：48px 国旗 + 全宽节点名（无右侧拥挤元素，彻底不截断） */}
+                  <div className="my-3 flex min-w-0 flex-1 items-center gap-3.5">
                     <span
-                      className="block truncate text-base font-bold tracking-tight text-foreground group-hover:text-brand-text transition-colors"
-                      title={
-                        leafNodeName
+                      className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-card shadow-2xs group-hover:scale-105 transition-transform xl:size-12"
+                      aria-hidden="true"
+                    >
+                      {isDirect ? (
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="22"
+                          height="22"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                      ) : isReject ? (
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="22"
+                          height="22"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                        </svg>
+                      ) : leafFlag ? (
+                        <CountryFlag
+                          code={leafFlag}
+                          avatar
+                          className="size-full"
+                        />
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="22"
+                          height="22"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="3" y="4" width="18" height="7" rx="2" />
+                          <rect x="3" y="13" width="18" height="7" rx="2" />
+                          <line x1="7" y1="7.5" x2="7.01" y2="7.5" />
+                          <line x1="7" y1="16.5" x2="7.01" y2="16.5" />
+                        </svg>
+                      )}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className="block truncate text-base font-bold tracking-tight text-foreground group-hover:text-brand-text transition-colors"
+                        title={
+                          leafNodeName
+                            ? leafFlag
+                              ? stripFlagEmoji(leafNodeName)
+                              : leafNodeName
+                            : undefined
+                        }
+                      >
+                        {leafNodeName
                           ? leafFlag
                             ? stripFlagEmoji(leafNodeName)
                             : leafNodeName
-                          : undefined
-                      }
-                    >
-                      {leafNodeName
-                        ? leafFlag
-                          ? stripFlagEmoji(leafNodeName)
-                          : leafNodeName
-                        : t("strategy.noNodeSelected")}
-                    </span>
-                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                      {chain.length > 2
-                        ? `${t("via")} ${chain.slice(1, -1).join(" › ")}`
-                        : strategyTypeLabel(group?.type)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 卡片底行：合二为一的节点选择操作指引 */}
-                <div className="flex items-center justify-between border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5 font-medium text-foreground group-hover:text-brand-text transition-colors">
-                    <ArrowUpDown
-                      className="size-3.5 text-brand"
-                      aria-hidden="true"
-                    />
-                    <span>{t("nodeSelection")}</span>
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-brand-text transition-colors">
-                    {group?.all && (
-                      <span>
-                        {group.all.length} {t("strategyMembers")}
+                          : t("strategy.noNodeSelected")}
                       </span>
-                    )}
-                    <ChevronRight
-                      aria-hidden="true"
-                      className="size-3.5 transition-transform group-hover:translate-x-0.5"
-                    />
-                  </span>
-                </div>
-              </button>
-
-              {/* 卡底行：組內延遲分布（與左卡配額行同構），來自同一份 history 數據。 */}
-              {delayStats && (
-                <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
-                  <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground">
-                    <Gauge
-                      className="size-3.5 shrink-0 text-muted-foreground/80"
-                      aria-hidden="true"
-                    />
-                    <span className="truncate">{t("latencyDistribution")}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-3 tabular-nums">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        aria-hidden="true"
-                        className="size-1.5 rounded-full bg-latency-good-dot"
-                      />
-                      {delayStats.good} {t("latencyGood")}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        aria-hidden="true"
-                        className="size-1.5 rounded-full bg-latency-medium-dot"
-                      />
-                      {delayStats.medium} {t("latencyMedium")}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        aria-hidden="true"
-                        className="size-1.5 rounded-full bg-latency-slow-dot"
-                      />
-                      {delayStats.slow} {t("latencySlow")}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        aria-hidden="true"
-                        className="size-1.5 rounded-full bg-muted-foreground/40"
-                      />
-                      {delayStats.untested} {px("untested")}
-                    </span>
-                  </span>
-                </div>
-              )}
-            </section>
-          </div>
-
-          {/* 第四行：路由模式與流量接管一行（遠端形態只有路由模式卡，佔半寬）；
-              移動端已在頂部提供分流模式。 */}
-          {!isMobile && (
-            <div className="relative z-10 mx-auto grid w-full max-w-[90rem] shrink-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] xl:gap-4">
-              <section
-                className="bento flex min-w-0 flex-col justify-between gap-2 p-3 lg:flex-row lg:flex-wrap lg:items-center xl:gap-3 xl:p-4"
-                aria-label={t("prefs")}
-              >
-                {/* 左欄身份：圖示 + 標題 + 描述，右欄留給路由模式上圖下字分段塊。 */}
-                <div className="flex min-w-0 items-center gap-2.5 lg:shrink-0">
-                  <span
-                    aria-hidden="true"
-                    className="grid size-9 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground lg:hidden"
-                  >
-                    <SlidersHorizontal
-                      className="size-4.5"
-                      strokeWidth={1.75}
-                    />
-                  </span>
-                  <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-foreground lg:whitespace-nowrap">
-                      {t("prefs")}
-                    </h2>
-                    <p className="text-xs text-muted-foreground lg:whitespace-nowrap">
-                      {t("prefsDesc")}
-                    </p>
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                        {chain.length > 2
+                          ? `${t("via")} ${chain.slice(1, -1).join(" › ")}`
+                          : strategyTypeLabel(group?.type)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex min-w-0 shrink-0 flex-col">
-                  <SegmentedControl
-                    ariaLabel={tc("routingMode.title")}
-                    options={routingOptions}
-                    value={routingValue ?? null}
-                    disabled={pending}
-                    className="grid w-full grid-cols-3 lg:w-auto"
-                    onChange={(mode) => void switchRouting(mode)}
-                  />
-                </div>
-              </section>
 
-              {hasLocalAPI && (
+                  {/* 卡片底行：合二为一的节点选择操作指引 */}
+                  <div className="flex items-center justify-between border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5 font-medium text-foreground group-hover:text-brand-text transition-colors">
+                      <ArrowUpDown
+                        className="size-3.5 text-brand"
+                        aria-hidden="true"
+                      />
+                      <span>{t("nodeSelection")}</span>
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-brand-text transition-colors">
+                      {group?.all && (
+                        <span>
+                          {group.all.length} {t("strategyMembers")}
+                        </span>
+                      )}
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="size-3.5 transition-transform group-hover:translate-x-0.5"
+                      />
+                    </span>
+                  </div>
+                </button>
+
+                {/* 卡底行：組內延遲分布（與左卡配額行同構），來自同一份 history 數據。 */}
+                {delayStats && (
+                  <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
+                    <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground">
+                      <Gauge
+                        className="size-3.5 shrink-0 text-muted-foreground/80"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">
+                        {t("latencyDistribution")}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3 tabular-nums">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          aria-hidden="true"
+                          className="size-1.5 rounded-full bg-latency-good-dot"
+                        />
+                        {delayStats.good} {t("latencyGood")}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          aria-hidden="true"
+                          className="size-1.5 rounded-full bg-latency-medium-dot"
+                        />
+                        {delayStats.medium} {t("latencyMedium")}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          aria-hidden="true"
+                          className="size-1.5 rounded-full bg-latency-slow-dot"
+                        />
+                        {delayStats.slow} {t("latencySlow")}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          aria-hidden="true"
+                          className="size-1.5 rounded-full bg-muted-foreground/40"
+                        />
+                        {delayStats.untested} {px("untested")}
+                      </span>
+                    </span>
+                  </div>
+                )}
+              </section>
+            </div>
+
+            {!isMobile && (
+              <div
+                className={cn(
+                  "relative z-10 mx-auto grid w-full max-w-[90rem] shrink-0 grid-cols-1 gap-3 xl:gap-4",
+                  isWeb
+                    ? "lg:contents"
+                    : "lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]",
+                )}
+              >
                 <section
-                  className="bento flex min-w-0 flex-col justify-between gap-2 p-3 lg:flex-row lg:flex-wrap lg:items-center xl:gap-3 xl:p-4"
-                  aria-label={t("takeoverMode")}
+                  className={cn(
+                    "bento flex min-w-0 flex-col justify-between gap-2 p-3 lg:flex-row lg:flex-wrap lg:items-center xl:gap-3 xl:p-4",
+                    isWeb && "lg:col-start-2 lg:row-start-2",
+                  )}
+                  aria-label={t("prefs")}
                 >
-                  {/* 左欄身份與接管說明 */}
+                  {/* 左欄身份：圖示 + 標題 + 描述，右欄留給路由模式上圖下字分段塊。 */}
                   <div className="flex min-w-0 items-center gap-2.5 lg:shrink-0">
                     <span
                       aria-hidden="true"
                       className="grid size-9 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground lg:hidden"
                     >
-                      <Layers className="size-4.5" strokeWidth={1.75} />
+                      <SlidersHorizontal
+                        className="size-4.5"
+                        strokeWidth={1.75}
+                      />
                     </span>
                     <div className="min-w-0">
-                      <h2 className="text-base font-semibold text-foreground">
-                        {t("takeoverMode")}
+                      <h2 className="text-base font-semibold text-foreground lg:whitespace-nowrap">
+                        {t("prefs")}
                       </h2>
-                      <p className="text-xs text-muted-foreground">
-                        {t("takeoverDesc")}
+                      <p className="text-xs text-muted-foreground lg:whitespace-nowrap">
+                        {t("prefsDesc")}
                       </p>
                     </div>
                   </div>
-                  <div className="grid min-w-0 grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:items-center sm:divide-x sm:divide-y-0 lg:min-w-64 lg:flex-1 lg:grid-cols-[calc(50%+1rem)_minmax(0,1fr)] lg:ps-3">
-                    {/* System Proxy */}
-                    <div className="flex min-w-0 items-center justify-between gap-2 py-2 sm:pe-2.5 sm:py-0 lg:justify-end">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Network
-                          aria-hidden="true"
-                          className="size-4 shrink-0 text-muted-foreground lg:hidden"
-                        />
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                          <strong className="text-sm leading-tight font-semibold text-foreground lg:whitespace-nowrap">
-                            {t("sysproxy")}
-                          </strong>
-                          <span className="text-xs leading-4 text-muted-foreground lg:hidden">
-                            {st("takeover.sysproxyDesc")}
-                          </span>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={isSysproxy}
-                        disabled={pending}
-                        onCheckedChange={(checked: boolean) =>
-                          void run(
-                            () => setMode({ systemProxy: checked }),
-                            false,
-                          )
-                        }
-                        aria-label={t("sysproxy")}
-                      />
-                    </div>
-
-                    {/* Virtual NIC (TUN) */}
-                    <div className="flex min-w-0 items-center justify-between gap-2 py-2 sm:ps-2.5 sm:py-0 lg:justify-end">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Shield
-                          aria-hidden="true"
-                          className="size-4 shrink-0 text-muted-foreground lg:hidden"
-                        />
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                          <div className="flex items-center gap-1">
-                            <strong className="text-sm leading-tight font-semibold text-foreground lg:whitespace-nowrap">
-                              {t("tun")}
-                            </strong>
-                            <HoverCard openDelay={150} closeDelay={200}>
-                              <HoverCardTrigger asChild>
-                                <button
-                                  type="button"
-                                  className={cn(
-                                    "inline-flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                                    isServiceInstalled
-                                      ? "text-muted-foreground/60 hover:text-foreground"
-                                      : "text-warning-text hover:text-foreground",
-                                  )}
-                                  aria-label={
-                                    isServiceInstalled
-                                      ? st("takeover.serviceInstalled")
-                                      : st("takeover.tunPrivilegeHint")
-                                  }
-                                >
-                                  <AlertCircle className="size-3.5" />
-                                </button>
-                              </HoverCardTrigger>
-                              <HoverCardContent
-                                align="start"
-                                side="top"
-                                className="flex flex-col gap-2.5 w-68 p-3 text-xs"
-                              >
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-1.5 font-medium text-foreground">
-                                    <AlertCircle
-                                      className={cn(
-                                        "size-3.5 shrink-0",
-                                        isServiceInstalled
-                                          ? "text-success-text"
-                                          : "text-warning-text",
-                                      )}
-                                    />
-                                    <span>
-                                      {isServiceInstalled
-                                        ? st("takeover.serviceInstalled")
-                                        : st("takeover.tunPrivilegeRequired")}
-                                    </span>
-                                  </div>
-                                  <p className="text-muted-foreground leading-relaxed text-xs">
-                                    {isServiceInstalled
-                                      ? st("takeover.serviceInstalledDesc")
-                                      : status?.capabilities?.tunReasonCode
-                                        ? st(
-                                            `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
-                                          )
-                                        : st("takeover.tunPrivilegeHint")}
-                                  </p>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant={
-                                    isServiceInstalled ? "outline" : "default"
-                                  }
-                                  disabled={changingService}
-                                  className={cn(
-                                    "h-7 w-full text-xs font-medium cursor-pointer",
-                                    !isServiceInstalled &&
-                                      "bg-brand-action text-brand-action-foreground hover:bg-brand-action-hover",
-                                  )}
-                                  onClick={() =>
-                                    isServiceInstalled
-                                      ? void handleChangeService(false)
-                                      : setPrivilegeDialogOpen(true)
-                                  }
-                                >
-                                  {changingService
-                                    ? st("takeover.installingService")
-                                    : isServiceInstalled
-                                      ? st("takeover.uninstallService")
-                                      : st("takeover.installService")}
-                                </Button>
-                              </HoverCardContent>
-                            </HoverCard>
-                          </div>
-                          <span className="text-xs leading-4 text-muted-foreground lg:hidden">
-                            {st("takeover.tunDesc")}
-                          </span>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={isTun}
-                        disabled={pending || changingService}
-                        onCheckedChange={(checked: boolean) => {
-                          if (checked && !isTunCapable) {
-                            setPrivilegeDialogOpen(true);
-                            return;
-                          }
-                          void run(() => setMode({ tun: checked }), false);
-                        }}
-                        aria-label={t("tun")}
-                      />
-                    </div>
+                  <div className="flex min-w-0 shrink-0 flex-col">
+                    <SegmentedControl
+                      ariaLabel={tc("routingMode.title")}
+                      options={routingOptions}
+                      value={routingValue ?? null}
+                      disabled={pending}
+                      className="grid w-full grid-cols-3 lg:w-auto"
+                      onChange={(mode) => void switchRouting(mode)}
+                    />
                   </div>
                 </section>
-              )}
-            </div>
-          )}
+
+                {hasLocalAPI && (
+                  <section
+                    className={cn(
+                      "bento flex min-w-0 flex-col justify-between gap-2 p-3 lg:flex-row lg:flex-wrap lg:items-center xl:gap-3 xl:p-4",
+                      isWeb && "lg:col-start-1 lg:row-start-3",
+                    )}
+                    aria-label={t("takeoverMode")}
+                  >
+                    {/* 左欄身份與接管說明 */}
+                    <div className="flex min-w-0 items-center gap-2.5 lg:shrink-0">
+                      <span
+                        aria-hidden="true"
+                        className="grid size-9 shrink-0 place-items-center rounded-control bg-inset text-muted-foreground lg:hidden"
+                      >
+                        <Layers className="size-4.5" strokeWidth={1.75} />
+                      </span>
+                      <div className="min-w-0">
+                        <h2 className="text-base font-semibold text-foreground">
+                          {t("takeoverMode")}
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                          {t("takeoverDesc")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid min-w-0 grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:items-center sm:divide-x sm:divide-y-0 lg:min-w-64 lg:flex-1 lg:grid-cols-[calc(50%+1rem)_minmax(0,1fr)] lg:ps-3">
+                      {/* System Proxy */}
+                      <div className="flex min-w-0 items-center justify-between gap-2 py-2 sm:pe-2.5 sm:py-0 lg:justify-end">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Network
+                            aria-hidden="true"
+                            className="size-4 shrink-0 text-muted-foreground lg:hidden"
+                          />
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <strong className="text-sm leading-tight font-semibold text-foreground lg:whitespace-nowrap">
+                              {t("sysproxy")}
+                            </strong>
+                            <span className="text-xs leading-4 text-muted-foreground lg:hidden">
+                              {st("takeover.sysproxyDesc")}
+                            </span>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={isSysproxy}
+                          disabled={pending}
+                          onCheckedChange={(checked: boolean) =>
+                            void run(
+                              () => setMode({ systemProxy: checked }),
+                              false,
+                            )
+                          }
+                          aria-label={t("sysproxy")}
+                        />
+                      </div>
+
+                      {/* Virtual NIC (TUN) */}
+                      <div className="flex min-w-0 items-center justify-between gap-2 py-2 sm:ps-2.5 sm:py-0 lg:justify-end">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Shield
+                            aria-hidden="true"
+                            className="size-4 shrink-0 text-muted-foreground lg:hidden"
+                          />
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <div className="flex items-center gap-1">
+                              <strong className="text-sm leading-tight font-semibold text-foreground lg:whitespace-nowrap">
+                                {t("tun")}
+                              </strong>
+                              <HoverCard openDelay={150} closeDelay={200}>
+                                <HoverCardTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className={cn(
+                                      "inline-flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                      isServiceInstalled
+                                        ? "text-muted-foreground/60 hover:text-foreground"
+                                        : "text-warning-text hover:text-foreground",
+                                    )}
+                                    aria-label={
+                                      isServiceInstalled
+                                        ? st("takeover.serviceInstalled")
+                                        : st("takeover.tunPrivilegeHint")
+                                    }
+                                  >
+                                    <AlertCircle className="size-3.5" />
+                                  </button>
+                                </HoverCardTrigger>
+                                <HoverCardContent
+                                  align="start"
+                                  side="top"
+                                  className="flex flex-col gap-2.5 w-68 p-3 text-xs"
+                                >
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-1.5 font-medium text-foreground">
+                                      <AlertCircle
+                                        className={cn(
+                                          "size-3.5 shrink-0",
+                                          isServiceInstalled
+                                            ? "text-success-text"
+                                            : "text-warning-text",
+                                        )}
+                                      />
+                                      <span>
+                                        {isServiceInstalled
+                                          ? st("takeover.serviceInstalled")
+                                          : st("takeover.tunPrivilegeRequired")}
+                                      </span>
+                                    </div>
+                                    <p className="text-muted-foreground leading-relaxed text-xs">
+                                      {isServiceInstalled
+                                        ? st("takeover.serviceInstalledDesc")
+                                        : status?.capabilities?.tunReasonCode
+                                          ? st(
+                                              `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                                            )
+                                          : st("takeover.tunPrivilegeHint")}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant={
+                                      isServiceInstalled ? "outline" : "default"
+                                    }
+                                    disabled={changingService}
+                                    className={cn(
+                                      "h-7 w-full text-xs font-medium cursor-pointer",
+                                      !isServiceInstalled &&
+                                        "bg-brand-action text-brand-action-foreground hover:bg-brand-action-hover",
+                                    )}
+                                    onClick={() =>
+                                      isServiceInstalled
+                                        ? void handleChangeService(false)
+                                        : setPrivilegeDialogOpen(true)
+                                    }
+                                  >
+                                    {changingService
+                                      ? st("takeover.installingService")
+                                      : isServiceInstalled
+                                        ? st("takeover.uninstallService")
+                                        : st("takeover.installService")}
+                                  </Button>
+                                </HoverCardContent>
+                              </HoverCard>
+                            </div>
+                            <span className="text-xs leading-4 text-muted-foreground lg:hidden">
+                              {st("takeover.tunDesc")}
+                            </span>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={isTun}
+                          disabled={pending || changingService}
+                          onCheckedChange={(checked: boolean) => {
+                            if (checked && !isTunCapable) {
+                              setPrivilegeDialogOpen(true);
+                              return;
+                            }
+                            void run(() => setMode({ tun: checked }), false);
+                          }}
+                          aria-label={t("tun")}
+                        />
+                      </div>
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
