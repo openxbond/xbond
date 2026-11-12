@@ -18,7 +18,10 @@ import (
 	"github.com/metacubex/mihomo/component/profile/cachefile"
 	C "github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/hub/executor"
+	"github.com/metacubex/mihomo/hub/route"
+	"github.com/metacubex/mihomo/listener"
 	mihomoLog "github.com/metacubex/mihomo/log"
+	"github.com/metacubex/mihomo/tunnel"
 	"github.com/sagernet/sing-box"
 	_ "github.com/sagernet/sing-box/experimental/clashapi" // registers the clash API server
 	slog "github.com/sagernet/sing-box/log"
@@ -68,6 +71,22 @@ func (c *mihomoCore) stop() error {
 		c.logSub = nil
 	}
 	executor.Shutdown()
+	// executor.Shutdown() closes only the TUN inbound (listener.Cleanup calls
+	// closeTunListener) and leaves both the TCP inbounds and the
+	// external-controller server running: the standalone binary relies on
+	// process exit to release them. Embedded, those ports stay bound after
+	// every stop and the next start (delegated re-apply included) collides
+	// with "port still bound by a previous takeover". Close them the same way
+	// ApplyConfig re-creates them: an empty listener map with dropOld closes
+	// config-declared inbounds, port 0 closes the plain http/socks/mixed
+	// listeners, and an empty route config closes the controller server.
+	t := tunnel.Tunnel
+	listener.PatchInboundListeners(map[string]C.InboundListener{}, t, true)
+	listener.ReCreateHTTP(0, t)
+	listener.ReCreateSocks(0, t)
+	listener.ReCreateMixed(0, t)
+	listener.ReCreateRedir(0, t)
+	route.ReCreateServer(&route.Config{})
 	// Release mihomo's cache.db file lock: the bbolt singleton would
 	// otherwise stay open for the process lifetime and block data-dir
 	// deletion on Windows. In-session selection memory is covered by the
