@@ -161,6 +161,7 @@ export default function App() {
           ref={contentRef}
           className={cn(
             "min-h-0 flex-1 overflow-x-clip overflow-y-auto rounded-hero max-md:rounded-none",
+            isHome && "-me-4 xl:-me-6 max-md:me-0",
             // No global mobile top bar anymore: the safe-area inset alone
             // clears the status bar, each tab paints its own context header.
             "max-md:px-0 max-md:pt-[env(safe-area-inset-top)] max-md:pb-[calc(68px+env(safe-area-inset-bottom))] max-md:[&::-webkit-scrollbar]:hidden",
