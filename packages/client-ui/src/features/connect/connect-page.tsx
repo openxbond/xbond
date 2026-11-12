@@ -9,10 +9,11 @@ import {
 import { useAtom, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import {
-  AlertCircle,
   ArrowUpDown,
   ChevronRight,
   ChevronsRight,
+  CircleAlert,
+  CircleCheck,
   Gauge,
   Globe,
   Layers,
@@ -449,6 +450,7 @@ export default function Connect() {
   const isServiceInstalled = hasLocalAPI
     ? Boolean(status?.capabilities?.serviceInstalled)
     : false;
+  const TunServiceIcon = isServiceInstalled ? CircleCheck : CircleAlert;
   const isTunCapable = hasLocalAPI
     ? Boolean(
         status?.capabilities?.serviceInstalled || status?.capabilities?.tun,
@@ -1549,10 +1551,10 @@ export default function Connect() {
                                   <button
                                     type="button"
                                     className={cn(
-                                      "inline-flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                      "inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                                       isServiceInstalled
-                                        ? "text-muted-foreground/60 hover:text-foreground"
-                                        : "text-warning-text hover:text-foreground",
+                                        ? "text-success-text"
+                                        : "text-warning-text",
                                     )}
                                     aria-label={
                                       isServiceInstalled
@@ -1560,7 +1562,10 @@ export default function Connect() {
                                         : st("takeover.tunPrivilegeHint")
                                     }
                                   >
-                                    <AlertCircle className="size-3.5" />
+                                    <TunServiceIcon
+                                      aria-hidden="true"
+                                      className="size-4 shrink-0"
+                                    />
                                   </button>
                                 </HoverCardTrigger>
                                 <HoverCardContent
@@ -1570,7 +1575,8 @@ export default function Connect() {
                                 >
                                   <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-1.5 font-medium text-foreground">
-                                      <AlertCircle
+                                      <TunServiceIcon
+                                        aria-hidden="true"
                                         className={cn(
                                           "size-3.5 shrink-0",
                                           isServiceInstalled
