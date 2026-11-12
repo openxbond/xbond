@@ -27,8 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAction } from "@/hooks/use-action";
 import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
 import { cn } from "@/lib/utils";
+import { saveTextFile } from "@/platform/save-file";
 import { useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
 import { useConfig } from "@/state/user-preferences";
@@ -121,6 +123,7 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation("logs");
   const { t: r } = useTranslation("runtime");
   const { t: tc } = useTranslation("common");
+  const { run, pending: saving } = useAction();
   const {
     data: { logLevel },
     set,
@@ -248,14 +251,10 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
           `${dayjs(log.time).format("YYYY-MM-DD HH:mm:ss")} [${log.type}] ${log.payload}`,
       )
       .join("\n");
-    const url = URL.createObjectURL(
-      new Blob([text], { type: "text/plain;charset=utf-8" }),
+    void run(
+      () => saveTextFile(text, "xbond-logs.txt", "Text", ["txt"]),
+      false,
     );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "dashboard-logs.txt";
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   if (!isConnected) {
@@ -339,7 +338,7 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
         <Button
           variant="outline"
           size="sm"
-          disabled={!filtered.length}
+          disabled={!filtered.length || saving}
           onClick={download}
         >
           {t("export")}

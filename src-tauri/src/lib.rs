@@ -221,6 +221,7 @@ pub fn run() {
             commands::read_clipboard_text,
             commands::write_clipboard_text,
             commands::open_external_url,
+            commands::save_text_file,
             commands::get_autostart,
             commands::set_autostart,
             daemon::get_localapi_config,

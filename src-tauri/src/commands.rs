@@ -6,6 +6,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_clipboard_manager::ClipboardExt as _;
+use tauri_plugin_dialog::DialogExt as _;
 use tauri_plugin_opener::OpenerExt as _;
 
 use crate::desktop_preferences::DesktopPreferences;
@@ -224,6 +225,42 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
     app.opener()
         .open_url(url, None::<&str>)
         .map_err(|e| e.to_string())
+}
+
+/// Save text content through the native save dialog. The webview cannot
+/// trigger `<a download>` blob navigation (WebKitGTK and WKWebView have no
+/// download handling wired), so file exports (bug report, log dump) go
+/// through this command; it writes only to the path the user confirms in
+/// the dialog. Returns `false` when the user cancels.
+#[tauri::command]
+pub async fn save_text_file(
+    app: AppHandle,
+    contents: String,
+    file_name: String,
+    filter_name: String,
+    extensions: Vec<String>,
+) -> Result<bool, String> {
+    let exts: Vec<&str> = extensions.iter().map(String::as_str).collect();
+    let mut dialog = app.dialog().file().set_file_name(file_name);
+    if !exts.is_empty() {
+        dialog = dialog.add_filter(filter_name, &exts);
+    }
+    let (tx, rx) = std::sync::mpsc::channel::<Option<Result<std::path::PathBuf, String>>>();
+    dialog.save_file(move |path| {
+        let _ = tx.send(path.map(|p| p.into_path().map_err(|e| e.to_string())));
+    });
+    // The callback fires on a helper thread after the user picks a path,
+    // which can take minutes — never block the main or executor thread.
+    tauri::async_runtime::spawn_blocking(move || match rx.recv() {
+        Ok(Some(Ok(path))) => std::fs::write(&path, contents)
+            .map(|()| true)
+            .map_err(|e| format!("failed to write {}: {e}", path.display())),
+        Ok(Some(Err(e))) => Err(e),
+        Ok(None) => Ok(false),
+        Err(e) => Err(format!("save dialog channel closed: {e}")),
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

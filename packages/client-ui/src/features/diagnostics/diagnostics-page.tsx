@@ -21,6 +21,7 @@ import {
 import { useProxy } from "@/features/proxies/proxy-data";
 import { errorKind, useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
+import { saveTextFile } from "@/platform/save-file";
 import { useClient } from "@/state/controller-target";
 import { useCapabilities, useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
@@ -250,16 +251,15 @@ export default function Diagnostics() {
     if (!localClient) return;
     void run(async () => {
       const result = await localClient.getBugReport();
-      const objectURL = URL.createObjectURL(
-        new Blob([JSON.stringify(result, null, 2)], {
-          type: "application/json",
-        }),
+      // Desktop webviews drop `<a download>` blob navigation silently; the
+      // helper routes through the native save dialog there and the download
+      // stays only as the plain-browser fallback.
+      await saveTextFile(
+        JSON.stringify(result, null, 2),
+        "xbond-bugreport.json",
+        "JSON",
+        ["json"],
       );
-      const a = document.createElement("a");
-      a.href = objectURL;
-      a.download = "xbond-bugreport.json";
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(objectURL), 1000);
     }, false);
   }
 
