@@ -545,10 +545,9 @@ export default function AccountPanel() {
             </div>
           )}
 
-          {/* Quota & Plan Card：配額環是卡片的視覺主角；右側帶柔和極光波形裝飾；
-              底部收進三欄信息欄（到期／套餐／協議）。 */}
+          {/* 配額環是卡片的視覺主角；底部收進到期、套餐及協議資訊。 */}
           <div className="relative overflow-hidden rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5 2xl:p-6">
-            <AuroraWave className="top-2 -end-5 h-48 w-[58%] opacity-25" />
+            <AuroraWave className="top-3 -end-5 h-44 w-[58%] -scale-y-100 opacity-35" />
             <div className="relative z-10 mb-2 flex flex-wrap items-center justify-between gap-2 xl:mb-4">
               <h3 className="text-body font-semibold tracking-tight text-foreground">
                 {conn("quota.title")}
@@ -613,7 +612,8 @@ export default function AccountPanel() {
                     Icon: Zap,
                     label: t("servicePlan"),
                     value: account.service?.enabled
-                      ? account.service.plan
+                      ? account.service.plan.charAt(0).toUpperCase() +
+                        account.service.plan.slice(1)
                       : t("noService"),
                   },
                   {
