@@ -265,6 +265,9 @@ export default function Connect() {
   const [privilegeDialogOpen, setPrivilegeDialogOpen] = useState(false);
   const connectButtonRef = useRef<HTMLButtonElement>(null);
   const [connectError, setConnectError] = useState<ConnectError | null>(null);
+  const [pendingConnection, setPendingConnection] = useState<
+    "connecting" | "disconnecting" | null
+  >(null);
   // 授权弹窗返回后的一次性自动重试（见 connectUp）。
   const consentRetryRef = useRef<(() => void) | null>(null);
 
@@ -298,11 +301,14 @@ export default function Connect() {
     void (async () => {
       let caught: unknown = null;
       const ok = await run(async () => {
+        setPendingConnection("connecting");
         try {
           await up();
         } catch (err) {
           caught = err;
           throw err;
+        } finally {
+          setPendingConnection(null);
         }
       }, false);
       if (!ok && caught) {
@@ -332,7 +338,14 @@ export default function Connect() {
     if (running) {
       disarmConsentRetry();
       setConnectError(null);
-      void run(() => down(), false);
+      void run(async () => {
+        setPendingConnection("disconnecting");
+        try {
+          await down();
+        } finally {
+          setPendingConnection(null);
+        }
+      }, false);
     } else {
       connectUp();
     }
@@ -575,20 +588,20 @@ export default function Connect() {
     { value: "m5", label: t("window.m5") },
     { value: "m30", label: t("window.m30") },
   ];
-  // pending 期交代進行中的方向（連接中／斷開中）：H1 帶 aria-live，讀屏
-  // 依賴這個詞；只展示已確認狀態會讓 4-5s 的轉換窗口只有按鈕轉圈一個信號。
   const stateWord = hasLocalAPI
-    ? pending
-      ? running
-        ? t("disconnecting")
-        : t("connecting")
+    ? pendingConnection
+      ? t(pendingConnection)
       : running
         ? t("connected")
         : t("stopped")
     : trafficState === "open"
       ? t("coreReachable")
       : r(trafficState);
-  const connectionAction = running ? t("disconnect") : t("connect");
+  const connectionAction = (
+    pendingConnection ? pendingConnection === "disconnecting" : running
+  )
+    ? t("disconnect")
+    : t("connect");
   // 運行時的副行交代接管方式；未運行交代下一步。遠端形態不渲染此行
   // （管理歸屬已由身份行與事實線交代）。接管被外部改動時，差異句優先於
   // 意圖文案——副行此刻必須交代的是事實，不是聲明。
