@@ -1030,7 +1030,7 @@ export default function Connect() {
                   自带上下呼吸：卡头与图表岛都是近邻，gap-3 不足以分隔 metric 级读数。 */}
               <dl className="grid grid-cols-3 divide-x divide-border/70 py-2 text-center xl:py-2.5">
                 <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
-                  <dt className="w-full truncate text-xs font-medium leading-none text-muted-foreground mb-1 text-center">
+                  <dt className="w-full truncate text-xs font-medium text-muted-foreground mb-1 text-center">
                     {t("download")}
                   </dt>
                   <dd className="w-full truncate text-metric font-semibold leading-none tracking-tight tabular-nums text-foreground max-md:text-subtitle text-center">
@@ -1041,7 +1041,7 @@ export default function Connect() {
                 </div>
 
                 <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
-                  <dt className="w-full truncate text-xs font-medium leading-none text-muted-foreground mb-1 text-center">
+                  <dt className="w-full truncate text-xs font-medium text-muted-foreground mb-1 text-center">
                     {t("upload")}
                   </dt>
                   <dd className="w-full truncate text-metric font-semibold leading-none tracking-tight tabular-nums text-foreground max-md:text-subtitle text-center">
@@ -1052,7 +1052,7 @@ export default function Connect() {
                 </div>
 
                 <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
-                  <dt className="w-full truncate text-xs font-medium leading-none text-muted-foreground mb-1 text-center">
+                  <dt className="w-full truncate text-xs font-medium text-muted-foreground mb-1 text-center">
                     {t("sessionTotal")}
                   </dt>
                   <dd className="w-full truncate text-metric font-semibold leading-none tracking-tight tabular-nums text-foreground max-md:text-subtitle text-center">
