@@ -172,6 +172,13 @@ const FA = {
     runningDual: "پروکسی سیستم و کارت شبکه مجازی هر دو فعال هستند",
     runningPort:
       "پورت پروکسی {{port}} آماده است؛ ترافیک سیستم هنوز مدیریت نمی‌شود",
+    sysproxyDrift: {
+      external_off: "پروکسی سیستم خارج از XBond خاموش شد",
+      external_override: "پروکسی سیستم توسط برنامه دیگری تغییر کرد",
+      read_error: "فعلاً وضعیت پروکسی سیستم قابل خواندن نیست",
+      reassert: "فعال‌سازی دوباره",
+      release: "توقف مدیریت",
+    },
     dualTakeover: "هدایت دوگانه",
     portOnly: "فقط پورت",
     portListeningHint: "پورت پروکسی ترکیبی در حال شنود ({{port}})",

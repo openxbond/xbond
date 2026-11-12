@@ -165,6 +165,13 @@ const HK = {
     runningTun: "虛擬網卡已開啟",
     runningDual: "系統代理與虛擬網卡已開啟",
     runningPort: "代理端口 {{port}} 已就緒，尚未接管系統流量",
+    sysproxyDrift: {
+      external_off: "系統代理已在 XBond 之外被關閉",
+      external_override: "系統代理已被其他程式修改",
+      read_error: "暫時無法讀取系統代理狀態",
+      reassert: "重新開啟",
+      release: "停止接管",
+    },
     dualTakeover: "雙重接管",
     portOnly: "僅端口",
     portListeningHint: "混合代理端口常駐監聽 ({{port}})",

@@ -290,6 +290,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/down", s.authMiddleware(s.handleDown))
 	mux.HandleFunc("/localapi/v0/restart", s.authMiddleware(s.handleRestart))
 	mux.HandleFunc("/localapi/v0/mode", s.authMiddleware(s.handleMode))
+	mux.HandleFunc("/localapi/v0/sysproxy/reassert", s.authMiddleware(s.handleSysproxyReassert))
+	mux.HandleFunc("/localapi/v0/sysproxy/release", s.authMiddleware(s.handleSysproxyRelease))
 
 	mux.HandleFunc("/localapi/v0/login", s.authMiddleware(s.handleLogin))
 	mux.HandleFunc("/localapi/v0/logout", s.authMiddleware(s.handleLogout))
@@ -340,10 +342,15 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 	status := s.coreStatus()
 	var threeTier diag.ThreeTierStatus
+	var drift SystemProxyDriftStatus
 	// light=1 keeps readiness probes and polling loops off the network: the
-	// full evaluation runs DNS and egress checks, which is doctor's job.
+	// full evaluation runs DNS and egress checks, which is doctor's job. It
+	// also skips the host proxy read — the tray neither judges drift nor
+	// consumes the system proxy.
 	if r.URL.Query().Get("light") != "1" {
-		threeTier = diag.EvaluateThreeTier(ctx, s.coreClient(), s.coreStatus(), prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort)
+		proxySnap, proxyErr := s.runtime.SampleSystemProxy()
+		threeTier = diag.EvaluateThreeTier(ctx, s.coreClient(), status, prefs.TakeoverMode, prefs.RoutingMode, prefs.MixedPort, proxySnap, proxyErr)
+		drift = s.runtime.SystemProxyDrift(proxySnap, proxyErr)
 	}
 
 	var activeSub *sub.SubscriptionMeta
@@ -352,12 +359,13 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]any{
-		"engine":       status,
-		"preferences":  prefs,
-		"threeTier":    threeTier,
-		"activeSub":    activeSub,
-		"capabilities": tunCapability(s.delegate),
-		"rulePaging":   true,
+		"engine":           status,
+		"preferences":      prefs,
+		"threeTier":        threeTier,
+		"systemProxyDrift": drift,
+		"activeSub":        activeSub,
+		"capabilities":     tunCapability(s.delegate),
+		"rulePaging":       true,
 	}
 
 	writeJSON(w, http.StatusOK, response)
@@ -402,6 +410,34 @@ func (s *Server) handleMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.runtime.Configure(r.Context(), options); err != nil {
+		writeRuntimeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "preferences": s.runtime.Preferences()})
+}
+
+// handleSysproxyReassert rewrites our listener address into the host proxy
+// settings after an external change, without touching the running core.
+func (s *Server) handleSysproxyReassert(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST only"})
+		return
+	}
+	if err := s.runtime.ReassertSystemProxy(); err != nil {
+		writeRuntimeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "preferences": s.runtime.Preferences()})
+}
+
+// handleSysproxyRelease drops the takeover claim without touching the host
+// proxy settings, so an external change is left exactly as its owner wrote it.
+func (s *Server) handleSysproxyRelease(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST only"})
+		return
+	}
+	if err := s.runtime.ReleaseSystemProxy(); err != nil {
 		writeRuntimeError(w, err)
 		return
 	}

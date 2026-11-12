@@ -147,6 +147,127 @@ func (c *runtimeController) Preferences() RuntimePreferences {
 	return c.prefs
 }
 
+// saveProxySnapshot persists the restore point for the current takeover so
+// a crash or restart can put the user's own proxy back (AutoRecoverOnStartup).
+func (c *runtimeController) saveProxySnapshot(snap sysproxy.Snapshot) error {
+	data, err := json.Marshal(snap)
+	if err != nil {
+		return err
+	}
+	if err := c.write(paths.SysproxySnapshotPath(), data, 0o600); err != nil {
+		return fmt.Errorf("save system proxy recovery state: %w", err)
+	}
+	return nil
+}
+
+// SampleSystemProxy reads the host proxy state once under the runtime lock.
+// handleStatus feeds the snapshot to both the drift judgment and the
+// three-tier evaluation so one status poll costs one host read.
+func (c *runtimeController) SampleSystemProxy() (sysproxy.Snapshot, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.proxyGet()
+}
+
+// SystemProxyDrift judges one host proxy read against the daemon's takeover
+// ownership. Drift is only claimed while this process owns the system
+// proxy: without ownership the host settings belong to someone else and are
+// not ours to report on.
+func (c *runtimeController) SystemProxyDrift(snap sysproxy.Snapshot, readErr error) SystemProxyDriftStatus {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	prefs := c.Preferences()
+	d := SystemProxyDriftStatus{
+		Intent: prefs.SystemProxy,
+		Owned:  c.originalProxy != nil,
+	}
+	if readErr != nil {
+		if d.Owned {
+			d.Drifted = true
+			d.ReasonCode = DriftReadError
+		}
+		return d
+	}
+	d.Known = true
+	d.ActualEnabled = snap.Enabled
+	d.ActualServer = snap.Server
+	switch {
+	case !d.Owned:
+		// No claim, no drift.
+	case !snap.Enabled:
+		d.Drifted = true
+		d.ReasonCode = DriftExternalOff
+	case !snap.TargetsPort(prefs.MixedPort):
+		d.Drifted = true
+		d.ReasonCode = DriftExternalOverride
+	}
+	return d
+}
+
+// ReassertSystemProxy rewrites our listener address into the host proxy
+// settings after something else changed them. The core keeps running: only
+// the host settings are written. Without ownership in this process (a
+// restart since the takeover) the current host state becomes the restore
+// point first, mirroring applyLocked.
+func (c *runtimeController) ReassertSystemProxy() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	prefs := c.Preferences()
+	if !prefs.SystemProxy {
+		return &runtimeInputError{errors.New("system proxy takeover is off")}
+	}
+	if !c.connectedLocked() {
+		return &runtimeInputError{errors.New("core is not running; connect before reasserting the system proxy")}
+	}
+	before, err := c.proxyGet()
+	if err != nil {
+		return fmt.Errorf("read system proxy: %w", err)
+	}
+	if c.originalProxy == nil {
+		if before.Enabled && before.Server == "" {
+			return errors.New("cannot capture the current system proxy server")
+		}
+		if err := c.saveProxySnapshot(before); err != nil {
+			return err
+		}
+		owned := before
+		c.originalProxy = &owned
+	}
+	if err := c.proxySet(fmt.Sprintf("127.0.0.1:%d", prefs.MixedPort), ""); err != nil {
+		return fmt.Errorf("apply system proxy: %w", err)
+	}
+	return nil
+}
+
+// ReleaseSystemProxy drops the daemon's takeover claim without touching the
+// host settings: whatever occupies the system proxy now — an external off,
+// another client — stays as it is. Unlike a plain mode switch this never
+// restores the captured snapshot, so it cannot clobber the external change.
+func (c *runtimeController) ReleaseSystemProxy() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.originalProxy != nil {
+		if err := os.Remove(paths.SysproxySnapshotPath()); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("remove system proxy recovery state: %w", err)
+		}
+		c.originalProxy = nil
+	}
+	prefs := c.Preferences()
+	prefs.SystemProxy = false
+	prefs.TakeoverMode = deriveTakeoverMode(prefs)
+	prefsJSON, err := json.MarshalIndent(prefs, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := c.write(paths.RuntimeStatePath(), prefsJSON, 0o600); err != nil {
+		return fmt.Errorf("save runtime preferences: %w", err)
+	}
+	c.stateMu.Lock()
+	c.prefs = prefs
+	c.stateMu.Unlock()
+	return nil
+}
+
 func (c *runtimeController) Up(ctx context.Context, options runtimeOptions) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -227,6 +348,19 @@ func (c *runtimeController) restoreFile(file runtimeFile) error {
 // connect, subscription update) must therefore re-apply the stored flags
 // untouched: forcing them from the takeover enum would silently zero one
 // side whenever the other was left on.
+// deriveTakeoverMode collapses the independent takeover switches into the
+// single-surface enum that preferences persist and status reports.
+func deriveTakeoverMode(prefs RuntimePreferences) engine.TakeoverMode {
+	switch {
+	case prefs.Tun:
+		return engine.ModeTun
+	case prefs.SystemProxy:
+		return engine.ModeSysproxy
+	default:
+		return engine.ModePort
+	}
+}
+
 func reconcileTakeover(previous RuntimePreferences, options runtimeOptions) RuntimePreferences {
 	next := previous
 	if options.SystemProxy != nil {
@@ -256,13 +390,7 @@ func reconcileTakeover(previous RuntimePreferences, options runtimeOptions) Runt
 		}
 		return next
 	}
-	if next.Tun {
-		next.TakeoverMode = engine.ModeTun
-	} else if next.SystemProxy {
-		next.TakeoverMode = engine.ModeSysproxy
-	} else {
-		next.TakeoverMode = engine.ModePort
-	}
+	next.TakeoverMode = deriveTakeoverMode(next)
 	return next
 }
 
@@ -650,12 +778,8 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 			if err := c.proxySet(fmt.Sprintf("127.0.0.1:%d", next.MixedPort), ""); err != nil {
 				return rollback(fmt.Errorf("apply system proxy: %w", err))
 			}
-			snapshotJSON, err := json.Marshal(originalProxy)
-			if err != nil {
+			if err := c.saveProxySnapshot(*originalProxy); err != nil {
 				return rollback(err)
-			}
-			if err := c.write(paths.SysproxySnapshotPath(), snapshotJSON, 0o600); err != nil {
-				return rollback(fmt.Errorf("save system proxy recovery state: %w", err))
 			}
 		} else {
 			if originalProxy != nil {

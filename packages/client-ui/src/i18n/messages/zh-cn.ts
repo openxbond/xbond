@@ -165,6 +165,13 @@ const CN = {
     runningTun: "虚拟网卡已开启",
     runningDual: "系统代理与虚拟网卡已开启",
     runningPort: "代理端口 {{port}} 已就绪，尚未接管系统流量",
+    sysproxyDrift: {
+      external_off: "系统代理已在 XBond 之外被关闭",
+      external_override: "系统代理已被其他程序修改",
+      read_error: "暂时无法读取系统代理状态",
+      reassert: "重新开启",
+      release: "停止接管",
+    },
     dualTakeover: "双重接管",
     portOnly: "仅端口",
     portListeningHint: "混合代理端口常驻监听 ({{port}})",

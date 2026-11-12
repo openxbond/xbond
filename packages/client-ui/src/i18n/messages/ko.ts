@@ -171,6 +171,13 @@ const KO = {
     runningDual: "시스템 프록시 및 가상 네트워크 카드가 모두 켜져 있습니다",
     runningPort:
       "프록시 포트 {{port}} 준비됨 · 시스템 트래픽은 아직 가로채지 않았습니다",
+    sysproxyDrift: {
+      external_off: "XBond 외부에서 시스템 프록시가 꺼졌습니다",
+      external_override: "다른 프로그램이 시스템 프록시를 변경했습니다",
+      read_error: "현재 시스템 프록시 상태를 읽을 수 없습니다",
+      reassert: "다시 켜기",
+      release: "인계 중지",
+    },
     dualTakeover: "이중 인계",
     portOnly: "포트만",
     portListeningHint: "혼합 프록시 포트 상시 수신 ({{port}})",

@@ -174,6 +174,13 @@ const EN = {
     runningDual: "System proxy and TUN interface are both on",
     runningPort:
       "Proxy port {{port}} is ready; system traffic is not taken over",
+    sysproxyDrift: {
+      external_off: "System proxy was turned off outside XBond",
+      external_override: "System proxy was changed by another program",
+      read_error: "System proxy state cannot be read right now",
+      reassert: "Re-enable",
+      release: "Stop takeover",
+    },
     dualTakeover: "Dual Takeover",
     portOnly: "Port only",
     portListeningHint: "Mixed proxy port listening at {{port}}",

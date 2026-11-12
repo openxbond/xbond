@@ -22,6 +22,7 @@ import {
   Power,
   Shield,
   SlidersHorizontal,
+  TriangleAlert,
   Wallet,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -72,6 +73,7 @@ import { classifyConnectError, type ConnectError } from "./connect-error";
 import { ExternalControllerOnboarding } from "./external-controller-onboarding";
 import { NodePicker } from "./node-picker";
 import { OnboardingGuide } from "./onboarding-guide";
+import { sysproxyDriftView } from "./sysproxy-drift";
 import { TrafficChart, type TrafficSample } from "./traffic-chart";
 
 const focusAtom = atomWithStorage<Record<string, string>>(
@@ -248,6 +250,8 @@ export default function Connect() {
     up,
     down,
     setMode,
+    reassertSystemProxy,
+    releaseSystemProxy,
     refresh,
     changeService,
     config: localConfig,
@@ -467,6 +471,11 @@ export default function Connect() {
     ? status?.engine.mixedPort || 7890
     : general.mixedPort || 7890;
   const egress = hasLocalAPI ? status?.threeTier : undefined;
+  // 漂移事實：daemon 判定「已接管但被外部改動」時，接管聲明與系統實況分叉，
+  // 首頁以差異句取代意圖文案（未知、失敗與成功是不同事實）。
+  const sysproxyDrift = sysproxyDriftView(
+    hasLocalAPI ? status?.systemProxyDrift : undefined,
+  );
 
   const handleChangeService = useCallback(
     async (install: boolean) => {
@@ -581,16 +590,19 @@ export default function Connect() {
       : r(trafficState);
   const connectionAction = running ? t("disconnect") : t("connect");
   // 運行時的副行交代接管方式；未運行交代下一步。遠端形態不渲染此行
-  // （管理歸屬已由身份行與事實線交代）。
+  // （管理歸屬已由身份行與事實線交代）。接管被外部改動時，差異句優先於
+  // 意圖文案——副行此刻必須交代的是事實，不是聲明。
   const stateNote = hasLocalAPI
     ? running
-      ? isSysproxy && isTun
-        ? t("runningDual")
-        : isSysproxy
-          ? t("runningSysproxy")
-          : isTun
-            ? t("runningTun")
-            : t("runningPort", { port: mixedPort })
+      ? sysproxyDrift
+        ? t(sysproxyDrift.messageKey)
+        : isSysproxy && isTun
+          ? t("runningDual")
+          : isSysproxy
+            ? t("runningSysproxy")
+            : isTun
+              ? t("runningTun")
+              : t("runningPort", { port: mixedPort })
       : sub
         ? t("readyToConnect")
         : t("noConfig")
@@ -619,17 +631,25 @@ export default function Connect() {
     },
     {
       kind: "takeover" as const,
-      tone: hasLocalAPI ? (isSysproxy || isTun ? "ok" : "muted") : "unknown",
+      tone: sysproxyDrift
+        ? "warn"
+        : hasLocalAPI
+          ? isSysproxy || isTun
+            ? "ok"
+            : "muted"
+          : "unknown",
       showDot: false,
       label: t("takeoverMode"),
       value: hasLocalAPI
-        ? isSysproxy && isTun
-          ? `${t("sysproxy")} + TUN`
-          : isSysproxy
-            ? t("sysproxy")
-            : isTun
-              ? t("tun")
-              : t("portOnly")
+        ? sysproxyDrift
+          ? t(sysproxyDrift.messageKey)
+          : isSysproxy && isTun
+            ? `${t("sysproxy")} + TUN`
+            : isSysproxy
+              ? t("sysproxy")
+              : isTun
+                ? t("tun")
+                : t("portOnly")
         : tc("unknown"),
     },
     {
@@ -941,9 +961,11 @@ export default function Connect() {
                               "flex items-center gap-1.5 font-semibold tabular-nums [overflow-wrap:anywhere]",
                               fact.tone === "ok"
                                 ? "text-success-text"
-                                : fact.tone === "unknown"
-                                  ? "text-muted-foreground"
-                                  : "text-foreground",
+                                : fact.tone === "warn"
+                                  ? "text-warning-text"
+                                  : fact.tone === "unknown"
+                                    ? "text-muted-foreground"
+                                    : "text-foreground",
                             )}
                           >
                             {fact.showDot && (
@@ -1647,6 +1669,43 @@ export default function Connect() {
                         </ControlTooltip>
                       </div>
                     </div>
+                    {sysproxyDrift && (
+                      // 外部改動的差異條：警告圖示配短句，可恢復時提供下一步
+                      // （重新寫入 / 放棄接管，見 daemon-runtime 規格）。
+                      <div
+                        role="status"
+                        className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-control border border-warning/30 bg-warning/10 px-3 py-2 lg:basis-full"
+                      >
+                        <TriangleAlert
+                          aria-hidden="true"
+                          className="size-4 shrink-0 text-warning-text"
+                        />
+                        <span className="min-w-0 flex-1 text-xs leading-4 font-medium text-pretty text-warning-text">
+                          {t(sysproxyDrift.messageKey)}
+                        </span>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pending}
+                            onClick={() =>
+                              void run(() => releaseSystemProxy(), false)
+                            }
+                          >
+                            {t("sysproxyDrift.release")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={pending}
+                            onClick={() =>
+                              void run(() => reassertSystemProxy(), false)
+                            }
+                          >
+                            {t("sysproxyDrift.reassert")}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </section>
                 )}
               </div>

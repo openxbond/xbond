@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/openxbond/xbond/internal/engine"
+	"github.com/openxbond/xbond/internal/platform/sysproxy"
 	"github.com/openxbond/xbond/internal/sub"
 )
 
@@ -93,7 +94,7 @@ func TestResolveStrategyChain(t *testing.T) {
 }
 
 func TestEvaluateThreeTierPortMode(t *testing.T) {
-	st := EvaluateThreeTier(context.Background(), nil, engine.EngineStatus{}, engine.ModePort, engine.RoutingRule, 7890)
+	st := EvaluateThreeTier(context.Background(), nil, engine.EngineStatus{}, engine.ModePort, engine.RoutingRule, 7890, sysproxy.Snapshot{}, nil)
 	if st.TrafficIntercepted {
 		t.Errorf("port mode should have trafficIntercepted=false")
 	}
@@ -132,13 +133,13 @@ func TestGenerateBugReportRedactsEmbeddedSubscription(t *testing.T) {
 // 子串匹配端口在数字嵌套时误判（混合端口 7890 vs 他人的 17890）：拆开
 // host:port 按数字比较，无法解析的 server 如实判 false（审计 #18）。
 func TestSystemProxyTargetsPort(t *testing.T) {
-	if !systemProxyTargetsPort("127.0.0.1:7890", 7890) {
+	if !(sysproxy.Snapshot{Server: "127.0.0.1:7890"}).TargetsPort(7890) {
 		t.Fatal("exact port must match")
 	}
-	if systemProxyTargetsPort("127.0.0.1:17890", 7890) {
+	if (sysproxy.Snapshot{Server: "127.0.0.1:17890"}).TargetsPort(7890) {
 		t.Fatal("nested port digits must not match")
 	}
-	if systemProxyTargetsPort("127.0.0.1", 7890) {
+	if (sysproxy.Snapshot{Server: "127.0.0.1"}).TargetsPort(7890) {
 		t.Fatal("server without a port cannot target ours")
 	}
 }

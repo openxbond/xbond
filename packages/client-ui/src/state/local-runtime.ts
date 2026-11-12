@@ -1,4 +1,8 @@
-import type { RoutingMode, TakeoverMode } from "@xbond/client/localapi";
+import type {
+  LocalAPIPreferences,
+  RoutingMode,
+  TakeoverMode,
+} from "@xbond/client/localapi";
 import { useCallback } from "react";
 
 import { useAPIInfo } from "./controller-target";
@@ -84,6 +88,36 @@ export function useLocalAPI() {
     [daemonClient, mutateStatus],
   );
 
+  /** Shared tail of reassert/release: the daemon answers with the updated
+   * preferences, so the optimistic patch mirrors setMode. */
+  const applySysproxyAction = useCallback(
+    async (
+      pending: Promise<{ ok: boolean; preferences?: LocalAPIPreferences }>,
+    ) => {
+      const res = await pending;
+      if (res?.preferences) {
+        await mutateStatus(
+          (prev) => (prev ? { ...prev, preferences: res.preferences! } : prev),
+          false,
+        );
+      } else {
+        await mutateStatus();
+      }
+      return res;
+    },
+    [mutateStatus],
+  );
+
+  const reassertSystemProxy = useCallback(async () => {
+    if (!daemonClient) throw new Error("LocalAPI not available");
+    return applySysproxyAction(daemonClient.reassertSystemProxy());
+  }, [daemonClient, applySysproxyAction]);
+
+  const releaseSystemProxy = useCallback(async () => {
+    if (!daemonClient) throw new Error("LocalAPI not available");
+    return applySysproxyAction(daemonClient.releaseSystemProxy());
+  }, [daemonClient, applySysproxyAction]);
+
   const selectNode = useCallback(
     async (group: string, node: string) => {
       if (!daemonClient) throw new Error("LocalAPI not available");
@@ -134,6 +168,8 @@ export function useLocalAPI() {
     down,
     restart,
     setMode,
+    reassertSystemProxy,
+    releaseSystemProxy,
     selectNode,
     changeService,
   };
