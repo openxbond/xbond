@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 
-export type UiHost = "macos" | "windows" | "ios" | "android" | "web";
+type UiHost = "macos" | "windows" | "ios" | "android" | "web";
 
 /**
  * Picks the visual host from the user agent so tokens.css can select fonts
  * per platform. Linux and unknown browsers
  * fall back to the neutral web scale; iPadOS reports as Macintosh with touch.
  */
-export function detectUiHost(): UiHost {
+function detectUiHost(): UiHost {
   if (typeof navigator === "undefined") return "web";
   if (isIOSNativeApp()) return "ios";
   const ua = navigator.userAgent;
@@ -46,7 +46,7 @@ export function isTauriAndroid(): boolean {
 }
 
 /** True inside the Tauri iOS shell (WKWebView UA reports the device family). */
-export function isTauriIOS(): boolean {
+function isTauriIOS(): boolean {
   if (!isTauriRuntime()) return false;
   const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
   return (

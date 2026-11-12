@@ -205,7 +205,6 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            commands::get_desktop_info,
             commands::main_window_ready,
             commands::close_main_window,
             commands::minimize_main_window,
@@ -215,11 +214,9 @@ pub fn run() {
             commands::set_close_to_tray,
             commands::get_silent_start,
             commands::set_silent_start,
-            commands::get_tray_language,
             commands::set_tray_language,
             commands::take_pending_import,
             commands::read_clipboard_text,
-            commands::write_clipboard_text,
             commands::open_external_url,
             commands::save_text_file,
             commands::get_autostart,

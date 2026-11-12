@@ -6,10 +6,7 @@ import { toast } from "sonner";
 import { invokeDesktop, isDesktopApp } from "@/platform/local-api-bootstrap";
 import { useLanguage } from "@/state/user-preferences";
 
-import {
-  handleDesktopShortcut,
-  type DesktopShortcutEvent,
-} from "./desktop-shortcuts.ts";
+import { handleDesktopShortcut } from "./desktop-shortcuts.ts";
 
 /**
  * Desktop-shell integration for the webview side: removes browser residue
@@ -23,9 +20,6 @@ export interface ImportCandidate {
   kind: "share" | "url";
   value: string;
 }
-
-export type { DesktopShortcutEvent };
-export { handleDesktopShortcut };
 
 const SHARE_LINK = /^(ss|ssr|vmess|vless|trojan|hysteria|hysteria2|tuic):\/\//i;
 const BARE_URL = /^https?:\/\/\S+$/i;

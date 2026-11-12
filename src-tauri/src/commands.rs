@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -13,31 +12,12 @@ use crate::desktop_preferences::DesktopPreferences;
 
 pub(crate) const AUTOSTART_ARG: &str = "--autostart";
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopInfo {
-    pub platform: String,
-    pub arch: String,
-    pub version: String,
-    pub is_desktop: bool,
-}
-
-#[tauri::command]
-pub fn get_desktop_info() -> DesktopInfo {
-    DesktopInfo {
-        platform: std::env::consts::OS.to_string(),
-        arch: std::env::consts::ARCH.to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        is_desktop: true,
-    }
-}
-
 pub struct ShellState {
     preferences: Mutex<DesktopPreferences>,
     tray_available: bool,
     start_hidden: bool,
     startup_handled: AtomicBool,
     pending_import: Mutex<Option<String>>,
-    language: Mutex<String>,
 }
 
 impl ShellState {
@@ -52,7 +32,6 @@ impl ShellState {
             start_hidden: autostart && preferences.silent_start && tray_available,
             startup_handled: AtomicBool::new(false),
             pending_import: Mutex::new(None),
-            language: Mutex::new(String::new()),
         }
     }
 
@@ -83,13 +62,6 @@ impl ShellState {
     fn should_reveal_at_startup(&self) -> bool {
         !self.startup_handled.swap(true, Ordering::Relaxed) && !self.start_hidden
     }
-
-    pub fn language(&self) -> String {
-        self.language
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
-    }
 }
 
 #[tauri::command]
@@ -113,13 +85,7 @@ pub fn set_silent_start(state: State<'_, ShellState>, value: bool) -> Result<(),
 }
 
 #[tauri::command]
-pub fn get_tray_language(state: State<'_, ShellState>) -> String {
-    state.language()
-}
-
-#[tauri::command]
-pub fn set_tray_language(app: AppHandle, state: State<'_, ShellState>, lang: String) {
-    *state.language.lock().unwrap_or_else(|e| e.into_inner()) = lang.clone();
+pub fn set_tray_language(app: AppHandle, lang: String) {
     crate::tray::update_language(&app, &lang);
 }
 
@@ -205,11 +171,6 @@ pub fn take_pending_import(state: State<'_, ShellState>) -> Option<String> {
 #[tauri::command]
 pub fn read_clipboard_text(app: AppHandle) -> Option<String> {
     app.clipboard().read_text().ok()
-}
-
-#[tauri::command]
-pub fn write_clipboard_text(app: AppHandle, text: String) -> Result<(), String> {
-    app.clipboard().write_text(text).map_err(|e| e.to_string())
 }
 
 /// Opens a link in the user's default browser. The webview has no
@@ -457,15 +418,6 @@ mod tests {
             assert!(!state.should_reveal_at_startup());
             assert_eq!(state.can_close_to_tray(), tray_available);
         }
-    }
-
-    #[test]
-    fn test_get_desktop_info() {
-        let info = get_desktop_info();
-        assert!(info.is_desktop);
-        assert!(!info.platform.is_empty());
-        assert!(!info.arch.is_empty());
-        assert_eq!(info.version, env!("CARGO_PKG_VERSION"));
     }
 
     #[test]

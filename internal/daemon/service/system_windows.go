@@ -206,29 +206,6 @@ func currentUserSID() (string, error) {
 	return user.User.Sid.String(), nil
 }
 
-// SystemStartInteractive starts the machine service from a normal user
-// session without self-elevation: the default service DACL grants
-// authenticated users SERVICE_START (stop stays admin-only), and the
-// delegation reconciler uses this after SCM crash restarts. An access
-// denial surfaces honestly.
-func SystemStartInteractive() error {
-	sm, err := windows.OpenSCManager(nil, nil, windows.SC_MANAGER_CONNECT)
-	if err != nil {
-		return fmt.Errorf("failed to connect to the service manager: %w", err)
-	}
-	defer windows.CloseServiceHandle(sm)
-	name, err := windows.UTF16PtrFromString(systemServiceName)
-	if err != nil {
-		return err
-	}
-	sh, err := windows.OpenService(sm, name, windows.SERVICE_START)
-	if err != nil {
-		return fmt.Errorf("service %q is not installed or start is not permitted: %w", systemServiceName, err)
-	}
-	defer windows.CloseServiceHandle(sh)
-	return windows.StartService(sh, 0, nil)
-}
-
 func uninstallSystem(exePath string) error {
 	if ok, err := isElevated(); err != nil || !ok {
 		return elevateForSystemAction(exePath, "system-uninstall")

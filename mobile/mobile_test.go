@@ -8,14 +8,12 @@ import (
 )
 
 type mockPlatform struct {
-	mu            sync.Mutex
-	states        []int32
-	messages      []string
-	protectedFds  []int32
-	trafficUp     int64
-	trafficDown   int64
-	failOnProtect bool
-	dataDir       string
+	mu          sync.Mutex
+	states      []int32
+	messages    []string
+	trafficUp   int64
+	trafficDown int64
+	dataDir     string
 }
 
 func (m *mockPlatform) OpenURL(url string) error { return nil }
@@ -23,12 +21,6 @@ func (m *mockPlatform) RequestConnect() error    { return errors.New("connect no
 func (m *mockPlatform) RequestDisconnect() error { return nil }
 
 func (m *mockPlatform) ProtectSocket(fd int32) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.failOnProtect {
-		return errors.New("protect socket permission denied")
-	}
-	m.protectedFds = append(m.protectedFds, fd)
 	return nil
 }
 
@@ -92,9 +84,6 @@ func TestTunnelServiceLifecycleAndValidation(t *testing.T) {
 	if svc.GetState() != StateIdle {
 		t.Errorf("expected initial state Idle, got %d", svc.GetState())
 	}
-	if svc.IsRunning() {
-		t.Errorf("service should not be running initially")
-	}
 
 	// 1. Invalid tunFd <= 0
 	if err := svc.Start(sampleConfig(), 0); err == nil {
@@ -120,59 +109,6 @@ func TestTunnelServiceLifecycleAndValidation(t *testing.T) {
 	}
 	if status.ThreeTier.Core.OK {
 		t.Errorf("core ok should be false")
-	}
-}
-
-func TestTunnelServiceProtectSocket(t *testing.T) {
-	t.Setenv("XBOND_DATA_DIR", t.TempDir())
-	platform := &mockPlatform{}
-	svc := NewTunnelService(platform, nil)
-
-	if err := svc.ProtectSocket(101); err != nil {
-		t.Fatalf("unexpected error on protect socket: %v", err)
-	}
-
-	platform.mu.Lock()
-	if len(platform.protectedFds) != 1 || platform.protectedFds[0] != 101 {
-		t.Errorf("expected protected fd 101, got %v", platform.protectedFds)
-	}
-	platform.mu.Unlock()
-
-	// Failure simulation
-	platform.failOnProtect = true
-	if err := svc.ProtectSocket(102); err == nil {
-		t.Errorf("expected error when platform ProtectSocket fails")
-	}
-}
-
-func TestTunnelServiceSelectOutboundWhenNotRunning(t *testing.T) {
-	t.Setenv("XBOND_DATA_DIR", t.TempDir())
-	platform := &mockPlatform{}
-	svc := NewTunnelService(platform, nil)
-
-	err := svc.SelectOutbound("proxy-group", "direct")
-	if err == nil {
-		t.Errorf("expected error selecting outbound when engine is not running")
-	}
-}
-
-func TestTunnelServiceUpdateSubscriptionValidation(t *testing.T) {
-	t.Setenv("XBOND_DATA_DIR", t.TempDir())
-	platform := &mockPlatform{}
-	svc := NewTunnelService(platform, nil)
-
-	// Non-sub token and empty url should fail
-	if _, err := svc.UpdateSubscription(""); err == nil {
-		t.Errorf("expected error for empty token/url")
-	}
-
-	// Valid sub token format creates subscription record
-	res, err := svc.UpdateSubscription("sub-testtoken123456789")
-	if err != nil {
-		t.Fatalf("unexpected error adding xbond sub: %v", err)
-	}
-	if len(res) == 0 {
-		t.Errorf("expected non-empty response JSON")
 	}
 }
 

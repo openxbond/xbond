@@ -880,14 +880,10 @@ func (c *runtimeController) Remove(id string) error {
 	return c.subs.Remove(meta.ID)
 }
 
-// Logout removes the local XBond credentials: every xbond-type subscription.
-// The core disconnects only when the active subscription is one of them, and
+// LogoutAccount removes the account-issued XBond credentials. The core
+// disconnects only when the active subscription is one of them, and
 // universal subscriptions are never touched — removing those is `sub remove`.
 // Remote authorization is not revoked; that is a dashboard action.
-func (c *runtimeController) Logout() ([]sub.SubscriptionMeta, error) {
-	return c.logout(false)
-}
-
 func (c *runtimeController) LogoutAccount() ([]sub.SubscriptionMeta, error) {
 	return c.logout(true)
 }

@@ -245,12 +245,6 @@ importers:
       '@xbond/client-ui':
         specifier: workspace:*
         version: link:../../packages/client-ui
-      react:
-        specifier: ^19.3.0
-        version: 19.3.0
-      react-dom:
-        specifier: ^19.3.0
-        version: 19.3.0(react@19.3.0)
 
   packages/client:
     dependencies:
@@ -287,9 +281,6 @@ importers:
       dayjs:
         specifier: ^1.11.23
         version: 1.11.23
-      eventemitter3:
-        specifier: ^5.0.4
-        version: 5.0.4
       flag-icons:
         specifier: ^7.6.0
         version: 7.6.0
@@ -302,9 +293,6 @@ importers:
       jotai:
         specifier: ^3.0.1
         version: 3.0.1(@types/react@19.3.0)(react@19.3.0)
-      jotai-immer:
-        specifier: ^0.4.3
-        version: 0.4.3(immer@11.1.21)(jotai@3.0.1(@types/react@19.3.0)(react@19.3.0))
       lucide-react:
         specifier: ^1.66.0
         version: 1.66.0(@types/react@19.3.0)(react@19.3.0)
@@ -3502,12 +3490,6 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
-
-  jotai-immer@0.4.3:
-    resolution: {integrity: sha512-sJWiSweR294aDA/jeH6bKSKYVxRqgfxnLWaZmKw0/Hd6iGKLN4TSB3AHpFWQFDf0W+P3sEIkROr0ALlWQfCSeA==}
-    peerDependencies:
-      immer: '>=9.0.0'
-      jotai: '>=2.0.0'
 
   jotai@3.0.1:
     resolution: {integrity: sha512-6tS7wY9otdiNp26Wqb/1ds3OuVJVoV+tJlN4hpLrYmfFf/t9bauVt+zKBNSpS5qSl5h6GieVQ+OknVraZX+udQ==}
@@ -7360,11 +7342,6 @@ snapshots:
       picocolors: 1.1.1
 
   jiti@2.7.0: {}
-
-  jotai-immer@0.4.3(immer@11.1.21)(jotai@3.0.1(@types/react@19.3.0)(react@19.3.0)):
-    dependencies:
-      immer: 11.1.21
-      jotai: 3.0.1(@types/react@19.3.0)(react@19.3.0)
 
   jotai@3.0.1(@types/react@19.3.0)(react@19.3.0):
     optionalDependencies:

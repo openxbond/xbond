@@ -9,7 +9,6 @@ import (
 
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
-	"github.com/openxbond/xbond/internal/sub"
 )
 
 // The shutdown endpoint tears the runtime down before answering, so the CLI
@@ -57,35 +56,6 @@ func TestLightStatusSkipsNetworkEvaluation(t *testing.T) {
 	}
 	if payload.ThreeTier.CoreReachable || payload.ThreeTier.TrafficIntercepted || payload.ThreeTier.EgressVerified {
 		t.Fatalf("light status ran the network evaluation: %+v", payload.ThreeTier)
-	}
-}
-
-// Logout clears XBond credentials only: universal subscriptions survive, and
-// the core disconnects only when the active subscription was XBound-owned.
-func TestLogoutRemovesOnlyXBondSubsAndStopsActiveCore(t *testing.T) {
-	f := newRuntimeFixture(t)
-	if _, err := f.subs.AddXBond("sub-logout-test-token", "", nil, "", "", "", 24, true); err != nil {
-		t.Fatal(err)
-	}
-	if f.subs.ActiveID() == f.first.ID || f.subs.ActiveID() == f.second.ID {
-		t.Fatal("the added xbond subscription should be active")
-	}
-
-	removed, err := f.controller.Logout()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(removed) != 1 || removed[0].Type != sub.SubTypeXBond {
-		t.Fatalf("wrong removal set: %+v", removed)
-	}
-	if f.core.IsRunning() {
-		t.Fatal("removing the active xbond subscription must stop the core")
-	}
-	if len(f.subs.List()) != 2 {
-		t.Fatalf("universal subscriptions must survive logout, got %d", len(f.subs.List()))
-	}
-	if _, err := f.subs.Get(f.first.ID); err != nil {
-		t.Fatalf("universal subscription was removed by logout: %v", err)
 	}
 }
 

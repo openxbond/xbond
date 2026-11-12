@@ -124,11 +124,6 @@ func deepMergeMaps(base, override map[string]any) map[string]any {
 // subscription node or group.
 var reservedPolicyNames = []string{"DIRECT", "REJECT", "REJECT-DROP", "COMPATIBLE", "PASS", "GLOBAL"}
 
-// ReservedPolicy reports whether a policy name is built into the cores.
-func ReservedPolicy(name string) bool {
-	return slices.Contains(reservedPolicyNames, name)
-}
-
 // ReservedAllPolicies lists the built-in policy names.
 func ReservedAllPolicies() []string {
 	return slices.Clone(reservedPolicyNames)

@@ -174,13 +174,6 @@ func (d *delegateManager) LastConfig() []byte {
 	return d.lastConfig
 }
 
-// LastError is the most recent delegation failure, for status surfacing.
-func (d *delegateManager) LastError() error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.lastError
-}
-
 // ClashClient addresses the remote core's clash API. The delegated config
 // keeps the same loopback ports the local core would have bound, so the
 // existing client type works unchanged.

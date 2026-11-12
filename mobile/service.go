@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -61,8 +60,8 @@ func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelS
 	if subMgr != nil && initErr == nil && mgrErr == nil {
 		subMgr.MigrateLegacySources()
 	}
-	// A failed store init leaves subMgr nil; UpdateSubscription surfaces it
-	// and the tunnel itself (config-driven) still works.
+	// A failed store init leaves subMgr nil: account flows fail on use; the
+	// tunnel itself (config-driven) still works.
 	svc := &TunnelService{
 		platform: platform,
 		listener: listener,
@@ -138,6 +137,8 @@ func (s *TunnelService) GetState() int32 {
 	return s.state
 }
 
+// IsRunning reports whether the VPN tunnel is up and the engine behind it
+// is running. The subscription update path checks it before re-applying.
 func (s *TunnelService) IsRunning() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -425,32 +426,6 @@ func (s *TunnelService) trafficLoop() {
 	}
 }
 
-func (s *TunnelService) SelectOutbound(group string, outbound string) error {
-	s.mu.RLock()
-	client := s.clashClient
-	s.mu.RUnlock()
-
-	if client == nil {
-		return errors.New("VPN engine is not running")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	return client.SelectNode(ctx, group, outbound)
-}
-
-func (s *TunnelService) ProtectSocket(fd int32) error {
-	s.mu.RLock()
-	platform := s.platform
-	s.mu.RUnlock()
-
-	if platform != nil {
-		return platform.ProtectSocket(fd)
-	}
-	return nil
-}
-
 type MobileThreeTier struct {
 	Core     TierItem `json:"core"`
 	Takeover TierItem `json:"takeover"`
@@ -507,26 +482,4 @@ func (s *TunnelService) GetStatusJSON() string {
 
 	bytes, _ := json.Marshal(out)
 	return string(bytes)
-}
-
-func (s *TunnelService) UpdateSubscription(tokenOrURL string) (string, error) {
-	if s.subMgr == nil {
-		return "", errors.New("subscription manager uninitialized")
-	}
-
-	var meta *sub.SubscriptionMeta
-	var err error
-
-	if strings.HasPrefix(tokenOrURL, "sub-") {
-		meta, err = s.subMgr.AddXBond(tokenOrURL, "", nil, "", "zh-HK", "Mobile Sub", 24, true)
-	} else {
-		meta, err = s.subMgr.AddUniversal(tokenOrURL, "Mobile Sub", 24, true)
-	}
-
-	if err != nil {
-		return "", err
-	}
-
-	bytes, _ := json.Marshal(meta)
-	return string(bytes), nil
 }

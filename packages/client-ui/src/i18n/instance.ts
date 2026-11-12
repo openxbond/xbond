@@ -38,7 +38,7 @@ export function getDefaultLanguage(): Lang {
   return "en_US";
 }
 
-export function getStoredLanguage(): Lang {
+function getStoredLanguage(): Lang {
   // languageAtom persists through jotai's JSON storage, so accept both the
   // quoted form it writes and a bare code.
   try {

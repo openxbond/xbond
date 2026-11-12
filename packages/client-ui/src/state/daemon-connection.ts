@@ -14,13 +14,11 @@ import {
 } from "@/platform/local-api-bootstrap";
 
 /** Retain resolved daemon config globally so route changes don't re-probe IPC or drop clients. */
-export const daemonConfigAtom = atom<LocalAPIConfig | null>(
-  detectLocalAPIConfig(),
-);
-export const daemonConfigReadyAtom = atom<boolean>(
+const daemonConfigAtom = atom<LocalAPIConfig | null>(detectLocalAPIConfig());
+const daemonConfigReadyAtom = atom<boolean>(
   Boolean(detectLocalAPIConfig()) || !isTauriRuntime(),
 );
-export const daemonStatusAtom = atom<LocalAPIStatusResponse | null>(null);
+const daemonStatusAtom = atom<LocalAPIStatusResponse | null>(null);
 
 let globalLastReresolveAt = 0;
 

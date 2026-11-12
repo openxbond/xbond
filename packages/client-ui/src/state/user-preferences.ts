@@ -16,7 +16,7 @@ import {
 } from "@/i18n/instance";
 import { invokeDesktop } from "@/platform/local-api-bootstrap";
 
-export const languageAtom = atomWithStorage<Lang | undefined>(
+const languageAtom = atomWithStorage<Lang | undefined>(
   LANG_STORAGE_KEY,
   undefined,
 );
@@ -86,7 +86,7 @@ export function useLanguage() {
   return { lang, locales, setLang };
 }
 
-export const configAtom = atomWithStorage("profile", {
+const configAtom = atomWithStorage("profile", {
   breakConnections: false,
   logLevel: "",
   testURL: "https://www.gstatic.com/generate_204",
@@ -103,7 +103,7 @@ export function useConfig() {
   return { data, set: useWarpImmerSetter(setter) };
 }
 
-export const pinnedNodesAtom = atomWithStorage<string[]>("pinned_nodes", []);
+const pinnedNodesAtom = atomWithStorage<string[]>("pinned_nodes", []);
 
 export function usePinnedNodes() {
   const [pinned, setPinned] = useAtom(pinnedNodesAtom);

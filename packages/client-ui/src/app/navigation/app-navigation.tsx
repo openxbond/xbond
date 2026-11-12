@@ -39,7 +39,7 @@ const routeMeta = {
   Settings: { label: "settings", icon: Settings },
 } as const satisfies Record<string, { label: string; icon: LucideIcon }>;
 
-export type RouteName = keyof typeof routeMeta;
+type RouteName = keyof typeof routeMeta;
 
 /**
  * 桌面八入口分三組：日常（首頁、代理、配置）、排查（連線、規則、日誌、診斷）、

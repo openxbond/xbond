@@ -33,7 +33,7 @@ import { usePinnedNodes } from "@/state/user-preferences";
 export type SelectionResult = "idle" | "success" | "failed" | "partial";
 
 /** 延遲分級的顯示色：快＝成功、中＝警告、慢＝危險。 */
-export function latencyClass(delay: number) {
+function latencyClass(delay: number) {
   if (delay < 150) return "text-success-text";
   if (delay <= 400) return "text-warning-text";
   return "text-destructive-text";

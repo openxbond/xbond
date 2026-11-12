@@ -15,7 +15,7 @@ const CLOUD_TRANSFORM = "translate(3.2 21.28) scale(0.018)";
  * softened into the surface. The cut is deliberately partial-transparency so
  * the brand reads as a tonal mark, not a punched-out logo.
  */
-export function CloudMark({ className }: { className?: string }) {
+function CloudMark({ className }: { className?: string }) {
   const id = `xbond-cloud-${useId().replace(/:/g, "")}`;
   const cut = `${id}-cut`;
   return (
