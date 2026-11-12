@@ -43,11 +43,18 @@ packages/*/tests/__coverage__/
 *.log
 *~
 
+# Local release configuration and signing material
+/.env
+/.env.*
+!/.env.example
+/keys/
+
 # Release outputs
 /release/
 /release-assets/
 
 # Mobile gomobile bind outputs (consumed by the xbond plugin)
+src-tauri/gen/android/.kotlin/
 plugins/xbond/android/libs/xbond-mobile.aar
 plugins/xbond/android/libs/xbond-mobile-sources.jar
 plugins/xbond/ios/Frameworks/XBondMobile.xcframework/

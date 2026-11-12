@@ -32,10 +32,7 @@ jobs:
           ref: ${{ inputs.commit }}
           persist-credentials: false
       - uses: ./.github/actions/toolchain
-      - run: pnpm check
-      - run: pnpm build
-      - name: Verify dashboard entry
-        run: test -s dist/web/index.html
+      - run: pnpm check:web
 
   go:
     name: "Go"
@@ -56,4 +53,4 @@ jobs:
       - name: Vet Windows sources
         env:
           GOOS: windows
-        run: node scripts/dev/go.ts vet
+        run: pnpm cli:vet

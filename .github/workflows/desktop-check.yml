@@ -15,6 +15,7 @@ on:
       - "vite.config.ts"
       - "pnpm-lock.yaml"
       - "package.json"
+      - "scripts/dev/setup.ts"
       - ".github/actions/**"
       - ".github/workflows/desktop-check.yml"
   pull_request:
@@ -48,8 +49,7 @@ jobs:
         with:
           components: rustfmt
 
-      - if: runner.os == 'Linux'
-        uses: ./.github/actions/setup-tauri-deps
+      - run: pnpm setup:desktop
 
       # The release workflow builds the same crate for the Android and iOS
       # targets. A desktop target always requires the desktop feature.

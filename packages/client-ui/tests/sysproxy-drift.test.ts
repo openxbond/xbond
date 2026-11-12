@@ -33,13 +33,13 @@ test("sysproxyDriftView derives a view only for a drifted owned takeover", () =>
   }
 
   assert.equal(
-    sysproxyDriftView(drift(null, { drifted: false })),
+    sysproxyDriftView(drift(undefined, { drifted: false })),
     null,
     "a healthy owned takeover renders no drift surface",
   );
   assert.equal(
     sysproxyDriftView(
-      drift(null, { drifted: false, owned: false, intent: true }),
+      drift(undefined, { drifted: false, owned: false, intent: true }),
     ),
     null,
     "intent without ownership is the pre-connect state, not drift",

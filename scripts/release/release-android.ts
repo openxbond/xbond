@@ -3,23 +3,25 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { ANDROID_BUILD_TOOLS_VERSION } from "../dev/android-sdk.ts";
+import { buildAndroidAPK } from "../dev/mobile.ts";
 import { androidAsset, releaseVersion } from "./release-version.ts";
 
-// Signs the Android release APK and verifies the pinned signing identity.
+// Builds, signs and verifies the Android release APK.
 //
 // Env contract (the release-android-signing environment):
+//   XBOND_RELEASE_PUBLIC_KEY  Ed25519 update manifest public key
 //   ANDROID_HOME             Android SDK root with build-tools installed
-//   KEYSTORE                 base64-encoded PKCS#12 keystore
+//   ANDROID_KEYSTORE_BASE64  base64-encoded PKCS#12 keystore
 //   ANDROID_STORE_PASSWORD   keystore password
-//   ANDROID_KEY_PASSWORD     key password (workflow maps the override)
+//   ANDROID_KEY_PASSWORD     key password when different from the store password
 //   ANDROID_KEY_ALIAS        signing key alias
 //   ANDROID_SIGNER_SHA256    lowercase hex SHA-256 of the signing certificate
 //
-// Usage: node scripts/release/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-directory>
+// Usage: pnpm release:android <vX.Y.Z>
 
 const APPLICATION_ID = "net.xbond.app";
 const MAX_APK_BYTES = 512 * 1024 * 1024;
-const BUILD_TOOLS_VERSION = "36.0.0";
 
 export function parseSignerDigest(output: string): string | undefined {
   return /^Signer #1 certificate SHA-256 digest: ([a-f0-9]{64})$/m.exec(
@@ -38,8 +40,8 @@ export function parsePackageBadging(
   return { name: match[1], versionCode: match[2], versionName: match[3] };
 }
 
-function run(command: string, args: string[]) {
-  const result = spawnSync(command, args, { stdio: "inherit" });
+function run(command: string, args: string[], env = process.env) {
+  const result = spawnSync(command, args, { stdio: "inherit", env });
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(`${command} failed: ${result.status ?? result.signal}`);
@@ -57,29 +59,39 @@ function capture(command: string, args: string[]): string {
 function buildTools(): string {
   const home = process.env.ANDROID_HOME;
   if (!home) throw new Error("Set ANDROID_HOME to the Android SDK root");
-  const directory = path.join(home, "build-tools", BUILD_TOOLS_VERSION);
+  const directory = path.join(home, "build-tools", ANDROID_BUILD_TOOLS_VERSION);
   if (!fs.existsSync(directory))
-    throw new Error(`Install Android SDK Build-Tools ${BUILD_TOOLS_VERSION}`);
+    throw new Error(
+      `Install Android SDK Build-Tools ${ANDROID_BUILD_TOOLS_VERSION}`,
+    );
   return directory;
 }
 
 function main() {
-  const [command, tag, unsigned, directory] = process.argv.slice(2);
-  if (command !== "sign" || !tag || !unsigned || !directory)
-    throw new Error(
-      "Usage: node scripts/release/release-android.ts sign <vX.Y.Z> <unsigned-apk> <output-directory>",
-    );
+  const [tag, ...extra] = process.argv.slice(2);
+  if (!tag || extra.length)
+    throw new Error("Usage: pnpm release:android <vX.Y.Z>");
   const { version, build } = releaseVersion(tag);
-  const keystore = process.env.KEYSTORE ?? "";
-  const storePassword = process.env.ANDROID_STORE_PASSWORD ?? "";
-  const keyPassword = process.env.ANDROID_KEY_PASSWORD ?? "";
+  if (!/^[A-Za-z0-9+/]{43}=$/.test(process.env.XBOND_RELEASE_PUBLIC_KEY ?? ""))
+    throw new Error(
+      "Set XBOND_RELEASE_PUBLIC_KEY to the Ed25519 update manifest public key",
+    );
+  const directory = path.join("release", tag, "android");
+  const keystore = process.env.ANDROID_KEYSTORE_BASE64;
+  const storePassword = process.env.ANDROID_STORE_PASSWORD;
+  const keyPassword = process.env.ANDROID_KEY_PASSWORD || storePassword;
   const keyAlias = process.env.ANDROID_KEY_ALIAS ?? "";
   const signerSha256 = process.env.ANDROID_SIGNER_SHA256 ?? "";
   if (!keystore || !storePassword || !keyPassword || !keyAlias)
     throw new Error(
-      "Set KEYSTORE, ANDROID_STORE_PASSWORD, ANDROID_KEY_PASSWORD and ANDROID_KEY_ALIAS",
+      "Set ANDROID_KEYSTORE_BASE64, ANDROID_STORE_PASSWORD and ANDROID_KEY_ALIAS",
+    );
+  if (!/^[a-f0-9]{64}$/i.test(signerSha256))
+    throw new Error(
+      "Set ANDROID_SIGNER_SHA256 to the signing certificate digest",
     );
   const tools = buildTools();
+  const unsigned = buildAndroidAPK({ release: { version, build } });
   const zipalign = path.join(tools, "zipalign");
   const apksigner = path.join(tools, "apksigner");
   const aapt = path.join(tools, "aapt");
@@ -93,22 +105,30 @@ function main() {
     const signed = path.join(work, "signed.apk");
     fs.writeFileSync(keystoreFile, Buffer.from(keystore, "base64"));
     run(zipalign, ["-P", "16", "-f", "4", unsigned, aligned]);
-    run(apksigner, [
-      "sign",
-      "--ks",
-      keystoreFile,
-      "--ks-key-alias",
-      keyAlias,
-      // apksigner reads these from its own environment, which this process
-      // passes down unchanged.
-      "--ks-pass",
-      "env:ANDROID_STORE_PASSWORD",
-      "--key-pass",
-      "env:ANDROID_KEY_PASSWORD",
-      "--out",
-      signed,
-      aligned,
-    ]);
+    run(
+      apksigner,
+      [
+        "sign",
+        "--ks",
+        keystoreFile,
+        "--ks-key-alias",
+        keyAlias,
+        // apksigner reads these from its own environment, which this process
+        // passes down unchanged.
+        "--ks-pass",
+        "env:ANDROID_STORE_PASSWORD",
+        "--key-pass",
+        "env:ANDROID_KEY_PASSWORD",
+        "--out",
+        signed,
+        aligned,
+      ],
+      {
+        ...process.env,
+        ANDROID_STORE_PASSWORD: storePassword,
+        ANDROID_KEY_PASSWORD: keyPassword,
+      },
+    );
 
     const bytes = fs.statSync(signed).size;
     if (bytes > MAX_APK_BYTES)

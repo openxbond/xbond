@@ -2,9 +2,32 @@
 
 一次發佈只用一個 `vX.Y.Z`。**推 Tag → 驗收安裝 → 批准公開。** iOS 首發透過 TestFlight 安裝，App Store 可之後上架。
 
-## 產物目錄
+## 建置入口與產物
 
-日常建置用 `dist/`。`pnpm build` 產出 `dist/web/`，`pnpm cli:build` 產出 `dist/cli/xbond`（Windows 為 `xbond.exe`）。`pnpm build:desktop` 先構建 `dist/desktop/` 再編譯本機桌面執行檔，封裝安裝包使用 `pnpm release:desktop`。
+在倉庫根目錄執行 `package.json` 的命令。Tauri 負責編譯原生殼及封裝，XBond 腳本負責準備 Go daemon 或 gomobile 綁定，以及發佈版本、簽名和產物整理。
+
+| 用途 | 命令 | 產物 |
+| --- | --- | --- |
+| 編譯 Web | `pnpm build` | `dist/web/` |
+| 編譯本機 CLI | `pnpm cli:build` | `dist/cli/xbond`，Windows 為 `xbond.exe` |
+| 編譯桌面程式 | `pnpm build:desktop` | `dist/desktop/` 前端資源及 Cargo release 執行檔 |
+| 本機桌面安裝包 | `pnpm package:desktop` | Tauri 的 `<Cargo target>/local/<Rust triple>/release/bundle/` |
+| Android debug APK | `pnpm package:android [target]` | `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk` |
+| Web 與 CLI 發佈候選 | `pnpm release:core <tag>` | `release/<tag>/web/` 及 `release/<tag>/core/` |
+| 桌面發佈候選 | `pnpm release:desktop <tag> <os> <arch>` | `release/<tag>/desktop/<os>-<arch>/` |
+| Android 發佈候選 | `pnpm release:android <tag>` | `release/<tag>/android/xbond-android-<tag>.apk` |
+| iOS App Store 歸檔 | `pnpm release:ios <tag>` | `release/<tag>/ios/xbond-ios-<tag>.ipa` |
+| OCI 鏡像 | `pnpm release:image <tag>` | `release/<tag>/oci/xbond-oci-<tag>.tar` |
+
+`pnpm package:desktop` 使用目前工作樹及本機平台，編譯並隨包附上同版本 Go daemon，生成供本機驗收的安裝包。此入口免用發佈金鑰，也不需要先跑 `release:core`。預設 Cargo target 根目錄為 `src-tauri/target/`，可用 `CARGO_TARGET_DIR` 覆寫。本機封裝固定使用其下的 `local/`，與發佈建置的原生輸出分開，並在完成時印出安裝包路徑。Linux 上只驗證 Debian 安裝包時可執行 `pnpm package:desktop --bundles deb`。
+
+macOS DMG 由 Finder 寫入背景及圖標佈局。在已登入圖形桌面的 Terminal 執行打包命令。Android debug 封裝會在 AAR 缺失時先建置綁定；修改 Go 移動端後，可先執行 `pnpm android:bind` 更新 AAR。
+
+桌面兩種封裝入口共用同一套 Tauri 呼叫。Tauri 自動讀取 `tauri.<platform>.conf.json` 的格式及外觀設定，`tauri.desktop.conf.json` 提供桌面前端及視窗設定，`tauri.release.conf.json` 提供正式發佈的更新設定。原生工具輸出是建置及本機驗收用目錄，發佈候選以 `release/<tag>/` 為交付位置。
+
+本機與 **Prepare XBond release** 使用同一組 `release:*` 命令。各命令依 Tag 設定版本，呼叫平台工具，並驗證其產物。CI 選擇宿主及工具鏈、注入簽名環境變數、收集產物，然後執行 `pnpm release:assemble <tag>` 整理簽名清單與 Pages。組裝需要該次 Actions run 的證據。本機執行各平台的發佈命令時，使用下方列出的簽名環境變數；OCI 建置需要支援 amd64／arm64 及 OCI archive 匯出的 Docker Buildx builder。單架構宿主可使用帶跨架構模擬的 builder。
+
+本機發佈命令讀取倉庫根的 `.env`。從 [`.env.example`](../.env.example) 複製空白模板後填入所需欄位。PEM 和 P8 使用帶引號的多行文字，Android keystore、Apple P12 和 provisioning profiles 使用單行 Base64。Git 和 Docker 排除實值 `.env`，CI 注入的同名變數優先。
 
 發佈候選以 `release/<tag>/` 為根目錄。下列路徑使用 `v0.4.3` 作例子。
 
@@ -17,9 +40,7 @@
 | `oci/` | `xbond-oci-v0.4.3.tar`，含 Linux amd64 和 arm64 鏡像。 |
 | `assets/`、`pages/` | GitHub Release 的平鋪資產、簽名清單與 `SHA256SUMS`，以及從同批資產產生的 Pages 網站。 |
 
-本機可先跑 `pnpm release:core v0.4.3`。有目標平台工具鏈及簽名材料時，再在相應宿主跑 `pnpm release:desktop v0.4.3 linux amd64`（按宿主換成 `windows`、`darwin` 或 `linux`，架構用 `amd64` 或 `arm64`）。桌面封裝從同版 `core/` 取出 daemon。Tauri、Gradle 及 Xcode 的原生中間檔由各自工具管理。
-
-Tauri 在 `tauri.<platform>.conf.json` 選擇平台的安裝包格式，桌面發佈再疊加 `tauri.release.conf.json` 啟用 daemon sidecar 及更新產物。封裝指令帶入本次版本及簽名設定。
+同一工作樹建置候選時，先跑 `pnpm release:core v0.4.3`。有目標平台工具鏈及簽名材料時，再在相應宿主跑 `pnpm release:desktop v0.4.3 linux amd64`（按宿主換成 `windows`、`darwin` 或 `linux`，架構用 `amd64` 或 `arm64`）。桌面封裝從同版 `core/` 取出 daemon。Tauri、Gradle 及 Xcode 的原生中間檔由各自工具管理。
 
 Linux 在 Debian／Ubuntu 可用 `sudo apt install ./xbond-desktop-v0.4.3-linux-amd64.deb`，在 Fedora 可用 `sudo dnf install ./xbond-desktop-v0.4.3-linux-amd64.rpm`。請選擇本機架構對應的檔案。更新這兩種套件時，使用相同命令安裝新版。
 
@@ -38,7 +59,7 @@ git push origin "refs/tags/$ReleaseTag"
 
 **Prepare XBond release** 在推 Tag 時自動執行。候選依序經過 preflight（版本、模式與 Apple 簽名旗標單點派生）、check（重用日常 CI 的 Web 與 Go 門禁）、core（CLI 六目標編譯與 dashboard 打包）。Android、iOS 與 OCI 鏡像可與 core 並行，桌面安裝包使用 core 產物中的 daemon，最後 assemble 匯整為一份帶 evidence 的候選並寫入草稿。等 `draft` 成功，從該 run 的摘要進入 Release 草稿，再使用草稿的安裝包及同一 run 的 IPA、OCI 鏡像。提交 SHA、run ID 和兩份摘要可在 `release-evidence.json` 核對。
 
-桌面與移動端共用根目錄的 Tauri 專案。Android 工作流執行 `pnpm android:bind` 和 `pnpm tauri android build --apk`，再用發行金鑰簽署通用 APK。iOS 工作流執行 `pnpm ios:bind`，透過 `pnpm tauri ios build --archive-only` 歸檔主程式及 PacketTunnel，再以兩份 provisioning profiles 匯出 IPA。
+桌面與移動端共用根目錄的 Tauri 專案。`release:android` 建置 Go AAR 和通用 APK，再用發行金鑰簽署及校驗。`release:ios` 建置 Go XCFramework，透過 Tauri 歸檔主程式及 PacketTunnel，再以兩份 provisioning profiles 匯出 IPA。
 
 ## 2. 驗收同版產物
 

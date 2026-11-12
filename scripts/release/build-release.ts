@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { BUILD_TAGS } from "../dev/go.ts";
+import { BUILD_TAGS, VERSION_PACKAGE } from "../dev/go.ts";
 import { checksum, packageDistribution } from "./artifact.ts";
 import { cliAsset, releaseTargets, releaseVersion } from "./release-version.ts";
 
@@ -12,8 +12,6 @@ import { cliAsset, releaseTargets, releaseVersion } from "./release-version.ts";
 // dashboard.zip and their checksums.
 //
 // Usage: node scripts/release/build-release.ts <vX.Y.Z>   (tag form v-prefixed)
-
-const VERSION_PACKAGE = "github.com/openxbond/xbond/internal/version.Version";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

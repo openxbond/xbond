@@ -6,19 +6,22 @@
 
 - pnpm,按根 `package.json` 的 `packageManager`;Node ≥ 24(`scripts/**/*.ts` 直接執行)。
 - Go,按 `go.mod`。
-- `pnpm install --frozen-lockfile` 安裝 npm 依賴。
+- `pnpm setup` 按 lockfile 安裝工作區依賴，CI 使用同一入口。
 
 ## 常用入口
 
 - `pnpm dev` 開發 Web 控制台，`pnpm build` 產出 `dist/web/`。
 - `pnpm dev:desktop`、`pnpm dev:android`、`pnpm dev:ios` 啟動各自的 Tauri 開發流程。
+- `pnpm build:desktop` 編譯桌面程式，`pnpm package:desktop` 生成本機平台的桌面安裝包。
+- `pnpm package:android [target]` 生成 debug APK，`pnpm android:install` 封裝並安裝到已連接的 Android 裝置。
 - `pnpm cli:run [args]` 執行 CLI，`pnpm cli:run daemon` 前景運行。
-- `pnpm check` 檢查 TypeScript、程式碼格式及測試。Go 和桌面分別用 `pnpm cli:check`、`pnpm check:desktop`。
+- `pnpm check` 檢查 TypeScript、程式碼格式及測試。`pnpm check:web` 另外建置 Web 並校驗入口檔。CI 的 Web、Go、桌面檢查分別呼叫 `pnpm check:web`、`pnpm cli:check`、`pnpm check:desktop`。
+- `pnpm setup:desktop` 準備桌面原生依賴，`pnpm setup:android` 安裝 Android SDK 套件及 Rust targets，`pnpm setup:ios` 準備 XcodeGen、CocoaPods 及 Rust targets。`pnpm setup:release` 準備驗證更新簽名所用的 minisign。
 - 發佈命令、簽名及產物位置見[發佈手冊](release.md)。
 
 ## 桌面(Tauri)
 
-`pnpm dev:desktop`、`pnpm check:desktop` 與 `pnpm build:desktop` 需要 Rust stable(rustup)及平台建置依賴。缺失的典型症狀:cargo 編譯 `soup3-sys`、`javascriptcore-rs-sys` 等 `-sys` crate 時 pkg-config 報 `Package ... was not found`。
+桌面開發、編譯及封裝需要 Rust stable（rustup）及平台建置依賴。`pnpm package:desktop` 也需要 Go，用於編譯隨包附上的 daemon。缺少平台依賴時，Cargo 編譯 `soup3-sys`、`javascriptcore-rs-sys` 等 crate 會由 pkg-config 報出 `Package ... was not found`。
 
 `pnpm dev:desktop` 另一前提:首次開發運行前先 `pnpm cli:build`,桌面殼在 `dist/cli/` 找 `xbond` CLI 來註冊並啟動本機服務;CLI 缺失時殼會輸出指引,介面停留在本機服務未連線狀態。本機服務已安裝並運行時不需要。
 
@@ -36,6 +39,8 @@ macOS 上測試桌面開發版的深鏈時，先用 `pnpm dev:desktop` 編譯，
 Linux 發行版命令取自 [Tauri v2 前置依賴](https://v2.tauri.app/start/prerequisites/);Ubuntu 26.04 已核對 `libsoup-3.0`、`javascriptcoregtk-4.1`、`webkit2gtk-4.1` 均由 `libwebkit2gtk-4.1-dev` 提供。Linux 上安裝後可用 `pkg-config --exists webkit2gtk-4.1` 自檢。正式安裝包的格式、輸出位置與簽名設定見[發佈手冊](release.md)。
 
 ## 移動端
+
+Android 先安裝 JDK 17 或 21 及 Android SDK command-line tools，設定 `ANDROID_HOME`，以 `sdkmanager --licenses` 閱讀並接受需要的授權，再執行 `pnpm setup:android`。iOS 在 macOS 安裝 Xcode 和 Homebrew 後執行 `pnpm setup:ios`。
 
 - `pnpm cli:test ./mobile/...` 可單獨執行移動 Go 測試。
 - Android:構建 AAR 與 APK 另需 Android SDK(含 NDK,`ANDROID_HOME`/`NDK_HOME`)、gomobile（`pnpm android:bind` 按 `go.mod` 補裝缺少的工具）與 Rust 的四個 Android target;`ANDROID_HOME` 按環境變量與 `~/Android/Sdk`、`~/.local/android` 探測。開發宿主 Linux 上可用 Waydroid 做裝置驗證(session 運行時 `pnpm dev:android` 與 `pnpm android:install` 自動 `adb connect`),AVD 為回退;契約與 gen 手改清單見 [Android 宿主規格](specs/mobile-android.md)。

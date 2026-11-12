@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 // sing-box needs with_quic/with_utls/with_clash_api; mihomo ignores them and
 // uses with_gvisor for its TUN stack.
 export const BUILD_TAGS = "with_gvisor,with_quic,with_utls,with_clash_api";
+export const VERSION_PACKAGE =
+  "github.com/openxbond/xbond/internal/version.Version";
 
 // Android bind only: mihomo's `cmfa` tag is the sanctioned embedding mode for
 // Android apps (ClashMetaForAndroid builds with it). It swaps the TUN listener's

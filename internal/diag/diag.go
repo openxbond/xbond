@@ -67,29 +67,12 @@ func EvaluateThreeTier(
 		st.InterceptNote = "port mode only, whole-system not intercepted"
 	}
 
-	// 3. Tier 3: Egress Verified via local mixed port
-	if mixedPort > 0 {
-		proxyURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", mixedPort))
-		testClient := &http.Client{
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(proxyURL),
-			},
-			Timeout: 4 * time.Second,
-		}
-
-		start := time.Now()
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.gstatic.com/generate_204", nil)
-		if err == nil {
-			resp, err := testClient.Do(req)
-			if err == nil {
-				resp.Body.Close()
-				if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK {
-					st.EgressVerified = true
-					st.EgressLatencyMs = int(time.Since(start).Milliseconds())
-				}
-			}
-		}
-	}
+	// Tier 3 (egress verified through the mixed port) is deliberately not
+	// evaluated here: it dials through the proxy to a remote URL with a
+	// multi-second timeout, and EvaluateThreeTier sits in the per-poll status
+	// path. No status consumer reads EgressVerified — 真实出口连通 is
+	// doctor's job (RunDoctor probes fresh on demand) — so the poll stays
+	// local-only and fast even with a slow upstream node.
 
 	// 4. Focus strategy chain
 	if client != nil {
@@ -99,6 +82,38 @@ func EvaluateThreeTier(
 	}
 
 	return st
+}
+
+// ProbeEgress verifies real outbound connectivity through the local mixed
+// port by fetching a generate_204 endpoint. It dials through the proxy with
+// a multi-second timeout, so callers run it on demand (doctor), never in a
+// polling path.
+func ProbeEgress(ctx context.Context, mixedPort int) (verified bool, latencyMs int) {
+	if mixedPort <= 0 {
+		return false, 0
+	}
+	proxyURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", mixedPort))
+	testClient := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+		},
+		Timeout: 4 * time.Second,
+	}
+
+	start := time.Now()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.gstatic.com/generate_204", nil)
+	if err != nil {
+		return false, 0
+	}
+	resp, err := testClient.Do(req)
+	if err != nil {
+		return false, 0
+	}
+	resp.Body.Close()
+	if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK {
+		return true, int(time.Since(start).Milliseconds())
+	}
+	return false, 0
 }
 
 func ResolveStrategyChain(proxies map[string]engine.ProxyItem) (string, []string) {
@@ -194,8 +209,9 @@ func RunDoctor(
 		egressRes.DirectLatencyMs = int(time.Since(dStart).Milliseconds())
 	}
 
-	egressRes.ProxySuccess = threeTier.EgressVerified
-	egressRes.ProxyLatencyMs = threeTier.EgressLatencyMs
+	// Doctor owns the through-proxy egress probe: it is on-demand and must
+	// reflect the moment's connectivity, not a cached poll-time answer.
+	egressRes.ProxySuccess, egressRes.ProxyLatencyMs = ProbeEgress(ctx, mixedPort)
 
 	// 3. Active subscription & gateway health
 	var activeSub *sub.SubscriptionMeta

@@ -4,7 +4,7 @@ import {
   type LocalAPIStatusResponse,
 } from "@xbond/client/localapi";
 import { atom, useAtom } from "jotai";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
 import { isTauriRuntime } from "@/platform/host";
@@ -22,6 +22,14 @@ const daemonStatusAtom = atom<LocalAPIStatusResponse | null>(null);
 
 let globalLastReresolveAt = 0;
 const STATUS_POLL_MS = 4_000;
+/** 最近一次成功读到状态的时刻：瞬时轮询失败用它做离线滞回。 */
+let globalLastGoodStatusAt = 0;
+/**
+ * 断开连接这类操作本身会伴随一轮快速的状态变化，WebKit 网络层偶发把
+ * 同一瞬间的轮询请求一起弄丢。一次失败不该把整页闪成离线卡片：持有
+ * 未过期的缓存快照时，连续失败超过一个轮询窗口才承认 daemon 离线。
+ */
+const OFFLINE_GRACE_MS = 12_000;
 
 /**
  * Connection core for the daemon that owns this window: config resolution
@@ -73,12 +81,22 @@ export function useDaemonConnection() {
     return new LocalAPIClient(config.endpoint, config.token);
   }, [config]);
 
+  // 換了目标（endpoint/token 变化）就不能继承旧目标的滞回信用：
+  // 新目标第一次失败要立刻走它自己的 connecting/offline 判定。
+  useEffect(() => {
+    globalLastGoodStatusAt = 0;
+  }, [config?.endpoint, config?.token]);
+
+  const [degraded, setDegraded] = useState(false);
   const { data, error, mutate } = useSWR<LocalAPIStatusResponse>(
     client ? ["/localapi/v0/status", config?.token] : null,
     async () => {
       if (!client) throw new Error("No LocalAPI client");
       const res = await client.getStatus();
+      globalLastGoodStatusAt = Date.now();
       setCachedStatus(res);
+      // 恢复由成功的轮询驱动；同值更新会 bail-out，不产生级联渲染。
+      setDegraded(false);
       return res;
     },
     {
@@ -92,6 +110,23 @@ export function useDaemonConnection() {
   );
 
   const effectiveStatus = data ?? cachedStatus;
+
+  /**
+   * 离线的两个事实分开看：config 丢失立刻离线（没有可以读的对象）；
+   * 轮询失败只有手上没有快照、或失败持续超过滞回窗口（以最后一次
+   * 成功读取为基准）才承认离线。窗口内保留最后一份已知状态——
+   * 断开连接等操作伴随的瞬时轮询失败不该把整页闪成离线卡片。
+   */
+  useEffect(() => {
+    if (!error || !effectiveStatus) return; // 沒有快照時直接走 offline，不定時器。
+    const remaining = Math.max(
+      0,
+      OFFLINE_GRACE_MS - (Date.now() - globalLastGoodStatusAt),
+    );
+    const timer = setTimeout(() => setDegraded(true), remaining);
+    return () => clearTimeout(timer);
+  }, [error, effectiveStatus]);
+  const statusStale = Boolean(error) && (!effectiveStatus || degraded);
 
   // Self-heal: the daemon may have been restarted (or reinstalled) with a
   // fresh addr/token since this window resolved its config. Re-read it from
@@ -116,7 +151,7 @@ export function useDaemonConnection() {
 
   const daemonState = !configReady
     ? ("connecting" as const)
-    : !config || error
+    : !config || statusStale
       ? ("offline" as const)
       : !effectiveStatus
         ? ("connecting" as const)

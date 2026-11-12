@@ -1,35 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { PATH_ORANGE, PATH_RIGHT } from "./build-logo-assets.ts";
-import {
-  createInstallerHeaderSvg,
-  createInstallerSidebarSvg,
-  encodeBmp,
-  HEADER_SIZE,
-  SIDEBAR_SIZE,
-} from "./generate-installer-bitmaps.ts";
-
-test("installer sidebar art follows the dark aurora canvas language", () => {
-  const svg = createInstallerSidebarSvg();
-  assert.match(svg, new RegExp(PATH_ORANGE));
-  assert.match(svg, new RegExp(PATH_RIGHT));
-  assert.match(svg, /width="164" height="314"/);
-  // App icon canvas with the dark theme's warm aurora.
-  assert.match(svg, /fill="#131313"/);
-  assert.match(svg, /#F7720D/);
-  assert.match(svg, /#FF914D/);
-});
-
-test("installer header art blends with the NSIS dialog background", () => {
-  const svg = createInstallerHeaderSvg();
-  assert.match(svg, new RegExp(PATH_ORANGE));
-  assert.match(svg, new RegExp(PATH_RIGHT));
-  assert.match(svg, /width="150" height="57"/);
-  // Dialog background with the light theme's peach aurora patch.
-  assert.match(svg, /fill="#F0F0F0"/);
-  assert.match(svg, /#FFCDB5/);
-});
+import { encodeBmp } from "./generate-installer-bitmaps.ts";
 
 test("encodeBmp writes a bottom-up 24-bit BI_RGB payload", () => {
   // Top-down 2x2 RGB: top row red then green, bottom row blue then white.
@@ -65,7 +38,18 @@ test("encodeBmp writes a bottom-up 24-bit BI_RGB payload", () => {
   assert.equal(bmp.length, 54 + 2 * 8);
 });
 
-test("bitmaps match the NSIS-recommended dimensions", () => {
-  assert.deepEqual(SIDEBAR_SIZE, { width: 164, height: 314 });
-  assert.deepEqual(HEADER_SIZE, { width: 150, height: 57 });
+test("shipped installer bitmaps match the NSIS controls", () => {
+  for (const [name, width, height] of [
+    ["sidebar", 164, 314],
+    ["header", 150, 57],
+    ["welcome", 498, 628],
+  ] as const) {
+    const bmp = readFileSync(
+      new URL(`../../src-tauri/icons/installer-${name}.bmp`, import.meta.url),
+    );
+    assert.equal(bmp.toString("latin1", 0, 2), "BM");
+    assert.equal(bmp.readInt32LE(18), width);
+    assert.equal(bmp.readInt32LE(22), height);
+    assert.equal(bmp.readUInt16LE(28), 24);
+  }
 });

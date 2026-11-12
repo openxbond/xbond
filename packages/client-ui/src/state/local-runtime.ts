@@ -34,6 +34,19 @@ export function useLocalAPI() {
   const hasLocalAPI = isLocalTarget && hasDaemon;
   const client = hasDaemon ? daemonClient : null;
 
+  /**
+   * 状态读回是尽力而为：动作本身已被 daemon 确认（POST 已 ack），读回
+   * 请求恰好撞上核心停止时的连接撕除、被客户端网络层丢掉，不该把成功
+   * 的动作误报成失败——4s 轮询与离线滞回会把界面追上事实。
+   */
+  const refreshQuietly = useCallback(async () => {
+    try {
+      await mutateStatus();
+    } catch {
+      // 轮询与 self-heal 兜底
+    }
+  }, [mutateStatus]);
+
   const up = useCallback(
     async (options?: {
       mode?: TakeoverMode;
@@ -44,10 +57,10 @@ export function useLocalAPI() {
     }) => {
       if (!daemonClient) throw new Error("LocalAPI not available");
       const res = await daemonClient.up(options);
-      await mutateStatus();
+      await refreshQuietly();
       return res;
     },
-    [daemonClient, mutateStatus],
+    [daemonClient, refreshQuietly],
   );
 
   const down = useCallback(async () => {
@@ -77,9 +90,9 @@ export function useLocalAPI() {
   const restart = useCallback(async () => {
     if (!daemonClient) throw new Error("LocalAPI not available");
     const res = await daemonClient.restart();
-    await mutateStatus();
+    await refreshQuietly();
     return res;
-  }, [daemonClient, mutateStatus]);
+  }, [daemonClient, refreshQuietly]);
 
   const setMode = useCallback(
     async (options: {
