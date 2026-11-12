@@ -1,8 +1,18 @@
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_updater::{Update, UpdaterExt};
+
+// Set by lib.rs when the updater plugin is actually registered. Local
+// `package:desktop` bundles ship without updater keys; their UI reports
+// installer-managed updates instead.
+static PLUGIN_REGISTERED: AtomicBool = AtomicBool::new(false);
+
+pub fn mark_registered() {
+    PLUGIN_REGISTERED.store(true, Ordering::Relaxed);
+}
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -49,7 +59,7 @@ pub struct UpdateSnapshot {
 }
 
 fn enabled() -> bool {
-    crate::daemon::packaged()
+    PLUGIN_REGISTERED.load(Ordering::Relaxed)
         && (!cfg!(target_os = "linux") || std::env::var_os("APPIMAGE").is_some())
 }
 
