@@ -199,7 +199,7 @@ function ProxyGroups() {
       )}
       {/* flex chain fills the workspace height instead of a 100vh magic
           number, so the panel edge lands exactly on the page bottom. */}
-      <div className="bento flex min-h-[480px] flex-col overflow-hidden p-0 shadow-elevation-card lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[270px_minmax(0,1fr)] xl:grid-cols-[290px_minmax(0,1fr)]">
+      <div className="bento flex min-h-[480px] flex-col overflow-hidden p-0 shadow-elevation-card max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[270px_minmax(0,1fr)] xl:grid-cols-[290px_minmax(0,1fr)]">
         <StrategyDirectory
           className="hidden lg:flex"
           label={t("groups")}
@@ -212,11 +212,12 @@ function ProxyGroups() {
             kind: group.type,
           }))}
         />
-        <div className="min-w-0 h-full min-h-0 overflow-y-auto bg-card lg:overflow-hidden">
+        <div className="min-w-0 h-full min-h-0 overflow-y-auto lg:overflow-hidden lg:bg-card">
           <Group
             key={selected.name}
             config={selected}
             search={search}
+            hasGroupSelector={list.length > 1}
             initialOpen
           />
         </div>

@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -6,58 +5,62 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_clipboard_manager::ClipboardExt as _;
+use tauri_plugin_dialog::DialogExt as _;
 use tauri_plugin_opener::OpenerExt as _;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DesktopInfo {
-    pub platform: String,
-    pub arch: String,
-    pub version: String,
-    pub is_desktop: bool,
-}
+use crate::desktop_preferences::DesktopPreferences;
 
-#[tauri::command]
-pub fn get_desktop_info() -> DesktopInfo {
-    DesktopInfo {
-        platform: std::env::consts::OS.to_string(),
-        arch: std::env::consts::ARCH.to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        is_desktop: true,
-    }
-}
+pub(crate) const AUTOSTART_ARG: &str = "--autostart";
 
-/// Whether the frontend has rendered and shown the main window at least
-/// once; the shell's anti-flash fallback timer reads this (see `run`).
-static MAIN_WINDOW_SHOWN: AtomicBool = AtomicBool::new(false);
-
-pub(crate) fn main_window_shown() -> bool {
-    MAIN_WINDOW_SHOWN.load(Ordering::Relaxed)
-}
-
-pub(crate) fn mark_main_window_shown() {
-    MAIN_WINDOW_SHOWN.store(true, Ordering::Relaxed);
-}
-
-/// Shell-side preferences the webview pushes down; the webview's localStorage
-/// stays the user-facing source, this mirrors what the native close handler
-/// must obey while the window is hidden.
-#[derive(Default)]
 pub struct ShellState {
-    close_to_tray: Mutex<bool>,
+    preferences: Mutex<DesktopPreferences>,
+    tray_available: bool,
+    start_hidden: bool,
+    startup_handled: AtomicBool,
     pending_import: Mutex<Option<String>>,
-    language: Mutex<String>,
 }
 
 impl ShellState {
-    pub fn close_to_tray(&self) -> bool {
-        *self.close_to_tray.lock().unwrap_or_else(|e| e.into_inner())
+    pub(crate) fn new(
+        preferences: DesktopPreferences,
+        tray_available: bool,
+        autostart: bool,
+    ) -> Self {
+        Self {
+            preferences: Mutex::new(preferences),
+            tray_available,
+            start_hidden: autostart && preferences.silent_start && tray_available,
+            startup_handled: AtomicBool::new(false),
+            pending_import: Mutex::new(None),
+        }
     }
 
-    pub fn language(&self) -> String {
-        self.language
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+    fn preferences(&self) -> std::sync::MutexGuard<'_, DesktopPreferences> {
+        self.preferences.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn update_preferences(
+        &self,
+        update: impl FnOnce(&mut DesktopPreferences),
+    ) -> Result<(), String> {
+        let mut preferences = self.preferences();
+        let mut next = *preferences;
+        update(&mut next);
+        next.save()?;
+        *preferences = next;
+        Ok(())
+    }
+
+    pub fn close_to_tray(&self) -> bool {
+        self.preferences().close_to_tray
+    }
+
+    pub fn can_close_to_tray(&self) -> bool {
+        self.tray_available && self.close_to_tray()
+    }
+
+    fn should_reveal_at_startup(&self) -> bool {
+        !self.startup_handled.swap(true, Ordering::Relaxed) && !self.start_hidden
     }
 }
 
@@ -67,27 +70,36 @@ pub fn get_close_to_tray(state: State<'_, ShellState>) -> bool {
 }
 
 #[tauri::command]
-pub fn set_close_to_tray(state: State<'_, ShellState>, value: bool) {
-    *state
-        .close_to_tray
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = value;
+pub fn set_close_to_tray(state: State<'_, ShellState>, value: bool) -> Result<(), String> {
+    state.update_preferences(|preferences| preferences.close_to_tray = value)
 }
 
 #[tauri::command]
-pub fn get_tray_language(state: State<'_, ShellState>) -> String {
-    state.language()
+pub fn get_silent_start(state: State<'_, ShellState>) -> bool {
+    state.preferences().silent_start
 }
 
 #[tauri::command]
-pub fn set_tray_language(app: AppHandle, state: State<'_, ShellState>, lang: String) {
-    *state.language.lock().unwrap_or_else(|e| e.into_inner()) = lang.clone();
+pub fn set_silent_start(state: State<'_, ShellState>, value: bool) -> Result<(), String> {
+    state.update_preferences(|preferences| preferences.silent_start = value)
+}
+
+#[tauri::command]
+pub fn set_tray_language(app: AppHandle, lang: String) {
     crate::tray::update_language(&app, &lang);
 }
 
 #[tauri::command]
+pub fn main_window_ready(app: AppHandle) {
+    if app.state::<ShellState>().should_reveal_at_startup() {
+        show_main_window(app);
+    }
+}
+
 pub fn show_main_window(app: AppHandle) {
-    mark_main_window_shown();
+    app.state::<ShellState>()
+        .startup_handled
+        .store(true, Ordering::Relaxed);
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
@@ -161,11 +173,6 @@ pub fn read_clipboard_text(app: AppHandle) -> Option<String> {
     app.clipboard().read_text().ok()
 }
 
-#[tauri::command]
-pub fn write_clipboard_text(app: AppHandle, text: String) -> Result<(), String> {
-    app.clipboard().write_text(text).map_err(|e| e.to_string())
-}
-
 /// Opens a link in the user's default browser. The webview has no
 /// `target="_blank"` handling, so external links (Cloud console, OAuth page)
 /// go through this command; only http(s) is accepted — never arbitrary
@@ -181,13 +188,62 @@ pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Save text content through the native save dialog. The webview cannot
+/// trigger `<a download>` blob navigation (WebKitGTK and WKWebView have no
+/// download handling wired), so file exports (bug report, log dump) go
+/// through this command; it writes only to the path the user confirms in
+/// the dialog. Returns `false` when the user cancels.
+#[tauri::command]
+pub async fn save_text_file(
+    app: AppHandle,
+    contents: String,
+    file_name: String,
+    filter_name: String,
+    extensions: Vec<String>,
+) -> Result<bool, String> {
+    let exts: Vec<&str> = extensions.iter().map(String::as_str).collect();
+    let mut dialog = app.dialog().file().set_file_name(file_name);
+    if !exts.is_empty() {
+        dialog = dialog.add_filter(filter_name, &exts);
+    }
+    let (tx, rx) = std::sync::mpsc::channel::<Option<Result<std::path::PathBuf, String>>>();
+    dialog.save_file(move |path| {
+        let _ = tx.send(path.map(|p| p.into_path().map_err(|e| e.to_string())));
+    });
+    // The callback fires on a helper thread after the user picks a path,
+    // which can take minutes — never block the main or executor thread.
+    tauri::async_runtime::spawn_blocking(move || match rx.recv() {
+        Ok(Some(Ok(path))) => std::fs::write(&path, contents)
+            .map(|()| true)
+            .map_err(|e| format!("failed to write {}: {e}", path.display())),
+        Ok(Some(Err(e))) => Err(e),
+        Ok(None) => Ok(false),
+        Err(e) => Err(format!("save dialog channel closed: {e}")),
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub fn get_autostart(app: AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)
 }
 
+pub(crate) fn initialize_autostart(app: &AppHandle) -> Result<(), String> {
+    let state = app.state::<ShellState>();
+    if !state.preferences().autostart_initialized {
+        app.autolaunch().enable().map_err(|err| err.to_string())?;
+        state.update_preferences(|preferences| preferences.autostart_initialized = true)?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn set_autostart(app: AppHandle, enable: bool) -> Result<bool, String> {
+    let state = app.state::<ShellState>();
+    if !state.preferences().autostart_initialized {
+        state.update_preferences(|preferences| preferences.autostart_initialized = true)?;
+    }
     let launch = app.autolaunch();
     let result = if enable {
         launch.enable()
@@ -343,12 +399,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_desktop_info() {
-        let info = get_desktop_info();
-        assert!(info.is_desktop);
-        assert!(!info.platform.is_empty());
-        assert!(!info.arch.is_empty());
-        assert_eq!(info.version, env!("CARGO_PKG_VERSION"));
+    fn startup_reveal_respects_launch_reason_preference_and_tray() {
+        for (autostart, silent_start, tray_available, reveal) in [
+            (false, true, true, true),
+            (true, true, true, false),
+            (true, false, true, true),
+            (true, true, false, true),
+        ] {
+            let state = ShellState::new(
+                DesktopPreferences {
+                    silent_start,
+                    ..Default::default()
+                },
+                tray_available,
+                autostart,
+            );
+            assert_eq!(state.should_reveal_at_startup(), reveal);
+            assert!(!state.should_reveal_at_startup());
+            assert_eq!(state.can_close_to_tray(), tray_available);
+        }
     }
 
     #[test]

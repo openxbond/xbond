@@ -38,6 +38,29 @@ const (
 	PortSourceOverride     PortSource = "override"
 )
 
+// Reason codes for SystemProxyDriftStatus. They mirror the capability
+// reason-code convention: stable wire strings the UI maps to copy.
+const (
+	DriftExternalOff      = "external_off"
+	DriftExternalOverride = "external_override"
+	DriftReadError        = "read_error"
+)
+
+// SystemProxyDriftStatus compares the daemon's takeover claim against the
+// host's live proxy settings. Intent (what the preferences store) and
+// ownership (what this process set and has not released) are separate facts,
+// and Known marks a failed host read instead of pretending "off": 未知、
+// 操作失敗與成功在這裡必須保持不同。
+type SystemProxyDriftStatus struct {
+	Intent        bool   `json:"intent"`
+	Owned         bool   `json:"owned"`
+	Known         bool   `json:"known"`
+	ActualEnabled bool   `json:"actualEnabled,omitempty"`
+	ActualServer  string `json:"actualServer,omitempty"`
+	Drifted       bool   `json:"drifted"`
+	ReasonCode    string `json:"reasonCode,omitempty"`
+}
+
 // legacyClashPort is the pre-randomization fixed default. New installs and
 // migrations move off it so the endpoint stays a daemon-owned detail.
 const legacyClashPort = 9090

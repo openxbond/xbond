@@ -10,7 +10,7 @@ const KB = 1024;
 const MB = 1024 * 1024;
 
 /** 根据窗口内最大速率自适应 Y 轴刻度与标尺上限，精准适配 <1MB/s 的常见场景 */
-export function getChartScale(maxBytesPerSec: number) {
+function getChartScale(maxBytesPerSec: number) {
   // 无流量或极小待机流量时，使用 50 KB/s 作为初始基准标尺，与设计稿一致且对轻量网络活动灵敏
   if (!Number.isFinite(maxBytesPerSec) || maxBytesPerSec <= 0) {
     return {

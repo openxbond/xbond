@@ -64,6 +64,13 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - GUI、CLI 通过控制接口修改 daemon 的生效状态，避免并行写文件；原始配置、用户偏好与实际运行配置分别保存；配置应用失败保留上一份可用状态并报告回滚结果。
 - 用户级 LocalAPI 使用 loopback HTTP 与受保护的发现文件；系统级特权控制接口（委托端点 `/localapi/v0/remote/*`）只挂在与 TCP LocalAPI 隔离的特权传输上——Windows named pipe（SD 按安装时记录的调用者 SID 授予）、macOS unix socket（按 `LOCAL_PEERCRED` 校验对端 uid）、Linux unix socket（按 `SO_PEERCRED` 校验对端 uid）——身份由传输在连接时验证，不因「来自本机」即授权。提权安装时把调用者身份（SID／uid）写入机器数据目录的 `delegated-user` 作为委托授权凭据；缺失时特权传输拒绝开启，而非匿名开放。
 
+### 系统代理漂移检测与处置
+
+- daemon 拥有系统代理接管期间，非 light 的 `/status` 每次读取一次系统代理实况并与所有权比对，以 `systemProxyDrift` 上报：`intent`（偏好声明）、`owned`（本进程接管中）、`known`／`actualEnabled`／`actualServer`（实况；读取失败以 `known=false` 如实报未知，不以「关闭」冒充）、`drifted` 与 `reasonCode`——`external_off` 表示已被外部关闭、`external_override` 表示仍是手动模式但不再指向本进程 mixed 端口、`read_error` 表示读取失败。未拥有所有权时不判定漂移：系统设置属于他人，不是本进程该报告的对象。light 轮询（就绪探针与托盘）不承担该读取。
+- 漂移只报差异，绝不静默改写系统设置；处置是显式动作。`POST /localapi/v0/sysproxy/reassert` 重新把本进程监听地址写入系统代理，核心不重启、连接不断；本进程尚无所有权（如 daemon 重启后）时先快照当前实况作为新的还原点再收养；意图已关闭或核心未运行时以输入错误拒绝，不把代理指向死端口。`POST /localapi/v0/sysproxy/release` 放弃接管：清所有权与还原快照、意图置 off，但不还原系统设置——外部改动保持其主人写下的样子，避免覆盖他人配置。
+- 普通断开连接语义不变：`down` 还原接管前的系统设置并清所有权，偏好意图保持；下次连接时 apply 因所有权缺失重新写入系统代理。
+- UI 在接管卡显示差异条（本地化短句＋「重新开启」「停止接管」两个动作），首页接管事实行与运行副行同步改用差异句；意图开关本身不因漂移翻转。
+
 ### 分层特权委托（TUN）
 
 - 用户会话 daemon 是唯一状态源（订阅、偏好、凭据、系统代理接管留在用户会话）；TUN 接管委托给机器级服务执行：用户 daemon 推导运行配置后经特权通道下发（`remote/apply`），机器会话内的核心开 TUN 适配器并绑定相同的 mixed/controller 端口，UI 经既有 clash API 无感读取远端核心。sysproxy 与 port 接管永不委托——用户会话系统代理必须由用户会话写。
@@ -96,10 +103,11 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - AC-11 移动端：Android `VpnService` 与 iOS `PacketTunnelProvider` 完成原生桥接并跑通真实流量（后续任务）。
 - AC-12 分层委托：普通权限的 GUI 一键唤起原生提权完成服务安装；此后开/关 TUN、切换路由、重启 daemon 全程零提权，核心确跑在机器会话（`capabilities.delegated`）；服务停止时 TUN 如实失联（`service_unreachable`），不静默 mixed-only。
 - AC-13 GUI 启动契约：GUI 不裸拉 daemon——已注册走 `daemon start`，未注册先 `daemon install`（用户级，免提权）；失败原因如实上达。
+- AC-14 系统代理漂移：接管被外部关闭（或改指他人）后，一次非 light 状态轮询内 `systemProxyDrift.drifted` 成立并给出对应 reasonCode；reassert 恢复指向本进程 mixed 端口且核心不重启；release 后系统设置保持外部状态、意图置 off，且此后的 down 不再还原快照。
 
 ## 已知限制
 
-- 已实现：单二进制的 `daemon` 子命令与用户级注册（systemd --user／LaunchAgent／HKCU Run）、LocalAPI 优雅 shutdown、Windows Run key 安装全周期实测；分层特权委托（SCM 服务/LaunchDaemon + 特权传输 + 委托运行时，Windows 服务安装流程待实机复验、macOS 仅有编译与单元测试证据）；GUI 启动契约统一（`daemon start`／`daemon install`，无裸 spawn）。
+- 已实现：单二进制的 `daemon` 子命令与用户级注册（systemd --user／LaunchAgent／HKCU Run）、LocalAPI 优雅 shutdown、Windows Run key 安装全周期实测；分层特权委托（SCM 服务/LaunchDaemon + 特权传输 + 委托运行时，Windows 服务安装流程待实机复验、macOS 仅有编译与单元测试证据）；GUI 启动契约统一（`daemon start`／`daemon install`，无裸 spawn）；系统代理漂移检测与处置（Linux 实机验证；macOS/Windows 共用判定代码，仅单元测试证据）。
 - 已承诺未实作：`run` 命令；实例锁；stop 的退出等待确认；Windows 用户会话的原生 Task Scheduler API 注册（现为 HKCU Run，无进程监督，升级路径为 COM 注册并显式处理策略拒绝）；macOS `SMAppService`；doctor 对委托态的引擎读取仍查本地实例；移动端原生桥接（Android `TunnelService` 占位、iOS 扩展未接 Go 核心、mobile 三层状态直接映射 running 需修正）。
 - 刻意不支持：run 与 daemon 静默共享同机接管资源；scope 之间偷换冒充成功；凭存量意图自动建立连接（含委托重连）。
 - 委托残留风险：mihomo 核心吞 TUN 启动错误，机器会话内「配置请求 TUN」与「适配器真的起来了」在运行时层面仍不可完全区分——能力门把已知失败路径（非提升、wintun 缺失、服务不可达）全部拦在触碰状态之前，残余风险与本地提升路径一致，记为已知限制。

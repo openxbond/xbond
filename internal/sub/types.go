@@ -72,10 +72,9 @@ type SubscriptionMeta struct {
 	UpdateIntervalHours int               `json:"updateIntervalHours"`
 	// Explicit user schedules take precedence over subscription response headers.
 	UpdateIntervalCustomized bool `json:"updateIntervalCustomized,omitempty"`
-	// Update channel: "" or "direct" fetches directly, "self" rides the
-	// daemon's own mixed port when the core runs (never for bootstrapping),
-	// "proxy" rides UpdateProxy. A failing channel errors — it never
-	// silently switches (client-rethink §四.5).
+	// Empty defaults to self for Cloud and direct for other subscriptions.
+	// Cloud self falls back to direct on request failure; explicit overrides
+	// and other channels do not fall back.
 	UpdateChannel string `json:"updateChannel,omitempty"`
 	UpdateProxy   string `json:"updateProxy,omitempty"`
 	// SourcePinned protects an edited source copy: automatic updates skip

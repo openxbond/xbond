@@ -55,10 +55,6 @@ func SubSourcePath(id string) string {
 	return filepath.Join(SubDir(id), "config.source")
 }
 
-func SubMetaPath(id string) string {
-	return filepath.Join(SubDir(id), "meta.json")
-}
-
 func SubRuntimePath(id string) string {
 	return filepath.Join(SubDir(id), "config.runtime.json")
 }

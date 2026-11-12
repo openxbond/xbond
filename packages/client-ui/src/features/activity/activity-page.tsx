@@ -157,7 +157,7 @@ export default function Activity() {
           <dd className="text-metric font-semibold tabular-nums max-md:text-subtitle">
             {connectionState === "open"
               ? // 核心在零連接時回 null 而非 []：null 是 0 這個事實，
-                // 只有快照缺席才是未知（traffic-overview 同此約定）。
+                // 只有快照缺席才是未知。
                 Array.isArray(snapshot?.connections)
                 ? snapshot.connections.length
                 : "—"

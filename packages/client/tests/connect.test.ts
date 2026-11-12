@@ -37,6 +37,14 @@ test("LocalAPIClient communicates with daemon using token auth and handles statu
       routingMode: "rule",
       strategyChain: ["PROXY", "Auto-HK", "HK-01"],
     },
+    systemProxyDrift: {
+      intent: true,
+      owned: true,
+      known: true,
+      actualEnabled: false,
+      drifted: true,
+      reasonCode: "external_off",
+    },
     activeSub: {
       id: "sub-xbond-test",
       name: "XBond VIP",
@@ -90,6 +98,20 @@ test("LocalAPIClient communicates with daemon using token auth and handles statu
       return;
     }
 
+    if (req.url === "/localapi/v0/sysproxy/reassert") {
+      res
+        .writeHead(200)
+        .end(JSON.stringify({ ok: true, preferences: mockStatus.preferences }));
+      return;
+    }
+
+    if (req.url === "/localapi/v0/sysproxy/release") {
+      res
+        .writeHead(200)
+        .end(JSON.stringify({ ok: true, preferences: mockStatus.preferences }));
+      return;
+    }
+
     res.writeHead(404).end(JSON.stringify({ error: "not found" }));
   });
 
@@ -114,6 +136,7 @@ test("LocalAPIClient communicates with daemon using token auth and handles statu
   assert.equal(status.preferences.takeoverMode, "sysproxy");
   assert.equal(status.threeTier.coreReachable, true);
   assert.equal(status.activeSub?.name, "XBond VIP");
+  assert.equal(status.systemProxyDrift?.reasonCode, "external_off");
 
   // 3. Up and Down calls
   const upRes = await client.up({ mode: "sysproxy", routing: "rule" });
@@ -125,6 +148,23 @@ test("LocalAPIClient communicates with daemon using token auth and handles statu
   // 4. SetMode call
   const modeRes = await client.setMode({ routing: "global" });
   assert.equal(modeRes.ok, true);
+
+  // 5. Sysproxy drift resolution actions
+  const reassertRes = await client.reassertSystemProxy();
+  assert.equal(reassertRes.ok, true);
+  assert.equal(reassertRes.preferences?.takeoverMode, "sysproxy");
+  const releaseRes = await client.releaseSystemProxy();
+  assert.equal(releaseRes.ok, true);
+  assert.ok(
+    requests.some(
+      (r) => r.path === "/localapi/v0/sysproxy/reassert" && r.method === "POST",
+    ),
+  );
+  assert.ok(
+    requests.some(
+      (r) => r.path === "/localapi/v0/sysproxy/release" && r.method === "POST",
+    ),
+  );
 
   // Verify all requests carried token
   assert.ok(

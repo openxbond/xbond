@@ -519,17 +519,6 @@ func (c *Client) GetBugReport(ctx context.Context) (*diag.BugReport, error) {
 	return &res, nil
 }
 
-// SubSource reads the subscription's current source for the raw editor.
-func (c *Client) SubSource(ctx context.Context, id string) (string, error) {
-	var res struct {
-		Content string `json:"content"`
-	}
-	if err := c.request(ctx, http.MethodGet, "/localapi/v0/subs/source?id="+url.QueryEscape(id), nil, &res); err != nil {
-		return "", err
-	}
-	return res.Content, nil
-}
-
 // EditSource replaces the source with user-provided content: it passes the
 // detection, core and override gates and pins the subscription against
 // automatic updates.

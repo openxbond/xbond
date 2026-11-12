@@ -228,10 +228,25 @@ export interface LocalAPICapabilities {
   delegated?: boolean;
 }
 
+/** The daemon's takeover claim judged against the host's live proxy
+ * settings. Drift is only reported while the daemon owns the system proxy;
+ * `known: false` means the host read failed — unknown, not "off". */
+export interface SystemProxyDrift {
+  intent: boolean;
+  owned: boolean;
+  known: boolean;
+  actualEnabled?: boolean;
+  actualServer?: string;
+  drifted: boolean;
+  reasonCode?: "external_off" | "external_override" | "read_error";
+}
+
 export interface LocalAPIStatusResponse {
   engine: LocalAPIEngineStatus;
   preferences: LocalAPIPreferences;
   threeTier: ThreeTierStatus;
+  /** Absent on hosts without a system proxy surface (mobile LocalAPI). */
+  systemProxyDrift?: SystemProxyDrift;
   activeSub: SubscriptionMeta | null;
   capabilities?: LocalAPICapabilities;
   rulePaging?: boolean;
@@ -438,6 +453,28 @@ export class LocalAPIClient {
     return this.request("/localapi/v0/mode", {
       method: "POST",
       body: JSON.stringify(options),
+    });
+  }
+
+  /** Re-assert our listener address into the host proxy settings after an
+   * external change; the running core is not touched. */
+  async reassertSystemProxy(): Promise<{
+    ok: boolean;
+    preferences?: LocalAPIPreferences;
+  }> {
+    return this.request("/localapi/v0/sysproxy/reassert", {
+      method: "POST",
+    });
+  }
+
+  /** Drop the takeover claim without touching the host proxy settings:
+   * whatever an external change left in place stays as its owner wrote it. */
+  async releaseSystemProxy(): Promise<{
+    ok: boolean;
+    preferences?: LocalAPIPreferences;
+  }> {
+    return this.request("/localapi/v0/sysproxy/release", {
+      method: "POST",
     });
   }
 

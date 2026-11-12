@@ -16,6 +16,7 @@ import (
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
 	"github.com/openxbond/xbond/internal/platform/httplocal"
 	"github.com/openxbond/xbond/internal/platform/paths"
+	"github.com/openxbond/xbond/internal/platform/sysproxy"
 	"github.com/openxbond/xbond/internal/sub"
 )
 
@@ -133,7 +134,8 @@ func (s *apiServer) handleStatus(w http.ResponseWriter, r *http.Request) {
 	// app process's own probes are unreliable behind the VPN anyway — see the
 	// mobile spec's self-traffic note).
 	if r.URL.Query().Get("light") != "1" {
-		threeTier = diag.EvaluateThreeTier(ctx, s.svc.engineManager().Client(), s.svc.engineManager().Status(), engine.ModeTun, s.svc.runtime.routing, 0)
+		// Mobile takeover is TUN-only: no host proxy state exists to sample.
+		threeTier = diag.EvaluateThreeTier(ctx, s.svc.engineManager().Client(), s.svc.engineManager().Status(), engine.ModeTun, s.svc.runtime.routing, 0, sysproxy.Snapshot{}, nil)
 	}
 
 	var activeSub *sub.SubscriptionMeta

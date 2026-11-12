@@ -640,7 +640,7 @@ func (m *Manager) Update(
 
 		if err != nil {
 			m.recordError(subMeta.ID, subMeta.Health, subMeta.LastErrorMessage)
-			return nil, err
+			return nil, &FetchError{Err: err}
 		}
 
 	} else {
@@ -945,33 +945,6 @@ func difference(a, b []string) []string {
 		}
 	}
 	return diff
-}
-
-func NextScheduledTick(now time.Time, interval time.Duration) time.Duration {
-	if interval < 10*time.Minute {
-		interval = 10 * time.Minute
-	}
-	if interval > 168*time.Hour {
-		interval = 168 * time.Hour
-	}
-
-	// Anchor: 04:00:00 local time
-	anchorToday := time.Date(now.Year(), now.Month(), now.Day(), 4, 0, 0, 0, now.Location())
-	target := anchorToday
-
-	for target.Before(now) || target.Equal(now) {
-		target = target.Add(interval)
-	}
-
-	return target.Sub(now)
-}
-
-func NextDailyTick(now time.Time, targetHour, targetMin int) time.Duration {
-	target := time.Date(now.Year(), now.Month(), now.Day(), targetHour, targetMin, 0, 0, now.Location())
-	if target.Before(now) || target.Equal(now) {
-		target = target.Add(24 * time.Hour)
-	}
-	return target.Sub(now)
 }
 
 func hashString(s string) string {

@@ -1,4 +1,4 @@
-export type ConnectErrorKind =
+type ConnectErrorKind =
   | "port_conflict"
   | "tun_denied"
   | "vpn_consent"

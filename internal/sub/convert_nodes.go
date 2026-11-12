@@ -9,15 +9,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func nodeTags(nodes []map[string]any) []string {
-	tags := make([]string, 0, len(nodes))
-	for _, node := range nodes {
-		tag, _ := node["name"].(string)
-		tags = append(tags, tag)
-	}
-	return tags
-}
-
 // defaultGroups is the standard Proxy/Auto pair for node lists without
 // upstream policy, matching the shape share-link imports always produced.
 func defaultGroups(tags []string) []map[string]any {

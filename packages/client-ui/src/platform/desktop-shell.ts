@@ -6,10 +6,7 @@ import { toast } from "sonner";
 import { invokeDesktop, isDesktopApp } from "@/platform/local-api-bootstrap";
 import { useLanguage } from "@/state/user-preferences";
 
-import {
-  handleDesktopShortcut,
-  type DesktopShortcutEvent,
-} from "./desktop-shortcuts.ts";
+import { handleDesktopShortcut } from "./desktop-shortcuts.ts";
 
 /**
  * Desktop-shell integration for the webview side: removes browser residue
@@ -23,9 +20,6 @@ export interface ImportCandidate {
   kind: "share" | "url";
   value: string;
 }
-
-export type { DesktopShortcutEvent };
-export { handleDesktopShortcut };
 
 const SHARE_LINK = /^(ss|ssr|vmess|vless|trojan|hysteria|hysteria2|tuic):\/\//i;
 const BARE_URL = /^https?:\/\/\S+$/i;
@@ -108,9 +102,8 @@ export function useDesktopShell(): void {
     if (!invoke) return;
     let cancelled = false;
 
-    // First render is committed: safe to reveal the window created with
-    // visible:false (the shell falls back to showing it after 5s anyway).
-    void invoke("show_main_window").catch(() => {});
+    // The shell decides whether to reveal the window after the first render.
+    void invoke("main_window_ready").catch(() => {});
 
     const showImportToast = (
       candidate: ImportCandidate,

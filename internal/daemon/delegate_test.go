@@ -248,7 +248,7 @@ func TestDelegateReportsUnreachableSession(t *testing.T) {
 	if err := d.Available(); err == nil {
 		t.Fatal("a dead session passed the delegation probe")
 	}
-	if d.LastError() == nil {
+	if d.lastError == nil {
 		t.Fatal("the failure was not recorded for status surfacing")
 	}
 	d.mu.Lock()
@@ -438,7 +438,7 @@ func TestTUNGateRejectsWhenMachineSessionUnreachable(t *testing.T) {
 	if !f.core.IsRunning() || !bytes.Equal(config, f.core.configuration()) || f.controller.Preferences() != prefs {
 		t.Fatal("the gate disturbed the running core or preferences")
 	}
-	if d.LastError() == nil {
+	if d.lastError == nil {
 		t.Fatal("the delegation failure was not recorded")
 	}
 }

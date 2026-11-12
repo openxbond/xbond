@@ -1,3 +1,4 @@
+import { Tooltip } from "radix-ui";
 import { Suspense, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter } from "react-router-dom";
@@ -22,7 +23,9 @@ export default function renderApp() {
           }
         >
           <LatencyProvider>
-            <App />
+            <Tooltip.Provider delayDuration={400}>
+              <App />
+            </Tooltip.Provider>
           </LatencyProvider>
         </Suspense>
       </HashRouter>

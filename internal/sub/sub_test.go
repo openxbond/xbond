@@ -11,7 +11,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/paths"
@@ -116,31 +115,6 @@ proxy-groups:
 	}
 	if !diff.ReloadRequired {
 		t.Errorf("expected reloadRequired to be true")
-	}
-}
-
-func TestNextScheduledTick(t *testing.T) {
-	loc := time.Local
-
-	// 1. 03:59:00 -> 1 minute until 04:00
-	t1 := time.Date(2026, 10, 27, 3, 59, 0, 0, loc)
-	tick1 := NextScheduledTick(t1, 24*time.Hour)
-	if tick1 != 1*time.Minute {
-		t.Errorf("expected 1m at 03:59, got %v", tick1)
-	}
-
-	// 2. 04:00:00 -> 24 hours until next 04:00
-	t2 := time.Date(2026, 10, 27, 4, 0, 0, 0, loc)
-	tick2 := NextScheduledTick(t2, 24*time.Hour)
-	if tick2 != 24*time.Hour {
-		t.Errorf("expected 24h at 04:00, got %v", tick2)
-	}
-
-	// 3. 04:01:00 -> 23h59m
-	t3 := time.Date(2026, 10, 27, 4, 1, 0, 0, loc)
-	tick3 := NextScheduledTick(t3, 24*time.Hour)
-	if tick3 != 23*time.Hour+59*time.Minute {
-		t.Errorf("expected 23h59m at 04:01, got %v", tick3)
 	}
 }
 

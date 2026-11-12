@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
@@ -78,6 +80,23 @@ func joinHostPort(host, port string) string {
 		return host
 	}
 	return host + ":" + port
+}
+
+// TargetsPort reports whether the snapshot's server points at the given
+// port. Substring matching false-positives whenever the port digits nest
+// (mixed port 7890 vs another app on 17890): split the host:port pair and
+// compare numerically. Unparsable servers cannot match a listener, so they
+// report false — the honest "unknown" for this check.
+func (s Snapshot) TargetsPort(port int) bool {
+	_, portText, err := net.SplitHostPort(s.Server)
+	if err != nil {
+		return false
+	}
+	captured, err := strconv.Atoi(portText)
+	if err != nil {
+		return false
+	}
+	return captured == port
 }
 
 // parseNetworksetupWebProxy reads `networksetup -getwebproxy` output:
