@@ -3,6 +3,8 @@ mod commands;
 #[cfg(feature = "desktop")]
 mod daemon;
 #[cfg(feature = "desktop")]
+mod desktop_preferences;
+#[cfg(feature = "desktop")]
 mod localapi;
 #[cfg(feature = "desktop")]
 mod tray;
@@ -65,7 +67,7 @@ pub fn run() {
                 commands::queue_import(app, url);
             } else if let Some(callback) = commands::extract_auth_callback(&args) {
                 commands::complete_auth_callback(app, callback);
-            } else {
+            } else if !args.iter().any(|arg| arg == commands::AUTOSTART_ARG) {
                 commands::show_main_window(app.clone());
             }
         }))
@@ -74,7 +76,10 @@ pub fn run() {
                 .with_state_flags(window_state_flags())
                 .build(),
         )
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec![commands::AUTOSTART_ARG]),
+        ))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -87,7 +92,6 @@ pub fn run() {
         // twice per press: show, then immediately re-show, never hide.
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
-            app.manage(commands::ShellState::default());
             if daemon::packaged() {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -103,8 +107,24 @@ pub fn run() {
                 let _ = window.set_decorations(false);
             }
 
-            if let Err(e) = tray::setup_tray(app.handle()) {
-                eprintln!("[XBond Desktop] Failed to setup tray: {e}");
+            let tray_available = tray::setup_tray(app.handle())
+                .map_err(|err| {
+                    eprintln!("[XBond Desktop] Failed to setup tray: {err}");
+                })
+                .is_ok();
+            let argv: Vec<String> = std::env::args().skip(1).collect();
+            let preferences =
+                desktop_preferences::DesktopPreferences::load().unwrap_or_else(|err| {
+                    eprintln!("[XBond Desktop] Failed to read desktop preferences: {err}");
+                    Default::default()
+                });
+            app.manage(commands::ShellState::new(
+                preferences,
+                tray_available,
+                argv.iter().any(|arg| arg == commands::AUTOSTART_ARG),
+            ));
+            if let Err(err) = commands::initialize_autostart(app.handle()) {
+                eprintln!("[XBond Desktop] Failed to initialize autostart: {err}");
             }
 
             // xbond:// / clash:// links arriving while this instance runs.
@@ -128,35 +148,30 @@ pub fn run() {
             if let Err(e) = app.deep_link().register_all() {
                 eprintln!("[XBond Desktop] Failed to register deep-link schemes: {e}");
             }
-            if let Err(e) = app.global_shortcut().on_shortcut("CmdOrCtrl+Shift+X", |app, _shortcut, event| {
-                if event.state() == ShortcutState::Pressed {
-                    tray::toggle_main_window(app);
-                }
-            }) {
+            if let Err(e) =
+                app.global_shortcut()
+                    .on_shortcut("CmdOrCtrl+Shift+X", |app, _shortcut, event| {
+                        if event.state() == ShortcutState::Pressed {
+                            tray::toggle_main_window(app);
+                        }
+                    })
+            {
                 eprintln!("[XBond Desktop] Failed to register global shortcut: {e}");
             }
 
             // Cold start: the OS passes the deep link as argv.
-            let argv: Vec<String> = std::env::args().skip(1).collect();
             if let Some(url) = commands::extract_import_url(&argv) {
                 commands::queue_import(app.handle(), url);
             } else if let Some(callback) = commands::extract_auth_callback(&argv) {
                 commands::complete_auth_callback(app.handle(), callback);
             }
 
-            // Anti-flash fallback: normally the webview shows the window
-            // after first render; if the frontend never comes up (dev server
-            // down, broken bundle), fail visible instead of invisible.
+            // Complete startup even if the webview never reports ready.
+            // Both paths use the same visibility decision.
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(5));
-                if !commands::main_window_shown() {
-                    eprintln!("[XBond Desktop] Webview did not report ready in 5s; forcing window visible");
-                    if let Some(window) = handle.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
-                }
+                commands::main_window_ready(handle);
             });
 
             updater::on_launch(app.handle().clone());
@@ -176,7 +191,7 @@ pub fn run() {
                 // tray behavior follows the user's closeToTray preference.
                 if window.label() == "main" {
                     let app = window.app_handle();
-                    if app.state::<commands::ShellState>().close_to_tray() {
+                    if app.state::<commands::ShellState>().can_close_to_tray() {
                         api.prevent_close();
                         let _ = window.hide();
                     } else {
@@ -191,13 +206,15 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_desktop_info,
-            commands::show_main_window,
+            commands::main_window_ready,
             commands::close_main_window,
             commands::minimize_main_window,
             commands::toggle_maximize_main_window,
             commands::is_main_window_maximized,
             commands::get_close_to_tray,
             commands::set_close_to_tray,
+            commands::get_silent_start,
+            commands::set_silent_start,
             commands::get_tray_language,
             commands::set_tray_language,
             commands::take_pending_import,
@@ -214,10 +231,21 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("failed to build XBond desktop app")
         .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } = event
+            {
+                commands::show_main_window(app.clone());
+            }
             // OS-level quit requests (macOS Cmd+Q, session managers) join the
             // same ask-first flow; the exit the confirmed stop triggers is
             // marked so it passes straight through.
-            if let tauri::RunEvent::ExitRequested { code: None, api, .. } = event {
+            if let tauri::RunEvent::ExitRequested {
+                code: None, api, ..
+            } = event
+            {
                 if !tray::quit_in_progress() {
                     api.prevent_exit();
                     tray::quit(app);

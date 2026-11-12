@@ -69,7 +69,6 @@ import { useAPIInfo, useClient } from "@/state/controller-target";
 import { useCapabilities, useGeneral, useVersion } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
 import {
-  desktopPreferencesAtom,
   themeAtom,
   useConfig,
   useLanguage,
@@ -156,7 +155,12 @@ export default function Settings() {
   const { data: profile, set: setProfile } = useConfig();
 
   const [theme, setTheme] = useAtom(themeAtom);
-  const [desktopPrefs, setDesktopPrefs] = useAtom(desktopPreferencesAtom);
+  const [desktopPrefs, setDesktopPrefs] = useState<{
+    autostart: boolean;
+    closeToTray: boolean;
+    silentStart: boolean;
+  } | null>(null);
+  const [savingDesktopPreference, setSavingDesktopPreference] = useState(false);
   const { run, pending } = useAction();
 
   const [port, setPort] = useState("");
@@ -206,50 +210,60 @@ export default function Settings() {
     version.meta,
   );
 
-  // Desktop host capabilities are real OS state, not just localStorage: the
-  // shell's answer wins on mount, and toggles push down to the OS.
   useEffect(() => {
     const invoke = invokeDesktop();
     if (!isDesktop || !invoke) return;
-    void invoke("get_autostart").then((enabled) => {
-      if (typeof enabled === "boolean")
-        setDesktopPrefs((prev) =>
-          prev.autostart === enabled ? prev : { ...prev, autostart: enabled },
-        );
-    });
-    void invoke("get_close_to_tray").then((value) => {
-      if (typeof value === "boolean")
-        setDesktopPrefs((prev) =>
-          prev.closeToTray === value ? prev : { ...prev, closeToTray: value },
-        );
-    });
-  }, [isDesktop, setDesktopPrefs]);
+    let cancelled = false;
+    void Promise.all([
+      invoke("get_autostart"),
+      invoke("get_close_to_tray"),
+      invoke("get_silent_start"),
+    ])
+      .then(([autostart, closeToTray, silentStart]) => {
+        if (
+          !cancelled &&
+          typeof autostart === "boolean" &&
+          typeof closeToTray === "boolean" &&
+          typeof silentStart === "boolean"
+        ) {
+          setDesktopPrefs({ autostart, closeToTray, silentStart });
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled)
+          toast.error(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDesktop]);
 
-  async function toggleAutostart(enable: boolean) {
+  async function toggleDesktopPreference(
+    preference: "autostart" | "closeToTray" | "silentStart",
+    value: boolean,
+  ) {
     const invoke = invokeDesktop();
-    if (!invoke) return;
-    setDesktopPrefs((prev) => ({ ...prev, autostart: enable }));
+    if (!invoke || !desktopPrefs || savingDesktopPreference) return;
+    setSavingDesktopPreference(true);
     try {
-      const enabled = await invoke("set_autostart", { enable });
-      if (typeof enabled === "boolean" && enabled !== enable)
-        setDesktopPrefs((prev) => ({ ...prev, autostart: enabled }));
+      const result =
+        preference === "autostart"
+          ? await invoke("set_autostart", { enable: value })
+          : await invoke(
+              preference === "closeToTray"
+                ? "set_close_to_tray"
+                : "set_silent_start",
+              { value },
+            );
+      setDesktopPrefs({
+        ...desktopPrefs,
+        [preference]: typeof result === "boolean" ? result : value,
+      });
     } catch (err) {
-      // Registration can genuinely fail (policy-blocked run keys): revert
-      // and surface it instead of showing a switch that lies.
-      setDesktopPrefs((prev) => ({ ...prev, autostart: !enable }));
       toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingDesktopPreference(false);
     }
-  }
-
-  function toggleCloseToTray(value: boolean) {
-    setDesktopPrefs((prev) => ({ ...prev, closeToTray: value }));
-    // 註冊失敗時回滾並如實提示，不能讓開關停在 OS 未跟進的狀態上。
-    void invokeDesktop()?.("set_close_to_tray", { value }).catch(
-      (err: unknown) => {
-        setDesktopPrefs((prev) => ({ ...prev, closeToTray: !value }));
-        toast.error(err instanceof Error ? err.message : String(err));
-      },
-    );
   }
 
   const currentPort =
@@ -504,8 +518,30 @@ export default function Settings() {
                 >
                   <Switch
                     aria-label={t("desktop.autostart")}
-                    checked={desktopPrefs.autostart}
-                    onCheckedChange={(val) => void toggleAutostart(val)}
+                    checked={desktopPrefs?.autostart ?? false}
+                    disabled={!desktopPrefs || savingDesktopPreference}
+                    onCheckedChange={(value) =>
+                      void toggleDesktopPreference("autostart", value)
+                    }
+                  />
+                </SettingRow>
+
+                <SettingRow
+                  title={t("desktop.silentStart")}
+                  description={t("desktop.silentStartDesc")}
+                  badge={
+                    <Badge variant="outline" className="uppercase">
+                      {t("desktop.hostDesktop")}
+                    </Badge>
+                  }
+                >
+                  <Switch
+                    aria-label={t("desktop.silentStart")}
+                    checked={desktopPrefs?.silentStart ?? false}
+                    disabled={!desktopPrefs || savingDesktopPreference}
+                    onCheckedChange={(value) =>
+                      void toggleDesktopPreference("silentStart", value)
+                    }
                   />
                 </SettingRow>
 
@@ -520,8 +556,11 @@ export default function Settings() {
                 >
                   <Switch
                     aria-label={t("desktop.closeToTray")}
-                    checked={desktopPrefs.closeToTray}
-                    onCheckedChange={toggleCloseToTray}
+                    checked={desktopPrefs?.closeToTray ?? false}
+                    disabled={!desktopPrefs || savingDesktopPreference}
+                    onCheckedChange={(value) =>
+                      void toggleDesktopPreference("closeToTray", value)
+                    }
                   />
                 </SettingRow>
               </>

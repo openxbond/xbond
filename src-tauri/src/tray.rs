@@ -517,9 +517,7 @@ pub(crate) fn toggle_main_window(app: &AppHandle) {
         if visible {
             let _ = window.hide();
         } else {
-            let _ = window.unminimize();
-            let _ = window.show();
-            let _ = window.set_focus();
+            crate::commands::show_main_window(app.clone());
         }
     }
 }
@@ -778,12 +776,7 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
         TRAY_AUTOSTART => {
             match app.autolaunch().is_enabled() {
                 Ok(enabled) => {
-                    let result = if enabled {
-                        app.autolaunch().disable()
-                    } else {
-                        app.autolaunch().enable()
-                    };
-                    if let Err(e) = result {
+                    if let Err(e) = crate::commands::set_autostart(app.clone(), !enabled) {
                         eprintln!("[XBond Desktop] Failed to toggle autostart: {e}");
                     }
                 }
@@ -798,11 +791,7 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
             display_tray(app, &state, i18n, &lang);
         }
         TRAY_SHOW => {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            crate::commands::show_main_window(app.clone());
         }
         TRAY_QUIT => quit(app),
         other => {

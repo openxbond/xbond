@@ -108,9 +108,8 @@ export function useDesktopShell(): void {
     if (!invoke) return;
     let cancelled = false;
 
-    // First render is committed: safe to reveal the window created with
-    // visible:false (the shell falls back to showing it after 5s anyway).
-    void invoke("show_main_window").catch(() => {});
+    // The shell decides whether to reveal the window after the first render.
+    void invoke("main_window_ready").catch(() => {});
 
     const showImportToast = (
       candidate: ImportCandidate,

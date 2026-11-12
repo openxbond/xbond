@@ -1,5 +1,13 @@
-import { Tooltip } from "radix-ui";
-import type { ReactElement } from "react";
+import { Slot, Tooltip } from "radix-ui";
+import type { ComponentProps, ReactElement } from "react";
+
+function ControlTooltipTrigger({
+  "data-state": _tooltipState,
+  ...props
+}: ComponentProps<typeof Slot.Root> & { "data-state"?: string }) {
+  // The control owns data-state for its selected or checked styling.
+  return <Slot.Root {...props} />;
+}
 
 export function ControlTooltip({
   children,
@@ -10,7 +18,9 @@ export function ControlTooltip({
 }) {
   return (
     <Tooltip.Root>
-      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+      <Tooltip.Trigger asChild>
+        <ControlTooltipTrigger>{children}</ControlTooltipTrigger>
+      </Tooltip.Trigger>
       <Tooltip.Portal>
         <Tooltip.Content
           sideOffset={8}

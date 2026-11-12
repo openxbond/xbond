@@ -633,7 +633,10 @@ const EN = {
       hostDesktop: "Desktop",
       hostClient: "Client",
       autostart: "Launch on startup",
-      autostartDesc: "Automatically start XBond in background when logging in",
+      autostartDesc: "Automatically launch XBond when you sign in",
+      silentStart: "Silent startup",
+      silentStartDesc:
+        "Start in the system tray without opening the window when you sign in",
       closeToTray: "Minimize to tray on close",
       closeToTrayDesc: "Keep proxy running in background when closing window",
     },
