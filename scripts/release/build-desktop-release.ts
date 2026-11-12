@@ -41,7 +41,9 @@ if (!publicKey || !process.env.TAURI_SIGNING_PRIVATE_KEY) {
   throw new Error("Set XBOND_TAURI_PUBLIC_KEY and TAURI_SIGNING_PRIVATE_KEY");
 }
 const macIdentity = process.env.APPLE_SIGNING_IDENTITY;
-const macRehearsal = process.env.XBOND_DESKTOP_REHEARSAL === "1";
+// A missing Developer ID certificate falls back to ad-hoc signing ("-", no
+// notarization): same behavior locally and in CI, recorded in release notes.
+const macAdHoc = os === "darwin" && !process.env.APPLE_CERTIFICATE;
 const appleID = process.env.APPLE_ID;
 const applePassword = process.env.APPLE_PASSWORD;
 const appleTeam = process.env.APPLE_TEAM_ID;
@@ -143,7 +145,7 @@ try {
   }
   if (
     os === "darwin" &&
-    !macRehearsal &&
+    !macAdHoc &&
     (!macIdentity || macIdentity === "-" || !notaryArgs)
   ) {
     throw new Error(
@@ -185,9 +187,7 @@ try {
     },
     configs: [join(tauriDirectory, "tauri.release.conf.json"), signingConfig],
     env:
-      os === "darwin" && macRehearsal
-        ? { APPLE_SIGNING_IDENTITY: "-" }
-        : notaryEnv,
+      os === "darwin" && macAdHoc ? { APPLE_SIGNING_IDENTITY: "-" } : notaryEnv,
   });
 
   mkdirSync(dirname(output), { recursive: true });
@@ -210,7 +210,7 @@ try {
     }
     if (os === "darwin") {
       copyBundle(staging, "macos", ".app.tar.gz", updater, true);
-      if (!macRehearsal && macIdentity && notaryArgs) {
+      if (!macAdHoc && macIdentity && notaryArgs) {
         const dmg = join(staging, installer);
         // Tauri signs the DMG while its temporary signing keychain is open.
         run("codesign", ["--verify", "--strict", dmg]);

@@ -141,13 +141,18 @@ function evidence(tag: string, directory: string) {
   const run = process.env.GITHUB_RUN_ID;
   const digest = process.env.IMAGE_DIGEST ?? "";
   const iosSHA256 = process.env.IOS_SHA256 ?? "";
-  const partial = !iosSHA256 && mode === "rehearsal";
+  // A release may ship without an iOS archive when the distribution
+  // credentials are not configured; an Apple-signed rehearsal must not.
+  const iosRequired =
+    mode === "rehearsal" && process.env.RELEASE_APPLE_SIGNING === "true";
+  const iosValid = iosSHA256 === "" || /^[a-f0-9]{64}$/.test(iosSHA256);
   if (
     (mode !== "release" && mode !== "rehearsal") ||
     !run ||
     !/^\d+$/.test(run) ||
     !/^sha256:[a-f0-9]{64}$/.test(digest) ||
-    (!partial && !/^[a-f0-9]{64}$/.test(iosSHA256))
+    !iosValid ||
+    (iosRequired && !iosSHA256)
   )
     throw new Error("Missing candidate evidence");
   fs.writeFileSync(
@@ -189,7 +194,7 @@ function verifyEvidence(tag: string, file: string) {
     commit !== git("rev-parse", `refs/tags/${tag}^{commit}`) ||
     !/^\d+$/.test(run) ||
     !/^sha256:[a-f0-9]{64}$/.test(digest) ||
-    !/^[a-f0-9]{64}$/.test(iosSHA256)
+    !/^(|[a-f0-9]{64})$/.test(iosSHA256)
   ) {
     throw new Error(
       "Candidate evidence is not a complete release for the requested Tag",

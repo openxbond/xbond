@@ -59,6 +59,8 @@ git push origin "refs/tags/$ReleaseTag"
 
 **Prepare XBond release** 在推 Tag 時自動執行。候選依序經過 preflight（版本、模式與 Apple 簽名旗標單點派生）、check（重用日常 CI 的 Web 與 Go 門禁）、core（CLI 六目標編譯與 dashboard 打包）。Android、iOS 與 OCI 鏡像可與 core 並行，桌面安裝包使用 core 產物中的 daemon，最後 assemble 匯整為一份帶 evidence 的候選並寫入草稿。等 `draft` 成功，從該 run 的摘要進入 Release 草稿，再使用草稿的安裝包及同一 run 的 IPA、OCI 鏡像。提交 SHA、run ID 和兩份摘要可在 `release-evidence.json` 核對。
 
+正式流程按憑據在場情況自動取捨，缺失不阻塞發佈，但如實記錄：`release-desktop-signing` 缺 Developer ID 證書時，macOS 安裝包以 ad-hoc 簽名（無公證，首次打開需右鍵確認）；`release-ios-signing` 缺 iOS 分發證書或描述檔時跳過 IPA 歸檔，`release-evidence.json` 的 `iosSHA256` 為空，草稿摘要會標明。憑據配置後下一個 Tag 自動恢復完整簽名路徑；已配置但失效的憑據會讓工作流失敗，不靜默降級。TestFlight 提交要求非空的 `iosSHA256`。
+
 桌面與移動端共用根目錄的 Tauri 專案。`release:android` 建置 Go AAR 和通用 APK，再用發行金鑰簽署及校驗。`release:ios` 建置 Go XCFramework，透過 Tauri 歸檔主程式及 PacketTunnel，再以兩份 provisioning profiles 匯出 IPA。
 
 ## 2. 驗收同版產物

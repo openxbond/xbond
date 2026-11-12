@@ -56,6 +56,10 @@ jobs:
         env:
           IOS_SHA256: ${{ steps.candidate.outputs.ios_sha256 }}
         run: |
+          if [ -z "$IOS_SHA256" ]; then
+            echo "::error::This release was prepared without an iOS archive (distribution credentials absent). Rebuild the tag with credentials before TestFlight."
+            exit 1
+          fi
           printf '%s  %s\n' "$IOS_SHA256" "release/$TAG/ios/xbond-ios-$TAG.ipa" | shasum -a 256 -c -
       - name: Upload the verified IPA to TestFlight
         uses: Apple-Actions/upload-testflight-build@v5.9.0
