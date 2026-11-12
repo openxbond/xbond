@@ -1024,8 +1024,9 @@ export default function Connect() {
                 />
               </div>
 
-              {/* 核心速率与用量三列指标：下载 / 上传 / 本次累计；居中平均分布 */}
-              <dl className="grid grid-cols-3 divide-x divide-border/70 text-center">
+              {/* 核心速率与用量三列指标：下载 / 上传 / 本次累计；居中平均分布。
+                  自带上下呼吸：卡头与图表岛都是近邻，gap-3 不足以分隔 metric 级读数。 */}
+              <dl className="grid grid-cols-3 divide-x divide-border/70 py-2 text-center xl:py-2.5">
                 <div className="flex min-w-0 flex-col items-center justify-center px-1 text-center">
                   <dt className="w-full truncate text-xs font-medium leading-none text-muted-foreground mb-1 text-center">
                     {t("download")}
