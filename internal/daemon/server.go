@@ -302,6 +302,7 @@ func (s *Server) coreClient() *engine.ClashClient {
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
+	mux.HandleFunc(controllerProxyPath, s.handleControllerProxy)
 	mux.HandleFunc("/localapi/v0/status", s.authMiddleware(s.handleStatus))
 	mux.HandleFunc("/localapi/v0/up", s.authMiddleware(s.handleUp))
 	mux.HandleFunc("/localapi/v0/down", s.authMiddleware(s.handleDown))
@@ -1389,17 +1390,11 @@ func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		prefs := s.runtime.Preferences()
-		clashPort, clashSecret := prefs.ClashPort, prefs.ClashSecret
-
-		// The token rides the served page; no address meta — the UI talks to
-		// its own origin (relative paths), which keeps remote management
-		// working from any host that can reach this listener. The daemon
-		// publishes this port as the management boundary.
-		metaTag := fmt.Sprintf(`<meta name="external-controller" content="http://:%s@127.0.0.1:%d">
-    <meta name="localapi-token" content="%s">`, clashSecret, clashPort, s.token)
+		metaTag := fmt.Sprintf(`<meta name="localapi-controller" content="%s">
+    <meta name="localapi-token" content="%s">`, controllerProxyPath, s.token)
 		html := strings.Replace(string(indexBytes), "<head>", "<head>\n    "+metaTag, 1)
 
+		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(html))
 		return

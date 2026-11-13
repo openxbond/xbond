@@ -116,7 +116,7 @@ func TestRuntimeUpHTTPReturnsActualStartedCoreStatus(t *testing.T) {
 	preferences.MixedPort, preferences.ClashPort = mixedPort, clashPort
 	core := engine.NewManager(100)
 	controller := newRuntimeController(core, f.subs, preferences)
-	server := &Server{engineMgr: core, subMgr: f.subs, runtime: controller}
+	server := &Server{engineMgr: core, subMgr: f.subs, runtime: controller, token: "dashboard-token"}
 	t.Cleanup(func() {
 		if _, err := controller.Down(); err != nil {
 			t.Error(err)
@@ -133,6 +133,29 @@ func TestRuntimeUpHTTPReturnsActualStartedCoreStatus(t *testing.T) {
 	}
 	if response.Code != http.StatusOK || !result.Status.Running || result.Status.MixedPort != mixedPort {
 		t.Fatalf("up response did not describe the started core: %d %s", response.Code, response.Body)
+	}
+	mux := http.NewServeMux()
+	server.registerRoutes(mux)
+	for _, check := range []struct {
+		path, token string
+		want        int
+	}{
+		{"proxies", "", http.StatusUnauthorized},
+		{"proxies?token=dashboard-token", "", http.StatusUnauthorized},
+		{"proxies", server.token, http.StatusOK},
+		{"version", server.token, http.StatusOK},
+		{"configs", server.token, http.StatusOK},
+		{"upgrade", server.token, http.StatusNotFound},
+	} {
+		request := httptest.NewRequest(http.MethodGet, controllerProxyPath+check.path, nil)
+		if check.token != "" {
+			request.Header.Set("Authorization", "Bearer "+check.token)
+		}
+		recorder := httptest.NewRecorder()
+		mux.ServeHTTP(recorder, request)
+		if recorder.Code != check.want {
+			t.Errorf("controller %s: got %d, want %d", check.path, recorder.Code, check.want)
+		}
 	}
 	rulesResponse := httptest.NewRecorder()
 	server.handleRulesPage(rulesResponse, httptest.NewRequest(http.MethodGet, "/localapi/v0/rules/page?limit=1", nil))

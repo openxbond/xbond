@@ -146,12 +146,15 @@ export function useAPIInfo(): TargetInfo {
       });
     });
   }, [clashx, setClashx]);
-  const { data } = useDaemonConnection();
+  const { data, config } = useDaemonConnection();
   const location = useLocation();
   const selection = useAtomValue(targetSelectionAtom);
   const saved = useAtomValue(externalsStorageAtom);
   const externals = useMemo(() => migrateExternals(saved), [saved]);
   const info = useMemo<TargetInfo>(() => {
+    const proxyPath = document.querySelector<HTMLMetaElement>(
+      'meta[name="localapi-controller"]',
+    )?.content;
     const target = resolveControlTarget(externals, selection, {
       meta: document.querySelector<HTMLMetaElement>(
         'meta[name="external-controller"]',
@@ -160,12 +163,18 @@ export function useAPIInfo(): TargetInfo {
       bridge: clashx,
       daemon: hasDaemonConfig()
         ? {
-            core: data
-              ? {
-                  url: `http://127.0.0.1:${data.preferences.clashPort}`,
-                  secret: data.preferences.clashSecret ?? "",
-                }
-              : undefined,
+            core:
+              proxyPath && config && data?.engine.running
+                ? {
+                    url: new URL(proxyPath, window.location.origin).href,
+                    secret: config.token,
+                  }
+                : !proxyPath && data
+                  ? {
+                      url: `http://127.0.0.1:${data.preferences.clashPort}`,
+                      secret: data.preferences.clashSecret ?? "",
+                    }
+                  : undefined,
           }
         : null,
     });
@@ -203,7 +212,7 @@ export function useAPIInfo(): TargetInfo {
       protocol: url.protocol,
       focusKey: controllerIdentity(target.controller.id, target.controller.url),
     };
-  }, [clashx, externals, selection, location.search, data]);
+  }, [clashx, externals, selection, location.search, data, config]);
   return info;
 }
 
