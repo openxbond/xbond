@@ -1,9 +1,12 @@
 package engine
 
 import (
+	"errors"
+	"net"
 	"testing"
 
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common/control"
 )
 
 // The mobile platform interface is the fd carrier for the sing-box mobile
@@ -73,4 +76,48 @@ func TestMobilePlatformInterface(t *testing.T) {
 	if len(myIfs) != 1 || myIfs[0] != "tun0" {
 		t.Fatalf("expected [tun0], got %v", myIfs)
 	}
+}
+
+// Android 14+ restricts netlink RTM_GETLINK, so net.Interfaces comes back
+// empty or fails on real devices. The platform interface must report an
+// empty table without an error there — os.ErrNotExist bubbled through
+// sing-box as "initialize platform interface: file does not exist" and
+// killed both the connection and the subscription validation gate
+// (real-device report against v1.0.0; Waydroid's Android 13 never showed it).
+func TestMobileNetworkInterfacesTolerateEmptyEnumeration(t *testing.T) {
+	var platform mobilePlatformInterface
+
+	original := enumerateSystemInterfaces
+	defer func() { enumerateSystemInterfaces = original }()
+
+	for name, stub := range map[string]func() ([]net.Interface, error){
+		"restricted netlink": func() ([]net.Interface, error) { return nil, nil },
+		"enumeration error":  func() ([]net.Interface, error) { return nil, errors.New("netlink read failed") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			enumerateSystemInterfaces = stub
+			ifaces, err := platform.NetworkInterfaces()
+			if err != nil {
+				t.Fatalf("empty enumeration must not fail the platform interface: %v", err)
+			}
+			if len(ifaces) != 0 {
+				t.Fatalf("expected no interfaces, got %d", len(ifaces))
+			}
+			if def := monitorDefaultInterface(platform); def != nil {
+				t.Fatalf("expected nil default interface, got %+v", def)
+			}
+		})
+	}
+}
+
+func monitorDefaultInterface(platform mobilePlatformInterface) *control.Interface {
+	monitor := platform.CreateDefaultInterfaceMonitor(nil)
+	type defaultGetter interface {
+		DefaultInterface() *control.Interface
+	}
+	getter, ok := monitor.(defaultGetter)
+	if !ok {
+		return nil
+	}
+	return getter.DefaultInterface()
 }

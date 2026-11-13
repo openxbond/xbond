@@ -124,11 +124,18 @@ func (mobilePlatformInterface) CreateDefaultInterfaceMonitor(logger.Logger) tun.
 
 func (mobilePlatformInterface) UsePlatformNetworkInterfaces() bool { return true }
 
+// enumerateSystemInterfaces is the seam the regression test overrides; the
+// Android 14+ netlink RTM_GETLINK restriction makes net.Interfaces come back
+// empty or fail on real devices, which Waydroid (Android 13) never shows.
+var enumerateSystemInterfaces = net.Interfaces
+
 func (mobilePlatformInterface) NetworkInterfaces() ([]adapter.NetworkInterface, error) {
+	// An empty table must not fail the core: socket binding on Android goes
+	// through AutoDetectInterfaceControl (the platform socket protector), not
+	// the interface table, and the subscription validation gate only builds
+	// the instance before closing it. Failing here surfaced to users as
+	// "initialize platform interface: file does not exist" on real devices.
 	ifaces, _ := getMobileNetworkInterfaces()
-	if len(ifaces) == 0 {
-		return nil, os.ErrNotExist
-	}
 	return ifaces, nil
 }
 
@@ -208,7 +215,7 @@ func (m *mobileInterfaceMonitor) MyInterfaces() []string {
 }
 
 func getMobileNetworkInterfaces() ([]adapter.NetworkInterface, *control.Interface) {
-	ifaces, err := net.Interfaces()
+	ifaces, err := enumerateSystemInterfaces()
 	if err != nil {
 		return nil, nil
 	}
