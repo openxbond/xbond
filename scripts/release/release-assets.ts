@@ -283,183 +283,133 @@ const DOWNLOAD_STRINGS: Record<DownloadLocale, Record<string, string>> = {
     title: "Download XBond",
     lede: "The dual-core proxy client for desktop and mobile — import your subscription and connect.",
     dashboard: "XBond Dashboard",
-    installer: "Installer",
-    diskImage: "Disk image",
-    cli: "CLI",
     download: "Download",
     abiHint:
       "Most phones run arm64-v8a. Not sure? universal works on any device, but is larger.",
     recommended: "Recommended",
     mostPhones: "most phones",
-    emulator: "emulator",
-    anyDevice: "any device",
     iosInvite: "Contact the release maintainer for a TestFlight invitation.",
-    dockerHint:
-      "Start the official XBond image with your subscription. XBond refreshes the configuration automatically.",
     dockerTitle: "Docker deployment",
     modeTun: "Gateway mode",
     modePort: "Port mode",
-    tipTun:
-      "Routes all traffic from the machine and your LAN. Linux hosts only (routers, NAS, servers). Docker Desktop on macOS/Windows can't do this — use port mode.",
-    tipPort: "Use a local HTTP or SOCKS proxy on any Docker host.",
-    dashboardHint:
-      "On the Docker host, open http://localhost:19090 to manage XBond. Use an SSH tunnel for a remote host.",
-    proxyHint: "Set your app's HTTP or SOCKS proxy to 127.0.0.1:7890.",
-    autoPort: "Docker Desktop detected — port mode selected for you",
-    loginHint:
-      "SUB_URL is optional — sign in from the web dashboard (OAuth device authorization) and your subscription syncs automatically.",
+    tipTun: "All traffic from the host and LAN. Linux only.",
+    tipPort: "Local HTTP or SOCKS proxy on any host.",
     cliHint: "Standalone binaries — no installation required.",
-    dockerDash:
-      "For subscription config and gateway / port modes, use the dashboard's Docker deployment.",
     releaseInfo: "Release information",
     githubRelease: "GitHub Release",
     checksums: "SHA-256 checksums",
     releaseNotes: "Release notes",
+    copy: "Copy",
+    copied: "Copied",
+    otherBuilds: "Other builds",
+    appleChip: "Apple silicon",
+    intelChip: "Intel",
     langAria: "Language",
   },
   zh: {
     title: "下载 XBond",
     lede: "面向桌面与移动的双核代理客户端——导入订阅，即刻连接。",
     dashboard: "XBond 控制台",
-    installer: "安装包",
-    diskImage: "磁盘映像",
-    cli: "CLI",
     download: "下载",
     abiHint: "大多数手机是 arm64-v8a；不确定机型就选 universal，通用但更大。",
     recommended: "推荐",
     mostPhones: "大多数手机",
-    emulator: "模拟器",
-    anyDevice: "任意设备",
     iosInvite: "联系发布维护者获取 TestFlight 邀请。",
-    dockerHint: "用你的订阅启动 XBond 官方镜像，配置会自动更新。",
     dockerTitle: "Docker 部署",
     modeTun: "网关模式",
     modePort: "端口模式",
-    tipTun:
-      "接管整机和局域网的全部流量。仅限 Linux 主机（软路由、NAS、服务器）；macOS / Windows 的 Docker Desktop 不支持，请用端口模式。",
-    tipPort: "通过本地 HTTP 或 SOCKS 代理连接，适用于所有 Docker 主机。",
-    dashboardHint:
-      "在 Docker 主机打开 http://localhost:19090 管理 XBond。远程主机可通过 SSH 隧道访问。",
-    proxyHint: "将应用的 HTTP 或 SOCKS 代理设为 127.0.0.1:7890。",
-    autoPort: "检测到 Docker Desktop，已为你选中端口模式",
-    loginHint:
-      "SUB_URL 可选——在管理页面网页登录（OAuth 设备授权）即可自动同步订阅。",
+    tipTun: "接管主机与局域网全部流量，仅限 Linux。",
+    tipPort: "本地 HTTP/SOCKS 代理，适用任意主机。",
     cliHint: "独立命令行二进制，无需安装。",
     releaseInfo: "发布信息",
     githubRelease: "GitHub Release",
     checksums: "SHA-256 校验和",
     releaseNotes: "发布说明",
+    copy: "复制",
+    copied: "已复制",
+    otherBuilds: "其他构建",
+    appleChip: "Apple 芯片",
+    intelChip: "Intel 芯片",
     langAria: "语言",
   },
   "zh-HK": {
     title: "下載 XBond",
     lede: "面向桌面與流動的雙核代理用戶端——匯入訂閱，即刻連線。",
     dashboard: "XBond 控制台",
-    installer: "安裝包",
-    diskImage: "磁碟映像",
-    cli: "CLI",
     download: "下載",
     abiHint: "大多數手機是 arm64-v8a；不確定機型就選 universal，通用但更大。",
     recommended: "推薦",
     mostPhones: "大多數手機",
-    emulator: "模擬器",
-    anyDevice: "任何裝置",
     iosInvite: "聯絡發布維護者獲取 TestFlight 邀請。",
-    dockerHint: "使用你的訂閱啟動 XBond 官方映像，配置會自動更新。",
     dockerTitle: "Docker 部署",
     modeTun: "網關模式",
     modePort: "連接埠模式",
-    tipTun:
-      "接管整機和區域網絡的全部流量。僅限 Linux 主機（軟路由、NAS、伺服器）；macOS / Windows 的 Docker Desktop 不支援，請用連接埠模式。",
-    tipPort: "透過本機 HTTP 或 SOCKS 代理連線，適用於所有 Docker 主機。",
-    dashboardHint:
-      "在 Docker 主機打開 http://localhost:19090 管理 XBond。遠端主機可透過 SSH 隧道存取。",
-    proxyHint: "將應用程式的 HTTP 或 SOCKS 代理設為 127.0.0.1:7890。",
-    autoPort: "偵測到 Docker Desktop，已為你選中連接埠模式",
-    loginHint:
-      "SUB_URL 可選——在管理頁面網頁登入（OAuth 裝置授權）即可自動同步訂閱。",
+    tipTun: "接管主機與區域網絡全部流量，僅限 Linux。",
+    tipPort: "本機 HTTP/SOCKS 代理，適用任何主機。",
     cliHint: "獨立命令列二進位檔，無需安裝。",
     releaseInfo: "發布資訊",
     githubRelease: "GitHub Release",
     checksums: "SHA-256 校驗和",
     releaseNotes: "發布說明",
+    copy: "複製",
+    copied: "已複製",
+    otherBuilds: "其他構建",
+    appleChip: "Apple 晶片",
+    intelChip: "Intel 晶片",
     langAria: "語言",
   },
   ko: {
     title: "XBond 다운로드",
     lede: "데스크톱과 모바일을 위한 듀얼 코어 프록시 클라이언트 — 구독을 가져오고 바로 연결하세요.",
     dashboard: "XBond 콘솔",
-    installer: "설치 프로그램",
-    diskImage: "디스크 이미지",
-    cli: "CLI",
     download: "다운로드",
     abiHint:
       "대부분의 휴대폰은 arm64-v8a입니다. 확실하지 않으면 universal을 선택하세요 — 모든 기기에서 작동하지만 더 큽니다.",
     recommended: "추천",
     mostPhones: "대부분의 휴대폰",
-    emulator: "에뮬레이터",
-    anyDevice: "모든 기기",
     iosInvite: "TestFlight 초대는 릴리스 담당자에게 문의하세요.",
-    dockerHint:
-      "구독으로 공식 XBond 이미지를 시작합니다. 구성이 자동으로 갱신됩니다.",
     dockerTitle: "Docker 배포",
     modeTun: "게이트웨이 모드",
     modePort: "포트 모드",
-    tipTun:
-      "기기 전체와 로컬 네트워크의 모든 트래픽을 처리합니다. Linux 호스트(공유기, NAS, 서버)에서만 가능하며, macOS/Windows의 Docker Desktop에서는 지원되지 않으니 포트 모드를 사용하세요.",
-    tipPort:
-      "모든 Docker 호스트에서 로컬 HTTP 또는 SOCKS 프록시를 사용할 수 있습니다.",
-    dashboardHint:
-      "Docker 호스트에서 http://localhost:19090를 열어 XBond를 관리하세요. 원격 호스트에는 SSH 터널을 사용하세요.",
-    proxyHint: "앱의 HTTP 또는 SOCKS 프록시를 127.0.0.1:7890으로 설정하세요.",
-    autoPort: "Docker Desktop이 감지되어 포트 모드를 선택했습니다",
-    loginHint:
-      "SUB_URL은 선택 사항입니다 — 관리 페이지에서 웹 로그인(OAuth 기기 승인)하면 구독이 자동으로 동기화됩니다.",
+    tipTun: "호스트와 로컬 네트워크의 모든 트래픽을 처리합니다. Linux 전용.",
+    tipPort: "모든 호스트에서 로컬 HTTP/SOCKS 프록시로 사용합니다.",
     cliHint: "독립 실행 바이너리 — 설치가 필요 없습니다.",
-    dockerDash:
-      "구독 설정과 실행 모드(게이트웨이/포트)는 콘솔의 Docker 배포에서 구성하세요.",
     releaseInfo: "릴리스 정보",
     githubRelease: "GitHub Release",
     checksums: "SHA-256 체크섬",
     releaseNotes: "릴리스 노트",
+    copy: "복사",
+    copied: "복사됨",
+    otherBuilds: "기타 빌드",
+    appleChip: "Apple 실리콘",
+    intelChip: "Intel",
     langAria: "언어",
   },
   fa: {
     title: "دانلود XBond",
     lede: "کلاینت پروکسی دو هسته‌ای برای دسکتاپ و موبایل — اشتراک خود را وارد کنید و متصل شوید.",
     dashboard: "کنسول XBond",
-    installer: "نصب‌کننده",
-    diskImage: "تصویر دیسک",
-    cli: "CLI",
     download: "دانلود",
     abiHint:
       "بیشتر گوشی‌ها arm64-v8a هستند. اگر مطمئن نیستید، universal را انتخاب کنید — روی همه دستگاه‌ها کار می‌کند اما بزرگ‌تر است.",
     recommended: "پیشنهادی",
     mostPhones: "بیشتر گوشی‌ها",
-    emulator: "شبیه‌ساز",
-    anyDevice: "همه دستگاه‌ها",
     iosInvite: "برای دریافت دعوت‌نامه TestFlight با مسئول انتشار تماس بگیرید.",
-    dockerHint:
-      "تصویر رسمی XBond را با اشتراک خود اجرا کنید. پیکربندی به‌صورت خودکار به‌روز می‌شود.",
     dockerTitle: "استقرار Docker",
     modeTun: "حالت دروازه",
     modePort: "حالت پورت",
-    tipTun:
-      "تمام ترافیک دستگاه و شبکه محلی را از مسیر پروکسی عبور می‌دهد. فقط روی میزبان‌های Linux (روتر، NAS، سرور) کار می‌کند؛ Docker Desktop در macOS/Windows پشتیبانی نمی‌شود، از حالت پورت استفاده کنید.",
-    tipPort: "در هر میزبان Docker از پروکسی محلی HTTP یا SOCKS استفاده کنید.",
-    dashboardHint:
-      "برای مدیریت XBond در میزبان Docker، http://localhost:19090 را باز کنید. برای میزبان راه دور از تونل SSH استفاده کنید.",
-    proxyHint: "پروکسی HTTP یا SOCKS برنامه را روی 127.0.0.1:7890 تنظیم کنید.",
-    autoPort: "Docker Desktop شناسایی شد؛ حالت پورت برای شما انتخاب شد",
-    loginHint:
-      "SUB_URL اختیاری است — از داشبورد وب وارد شوید (احراز هویت دستگاه OAuth) تا اشتراک شما به‌صورت خودکار همگام‌سازی شود.",
+    tipTun: "تمام ترافیک میزبان و شبکه محلی را عبور می‌دهد. فقط Linux.",
+    tipPort: "پروکسی محلی HTTP/SOCKS روی هر میزبان.",
     cliHint: "باینری‌های مستقل — نیازی به نصب نیست.",
-    dockerDash:
-      "پیکربندی اشتراک و حالت‌های اجرا (دروازه/پورت) را از استقرار Docker کنسول انجام دهید.",
     releaseInfo: "اطلاعات انتشار",
     githubRelease: "GitHub Release",
     checksums: "چک‌سام SHA-256",
     releaseNotes: "یادداشت‌های انتشار",
+    copy: "کپی",
+    copied: "کپی شد",
+    otherBuilds: "ساخت‌های دیگر",
+    appleChip: "اپل سیلیکون",
+    intelChip: "Intel",
     langAria: "زبان",
   },
 };
@@ -493,28 +443,34 @@ export function buildPages(
   for (const name of ["release.json", "desktop.json", "SHA256SUMS"]) {
     fs.copyFileSync(path.join(directory, name), path.join(output, name));
   }
-  const versionCaption = `<span class="caption">v${version}</span>`;
   const downloadArrow = `<svg class="entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14m-7-7 7 7 7-7"/></svg>`;
   const externalArrow = `<svg class="entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg>`;
 
+  const copyIcons = `<svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
+
   // Download entries: the whole row is the link — label and format chip on
-  // the left, version and a download arrow on the right. Arch labels and
-  // file formats are product vocabulary; the rest goes through data-i18n.
+  // the left, a small icon-tile affordance on the right. The release
+  // version lives once in the topbar chip, so rows stay quiet. Arch labels
+  // and file formats are product vocabulary; the rest goes through
+  // data-i18n.
   const fmtChip = (text: string) => `<span class="fmt">${text}</span>`;
   const entryRow = (options: {
     url: string;
     label: string;
+    labelI18n?: [string, string];
     chip?: string;
     captionI18n?: [string, string] | null;
     recommended?: boolean;
-    className?: string;
   }) =>
-    `<a class="entry${options.recommended ? " recommended" : ""}${options.className ? ` ${options.className}` : ""}" href="${escape(options.url)}">
-  <span class="entry-label"><strong>${options.label}</strong>${options.recommended ? `<span class="badge" data-i18n="recommended">Recommended</span>` : ""}${options.captionI18n ? `<span class="caption" data-i18n="${options.captionI18n[0]}">${options.captionI18n[1]}</span>` : ""}${options.chip ? fmtChip(options.chip) : ""}</span>
-  <span class="entry-meta">${versionCaption}${downloadArrow}<span class="sr-only" data-i18n="download">Download</span></span>
+    `<a class="entry${options.recommended ? " recommended" : ""}" href="${escape(options.url)}">
+  <span class="entry-label"><strong${options.labelI18n ? ` data-i18n="${options.labelI18n[0]}"` : ""}>${options.label}</strong>${options.recommended ? `<span class="badge" data-i18n="recommended">Recommended</span>` : ""}${options.captionI18n ? `<span class="caption" data-i18n="${options.captionI18n[0]}">${options.captionI18n[1]}</span>` : ""}${options.chip ? fmtChip(options.chip) : ""}</span>
+  <span class="entry-meta"><span class="entry-icon">${downloadArrow}</span><span class="sr-only" data-i18n="download">Download</span></span>
 </a>`;
 
   const archLabel = (arch: string) => (arch === "amd64" ? "x64" : "ARM64");
+  // Mac users pick by chip family, not instruction set.
+  const macArch = (arch: string): [string, string] =>
+    arch === "amd64" ? ["intelChip", "Intel"] : ["appleChip", "Apple silicon"];
   const osLabel: Record<string, string> = {
     windows: "Windows",
     darwin: "macOS",
@@ -530,7 +486,8 @@ export function buildPages(
       .map((arch) =>
         entryRow({
           url: assets[`desktop-${os}-${arch}`].url,
-          label: archLabel(arch),
+          label: os === "darwin" ? macArch(arch)[1] : archLabel(arch),
+          labelI18n: os === "darwin" ? macArch(arch) : undefined,
           chip: desktopFormat[os] ?? undefined,
         }),
       )
@@ -540,14 +497,14 @@ export function buildPages(
   <div class="entries">${entries}</div>
 </article>`;
   };
-  // Linux groups its three package formats per architecture, matching the
-  // reference layout: group header with version, then one button per format.
+  // Linux groups its three package formats per architecture; arch heads
+  // share the card's top edge and the format buttons sit flat on the card.
   const linuxCard = `<article class="card">
   <div class="card-head"><span class="icon-tile">${platformIcon("linux")}</span><h2>Linux</h2></div>
-  <div class="entries">${["amd64", "arm64"]
+  ${["amd64", "arm64"]
     .map(
-      (arch) => `<div class="entry-group">
-  <div class="group-head"><strong>Linux ${archLabel(arch)}</strong>${versionCaption}</div>
+      (arch) => `<div class="arch-group">
+  <div class="group-head"><strong>Linux ${archLabel(arch)}</strong></div>
   <div class="group-actions">${linuxPackageFormats
     .filter((format) => assets[`desktop-linux-${arch}-${format}`])
     .map(
@@ -559,36 +516,34 @@ export function buildPages(
     )}<a class="btn btn-primary" href="${escape(assets[`desktop-linux-${arch}`].url)}">AppImage</a></div>
 </div>`,
     )
-    .join("")}</div>
+    .join("")}
 </article>`;
 
   const desktopCards =
     desktopCard("windows") + desktopCard("darwin") + linuxCard;
 
-  // Android card: per-ABI entries with the recommended default first, then
-  // the universal fallback for users unsure of their device's ABI.
-  const abiCaption: Record<string, [string, string] | null> = {
-    "arm64-v8a": ["mostPhones", "most phones"],
-    x86_64: ["emulator", "emulator"],
-    x86: ["emulator", "emulator"],
-  };
-  const androidEntries = ["arm64-v8a", "armeabi-v7a", "x86_64", "x86"]
-    .map((abi, index) =>
-      entryRow({
-        url: assets[`android-${abi}`].url,
-        label: abi,
-        chip: ".apk",
-        captionI18n: abiCaption[abi] ?? null,
-        recommended: index === 0,
-      }),
+  // Android card: the recommended default is the one prominent row; every
+  // other build — universal included for unknown devices — stays reachable
+  // as quiet links below it.
+  const androidPrimary = entryRow({
+    url: assets["android-arm64-v8a"].url,
+    label: "arm64-v8a",
+    chip: ".apk",
+    captionI18n: ["mostPhones", "most phones"],
+    recommended: true,
+  });
+  const otherBuilds = androidAbis
+    .filter((abi) => abi !== "arm64-v8a")
+    .map(
+      (abi) =>
+        `<a class="mini-link" href="${escape(assets[`android-${abi}`].url)}">${abi}</a>`,
     )
     .join("");
   const androidCard = `<article class="card android">
   <div class="card-head"><span class="icon-tile">${platformIcon("android")}</span><h2>Android</h2></div>
   <p class="card-hint" data-i18n="abiHint">Most phones run arm64-v8a. Not sure? universal works on any device, but is larger.</p>
-  <div class="entries">${androidEntries}
-    ${entryRow({ url: assets["android-universal"].url, label: "universal", chip: ".apk", captionI18n: ["anyDevice", "any device"], className: "fallback" })}
-  </div>
+  <div class="entries">${androidPrimary}</div>
+  <div class="other-builds"><span class="other-builds-label" data-i18n="otherBuilds">Other builds</span>${otherBuilds}<a class="mini-link" href="${escape(assets["android-universal"].url)}">universal</a></div>
 </article>`;
 
   const storeHosts = ["apps.apple.com", "testflight.apple.com"];
@@ -607,7 +562,7 @@ export function buildPages(
       throw new Error(`Invalid ${label} URL`);
     return `<a class="entry" href="${escape(link.href)}">
   <span class="entry-label"><strong>${label}</strong></span>
-  <span class="entry-meta">${externalArrow}</span>
+  <span class="entry-meta"><span class="entry-icon">${externalArrow}</span></span>
 </a>`;
   });
   const iosBody =
@@ -624,7 +579,8 @@ export function buildPages(
       .map((arch) =>
         entryRow({
           url: assets[`cli-${os}-${arch}`].url,
-          label: archLabel(arch),
+          label: os === "darwin" ? macArch(arch)[1] : archLabel(arch),
+          labelI18n: os === "darwin" ? macArch(arch) : undefined,
           chip: os === "windows" ? ".exe" : undefined,
         }),
       )
@@ -645,11 +601,11 @@ export function buildPages(
     .join("")}</div>
 </article>`;
 
-  // Docker card adapted from the dash's deployment card for the anonymous
-  // release page: pull on its own line, a gateway/port mode toggle, and a
-  // run/compose command panel built by the page script. Commands carry no
-  // SUB_URL — the contract makes it optional and the web dashboard (OAuth
-  // device authorization) is the intended setup path here.
+  // Docker card distilled to its working parts: mode toggle, one-line tip,
+  // the pull command and the run/compose panel — each command block with a
+  // copy affordance wired by the template script. Commands carry no
+  // SUB_URL; the web dashboard (OAuth device authorization) is the
+  // intended setup path.
   const dockerInitial = [
     "docker run -d",
     "  --pull always",
@@ -667,26 +623,22 @@ export function buildPages(
   ].join(" \\\n");
   const dockerCard = `<article class="card">
   <div class="card-head"><span class="icon-tile">${platformIcon("docker")}</span><h2 data-i18n="dockerTitle">Docker deployment</h2></div>
-  <p class="card-hint" data-i18n="dockerHint">Start the official XBond image with your subscription. XBond refreshes the configuration automatically.</p>
-  <code class="pull pull-line" dir="ltr">docker pull ghcr.io/openxbond/xbond:latest</code>
   <div class="mode-toggle">
     <button type="button" class="mode-btn active" data-mode="tun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg><span data-i18n="modeTun">Gateway mode</span></button>
     <button type="button" class="mode-btn" data-mode="port"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg><span data-i18n="modePort">Port mode</span></button>
   </div>
-  <p class="card-hint" id="mode-tip">Routes all traffic from the machine and your LAN. Linux hosts only (routers, NAS, servers). Docker Desktop on macOS/Windows can't do this — use port mode.</p>
-  <p class="card-hint" data-i18n="dashboardHint">On the Docker host, open http://localhost:19090 to manage XBond. Use an SSH tunnel for a remote host.</p>
-  <p class="card-hint" id="proxy-hint" data-i18n="proxyHint" hidden>Set your app's HTTP or SOCKS proxy to 127.0.0.1:7890.</p>
-  <p class="card-hint" id="auto-port" data-i18n="autoPort" hidden>Docker Desktop detected — port mode selected for you</p>
-  <div class="code-panel">
+  <p class="card-hint" id="mode-tip">All traffic from the host and LAN. Linux only.</p>
+  <div class="pull-line" dir="ltr"><code id="pull-code">docker pull ghcr.io/openxbond/xbond:latest</code><button type="button" class="copy-btn" id="pull-copy" aria-label="Copy">${copyIcons}</button></div>
+  <div class="code-panel" dir="ltr">
     <div class="code-panel-head">
       <div class="code-tabs">
         <button type="button" class="code-tab active" data-form="run">docker run</button>
-        <button type="button" class="code-tab" data-form="compose">docker-compose</button>
+        <button type="button" class="code-tab" data-form="compose">docker compose</button>
       </div>
+      <button type="button" class="copy-btn" id="cmd-copy" aria-label="Copy">${copyIcons}</button>
     </div>
-    <pre class="code-cmd" dir="ltr"><code id="docker-cmd-code">${dockerInitial}</code></pre>
+    <pre class="code-cmd"><code id="docker-cmd-code">${dockerInitial}</code></pre>
   </div>
-  <p class="card-hint card-foot-hint" data-i18n="loginHint">SUB_URL is optional — sign in from the web dashboard (OAuth device authorization) and your subscription syncs automatically.</p>
 </article>`;
 
   const releaseCard = `<article class="card">

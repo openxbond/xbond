@@ -118,12 +118,13 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
     assert.ok(downloads.includes(`xbond-android-${tag}-${abi}.apk`));
   }
   assert.ok(downloads.includes(`xbond-android-${tag}.apk`));
-  // 默认推荐在最前：arm64-v8a 带推荐徽章，universal 兜底殿后。
+  // 默认推荐承载整行：arm64-v8a 带推荐徽章，其余 ABI 与 universal
+  // 落在其后的「其他构建」链接里。
   assert.match(downloads, /<strong>arm64-v8a<\/strong>/);
   assert.match(downloads, /data-i18n="recommended">Recommended</);
   assert.ok(
-    downloads.indexOf('data-i18n="mostPhones"') <
-      downloads.indexOf('data-i18n="anyDevice"'),
+    downloads.indexOf('data-i18n="otherBuilds"') >
+      downloads.indexOf('data-i18n="mostPhones"'),
   );
   assert.match(downloads, /App Store/);
   buildPages(directory, pages, tag, [], key);
