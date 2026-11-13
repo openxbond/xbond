@@ -1,7 +1,11 @@
 package daemon
 
 import (
+	"bytes"
 	"crypto/subtle"
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -25,6 +29,12 @@ func (s *Server) handleControllerProxy(w http.ResponseWriter, r *http.Request) {
 	if !dashboardCoreRoute(r.Method, path, websocket) {
 		http.NotFound(w, r)
 		return
+	}
+	if r.Method == http.MethodPatch && path == "configs" {
+		if err := validateControllerPatch(w, r); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 	status := s.coreStatus()
 	if !status.Running || status.ClashPort == 0 {
@@ -74,5 +84,30 @@ func dashboardCoreRoute(method, path string, websocket bool) bool {
 		return method == http.MethodPost && (tail == "dns/flush" || tail == "fakeip/flush")
 	default:
 		return false
+	}
+}
+
+// LocalAPI owns the listeners, routing mode and takeover. The dashboard
+// only uses the core PATCH directly for the live log level.
+var errControllerPatch = errors.New("only the core log level can be changed here")
+
+func validateControllerPatch(w http.ResponseWriter, r *http.Request) error {
+	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1024))
+	if err != nil {
+		return err
+	}
+	var fields map[string]string
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	if len(fields) != 1 {
+		return errControllerPatch
+	}
+	switch fields["log-level"] {
+	case "debug", "info", "warn", "error", "silent":
+		r.Body = io.NopCloser(bytes.NewReader(data))
+		return nil
+	default:
+		return errControllerPatch
 	}
 }

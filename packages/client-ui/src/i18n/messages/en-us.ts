@@ -682,6 +682,8 @@ const EN = {
     takeover: {
       title: "Traffic takeover mode",
       mixedPort: "Mixed proxy port",
+      dockerPortDesc:
+        "Docker deployment controls this listener. Change the published port in Docker.",
       mixedPortDesc: "Local mixed proxy port for standard HTTP / SOCKS traffic",
       portNoteOverride:
         "Local port fixed at {{port}}; the subscription's own port is overridden",

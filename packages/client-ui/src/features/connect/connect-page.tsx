@@ -1510,7 +1510,7 @@ export default function Connect() {
                   </div>
                 </section>
 
-                {hasLocalAPI && (
+                {hasLocalAPI && !status?.container && (
                   <section
                     className={cn(
                       "bento flex min-w-0 flex-col justify-between gap-2 p-3 lg:flex-row lg:flex-wrap lg:items-center xl:gap-3 xl:p-4",

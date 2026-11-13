@@ -155,28 +155,26 @@ export function useAPIInfo(): TargetInfo {
     const proxyPath = document.querySelector<HTMLMetaElement>(
       'meta[name="localapi-controller"]',
     )?.content;
+    const core = proxyPath
+      ? config && data?.engine.running
+        ? {
+            url: new URL(proxyPath, window.location.origin).href,
+            secret: config.token,
+          }
+        : undefined
+      : data
+        ? {
+            url: `http://127.0.0.1:${data.preferences.clashPort}`,
+            secret: data.preferences.clashSecret ?? "",
+          }
+        : undefined;
     const target = resolveControlTarget(externals, selection, {
       meta: document.querySelector<HTMLMetaElement>(
         'meta[name="external-controller"]',
       )?.content,
       search: location.search,
       bridge: clashx,
-      daemon: hasDaemonConfig()
-        ? {
-            core:
-              proxyPath && config && data?.engine.running
-                ? {
-                    url: new URL(proxyPath, window.location.origin).href,
-                    secret: config.token,
-                  }
-                : !proxyPath && data
-                  ? {
-                      url: `http://127.0.0.1:${data.preferences.clashPort}`,
-                      secret: data.preferences.clashSecret ?? "",
-                    }
-                  : undefined,
-          }
-        : null,
+      daemon: hasDaemonConfig() ? { core } : null,
     });
     if (target.kind === "daemon") {
       const endpoint = target.endpoint ?? EMPTY_ENDPOINT;

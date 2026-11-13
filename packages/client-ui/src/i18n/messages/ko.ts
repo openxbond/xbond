@@ -668,6 +668,8 @@ const KO = {
     takeover: {
       title: "트래픽 인계 모드",
       mixedPort: "혼합 프록시 포트",
+      dockerPortDesc:
+        "Docker 배포에서 수신 포트를 관리합니다. 공개 포트는 배포 명령에서 변경하세요.",
       mixedPortDesc: "표준 HTTP / SOCKS 트래픽용 로컬 혼합 프록시 포트",
       portNoteOverride:
         "로컬 포트가 {{port}}(으)로 고정되어 구독 자체 포트를 덮어씁니다",

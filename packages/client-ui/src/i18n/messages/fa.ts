@@ -671,6 +671,8 @@ const FA = {
     takeover: {
       title: "حالت هدایت ترافیک",
       mixedPort: "درگاه پروکسی مرکب",
+      dockerPortDesc:
+        "استقرار Docker این شنونده را مدیریت می‌کند. پورت منتشرشده را در فرمان استقرار تغییر دهید.",
       mixedPortDesc:
         "درگاه محلی پروکسی مرکب برای ترافیک استاندارد HTTP / SOCKS",
       portNoteOverride:

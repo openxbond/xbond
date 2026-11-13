@@ -651,6 +651,8 @@ const HK = {
     takeover: {
       title: "流量接管模式",
       mixedPort: "混合代理連接埠",
+      dockerPortDesc:
+        "監聽由 Docker 部署管理。請在部署指令中修改對外映射的連接埠。",
       mixedPortDesc: "本機 HTTP / SOCKS 混合代理監聽連接埠",
       portNoteOverride: "已固定本機連接埠 {{port}}，訂閱自帶的連接埠將被覆蓋",
       portNoteSubscription:

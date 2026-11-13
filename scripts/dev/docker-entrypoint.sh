@@ -1,11 +1,13 @@
 #!/bin/sh
 set -eu
 
+set -- --listen "$XBOND_DASHBOARD_LISTEN"
+
 case "${XBOND_TAKEOVER_MODE:-port}" in
   port)
     if [ "$(id -u)" = 0 ]; then
       # A gateway may have written root-owned state to this same volume.
-      chown -R xbond:xbond "$XBOND_DATA_DIR"
+      chown -Rh xbond:xbond "$XBOND_DATA_DIR"
       exec su-exec xbond xbond daemon --web-dir /app/dist "$@"
     fi
     ;;

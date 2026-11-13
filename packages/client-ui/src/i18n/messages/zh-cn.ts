@@ -651,6 +651,8 @@ const CN = {
     takeover: {
       title: "流量接管模式",
       mixedPort: "混合代理端口",
+      dockerPortDesc:
+        "监听由 Docker 部署管理。请在部署命令中修改对外映射的端口。",
       mixedPortDesc: "本机 HTTP / SOCKS 混合代理监听端口",
       portNoteOverride: "已固定本机端口 {{port}}，订阅自带的端口将被覆盖",
       portNoteSubscription: "端口跟随订阅自带的 mixed-port，未指定时默认 7890",

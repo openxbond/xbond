@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AuroraWave } from "@/components/aurora-wave";
@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { hasAndroidBridge } from "@/platform/android-bridge";
 import { isMobileApp } from "@/platform/host";
 import { isDesktopApp } from "@/platform/local-api-bootstrap";
 import { openExternalUrl } from "@/platform/open-external";
@@ -43,6 +42,7 @@ import {
   useSubscriptionFetchProgress,
   useSubscriptions,
 } from "../subscriptions/use-subscriptions";
+import { useAuthorizationTab } from "./use-authorization-tab";
 import { useAccount } from "./use-cloud-account";
 
 export default function AccountPanel() {
@@ -75,25 +75,8 @@ export default function AccountPanel() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const authorizationTab = useRef<Window | null>(null);
-  const authorizationURL =
-    account?.authUrl ||
-    account?.verificationUriComplete ||
-    account?.verificationUri;
-
-  useEffect(() => {
-    const tab = authorizationTab.current;
-    if (!tab || !account) return;
-    if (account.status === "pending" && authorizationURL) {
-      authorizationTab.current = null;
-      if (!tab.closed) tab.location.replace(authorizationURL);
-    } else if (account.status === "error" || account.status === "signed_in") {
-      authorizationTab.current = null;
-      tab.close();
-    }
-  }, [account, authorizationURL]);
-
-  useEffect(() => () => authorizationTab.current?.close(), []);
+  const authorizationTab = useAuthorizationTab(account);
+  const { authorizationURL } = authorizationTab;
   const connecting = daemonState === "connecting";
   const signedIn = account?.status === "signed_in";
   const serviceHealthy =
@@ -191,46 +174,20 @@ export default function AccountPanel() {
   }
 
   async function startLogin() {
-    // Reserve the tab during the click so browser popup blocking does not
-    // depend on how long the device-code request takes.
-    if (!isDesktopApp() && !isMobileApp() && !hasAndroidBridge()) {
-      authorizationTab.current?.close();
-      const tab = window.open("about:blank", "_blank");
-      authorizationTab.current = tab;
-      if (tab) {
-        tab.opener = null;
-        const page = tab.document;
-        page.title = t("openingAuthPage");
-        page.documentElement.lang = document.documentElement.lang;
-        page.documentElement.dir = document.documentElement.dir;
-        page.documentElement.style.colorScheme =
-          document.documentElement.classList.contains("dark")
-            ? "dark"
-            : "light";
-        const status = page.createElement("p");
-        status.setAttribute("role", "status");
-        status.textContent = t("openingAuthPage");
-        page.body.style.cssText =
-          "font: 1rem system-ui; margin: 0; padding: 1.5rem; min-height: 80vh; display: grid; place-items: center; text-align: center";
-        page.body.replaceChildren(status);
-      }
-    }
+    authorizationTab.open(t("openingAuthPage"));
     try {
       const status = await login();
       if (status.status !== "pending") {
-        authorizationTab.current?.close();
-        authorizationTab.current = null;
+        authorizationTab.close();
       }
     } catch (err) {
-      authorizationTab.current?.close();
-      authorizationTab.current = null;
+      authorizationTab.close();
       throw err;
     }
   }
 
   async function cancelAuthorization() {
-    authorizationTab.current?.close();
-    authorizationTab.current = null;
+    authorizationTab.close();
     await cancelLogin();
   }
 

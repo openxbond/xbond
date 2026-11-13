@@ -49,11 +49,13 @@ type Server struct {
 	privileged   net.Listener
 	remoteServer *http.Server
 
-	webDir           string
-	subscriptionURL  string
-	autostartContext context.Context
-	autostartCancel  context.CancelFunc
-	done             chan struct{}
+	webDir          string
+	subscriptionURL string
+	lifecycle       context.Context
+	cancelLifecycle context.CancelFunc
+	autostart       bool
+	container       bool
+	done            chan struct{}
 	// shutdownCh is closed when a LocalAPI client asked the daemon to exit
 	// (service stop); the daemon main loop watches it beside OS signals.
 	shutdownCh   chan struct{}
@@ -96,13 +98,17 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 		return nil, err
 	}
 
+	started := false
+	defer func() {
+		if !started {
+			lock.Release()
+		}
+	}()
 	if err := paths.EnsureDirs(); err != nil {
-		lock.Release()
 		return nil, err
 	}
 
 	if err := sysproxy.AutoRecoverOnStartup(); err != nil {
-		lock.Release()
 		return nil, err
 	}
 
@@ -139,16 +145,10 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 		systemScope:     systemScope,
 		trace:           trace,
 		subscriptionURL: subscriptionURL,
+		autostart:       autostart,
+		container:       os.Getenv("XBOND_DASHBOARD_LISTEN") != "",
 	}
-	if autostart {
-		s.autostartContext, s.autostartCancel = context.WithCancel(context.Background())
-	}
-	s.account = newAccountController(
-		account.NewManager(paths.AccountSessionPath()),
-		s.bindCredentials,
-		s.runtime.LogoutAccount,
-		s.activeXBondSub,
-	)
+	s.runtime.fixedDeployment = s.container
 
 	if s.webDir == "" {
 		s.webDir = "dist"
@@ -162,6 +162,14 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.lifecycle, s.cancelLifecycle = context.WithCancel(context.Background())
+	s.account = newAccountController(
+		account.NewManager(paths.AccountSessionPath()),
+		s.bindCredentials,
+		s.runtime.LogoutAccount,
+		s.activeXBondSub,
+	)
+
 	s.listener = l
 	s.addr = l.Addr().String()
 
@@ -190,6 +198,7 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	_ = os.WriteFile(paths.LocalAPITokenPath(), []byte(token), 0o600)
 	_ = os.WriteFile(paths.LocalAPIAddrPath(), []byte(s.addr), 0o600)
 
+	started = true
 	return s, nil
 }
 
@@ -202,8 +211,8 @@ func (s *Server) Token() string {
 }
 
 func (s *Server) Start() error {
-	if s.autostartContext != nil {
-		go s.runAutostart(s.autostartContext)
+	if s.autostart {
+		go s.runAutostart(s.lifecycle)
 	}
 	go s.runScheduledUpdates()
 	if s.delegate != nil {
@@ -229,9 +238,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		close(s.done)
 		defer s.lock.Release()
 
-		if s.autostartCancel != nil {
-			s.autostartCancel()
-		}
+		s.cancelLifecycle()
 		s.account.cancelPending()
 		_, runtimeErr := s.runtime.Down()
 
@@ -350,6 +357,10 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/service/install", s.authMiddleware(s.handleServiceInstall))
 	mux.HandleFunc("/localapi/v0/service/uninstall", s.authMiddleware(s.handleServiceUninstall))
 
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	// Web UI static files
 	mux.HandleFunc("/", s.handleWeb)
 }
@@ -384,6 +395,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"activeSub":        activeSub,
 		"capabilities":     tunCapability(s.delegate),
 		"rulePaging":       true,
+		"container":        s.container,
 	}
 
 	writeJSON(w, http.StatusOK, response)
@@ -1328,6 +1340,7 @@ func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	s.cancelLifecycle()
 	_, cleanupErr := s.runtime.Down()
 	response := map[string]any{"ok": true, "shuttingDown": true, "cleanedUp": cleanupErr == nil}
 	if cleanupErr != nil {
@@ -1382,7 +1395,7 @@ func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	info, err := os.Stat(filePath)
-	if err != nil || info.IsDir() {
+	if err != nil || info.IsDir() || r.URL.Path == "/index.html" {
 		indexPath := filepath.Join(s.webDir, "index.html")
 		indexBytes, err := os.ReadFile(indexPath)
 		if err != nil {
@@ -1411,7 +1424,7 @@ func (s *Server) runScheduledUpdates() {
 		case <-s.done:
 			return
 		case now := <-ticker.C:
-			if err := s.runtime.UpdateDue(context.Background(), now); err != nil {
+			if err := s.runtime.UpdateDue(s.lifecycle, now); err != nil && s.lifecycle.Err() == nil {
 				s.engineMgr.RingLog().Append(engine.LogLevelError, "Scheduled subscription update or runtime application failed")
 			}
 		}

@@ -157,6 +157,15 @@ func TestRuntimeUpHTTPReturnsActualStartedCoreStatus(t *testing.T) {
 			t.Errorf("controller %s: got %d, want %d", check.path, recorder.Code, check.want)
 		}
 	}
+	for _, body := range []string{`{"mixed-port":8080}`, `{"log-level":"debug","mode":"direct"}`, `{"log-level":"bad"}`} {
+		request := httptest.NewRequest(http.MethodPatch, controllerProxyPath+"configs", strings.NewReader(body))
+		request.Header.Set("Authorization", "Bearer "+server.token)
+		recorder := httptest.NewRecorder()
+		mux.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusBadRequest {
+			t.Errorf("core bridge accepted forbidden patch %s: %d", body, recorder.Code)
+		}
+	}
 	rulesResponse := httptest.NewRecorder()
 	server.handleRulesPage(rulesResponse, httptest.NewRequest(http.MethodGet, "/localapi/v0/rules/page?limit=1", nil))
 	var rules engine.RulePage

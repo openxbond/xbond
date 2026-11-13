@@ -39,9 +39,12 @@ export function useAccount() {
       // Fast-poll only while an authorization is pending; otherwise the
       // LocalAPI status refresh drives state changes.
       refreshInterval: (latest: AccountStatus | undefined) =>
-        latest?.status === "pending" || latest?.phase ? 1000 : 4000,
+        latest?.status === "pending" || latest?.phase
+          ? 1000
+          : document.visibilityState === "hidden"
+            ? 30000
+            : 4000,
       // The authorization tab can put this dashboard in the background.
-      // The interval above still controls how often each state is read.
       refreshWhenHidden: true,
       shouldRetryOnError: false,
     },

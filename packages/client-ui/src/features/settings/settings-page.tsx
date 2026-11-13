@@ -266,6 +266,7 @@ export default function Settings() {
     }
   }
 
+  const fixedDeployment = isLocalTarget && Boolean(status?.container);
   const currentPort =
     port || String(status?.preferences.mixedPort ?? general.mixedPort ?? "");
   const mixedPort = status?.preferences.mixedPort || general.mixedPort || 7890;
@@ -617,7 +618,9 @@ export default function Settings() {
                     ) : null}
                   </div>
                   <span className="text-xs text-muted-foreground leading-relaxed max-w-xl">
-                    {t("takeover.mixedPortDesc")}
+                    {fixedDeployment
+                      ? t("takeover.dockerPortDesc")
+                      : t("takeover.mixedPortDesc")}
                   </span>
                 </div>
 
@@ -644,6 +647,7 @@ export default function Settings() {
                     }}
                     disabled={
                       pending ||
+                      fixedDeployment ||
                       (isLocalTarget && !hasLocalAPI) ||
                       (!hasLocalAPI && !caps.editPorts)
                     }
@@ -655,6 +659,7 @@ export default function Settings() {
                       pending ||
                       !port ||
                       port === String(mixedPort) ||
+                      fixedDeployment ||
                       (isLocalTarget && !hasLocalAPI) ||
                       (!hasLocalAPI && !caps.editPorts)
                     }
@@ -685,23 +690,25 @@ export default function Settings() {
                 </p>
               )}
 
-              {hasLocalAPI && Boolean(status?.preferences.portOverride) && (
-                <div className="flex items-center justify-start pt-1">
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() =>
-                      void run(async () => {
-                        await setMode({ port: 0 });
-                        await refresh();
-                      })
-                    }
-                    className="inline-flex items-center gap-1 text-xs font-medium text-brand transition-colors hover:underline"
-                  >
-                    {t("takeover.portFollowSubscription")}
-                  </button>
-                </div>
-              )}
+              {hasLocalAPI &&
+                !fixedDeployment &&
+                Boolean(status?.preferences.portOverride) && (
+                  <div className="flex items-center justify-start pt-1">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        void run(async () => {
+                          await setMode({ port: 0 });
+                          await refresh();
+                        })
+                      }
+                      className="inline-flex items-center gap-1 text-xs font-medium text-brand transition-colors hover:underline"
+                    >
+                      {t("takeover.portFollowSubscription")}
+                    </button>
+                  </div>
+                )}
             </div>
 
             {/* Allow LAN */}
@@ -714,6 +721,7 @@ export default function Settings() {
                 checked={status?.preferences.allowLan ?? general.allowLan}
                 disabled={
                   pending ||
+                  fixedDeployment ||
                   (isLocalTarget && !hasLocalAPI) ||
                   (!hasLocalAPI && !caps.editLan)
                 }
@@ -742,8 +750,8 @@ export default function Settings() {
               />
             </SettingRow>
 
-            {/* Terminal Commands Widget (桌面端顯示，移動端不需終端命令) */}
-            {!isMobile && (
+            {/* The daemon cannot see the Docker host's published proxy port. */}
+            {!isMobile && !fixedDeployment && (
               <Tabs
                 value={terminalFormat}
                 dir={i18n.dir()}

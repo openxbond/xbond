@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -212,6 +213,30 @@ rules:
 `)
 	if err := Validate(configYAML); err != nil {
 		t.Fatalf("validation with DNS fallback-filter geoip failed: %v", err)
+	}
+}
+
+func TestSubscriptionDashboardSettingsDoNotOpenASecondController(t *testing.T) {
+	for _, source := range [][]byte{
+		[]byte("mixed-port: 1080\nexternal-controller: 0.0.0.0:19090\nexternal-ui: dashboard\nsecret: cloud-fixture\nrules: [MATCH,DIRECT]\n"),
+		[]byte(`{"inbounds":[{"type":"mixed","listen_port":1080}],"outbounds":[{"type":"direct","tag":"direct"}],"experimental":{"clash_api":{"external_controller":"0.0.0.0:19090","external_ui":"dashboard","secret":"cloud-fixture"}}}`),
+	} {
+		port, err := SourcePort(source)
+		if err != nil || port != 1080 {
+			t.Fatalf("subscription mixed port: got %d, err=%v", port, err)
+		}
+		runtime, err := DeriveRuntimeConfig(source, ModePort, RoutingRule, 7890, true, 25100, "daemon-fixture")
+		if err != nil {
+			t.Fatal(err)
+		}
+		meta, err := InspectConfig(runtime)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if meta.MixedPort != 7890 || meta.ClashPort != 25100 || meta.ClashSecret != "daemon-fixture" ||
+			bytes.Contains(runtime, []byte("cloud-fixture")) || bytes.Contains(runtime, []byte("dashboard")) {
+			t.Fatal("runtime did not replace the subscription's listener and dashboard credentials")
+		}
 	}
 }
 

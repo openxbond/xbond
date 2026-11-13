@@ -28,6 +28,9 @@ func dockerSubscriptionURL(raw string) (string, error) {
 // Bootstrap runs only until a configuration has been selected. A saved
 // selection wins on restart, including one chosen through the dashboard.
 func (s *Server) bootstrapSubscription(ctx context.Context, source string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if s.subMgr.ActiveID() != "" {
 		return nil
 	}
@@ -97,7 +100,7 @@ func (s *Server) logAutostartFailure(err error) {
 }
 
 func (s *Server) useImported(ctx context.Context, id string) error {
-	if s.autostartContext != nil {
+	if s.autostart {
 		return s.runtime.Up(ctx, runtimeOptions{SubID: id})
 	}
 	return s.runtime.Use(ctx, id)

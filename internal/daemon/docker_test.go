@@ -107,3 +107,19 @@ func TestDockerBootstrapCancelsFetch(t *testing.T) {
 		t.Fatal("bootstrap did not cancel the fetch")
 	}
 }
+
+func TestDockerDeploymentOwnsProxyListeners(t *testing.T) {
+	f := newRuntimeFixture(t)
+	f.controller.fixedDeployment = true
+	for _, body := range []string{`{"port":1080}`, `{"tun":true}`, `{"systemProxy":true}`, `{"allowLan":true}`} {
+		server := &Server{runtime: f.controller}
+		response := runtimeRequest(server.handleMode, body)
+		if response.Code != http.StatusBadRequest {
+			t.Errorf("Docker mode accepted %s: %d", body, response.Code)
+		}
+	}
+	server := &Server{runtime: f.controller}
+	if response := runtimeRequest(server.handleMode, `{"routing":"direct"}`); response.Code != http.StatusOK {
+		t.Fatalf("Docker routing change failed: %d", response.Code)
+	}
+}

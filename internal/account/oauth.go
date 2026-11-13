@@ -227,7 +227,20 @@ func deviceLogin(
 	opts LoginOptions,
 	progress func(Progress),
 ) (*oauth2.Token, error) {
-	device, err := conf.DeviceAuth(ctx, clientapi.ResourceOption())
+	// x/oauth2's device-code request uses the context's HTTP client but
+	// does not attach the context to that request itself.
+	requestCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	client := *http.DefaultClient
+	if configured, ok := ctx.Value(oauth2.HTTPClient).(*http.Client); ok && configured != nil {
+		client = *configured
+	}
+	transport := client.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	client.Transport = deviceCodeTransport{ctx: requestCtx, transport: transport}
+	device, err := conf.DeviceAuth(context.WithValue(requestCtx, oauth2.HTTPClient, &client), clientapi.ResourceOption())
+	cancel()
 	if err != nil {
 		return nil, mapOAuthError(err)
 	}
@@ -272,6 +285,15 @@ func deviceLogin(
 		return nil, mapOAuthError(err)
 	}
 	return token, nil
+}
+
+type deviceCodeTransport struct {
+	ctx       context.Context
+	transport http.RoundTripper
+}
+
+func (t deviceCodeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return t.transport.RoundTrip(req.WithContext(t.ctx))
 }
 
 func reportProgress(progress func(Progress), value Progress) {

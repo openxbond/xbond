@@ -44,6 +44,43 @@ func TestRefreshAfterLogoutCannotRestoreSessionFile(t *testing.T) {
 	}
 }
 
+func TestDeviceCodeRequestStopsOnCancellation(t *testing.T) {
+	started := make(chan struct{})
+	finished := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		defer close(finished)
+		select {
+		case <-r.Context().Done():
+		case <-time.After(3 * time.Second):
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		_, err := Authenticate(ctx, LoginOptions{Origin: server.URL, Device: true}, nil)
+		result <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("device-code request did not arrive")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected cancellation, got %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancellation did not interrupt the device-code request")
+	}
+	<-finished
+}
+
 func TestDeviceLoginPersistsSessionAndResolvesLink(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
