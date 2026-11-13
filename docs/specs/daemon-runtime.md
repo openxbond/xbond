@@ -97,7 +97,7 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - AC-5 install：注册并启动后 status 显示运行中；重新登录后服务可用（目标平台验收）。
 - AC-6 stop：退出后发现文件已清理、status 如实反映；系统代理恢复失败时输出错误而非「已停止」。
 - AC-7 restart：完整停止后重新启动，LocalAPI 可查询。
-- AC-8 uninstall：注册移除、daemon 停止，用户配置保留。
+- AC-8 uninstall：注册移除、daemon 停止，用户配置保留。桌面卸载器同时收回机器级注册——PREUNINSTALL 经捆绑 CLI 调 `daemon uninstall --scope system`（未提权时走既有 runas 自唤，拒绝授权即如实保留并在日志记录；服务从未安装则为免提权 no-op）。
 - AC-9 scope：`--scope system` 未实现或平台不支持时返回明确「不可用」，不偷换为 user。
 - AC-10 GUI 关窗后，CLI 查询到的连接仍在（与 AC-5 联动，桌面平台验收）。
 - AC-11 移动端：Android `VpnService` 与 iOS `PacketTunnelProvider` 完成原生桥接并跑通真实流量（后续任务）。

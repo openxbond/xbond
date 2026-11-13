@@ -39,6 +39,23 @@ LangString XBondRequiresWin10 ${XBOND_LANG_FARSI} "XBond به ویندوز ۱۰ 
   !undef XBOND_STOP_ID
 !macroend
 
+; The in-app elevated install can register the machine-scope daemon
+; (XBondSystemService, its binary under "Program Files\XBond Machine") with
+; StartMode=auto — it outlives the app by design while installed, so an
+; uninstall that skipped it would leave a proxy runtime resurrecting on every
+; boot (AC-8). Reclaim it through the sidecar CLI's uninstall verb: SCM stop
+; plus registration delete, a no-op when never installed (it probes the
+; service before spending a UAC prompt). A declined elevation leaves the
+; registration untouched and is reported in the log.
+!macro XBondUninstallMachineDaemon
+  !define XBOND_MACHINE_ID ${__LINE__}
+  IfFileExists "$INSTDIR\xbond-daemon.exe" 0 xbond_machine_reclaimed_${XBOND_MACHINE_ID}
+    nsExec::ExecToLog '"$INSTDIR\xbond-daemon.exe" daemon uninstall --scope system'
+    Pop $R9
+  xbond_machine_reclaimed_${XBOND_MACHINE_ID}:
+  !undef XBOND_MACHINE_ID
+!macroend
+
 !macro NSIS_HOOK_PREINSTALL
   Push $R0
   ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows NT\CurrentVersion" "CurrentMajorVersionNumber"
@@ -53,4 +70,5 @@ LangString XBondRequiresWin10 ${XBOND_LANG_FARSI} "XBond به ویندوز ۱۰ 
 
 !macro NSIS_HOOK_PREUNINSTALL
   !insertmacro XBondStopProductDaemon
+  !insertmacro XBondUninstallMachineDaemon
 !macroend
