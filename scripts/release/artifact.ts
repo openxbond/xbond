@@ -23,6 +23,9 @@ const EXTENSIONS = new Set([
 
 const ROOT_FILES = new Set([
   "index.html",
+  // Second multi-page build entry (vite.config.ts htmlInputs); the desktop
+  // shell's splash window loads it from the built output.
+  "splashscreen.html",
   "manifest.webmanifest",
   ".nojekyll",
   "LICENSE",
