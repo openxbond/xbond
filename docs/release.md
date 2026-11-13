@@ -76,7 +76,7 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 
 ## 3. 批准公開
 
-從 `main` 執行 **Publish XBond release**，填 `tag`，確認上表後勾選 `install_verified`。由 `release-production` 審核人核對同一候選和驗收記錄後批准。工作流將映像發佈至 `ghcr.io/openxbond/xbond` 的版本標籤，確認可匿名拉取後公開 GitHub Release，並將同一映像摘要發佈為 `latest`。最後部署 Pages，逐項比對線上的頁面與兩份更新清單。
+從 `main` 執行 **Publish XBond release**，填 `tag`，確認上表後勾選 `install_verified`——勾選即表示驗收記錄已由觸發者核對，工作流直接執行。工作流將映像發佈至 `ghcr.io/openxbond/xbond` 的版本標籤，確認可匿名拉取後公開 GitHub Release，並將同一映像摘要發佈為 `latest`。最後部署 Pages，逐項比對線上的頁面與兩份更新清單。觸發與發佈操作以 `xbond-automation[bot]` 身份執行，公開記錄不出現個人帳號。
 
 完成後打開下載頁，下載一個產物比對 `SHA256SUMS`。已有公開舊版時，再用 `xbond upgrade --check` 和桌面設定頁確認能找到新版本。 [下載頁](https://openxbond.github.io/xbond/download/)
 
@@ -93,7 +93,7 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 | `release-ios-signing` | Apple Developer 組織帳號。為 `net.xbond.app` 和 `net.xbond.app.PacketTunnel` 建立 App Store Connect 發行用 profiles，配置 Network Extension 及 App Group `group.net.xbond.app`。Secrets `IOS_DISTRIBUTION_P12`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE` 用 Base64，另設 `IOS_DISTRIBUTION_PASSWORD`。 |
 | `release-store-ios` | Secret `ASC_KEY`（App Store Connect P8 原文），Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。 |
 
-維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、啟用不可變 Release、限制 `v*` Tag 的建立及變更，並由審核人批准 `release-production`。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，僅允許 `main` 分支與 `v*` Tag。 [GitHub 不可變 Release](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
+維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、啟用不可變 Release、限制 `v*` Tag 的建立及變更；`release-production` 只保留部署分支策略（`main`），不以個人帳號做環境審核人。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，僅允許 `main` 分支與 `v*` Tag。 [GitHub 不可變 Release](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
 
 ### 建立或輪換簽名材料
 
