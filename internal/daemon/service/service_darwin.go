@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func agentPlistPath() (string, error) {
@@ -37,18 +38,16 @@ func installDaemon(exePath string) error {
 		return fmt.Errorf("failed to write LaunchAgent plist: %w", err)
 	}
 	// bootstrap registers the agent with the user's GUI domain; RunAtLoad
-	// starts it immediately. "Already bootstrapped" cannot be treated as
-	// success: the loaded definition may be stale — an earlier install's
-	// program path (the app has since been replaced or removed), which
-	// launchd then keeps spawning into EX_CONFIG while the fresh plist on
-	// disk never loads. Unload the stale job and bootstrap the new plist.
+	// starts it immediately. A failure here usually means the job is already
+	// loaded — with a STALE definition when an earlier install's program path
+	// has since been replaced or removed: launchd keeps spawning it into
+	// EX_CONFIG while the fresh plist on disk never loads. Unload the stale
+	// job, let launchd finish tearing it down, and bootstrap the new plist.
 	if err := run("launchctl", "bootstrap", guiTarget(), plistPath); err != nil {
-		if !strings.Contains(err.Error(), "already bootstrapped") {
-			return err
+		if bootErr := run("launchctl", "bootout", guiTarget()+"/"+darwinLabel); bootErr != nil {
+			return fmt.Errorf("bootstrap failed (%w) and the stale job could not be unloaded (%v)", err, bootErr)
 		}
-		if err := run("launchctl", "bootout", guiTarget()+"/"+darwinLabel); err != nil {
-			return fmt.Errorf("failed to unload the stale agent: %w", err)
-		}
+		time.Sleep(300 * time.Millisecond)
 		if err := run("launchctl", "bootstrap", guiTarget(), plistPath); err != nil {
 			return fmt.Errorf("failed to bootstrap the refreshed agent: %w", err)
 		}
