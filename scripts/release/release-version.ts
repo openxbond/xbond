@@ -59,6 +59,17 @@ export function desktopRelease(
   };
 }
 
-export function androidAsset(tag: string) {
-  return `xbond-android-${tag}.apk`;
+/** Android ABIs shipped as per-ABI APKs. Every supported device reports one
+ * of these as its first supported ABI, so the in-app updater always matches
+ * one. The unsuffixed universal APK also ships for manual downloads where
+ * the user may not know their device's ABI. */
+export const androidAbis = [
+  "arm64-v8a",
+  "armeabi-v7a",
+  "x86",
+  "x86_64",
+] as const;
+
+export function androidAsset(tag: string, abi?: (typeof androidAbis)[number]) {
+  return abi ? `xbond-android-${tag}-${abi}.apk` : `xbond-android-${tag}.apk`;
 }

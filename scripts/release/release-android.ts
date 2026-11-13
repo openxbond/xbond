@@ -4,10 +4,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ANDROID_BUILD_TOOLS_VERSION } from "../dev/android-sdk.ts";
-import { buildAndroidAPK } from "../dev/mobile.ts";
-import { androidAsset, releaseVersion } from "./release-version.ts";
+import { buildAndroidAAR, buildAndroidAPK } from "../dev/mobile.ts";
+import {
+  androidAbis,
+  androidAsset,
+  releaseVersion,
+} from "./release-version.ts";
 
-// Builds, signs and verifies the Android release APK.
+// Builds, signs and verifies the Android release APKs: one per ABI plus the
+// universal APK for manual downloads (the in-app updater matches the device
+// ABI against the per-ABI assets; universal is for users who do not know
+// their device's ABI).
 //
 // Env contract (the release-android-signing environment):
 //   XBOND_RELEASE_PUBLIC_KEY  Ed25519 update manifest public key
@@ -22,6 +29,18 @@ import { androidAsset, releaseVersion } from "./release-version.ts";
 
 const APPLICATION_ID = "net.xbond.app";
 const MAX_APK_BYTES = 512 * 1024 * 1024;
+
+// Rust android target → packaged Android ABI; the list order mirrors
+// release-version.ts's androidAbis (the per-ABI APK asset names).
+const ANDROID_TARGETS = [
+  { target: "aarch64", abi: "arm64-v8a" },
+  { target: "armv7", abi: "armeabi-v7a" },
+  { target: "i686", abi: "x86" },
+  { target: "x86_64", abi: "x86_64" },
+] as const satisfies ReadonlyArray<{
+  target: string;
+  abi: (typeof androidAbis)[number];
+}>;
 
 export function parseSignerDigest(output: string): string | undefined {
   return /^Signer #1 certificate SHA-256 digest: ([a-f0-9]{64})$/m.exec(
@@ -91,12 +110,16 @@ function main() {
       "Set ANDROID_SIGNER_SHA256 to the signing certificate digest",
     );
   const tools = buildTools();
-  const unsigned = buildAndroidAPK({ release: { version, build } });
   const zipalign = path.join(tools, "zipalign");
   const apksigner = path.join(tools, "apksigner");
   const aapt = path.join(tools, "aapt");
   fs.mkdirSync(directory, { recursive: true });
-  const output = path.join(directory, androidAsset(tag));
+
+  // One fresh bind covers the whole matrix; each tauri build then compiles
+  // one Rust target and packages only the matching ABI (the CLI narrows
+  // -PabiList for --target).
+  const aar = buildAndroidAAR();
+  if (!aar.ok) throw new Error(aar.message);
 
   const work = fs.mkdtempSync(path.join(directory, "xbond-apk-"));
   try {
@@ -104,64 +127,76 @@ function main() {
     const aligned = path.join(work, "aligned.apk");
     const signed = path.join(work, "signed.apk");
     fs.writeFileSync(keystoreFile, Buffer.from(keystore, "base64"));
-    run(zipalign, ["-P", "16", "-f", "4", unsigned, aligned]);
-    run(
-      apksigner,
-      [
-        "sign",
-        "--ks",
-        keystoreFile,
-        "--ks-key-alias",
-        keyAlias,
-        // apksigner reads these from its own environment, which this process
-        // passes down unchanged.
-        "--ks-pass",
-        "env:ANDROID_STORE_PASSWORD",
-        "--key-pass",
-        "env:ANDROID_KEY_PASSWORD",
-        "--out",
+    for (const { target, abi } of [
+      ...ANDROID_TARGETS,
+      // Universal: no --target, all four ABIs packaged; the download-page
+      // fallback for users unsure of their device's ABI.
+      { target: undefined, abi: undefined },
+    ]) {
+      const unsigned = buildAndroidAPK({
+        target,
+        release: { version, build },
+      });
+      const output = path.join(directory, androidAsset(tag, abi));
+      run(zipalign, ["-P", "16", "-f", "4", unsigned, aligned]);
+      run(
+        apksigner,
+        [
+          "sign",
+          "--ks",
+          keystoreFile,
+          "--ks-key-alias",
+          keyAlias,
+          // apksigner reads these from its own environment, which this process
+          // passes down unchanged.
+          "--ks-pass",
+          "env:ANDROID_STORE_PASSWORD",
+          "--key-pass",
+          "env:ANDROID_KEY_PASSWORD",
+          "--out",
+          signed,
+          aligned,
+        ],
+        {
+          ...process.env,
+          ANDROID_STORE_PASSWORD: storePassword,
+          ANDROID_KEY_PASSWORD: keyPassword,
+        },
+      );
+
+      const bytes = fs.statSync(signed).size;
+      if (bytes > MAX_APK_BYTES)
+        throw new Error(
+          `APK size ${bytes} bytes exceeds the Android updater's 512 MiB limit`,
+        );
+
+      const certificates = capture(apksigner, [
+        "verify",
+        "--print-certs",
         signed,
-        aligned,
-      ],
-      {
-        ...process.env,
-        ANDROID_STORE_PASSWORD: storePassword,
-        ANDROID_KEY_PASSWORD: keyPassword,
-      },
-    );
+      ]);
+      const digest = parseSignerDigest(certificates);
+      if (!digest || digest !== signerSha256.toLowerCase())
+        throw new Error(
+          `The APK signing certificate does not match ANDROID_SIGNER_SHA256: ${digest ?? "none"}`,
+        );
 
-    const bytes = fs.statSync(signed).size;
-    if (bytes > MAX_APK_BYTES)
-      throw new Error(
-        `APK size ${bytes} bytes exceeds the Android updater's 512 MiB limit`,
+      const badging = capture(aapt, ["dump", "badging", signed]);
+      const pkg = parsePackageBadging(badging);
+      if (
+        !pkg ||
+        pkg.name !== APPLICATION_ID ||
+        pkg.versionCode !== String(build) ||
+        pkg.versionName !== version
+      )
+        throw new Error(
+          `Unexpected APK identity: ${pkg ? JSON.stringify(pkg) : "no package entry"}`,
+        );
+      fs.renameSync(signed, output);
+      console.log(
+        `signed ${output}: ${pkg.name} ${pkg.versionName} (versionCode ${pkg.versionCode})`,
       );
-
-    const certificates = capture(apksigner, [
-      "verify",
-      "--print-certs",
-      signed,
-    ]);
-    const digest = parseSignerDigest(certificates);
-    if (!digest || digest !== signerSha256.toLowerCase())
-      throw new Error(
-        `The APK signing certificate does not match ANDROID_SIGNER_SHA256: ${digest ?? "none"}`,
-      );
-
-    const badging = capture(aapt, ["dump", "badging", signed]);
-    const pkg = parsePackageBadging(badging);
-    if (
-      !pkg ||
-      pkg.name !== APPLICATION_ID ||
-      pkg.versionCode !== String(build) ||
-      pkg.versionName !== version
-    )
-      throw new Error(
-        `Unexpected APK identity: ${pkg ? JSON.stringify(pkg) : "no package entry"}`,
-      );
-    fs.renameSync(signed, output);
-    console.log(
-      `signed ${output}: ${pkg.name} ${pkg.versionName} (versionCode ${pkg.versionCode})`,
-    );
+    }
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
   }

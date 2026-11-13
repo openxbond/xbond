@@ -69,3 +69,11 @@ windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_UI_WindowsAndMessaging",
 ] }
+
+# Size-optimize the shell: it is a UI wrapper around the Go core, so the
+# default speed-oriented release profile only bloats the installer.
+[profile.release]
+strip = true
+lto = "fat"
+codegen-units = 1
+panic = "abort"

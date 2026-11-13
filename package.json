@@ -35,7 +35,7 @@
     "package:android": "node scripts/dev/mobile.ts package:android",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "check:web": "pnpm check && pnpm build && node scripts/check/check-web-build.ts",
-    "check:desktop": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && pnpm build && cargo check --manifest-path src-tauri/Cargo.toml --features desktop",
+    "check:desktop": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && pnpm build && cargo test --manifest-path src-tauri/Cargo.toml --features desktop && cargo check --manifest-path src-tauri/Cargo.toml --features desktop",
     "check:architecture": "node scripts/check/check-architecture.ts",
     "check:i18n": "node scripts/check/check-i18n.ts",
     "typecheck": "tsc --noEmit",

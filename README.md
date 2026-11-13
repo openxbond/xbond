@@ -12,6 +12,8 @@
 
 </div>
 
+繁體中文 | [English](README.en.md) | [简体中文](README.zh-CN.md) | [조선어](README.ko.md) | [فارسی](README.fa.md)
+
 XBond 幫你匯入連線配置、建立連線、選擇代理策略，並查看網絡活動。核心內嵌 [mihomo](https://github.com/MetaCubeX/mihomo) 與 [sing-box](https://github.com/SagerNet/sing-box)，Clash YAML 與 sing-box JSON 兩類配置都能直接運行；沒有 XBond 帳號也可以完整使用第三方訂閱。
 
 ## 特性
@@ -30,17 +32,17 @@ XBond 幫你匯入連線配置、建立連線、選擇代理策略，並查看�
 
 ## 下載
 
-安裝包與更新清單統一發佈在[下載頁](https://openxbond.github.io/xbond/download/)，[GitHub Releases](https://github.com/openxbond/xbond/releases) 提供同一批產物及 SHA256 校驗。專案仍在積極開發中，正式發佈前各平台交付以下載頁為準。
+安裝包與更新清單統一發佈在[下載頁](https://openxbond.github.io/xbond/download/)，[GitHub Releases](https://github.com/openxbond/xbond/releases) 提供同一批產物及 SHA256 校驗。
 
-| 平台        | 形態                                               |
-| ----------- | -------------------------------------------------- |
-| Windows 10+ | 桌面應用（NSIS 安裝包）                            |
-| macOS       | 桌面應用（DMG）                                    |
-| Linux       | 桌面應用（deb / rpm / AppImage）                   |
-| Android     | 通用 APK，以 VPN 方式接管流量                      |
-| iOS         | TestFlight                                         |
-| 命令列      | Windows / macOS / Linux（amd64 / arm64）獨立二進位 |
-| Docker      | `ghcr.io/openxbond/xbond`（amd64 / arm64）         |
+| 平台 | 形態 |
+| --- | --- |
+| Windows 10+ | 桌面應用（NSIS 安裝包） |
+| macOS | 桌面應用（DMG） |
+| Linux | 桌面應用（deb / rpm / AppImage） |
+| Android | 按設備架構分發的 APK（arm64-v8a 等）加 universal 包，以 VPN 方式接管流量 |
+| iOS | TestFlight |
+| 命令列 | Windows / macOS / Linux（amd64 / arm64）獨立二進位 |
+| Docker | `ghcr.io/openxbond/xbond`（amd64 / arm64） |
 
 ## 快速開始
 

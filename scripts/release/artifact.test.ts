@@ -66,6 +66,7 @@ test("source, config, maps, credentials, and traversal paths are rejected", () =
     "src/App.tsx",
     "package.json",
     ".env",
+    "debug.html",
     "assets/app.js.map",
     "../secret.js",
     "/secret.js",
@@ -139,6 +140,10 @@ test("packaging is deterministic and requires root index.html", () => {
     const dist = path.join(root, "dist");
     fs.mkdirSync(dist, { recursive: true });
     fs.writeFileSync(path.join(dist, "index.html"), "<html>app</html>");
+    fs.writeFileSync(
+      path.join(dist, "splashscreen.html"),
+      "<html>splash</html>",
+    );
     const one = packageDistribution(dist, path.join(root, "one"));
     const two = packageDistribution(dist, path.join(root, "two"));
     assert.equal(one, two);

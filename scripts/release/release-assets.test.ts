@@ -7,7 +7,12 @@ import test from "node:test";
 
 import { buildZipBuffer, checksum } from "./artifact.ts";
 import { assemble, buildPages, verifyManifestAsset } from "./release-assets.ts";
-import { cliAsset, releaseTargets, releaseVersion } from "./release-version.ts";
+import {
+  androidAbis,
+  cliAsset,
+  releaseTargets,
+  releaseVersion,
+} from "./release-version.ts";
 
 const tag = "v0.4.2";
 const stores = ["https://apps.apple.com/us/app/id123"];
@@ -68,6 +73,9 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
   put("release-evidence.json", "{}");
   assert.throws(() => assemble(directory, tag, "", pem, key), /android/);
   put(`xbond-android-${tag}.apk`);
+  for (const abi of androidAbis) {
+    put(`xbond-android-${tag}-${abi}.apk`);
+  }
   const rpm = `xbond-desktop-${tag}-linux-arm64.rpm`;
   fs.unlinkSync(path.join(directory, rpm));
   assert.throws(
@@ -82,6 +90,8 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
   assemble(directory, tag, "<script>test</script>", pem, key);
   verifyManifestAsset(directory, tag, "release-evidence", key);
   verifyManifestAsset(directory, tag, "desktop-linux-arm64-rpm", key);
+  verifyManifestAsset(directory, tag, "android-universal", key);
+  verifyManifestAsset(directory, tag, "android-arm64-v8a", key);
   put("release-evidence.json", '{"mode":"release"}');
   assert.throws(
     () => verifyManifestAsset(directory, tag, "release-evidence", key),
@@ -104,6 +114,18 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
     assert.ok(downloads.includes(`xbond-desktop-${tag}-linux-${arch}.deb`));
     assert.ok(downloads.includes(`xbond-desktop-${tag}-linux-${arch}.rpm`));
   }
+  for (const abi of androidAbis) {
+    assert.ok(downloads.includes(`xbond-android-${tag}-${abi}.apk`));
+  }
+  assert.ok(downloads.includes(`xbond-android-${tag}.apk`));
+  // 默认推荐承载整行：arm64-v8a 带推荐徽章，其余 ABI 与 universal
+  // 落在其后的「其他构建」链接里。
+  assert.match(downloads, /<strong>arm64-v8a<\/strong>/);
+  assert.match(downloads, /data-i18n="recommended">Recommended</);
+  assert.ok(
+    downloads.indexOf('data-i18n="otherBuilds"') >
+      downloads.indexOf('data-i18n="mostPhones"'),
+  );
   assert.match(downloads, /App Store/);
   buildPages(directory, pages, tag, [], key);
   const directDownloads = fs.readFileSync(
@@ -122,9 +144,14 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
     ["", "https://testflight.apple.com/join/Example1"],
     key,
   );
+  const withTestFlight = fs.readFileSync(
+    path.join(pages, "download/index.html"),
+    "utf8",
+  );
+  assert.match(withTestFlight, /<strong>TestFlight<\/strong>/);
   assert.match(
-    fs.readFileSync(path.join(pages, "download/index.html"), "utf8"),
-    /href="https:\/\/testflight\.apple\.com\/join\/Example1">TestFlight/,
+    withTestFlight,
+    /href="https:\/\/testflight\.apple\.com\/join\/Example1"/,
   );
   const sumFile = path.join(directory, "SHA256SUMS");
   const originalSum = checksum(path.join(directory, "desktop.json"));

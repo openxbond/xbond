@@ -115,11 +115,16 @@ fn install_id_path() -> Option<std::path::PathBuf> {
     }
     #[cfg(target_os = "windows")]
     {
-        let base = std::env::var_os("LOCALAPPDATA")
+        // Same Roaming base as the Go data dir (paths.DataDir) so the shell
+        // and daemon share one install identity.
+        let base = std::env::var_os("APPDATA")
             .map(std::path::PathBuf::from)
             .or_else(|| {
-                std::env::var_os("USERPROFILE")
-                    .map(|home| std::path::PathBuf::from(home).join("AppData").join("Local"))
+                std::env::var_os("USERPROFILE").map(|home| {
+                    std::path::PathBuf::from(home)
+                        .join("AppData")
+                        .join("Roaming")
+                })
             })?;
         Some(base.join("xbond").join("install-id"))
     }

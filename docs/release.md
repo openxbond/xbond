@@ -12,10 +12,10 @@
 | 編譯本機 CLI | `pnpm cli:build` | `dist/cli/xbond`，Windows 為 `xbond.exe` |
 | 編譯桌面程式 | `pnpm build:desktop` | `dist/desktop/` 前端資源及 Cargo release 執行檔 |
 | 本機桌面安裝包 | `pnpm package:desktop` | Tauri 的 `<Cargo target>/local/<Rust triple>/release/bundle/` |
-| Android debug APK | `pnpm package:android [target]` | `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk` |
+| Android debug APK | `pnpm package:android [target]` | `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`；帶 target 時包內僅對應 ABI 的庫，輸出路徑不變 |
 | Web 與 CLI 發佈候選 | `pnpm release:core <tag>` | `release/<tag>/web/` 及 `release/<tag>/core/` |
 | 桌面發佈候選 | `pnpm release:desktop <tag> <os> <arch>` | `release/<tag>/desktop/<os>-<arch>/` |
-| Android 發佈候選 | `pnpm release:android <tag>` | `release/<tag>/android/xbond-android-<tag>.apk` |
+| Android 發佈候選 | `pnpm release:android <tag>` | `release/<tag>/android/`：四個 per-ABI APK 加 universal |
 | iOS App Store 歸檔 | `pnpm release:ios <tag>` | `release/<tag>/ios/xbond-ios-<tag>.ipa` |
 | OCI 鏡像 | `pnpm release:image <tag>` | `release/<tag>/oci/xbond-oci-<tag>.tar` |
 
@@ -35,7 +35,7 @@ macOS DMG 由 Finder 寫入背景及圖標佈局。在已登入圖形桌面的 T
 | --- | --- |
 | `web/`、`core/` | `pnpm release:core v0.4.3` 產出網頁、`dashboard.zip`、`SHA256SUMS`，以及 Windows、macOS 和 Linux 各兩個架構的獨立 CLI，例如 `xbond-v0.4.3-windows-amd64.exe`。 |
 | `desktop/<os>-<arch>/` | Windows 為 NSIS `.exe`、macOS 為 `.dmg`、Linux 提供 `.deb`、`.rpm` 和 `.AppImage`，例如 `xbond-desktop-v0.4.3-linux-arm64.AppImage`。Windows NSIS 及 Linux AppImage 隨附自動更新用的 `.sig`，macOS 另外產生自動更新用的 `.app.tar.gz` 及其簽名。 |
-| `android/` | 以 Android SDK Build-Tools 36.0.0 簽名並校驗應用 ID、版本及簽名指紋的通用 APK `xbond-android-v0.4.3.apk`。 |
+| `android/` | 以 Android SDK Build-Tools 36.0.0 簽名並校驗應用 ID、版本及簽名指紋的 APK：四個 per-ABI 包 `xbond-android-v0.4.3-<abi>.apk`（`arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64`，後兩者供模擬器），加 universal `xbond-android-v0.4.3.apk` 供不知道機型的用戶手動下載。應用內更新按設備 ABI 取 per-ABI 包，不用 universal。 |
 | `ios/` | App Store Connect 用的 `xbond-ios-v0.4.3.ipa`，經 TestFlight 或 App Store 安裝。 |
 | `oci/` | `xbond-oci-v0.4.3.tar`，含 Linux amd64 和 arm64 鏡像。 |
 | `assets/`、`pages/` | GitHub Release 的平鋪資產、簽名清單與 `SHA256SUMS`，以及從同批資產產生的 Pages 網站。 |
@@ -61,7 +61,7 @@ git push origin "refs/tags/$ReleaseTag"
 
 正式流程按憑據在場情況自動取捨，缺失不阻塞發佈，但如實記錄：`release-desktop-signing` 缺 Developer ID 證書時，macOS 安裝包以 ad-hoc 簽名（無公證，首次打開需右鍵確認）；`release-ios-signing` 缺 iOS 分發證書或描述檔時跳過 IPA 歸檔，`release-evidence.json` 的 `iosSHA256` 為空，草稿摘要會標明。憑據配置後下一個 Tag 自動恢復完整簽名路徑；已配置但失效的憑據會讓工作流失敗，不靜默降級。TestFlight 提交要求非空的 `iosSHA256`。
 
-桌面與移動端共用根目錄的 Tauri 專案。`release:android` 建置 Go AAR 和通用 APK，再用發行金鑰簽署及校驗。`release:ios` 建置 Go XCFramework，透過 Tauri 歸檔主程式及 PacketTunnel，再以兩份 provisioning profiles 匯出 IPA。
+桌面與移動端共用根目錄的 Tauri 專案。`release:android` 建置 Go AAR（全架構）後，依 Gradle abi flavor 產出四個 per-ABI APK 及 universal，逐包簽署及校驗。`release:ios` 建置 Go XCFramework，透過 Tauri 歸檔主程式及 PacketTunnel，再以兩份 provisioning profiles 匯出 IPA。
 
 ## 2. 驗收同版產物
 
@@ -76,7 +76,7 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 
 ## 3. 批准公開
 
-從 `main` 執行 **Publish XBond release**，填 `tag`，確認上表後勾選 `install_verified`。由 `release-production` 審核人核對同一候選和驗收記錄後批准。工作流將映像發佈至 `ghcr.io/openxbond/xbond` 的版本標籤，確認可匿名拉取後公開 GitHub Release，並將同一映像摘要發佈為 `latest`。最後部署 Pages，逐項比對線上的頁面與兩份更新清單。
+從 `main` 執行 **Publish XBond release**，填 `tag`，確認上表後勾選 `install_verified`——勾選即表示驗收記錄已由觸發者核對，工作流直接執行。工作流將映像發佈至 `ghcr.io/openxbond/xbond` 的版本標籤，確認可匿名拉取後公開 GitHub Release，並將同一映像摘要發佈為 `latest`。最後部署 Pages，逐項比對線上的頁面與兩份更新清單。觸發與發佈操作以 `xbond-automation[bot]` 身份執行，公開記錄不出現個人帳號。
 
 完成後打開下載頁，下載一個產物比對 `SHA256SUMS`。已有公開舊版時，再用 `xbond upgrade --check` 和桌面設定頁確認能找到新版本。 [下載頁](https://openxbond.github.io/xbond/download/)
 
@@ -93,7 +93,7 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 | `release-ios-signing` | Apple Developer 組織帳號。為 `net.xbond.app` 和 `net.xbond.app.PacketTunnel` 建立 App Store Connect 發行用 profiles，配置 Network Extension 及 App Group `group.net.xbond.app`。Secrets `IOS_DISTRIBUTION_P12`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE` 用 Base64，另設 `IOS_DISTRIBUTION_PASSWORD`。 |
 | `release-store-ios` | Secret `ASC_KEY`（App Store Connect P8 原文），Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。 |
 
-維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、啟用不可變 Release、限制 `v*` Tag 的建立及變更，並由審核人批准 `release-production`。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，僅允許 `main` 分支與 `v*` Tag。 [GitHub 不可變 Release](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
+維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、啟用不可變 Release、限制 `v*` Tag 的建立及變更；`release-production` 只保留部署分支策略（`main`），不以個人帳號做環境審核人。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，僅允許 `main` 分支與 `v*` Tag。 [GitHub 不可變 Release](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes)
 
 ### 建立或輪換簽名材料
 

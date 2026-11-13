@@ -1151,15 +1151,13 @@ export default function Connect() {
                   </div>
 
                   {/* 岛底行：轻盈收纳的配额与微进度条（对齐右卡底行的「⇅ 节点选择 · 55 个成员 ›」） */}
-                  <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
-                    <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground truncate">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
+                    <span className="flex shrink-0 items-center gap-1.5 font-medium text-foreground">
                       <Wallet
                         className="size-3.5 text-muted-foreground/80 shrink-0"
                         aria-hidden="true"
                       />
-                      <span className="text-xs truncate">
-                        {t("quota.remaining")}
-                      </span>
+                      <span className="text-xs">{t("quota.remaining")}</span>
                     </span>
 
                     {sub && quota ? (
@@ -1422,17 +1420,15 @@ export default function Connect() {
 
                 {/* 卡底行：組內延遲分布（與左卡配額行同構），來自同一份 history 數據。 */}
                 {delayStats && (
-                  <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
-                    <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
+                    <span className="flex shrink-0 items-center gap-1.5 font-medium text-foreground">
                       <Gauge
                         className="size-3.5 shrink-0 text-muted-foreground/80"
                         aria-hidden="true"
                       />
-                      <span className="truncate">
-                        {t("latencyDistribution")}
-                      </span>
+                      <span>{t("latencyDistribution")}</span>
                     </span>
-                    <span className="flex shrink-0 items-center gap-3 tabular-nums">
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
                       <span className="inline-flex items-center gap-1.5">
                         <span
                           aria-hidden="true"

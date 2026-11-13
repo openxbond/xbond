@@ -196,7 +196,7 @@ jobs:
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: android
-          path: release/${{ needs.preflight.outputs.tag }}/android/xbond-android-${{ needs.preflight.outputs.tag }}.apk
+          path: release/${{ needs.preflight.outputs.tag }}/android/*.apk
           compression-level: 0
           if-no-files-found: error
 

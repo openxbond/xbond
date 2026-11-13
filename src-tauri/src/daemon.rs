@@ -20,13 +20,18 @@ pub fn get_data_dir() -> PathBuf {
 
     #[cfg(target_os = "windows")]
     {
-        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
-            return PathBuf::from(local_app_data).join("xbond");
+        // Mirror internal/platform/paths/paths.go DataDir: Roaming AppData,
+        // deliberately NOT the NSIS per-user install dir (%LOCALAPPDATA%\XBond)
+        // that the installer drops program files into and wipes on uninstall.
+        // The shell reads the daemon's discovery files from here, so any drift
+        // from the Go side leaves the desktop app permanently "core offline".
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            return PathBuf::from(appdata).join("xbond");
         }
         if let Ok(user_profile) = std::env::var("USERPROFILE") {
             return PathBuf::from(user_profile)
                 .join("AppData")
-                .join("Local")
+                .join("Roaming")
                 .join("xbond");
         }
     }
@@ -439,6 +444,25 @@ mod tests {
     fn test_get_data_dir_not_empty() {
         let dir = get_data_dir();
         assert!(!dir.as_os_str().is_empty());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_windows_data_dir_is_roaming_not_install_dir() {
+        // fbb3002 moved the Go data dir to Roaming so the NSIS uninstaller can
+        // never wipe user data; the shell reads the daemon discovery files
+        // from the same directory and must not drift back to Local, or the
+        // desktop app reports "core offline" forever.
+        let dir = get_data_dir().to_string_lossy().to_lowercase();
+        assert!(dir.ends_with("\\xbond"), "unexpected data dir: {dir}");
+        assert!(
+            dir.contains("appdata\\roaming"),
+            "data dir must be Roaming: {dir}"
+        );
+        assert!(
+            !dir.contains("appdata\\local"),
+            "data dir must not be the install path: {dir}"
+        );
     }
 
     #[test]
