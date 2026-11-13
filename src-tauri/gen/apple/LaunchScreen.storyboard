@@ -14,8 +14,24 @@
                     <view key="view" contentMode="scaleToFill" id="5EZ-qb-Rvc">
                         <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
+                        <subviews>
+                            <!-- Brand glyph on the system background (dark-mode
+                                 variant resolves via the SplashLogo imageset
+                                 luminosity appearance). iOS dismisses the launch
+                                 screen at the app's first frame — the in-app
+                                 connecting animation carries the daemon wait. -->
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="SplashLogo" translatesAutoresizingMaskIntoConstraints="NO" id="xbond-splash-logo">
+                                <rect key="frame" x="147" y="388" width="120" height="120"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="120" id="xbond-splash-w"/>
+                                    <constraint firstAttribute="height" constant="120" id="xbond-splash-h"/>
+                                    <constraint firstItem="xbond-splash-logo" firstAttribute="centerX" secondItem="5EZ-qb-Rvc" secondAttribute="centerX" id="xbond-splash-cx"/>
+                                    <constraint firstItem="xbond-splash-logo" firstAttribute="centerY" secondItem="5EZ-qb-Rvc" secondAttribute="centerY" id="xbond-splash-cy"/>
+                                </constraints>
+                            </imageView>
+                        </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="Ief-a0-LHa" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
@@ -23,6 +39,7 @@
         </scene>
     </scenes>
     <resources>
+        <image name="SplashLogo" width="512" height="512"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

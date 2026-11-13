@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Brand glyph for the cold-start splash (Theme.XBond.Starting). Same
+     canonical geometry as components/xbond-icon.tsx: orange forward chevron
+     plus wings in ink (night-variant white). The 0.62-centered group keeps
+     the glyph inside the adaptive-icon safe zone so the system splash icon
+     area never crops it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <group
+        android:scaleX="0.62"
+        android:scaleY="0.62"
+        android:pivotX="50"
+        android:pivotY="50">
+        <path
+            android:fillColor="#F38020"
+            android:pathData="M14,14H35.5L58,50L35.5,86H14L36.5,50L14,14Z" />
+        <path
+            android:fillColor="@color/xbond_ink"
+            android:pathData="M64.5,14H86L65.25,47.2L54.5,30Z M54.5,70L65.25,52.8L86,86H64.5Z" />
+    </group>
+</vector>

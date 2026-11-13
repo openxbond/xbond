@@ -20,6 +20,21 @@ export const LOGO_SVG = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://ww
 </svg>
 `;
 
+// Launch-screen glyph (SplashLogo.imageset): the storyboard renders it alone
+// on the system background, so the wings carry the explicit favicon ink
+// per luminosity variant (currentColor cannot resolve in PNG rendering).
+export const SPLASH_LOGO_SVG_LIGHT = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="${PATH_ORANGE}" fill="#F38020" />
+  <path d="${PATH_RIGHT}" fill="#18181B" />
+</svg>
+`;
+
+export const SPLASH_LOGO_SVG_DARK = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="${PATH_ORANGE}" fill="#F38020" />
+  <path d="${PATH_RIGHT}" fill="#FFFFFF" />
+</svg>
+`;
+
 export const FAVICON_SVG = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
   <style>
     .right-wing { fill: #18181B; }
@@ -172,6 +187,33 @@ const IOS_APPICON_CONTENTS_JSON = `{
       "idiom": "universal",
       "platform": "ios",
       "size": "1024x1024"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+`;
+
+// Single-scale universal imageset (the storyboard's imageView fixes the
+// display size); the dark entry follows the system luminosity trait.
+// Formatted as standard JSON (oxfmt), not Xcode's `"key" : value` style.
+const IOS_SPLASH_CONTENTS_JSON = `{
+  "images": [
+    {
+      "filename": "splash-logo-light.png",
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "filename": "splash-logo-dark.png",
+      "idiom": "universal"
     }
   ],
   "info": {
@@ -340,6 +382,24 @@ export function generateAllLogoAssets(): void {
   } else if (fs.existsSync(targetIosPng + ".tmp.png")) {
     fs.rmSync(targetIosPng + ".tmp.png", { force: true });
   }
+
+  // 6. iOS launch-screen glyph (SplashLogo.imageset, referenced by
+  // gen/apple/LaunchScreen.storyboard): transparent-background brand mark,
+  // one PNG per luminosity variant.
+  const splashSetDir = path.join(iosAssetsDir, "SplashLogo.imageset");
+  fs.mkdirSync(splashSetDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(splashSetDir, "Contents.json"),
+    IOS_SPLASH_CONTENTS_JSON,
+  );
+  fs.writeFileSync(
+    path.join(splashSetDir, "splash-logo-light.png"),
+    renderPng(SPLASH_LOGO_SVG_LIGHT, 512),
+  );
+  fs.writeFileSync(
+    path.join(splashSetDir, "splash-logo-dark.png"),
+    renderPng(SPLASH_LOGO_SVG_DARK, 512),
+  );
   console.log("✓ iOS assets generated");
 
   console.log("All XBond logo assets generated successfully.");

@@ -16,6 +16,7 @@
 | 命令 | Kotlin `@Command` | 職責 |
 | --- | --- | --- |
 | `get_localapi_config` | `getLocalAPIConfig` | 讀 filesDir 的 `localapi.addr`／`localapi.token`；未就緒時 reject，UI 連接核重試 |
+| `startup_complete` | `startupComplete` | 啟動收尾：Web UI 在 daemon 連接落定後置位 `StartupSplash.settled` 釋放原生 splash；iOS 端為空實現（無可持有的 splash） |
 | `list_installed_apps` | `listInstalledApps` | 分應用選擇器（排除自身與無 INTERNET 權限包） |
 | `get_split_tunnel_config`／`set_split_tunnel_config` | 同名 | SharedPreferences 讀寫；保存後 `XBondVpnService.reloadIfConnected()` 熱重建 |
 | `check_for_updates` | `checkForUpdates` | 手動更新檢查（`AppUpdates`，異步彈窗安裝流） |
@@ -40,6 +41,10 @@
 
 **OAuth scheme 登錄**（與桌面同契約）：登入請求帶 `callbackScheme: "xbond"`，瀏覽器完成授權後 302 到 `xbond://callback?code&state`，OS 深鏈跳回 App；deep-link 插件以 `deep-link://new-url` 事件交給前端，前端調 `deliver_account_callback`（短重試 8×500ms，覆蓋 LocalAPI 未就緒窗口）後派發 `xbond-account-updated`——深鏈 query 是憑據，日誌只記 scheme/host。
 
+### 啟動畫面（splash hand-off）
+
+冷啟動由 `Theme.XBond.Starting` 供給品牌 splash：`androidx.core:core-splashscreen` 把品牌字形（`xbond_splash_icon`）畫在頁面表面色上，`MainActivity` 以 `setKeepOnScreenCondition { !StartupSplash.settled }` 保持畫面，`postSplashScreenTheme` 收場後換回 `Theme.XBond`。Web UI 的啟動收尾（`packages/client-ui/src/app/startup-handoff.ts`）在 daemon 連接落定（ready 或首個失敗判定）或 8s cap 後調 `plugin:xbond|startup_complete`，Kotlin 置位 `StartupSplash.settled` 釋放畫面；Activity 另有 10s 看門狗兜 webview 起不來的死局。主題、顏色與 splash 圖標資源都在插件庫 res（gen 之外，再生成免疫）。iOS 的 LaunchScreen storyboard（`SplashLogo.imageset` 供圖）由系統在應用首幀自動收掉、無法延長——daemon 等待交由應用內連接動畫（`disconnected-state.tsx` 的 connecting 態）表達。
+
 ### 分流與重載
 
 - **分應用代理**持久化在 `SplitTunnelPrefs`（SharedPreferences `xbond_vpn_prefs`）：`mode` = `all`（默認）| `disallow`（黑名單）| `allow`（白名單）。`buildVpnInterface` 讀取該配置；**應用自身在所有模式下恆被排除**（核心出站、更新下載、雲同步必須走物理網）。`listInstalledApps` 供選擇器。
@@ -55,9 +60,9 @@ release 包帶 `BuildConfig.RELEASE_PUBLIC_KEY`（gradle 環境變量 `XBOND_REL
 
 `tauri android init` 重新生成 `gen/android` 會覆蓋以下手改，按清單重放（也見 `docs/tasks/tauri-mobile.md`）：
 
-1. `app/src/main/AndroidManifest.xml`：`android:roundIcon`、`android:networkSecurityConfig="@xml/network_security_config"`、`android:theme="@style/Theme.XBond"`（插件庫資源）、activity `windowSoftInputMode="adjustResize"`、`xbond`/`clash`/`sing-box` 的 BROWSABLE intent-filter。
-2. `app/build.gradle.kts`：`versionName`=`XBOND_VERSION`、`versionCode`=`XBOND_BUILD_NUMBER`（回退 `tauri.properties`）。
-3. `app/src/main/java/net/xbond/app/MainActivity.kt`：`onWebViewCreate` 捕獲 WebView + `onBackPressed`（先求值 `window.__xbondHandleBack`，未處理則 `moveTaskToBack(true)`）。不加 `enableEdgeToEdge()`：Android 14 及以下 WebView 的 `env(safe-area-inset-*)` 恆為 0，內容會鑽到狀態欄下；15+ 系統本就強制 edge-to-edge。
+1. `app/src/main/AndroidManifest.xml`：`android:roundIcon`、`android:networkSecurityConfig="@xml/network_security_config"`、`android:theme="@style/Theme.XBond"`（插件庫資源）、activity `android:theme="@style/Theme.XBond.Starting"`（啟動 splash 主題，插件庫資源）、activity `windowSoftInputMode="adjustResize"`、`xbond`/`clash`/`sing-box` 的 BROWSABLE intent-filter。
+2. `app/build.gradle.kts`：`versionName`=`XBOND_VERSION`、`versionCode`=`XBOND_BUILD_NUMBER`（回退 `tauri.properties`），及 `androidx.core:core-splashscreen` 依賴。
+3. `app/src/main/java/net/xbond/app/MainActivity.kt`：`onCreate` 開頭的 `installSplashScreen()` + `setKeepOnScreenCondition { !StartupSplash.settled }` + 10s splash 看門狗；`onWebViewCreate` 捕獲 WebView + `onBackPressed`（先求值 `window.__xbondHandleBack`，未處理則 `moveTaskToBack(true)`）。不加 `enableEdgeToEdge()`：Android 14 及以下 WebView 的 `env(safe-area-inset-*)` 恆為 0，內容會鑽到狀態欄下；15+ 系統本就強制 edge-to-edge。
 4. 啟動圖標資源（`res/mipmap-*`、`drawable/ic_launcher_*`、`values/ic_launcher_background.xml`，來源 `scripts/dev/build-logo-assets.ts` 測試斷言）；刪除模板殘留（`values/colors.xml`、模板主題、layout）。
 
 插件側（`plugins/xbond/android/`）在 gen 之外，再生成不受影響。

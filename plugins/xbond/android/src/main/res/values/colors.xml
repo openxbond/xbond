@@ -3,4 +3,6 @@
     <!-- Web background light token; keep in sync with packages/client-ui
          styles/tokens.css and the theme-color meta. -->
     <color name="xbond_surface">#EFF1F8</color>
+    <!-- Splash glyph wing ink (favicon convention: dark ink on light). -->
+    <color name="xbond_ink">#18181B</color>
 </resources>

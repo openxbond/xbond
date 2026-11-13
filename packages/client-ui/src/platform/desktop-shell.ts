@@ -11,9 +11,10 @@ import { handleDesktopShortcut } from "./desktop-shortcuts.ts";
 /**
  * Desktop-shell integration for the webview side: removes browser residue
  * (native right-click menu, text selection on chrome, file-drop navigation),
- * reveals the window after first render (anti-flash), polls the shell for
- * deep-link imports, and prompts when the clipboard holds an importable
- * subscription. Everything here is desktop-only and inert in web hosts.
+ * polls the shell for deep-link imports, and prompts when the clipboard holds
+ * an importable subscription. Everything here is desktop-only and inert in
+ * web hosts. Window reveal moved to app/startup-handoff.ts (splash-era
+ * startup completes when the daemon connection settles, not at first frame).
  */
 
 export interface ImportCandidate {
@@ -102,8 +103,9 @@ export function useDesktopShell(): void {
     if (!invoke) return;
     let cancelled = false;
 
-    // The shell decides whether to reveal the window after the first render.
-    void invoke("main_window_ready").catch(() => {});
+    // Window reveal is owned by the startup hand-off (app/startup-handoff.ts):
+    // the shell closes the splash and shows the window once the daemon
+    // connection settles, not at first frame.
 
     const showImportToast = (
       candidate: ImportCandidate,

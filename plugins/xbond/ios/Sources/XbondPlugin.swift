@@ -78,6 +78,13 @@ class XbondPlugin: Plugin {
 
   // MARK: - Commands
 
+  /// Startup hand-off from the web UI: iOS has no holdable splash (the
+  /// launch storyboard dismisses at first frame), so there is nothing to
+  /// release — kept for a complete command face across both platforms.
+  @objc public func startupComplete(_ invoke: Invoke) throws {
+    invoke.resolve()
+  }
+
   /// Loopback endpoint and token of the in-process LocalAPI; the UI boot
   /// retries while the freshly started service writes its address file.
   @objc public func getLocalAPIConfig(_ invoke: Invoke) throws {

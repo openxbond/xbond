@@ -6,4 +6,14 @@
              or the bars read as a detached white strip. -->
         <item name="android:windowBackground">@color/xbond_surface</item>
     </style>
+
+    <!-- Cold-start splash (androidx core-splashscreen): brand glyph on the
+         page surface, held by MainActivity until the web UI reports the
+         daemon connection settled (startup_complete) or its watchdog fires.
+         postSplashScreenTheme hands back the regular app theme. -->
+    <style name="Theme.XBond.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/xbond_surface</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/xbond_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.XBond</item>
+    </style>
 </resources>

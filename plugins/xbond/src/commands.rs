@@ -9,6 +9,11 @@ pub async fn get_localapi_config<R: Runtime>(app: AppHandle<R>) -> Result<Value>
 }
 
 #[tauri::command]
+pub async fn startup_complete<R: Runtime>(app: AppHandle<R>) -> Result<()> {
+    app.xbond().startup_complete()
+}
+
+#[tauri::command]
 pub async fn list_installed_apps<R: Runtime>(app: AppHandle<R>) -> Result<Value> {
     app.xbond().list_installed_apps()
 }

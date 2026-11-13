@@ -12,6 +12,10 @@ impl<R: tauri::Runtime> Xbond<R> {
         Err(Error::UnsupportedPlatform)
     }
 
+    pub fn startup_complete(&self) -> super::Result<()> {
+        Err(Error::UnsupportedPlatform)
+    }
+
     pub fn list_installed_apps(&self) -> super::Result<Value> {
         Err(Error::UnsupportedPlatform)
     }

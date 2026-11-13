@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { optimize } from "@tailwindcss/node";
 import tailwindcss from "@tailwindcss/vite";
@@ -10,6 +11,16 @@ import { VitePWA } from "vite-plugin-pwa";
 const pkg = JSON.parse(
   fs.readFileSync(new URL("./package.json", import.meta.url), "utf-8"),
 );
+
+// Multi-page entries: the desktop shell's splash window loads
+// splashscreen.html directly (apps/dashboard/splashscreen.html) while the
+// app loads index.html; both land in the build output.
+const htmlInputs = {
+  main: fileURLToPath(new URL("./apps/dashboard/index.html", import.meta.url)),
+  splashscreen: fileURLToPath(
+    new URL("./apps/dashboard/splashscreen.html", import.meta.url),
+  ),
+};
 
 /**
  * Tailwind 只在 build 跑 optimize（lightningcss targets: chrome 111、
@@ -117,6 +128,7 @@ export default defineConfig((env) => ({
     sourcemap: false,
     reportCompressedSize: false,
     rollupOptions: {
+      input: htmlInputs,
       // react-router/jotai/sonner/lucide ship "use client" for RSC frameworks;
       // every module here is client code, so Rolldown dropping the directive
       // is harmless. https://rolldown.rs/in-depth/directives

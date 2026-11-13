@@ -113,6 +113,14 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
         invoke.resolveObject(SplitTunnelPrefs.listInstalledApps(activity))
     }
 
+    /** Startup hand-off: the web UI reports the daemon connection settled;
+     * MainActivity releases the native splash keep-on-screen on this flag. */
+    @Command
+    fun startupComplete(invoke: Invoke) {
+        StartupSplash.settled = true
+        invoke.resolve()
+    }
+
     /** Saved split-tunnel config: { mode, packages }. */
     @Command
     fun getSplitTunnelConfig(invoke: Invoke) {

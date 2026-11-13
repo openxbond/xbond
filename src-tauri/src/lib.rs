@@ -127,6 +127,15 @@ pub fn run() {
                 tray_available,
                 argv.iter().any(|arg| arg == commands::AUTOSTART_ARG),
             ));
+            // Splash covers process boot while the hidden main webview
+            // resolves the daemon; silent starts must stay fully in the
+            // background, so they never surface it (startup_complete or the
+            // watchdog below still closes the hidden window either way).
+            if !app.state::<commands::ShellState>().start_hidden() {
+                if let Some(splash) = app.get_webview_window("splashscreen") {
+                    let _ = splash.show();
+                }
+            }
             if let Err(err) = commands::initialize_autostart(app.handle()) {
                 eprintln!("[XBond Desktop] Failed to initialize autostart: {err}");
             }
@@ -170,12 +179,14 @@ pub fn run() {
                 commands::complete_auth_callback(app.handle(), callback);
             }
 
-            // Complete startup even if the webview never reports ready.
-            // Both paths use the same visibility decision.
+            // Complete startup even if the webview never reports settled.
+            // Both paths use the same visibility decision; the budget leaves
+            // room for the frontend's own 8s hand-off cap plus webview mount
+            // time, so the splash never sticks around.
             let handle = app.handle().clone();
             std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(5));
-                commands::main_window_ready(handle);
+                std::thread::sleep(std::time::Duration::from_secs(10));
+                commands::startup_complete(handle);
             });
 
             updater::on_launch(app.handle().clone());
@@ -209,7 +220,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            commands::main_window_ready,
+            commands::startup_complete,
             commands::close_main_window,
             commands::minimize_main_window,
             commands::toggle_maximize_main_window,

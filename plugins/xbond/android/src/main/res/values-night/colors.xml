@@ -2,4 +2,6 @@
 <resources>
     <!-- Web background dark token (oklch(0.15 0.012 260)). -->
     <color name="xbond_surface">#080B10</color>
+    <!-- Splash glyph wing ink (favicon convention: white on dark). -->
+    <color name="xbond_ink">#FFFFFF</color>
 </resources>

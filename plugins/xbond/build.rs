@@ -1,5 +1,6 @@
 const COMMANDS: &[&str] = &[
     "get_localapi_config",
+    "startup_complete",
     "list_installed_apps",
     "get_split_tunnel_config",
     "set_split_tunnel_config",

@@ -11,6 +11,17 @@ impl<R: Runtime> Xbond<R> {
             .map_err(Into::into)
     }
 
+    /// Startup hand-off: the web UI reports the daemon connection settled;
+    /// the platform releases its native splash keep-on-screen. iOS has no
+    /// splash object to hold (the storyboard dismisses at first frame), so
+    /// the Swift side answers with an empty resolve.
+    pub fn startup_complete(&self) -> super::Result<()> {
+        self.mobile_plugin_handle
+            .run_mobile_plugin::<serde_json::Value>("startupComplete", serde_json::json!({}))
+            .map(|_| ())
+            .map_err(Into::into)
+    }
+
     /// Installed apps JSON for the per-app VPN picker.
     pub fn list_installed_apps(&self) -> super::Result<serde_json::Value> {
         self.mobile_plugin_handle
