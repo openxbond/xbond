@@ -22,6 +22,16 @@ impl<R: Runtime> Xbond<R> {
             .map_err(Into::into)
     }
 
+    /// Interactive VPN consent from the activity context: `true` granted (or
+    /// already authorized), `false` declined. The Swift side has no method —
+    /// the invoke rejects there, which the connect flow treats as "cannot
+    /// auto-consent".
+    pub fn request_vpn_consent(&self) -> super::Result<bool> {
+        self.mobile_plugin_handle
+            .run_mobile_plugin("requestVpnConsent", serde_json::json!({}))
+            .map_err(Into::into)
+    }
+
     /// Installed apps JSON for the per-app VPN picker.
     pub fn list_installed_apps(&self) -> super::Result<serde_json::Value> {
         self.mobile_plugin_handle

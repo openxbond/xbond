@@ -14,6 +14,11 @@ pub async fn startup_complete<R: Runtime>(app: AppHandle<R>) -> Result<()> {
 }
 
 #[tauri::command]
+pub async fn request_vpn_consent<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
+    app.xbond().request_vpn_consent()
+}
+
+#[tauri::command]
 pub async fn list_installed_apps<R: Runtime>(app: AppHandle<R>) -> Result<Value> {
     app.xbond().list_installed_apps()
 }

@@ -16,6 +16,10 @@ impl<R: tauri::Runtime> Xbond<R> {
         Err(Error::UnsupportedPlatform)
     }
 
+    pub fn request_vpn_consent(&self) -> super::Result<bool> {
+        Err(Error::UnsupportedPlatform)
+    }
+
     pub fn list_installed_apps(&self) -> super::Result<Value> {
         Err(Error::UnsupportedPlatform)
     }

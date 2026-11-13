@@ -68,6 +68,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             commands::get_localapi_config,
             commands::startup_complete,
+            commands::request_vpn_consent,
             commands::list_installed_apps,
             commands::get_split_tunnel_config,
             commands::set_split_tunnel_config,
