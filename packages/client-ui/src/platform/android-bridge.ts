@@ -99,6 +99,23 @@ export function checkForUpdates(): void {
 }
 
 /**
+ * Drives the interactive VPN consent from the activity context. The raw
+ * invoke rejects when the plugin is missing (e.g. iOS bridge), which the
+ * connect flow treats as "cannot auto-consent".
+ * - true: granted (or already authorized); retry the connect.
+ * - false: the user declined the system dialog.
+ */
+export async function requestVpnConsent(): Promise<boolean> {
+  const invoke = pluginInvoke();
+  if (!invoke) return false;
+  try {
+    return (await invoke("plugin:xbond|request_vpn_consent")) === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Syncs the Android status/gesture bars with the resolved theme. `colorHex`
  * is a #rrggbb surface color (the theme-color meta already carries one).
  */

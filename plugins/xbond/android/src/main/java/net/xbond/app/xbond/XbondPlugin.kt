@@ -9,7 +9,9 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.IBinder
 import android.util.Log
+import androidx.activity.result.ActivityResult
 import androidx.core.view.WindowCompat
+import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -111,6 +113,14 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
         invoke.resolveObject(SplitTunnelPrefs.listInstalledApps(activity))
     }
 
+    /** Startup hand-off: the web UI reports the daemon connection settled;
+     * MainActivity releases the native splash keep-on-screen on this flag. */
+    @Command
+    fun startupComplete(invoke: Invoke) {
+        StartupSplash.settled = true
+        invoke.resolve()
+    }
+
     /** Saved split-tunnel config: { mode, packages }. */
     @Command
     fun getSplitTunnelConfig(invoke: Invoke) {
@@ -146,6 +156,31 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
             Log.e(TAG, "setSplitTunnelConfig failed: ${e.message}")
             invoke.resolveObject(false)
         }
+    }
+
+    /**
+     * Interactive VPN consent, launched from the ACTIVITY context through
+     * the Activity Result API. The system ConfirmDialog resolves the app to
+     * authorize via its calling package: a Service-side startActivity has
+     * none (and can be aborted by background-activity-launch rules), so the
+     * dialog finishes instantly and the flow can never complete. The web UI
+     * calls this on the /up 409 ("VPN consent required") and retries the
+     * connect when it resolves true. `null` from prepare means already
+     * authorized; RESULT_CANCELED (user declined) resolves false.
+     */
+    @Command
+    fun requestVpnConsent(invoke: Invoke) {
+        val consent = XBondVpnService.prepare(activity)
+        if (consent == null) {
+            invoke.resolveObject(true)
+            return
+        }
+        startActivityForResult(invoke, consent, "vpnConsentResult")
+    }
+
+    @ActivityCallback
+    fun vpnConsentResult(invoke: Invoke, result: ActivityResult) {
+        invoke.resolveObject(result.resultCode == Activity.RESULT_OK)
     }
 
     /** Manual update check from the about card. */

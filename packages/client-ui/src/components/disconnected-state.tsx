@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { XBondIcon } from "@/components/xbond-icon";
 import { cn } from "@/lib/utils";
 import { useAPIInfo } from "@/state/controller-target";
 import { useGeneral } from "@/state/core-settings";
@@ -99,6 +100,10 @@ export function DisconnectedState({
   let defaultTitle: ReactNode;
   let defaultDescription: ReactNode;
   let defaultAction: ReactNode;
+  // 服务启动中：整卡以品牌动画呈现（chevron 呼吸浮動），区别于真正的
+  // 离线（静态电源字形 + 重试）。
+  const daemonConnecting =
+    isLocalTarget && !hasDaemon && daemonState === "connecting";
 
   if (isLocalTarget) {
     if (!hasDaemon) {
@@ -182,10 +187,26 @@ export function DisconnectedState({
       )}
     >
       <Card className="flex w-full max-w-[460px] flex-col items-center justify-center rounded-card border border-border bg-card p-8 text-center">
-        <div className="mb-4 grid size-14 place-items-center rounded-lg border border-brand/25 bg-brand/15 text-brand-text">
-          {icon ?? <Power className="size-7" />}
-        </div>
-        <h3 className="mb-2 text-lg font-semibold tracking-tight text-foreground">
+        {daemonConnecting ? (
+          // 服务启动中：品牌字形在柔和品牌辉光里呼吸浮动，小 spinner 与
+          // 文案同行交代「进行中」；显示/消失完全跟随 daemonState，
+          // 不做任何启动时序假设。
+          <div className="relative mb-5 grid size-20 place-items-center">
+            <div
+              aria-hidden
+              className="connect-wait-glow absolute inset-0 rounded-full bg-[radial-gradient(closest-side,rgba(243,128,32,0.32),rgba(243,128,32,0.08)_55%,transparent)] blur-xl"
+            />
+            <XBondIcon className="connect-wait-float relative size-12 text-foreground" />
+          </div>
+        ) : (
+          <div className="mb-4 grid size-14 place-items-center rounded-lg border border-brand/25 bg-brand/15 text-brand-text">
+            {icon ?? <Power className="size-7" />}
+          </div>
+        )}
+        <h3 className="mb-2 flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
+          {daemonConnecting ? (
+            <Spinner className="size-3.5 text-brand" />
+          ) : null}
           {title ?? defaultTitle}
         </h3>
         <p className="mb-6 max-w-sm text-sm text-muted-foreground leading-relaxed">

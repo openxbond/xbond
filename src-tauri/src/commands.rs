@@ -59,8 +59,23 @@ impl ShellState {
         self.tray_available && self.close_to_tray()
     }
 
+    /// Whether this launch must stay in the background (autostart + silent
+    /// start preference with a tray to come back through): no splash, no
+    /// revealed main window.
+    pub fn start_hidden(&self) -> bool {
+        self.start_hidden
+    }
+
     fn should_reveal_at_startup(&self) -> bool {
         !self.startup_handled.swap(true, Ordering::Relaxed) && !self.start_hidden
+    }
+}
+
+/// The splash window is transient startup chrome; closing an already-closed
+/// one is a no-op (window lookup misses).
+fn close_splashscreen(app: &AppHandle) {
+    if let Some(splash) = app.get_webview_window("splashscreen") {
+        let _ = splash.close();
     }
 }
 
@@ -89,8 +104,13 @@ pub fn set_tray_language(app: AppHandle, lang: String) {
     crate::tray::update_language(&app, &lang);
 }
 
+/// Startup finished: the frontend reports it once the daemon connection has
+/// settled (ready or offline) — or the watchdog fires first. The splash
+/// window always goes away; the main window reveals per the visibility
+/// decision (silent starts stay hidden behind the tray).
 #[tauri::command]
-pub fn main_window_ready(app: AppHandle) {
+pub fn startup_complete(app: AppHandle) {
+    close_splashscreen(&app);
     if app.state::<ShellState>().should_reveal_at_startup() {
         show_main_window(app);
     }
@@ -100,6 +120,9 @@ pub fn show_main_window(app: AppHandle) {
     app.state::<ShellState>()
         .startup_handled
         .store(true, Ordering::Relaxed);
+    // Any explicit "bring the app up" path (second launch, tray, import
+    // hand-off, macOS reopen) supersedes a still-pending startup splash.
+    close_splashscreen(&app);
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();

@@ -113,6 +113,10 @@ jobs:
           ref: ${{ needs.preflight.outputs.commit }}
           persist-credentials: false
       - uses: ./.github/actions/toolchain
+      - uses: Swatinem/rust-cache@v2.9.3
+        with:
+          workspaces: src-tauri
+          cache-on-failure: "true"
       - uses: actions/download-artifact@v8.0.2
         with:
           name: core-assets
@@ -165,6 +169,13 @@ jobs:
       - uses: ./.github/actions/toolchain
         with:
           go: "true"
+      # Tag runs can only restore caches saved in the default branch scope, so
+      # the warm entries come from rehearsal runs dispatched from main; the
+      # first build after a fresh tag without a rehearsal stays cold.
+      - uses: Swatinem/rust-cache@v2.9.3
+        with:
+          workspaces: src-tauri
+          cache-on-failure: "true"
       - uses: actions/setup-java@v6.2.0
         with:
           distribution: temurin
@@ -226,6 +237,11 @@ jobs:
         if: steps.probe.outputs.skipped == 'false'
         with:
           go: "true"
+      - uses: Swatinem/rust-cache@v2.9.3
+        if: steps.probe.outputs.skipped == 'false'
+        with:
+          workspaces: src-tauri
+          cache-on-failure: "true"
       - if: steps.probe.outputs.skipped == 'false'
         run: pnpm setup:ios
       - name: Archive the signed App Store build

@@ -37,6 +37,7 @@ import { useTheme } from "@/state/user-preferences";
 import AppNavigation, {
   type Route as NavRoute,
 } from "./navigation/app-navigation";
+import { useStartupHandoff } from "./startup-handoff";
 
 // Mobile bottom navigation targets (4 core destinations: 首页、代理、配置、设置)
 const mobileRoutes: NavRoute[] = [
@@ -48,8 +49,12 @@ const mobileRoutes: NavRoute[] = [
 
 export default function App() {
   const theme = useTheme();
-  // Desktop shell: anti-flash reveal, deep-link drain, clipboard sniffing.
+  // Desktop shell: deep-link drain, clipboard sniffing (reveal moved to the
+  // startup hand-off below).
   useDesktopShell();
+  // Startup hand-off: close the splash / release the native splash once the
+  // daemon connection settles (or the cap fires).
+  useStartupHandoff();
 
   const [identity, setIdentity] = useAtom(identityAtom);
   const target = useAPIInfo();

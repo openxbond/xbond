@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
+    <title>XBond</title>
+    <!-- Startup splash shown while the (hidden) main webview resolves the
+         daemon. Self-contained: no framework code, no IPC — the shell closes
+         this window when the frontend reports startup_complete (or the Rust
+         watchdog fires). -->
+    <script>
+      // Anti-flash: resolve the stored theme before first paint (same key and
+      // logic as index.html).
+      (function () {
+        try {
+          var raw = localStorage.getItem("theme");
+          var pref = JSON.parse(raw || "null");
+          var dark =
+            pref === "dark" ||
+            (pref !== "light" &&
+              matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {
+          /* storage unavailable — system default already applied */
+        }
+      })();
+    </script>
+    <style>
+      /* Brand values mirror tokens.css --background / favicon ink; the mark,
+         glow and 3.4s float animation mirror the connect-wait classes
+         (styles/app.css) so the splash hands off to the in-app connecting
+         state without a visual jump. */
+      :root {
+        --splash-bg: #eff1f8;
+        --splash-ink: #18181b;
+      }
+      :root.dark {
+        --splash-bg: #080b10;
+        --splash-ink: #ffffff;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: var(--splash-bg);
+        display: grid;
+        place-items: center;
+      }
+      .splash-mark {
+        position: relative;
+        width: 96px;
+        height: 96px;
+        display: grid;
+        place-items: center;
+      }
+      .splash-glow {
+        position: absolute;
+        inset: 0;
+        border-radius: 9999px;
+        background: radial-gradient(
+          closest-side,
+          rgba(243, 128, 32, 0.32),
+          rgba(243, 128, 32, 0.08) 55%,
+          transparent
+        );
+        filter: blur(24px);
+        animation: splash-glow 3.4s ease-in-out infinite;
+      }
+      .splash-mark svg {
+        position: relative;
+        width: 56px;
+        height: 56px;
+        animation: splash-float 3.4s ease-in-out infinite;
+      }
+      @keyframes splash-float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-4px);
+        }
+      }
+      @keyframes splash-glow {
+        0%,
+        100% {
+          opacity: 0.55;
+        }
+        50% {
+          opacity: 0.9;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .splash-glow,
+        .splash-mark svg {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="splash-mark" aria-hidden="true">
+      <div class="splash-glow"></div>
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Canonical brand geometry (components/xbond-icon.tsx). -->
+        <path d="M14 14H35.5L58 50L35.5 86H14L36.5 50L14 14Z" fill="#F38020" />
+        <path
+          d="M64.5 14H86L65.25 47.2L54.5 30Z M54.5 70L65.25 52.8L86 86H64.5Z"
+          fill="var(--splash-ink)"
+        />
+      </svg>
+    </div>
+  </body>
+</html>
