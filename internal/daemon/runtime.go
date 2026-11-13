@@ -543,7 +543,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		}
 		source, err := os.ReadFile(paths.SubSourcePath(targetID))
 		if errors.Is(err, fs.ErrNotExist) {
-			if _, updateErr := c.subs.Update(targetID, true, ""); updateErr != nil {
+			if _, updateErr := c.subs.Update(ctx, targetID, true, ""); updateErr != nil {
 				return fmt.Errorf("active subscription has no downloaded config and refresh failed: %w", updateErr)
 			}
 			source, err = os.ReadFile(paths.SubSourcePath(targetID))
@@ -933,13 +933,13 @@ func (c *runtimeController) updateLocked(ctx context.Context, id string, force b
 	if err != nil {
 		return nil, err
 	}
-	result, err := c.subs.Update(id, force, proxyURL)
+	result, err := c.subs.Update(ctx, id, force, proxyURL)
 	var fetchErr *sub.FetchError
 	if err != nil && proxyURL != "" && viaProxy == nil && errors.As(err, &fetchErr) {
 		meta, metaErr := c.subs.Get(id)
 		if metaErr == nil && meta.Kind == sub.KindCloud && (meta.UpdateChannel == "" || meta.UpdateChannel == sub.ChannelSelf) && ctx.Err() == nil {
 			proxyErr := err
-			result, err = c.subs.Update(id, force, "")
+			result, err = c.subs.Update(ctx, id, force, "")
 			if err != nil {
 				return nil, fmt.Errorf("subscription update failed via XBond proxy and directly: %w", errors.Join(proxyErr, err))
 			}

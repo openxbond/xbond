@@ -24,7 +24,7 @@ XBond 是一款跨平台網絡代理用戶端：匯入連線配置、建立連�
 | Android | APK 安裝包，以 VPN 方式接管流量 |
 | iOS | TestFlight |
 | 命令列 | `xbond` 獨立二進位 |
-| Docker | `ghcr.io/openxbond/xbond-daemon` |
+| Docker | `ghcr.io/openxbond/xbond` |
 
 專案仍在積極開發中，各平台實際可用的交付以下載頁為準。
 
@@ -51,15 +51,23 @@ $ xbond web                        # 打開本機 Web 管理介面
 
 ### Docker
 
-容器以僅端口模式運行 daemon，`/data` 持久保存配置與狀態：
+在 XBond Cloud 訂閱頁複製 Docker 部署指令，即可帶着訂閱啟動端口或 Linux 網關模式。亦可使用本倉庫的 Compose 範例：
 
 ```console
-$ docker build -t ghcr.io/openxbond/xbond-daemon:local .
 $ docker compose up -d
 ```
 
-- 混合代理入站 `7890`，按需要發佈到對應網絡範圍。
-- 管理與 Web UI `9090` 內嵌每次啟動生成的訪問 token，預設只綁定回環位址；除非確要讓整個區網控制 daemon，否則不要對外公開。
+打開 `http://localhost:9090` 登入 XBond Cloud 或匯入訂閱。也可在首次啟動前設定 `SUB_URL`。配置和登入狀態保存在 `/data` 卷，活躍訂閱會自動更新。預設 mixed 代理位於 `127.0.0.1:7890`。
+
+遠端 Docker 主機可用 `ssh -L 9090:127.0.0.1:9090 user@host`，再打開本機的管理介面。能到達介面的用戶即可管理 daemon，請將管理端口留在回環介面。
+
+更新容器版本可執行 `docker compose up -d --pull always`。如需自動更新映像，可在 Docker 宿主機用具備 Docker 權限的帳戶排程執行，將下方路徑換成 Compose 檔案所在目錄：
+
+```cron
+0 4 * * * cd /path/to/xbond && docker compose up -d --pull always
+```
+
+本機開發可執行 `docker build -t ghcr.io/openxbond/xbond:local .`，再用 `XBOND_IMAGE_TAG=local docker compose up -d --pull never`。詳見 [Docker 行為契約](docs/specs/docker-daemon.md)。
 
 ## 帳號與購買
 

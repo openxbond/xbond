@@ -364,7 +364,7 @@ func (a *mobileAccount) refresh(ctx context.Context) AccountState {
 		a.mu.Unlock()
 		return state
 	}
-	meta, updateError := a.bindLink(link)
+	meta, updateError := a.bindLink(ctx, link)
 	a.syncOverviewCtx(ctx)
 	a.mu.Lock()
 	a.state.Status = "signed_in"
@@ -379,7 +379,7 @@ func (a *mobileAccount) refresh(ctx context.Context) AccountState {
 	return state
 }
 
-func (a *mobileAccount) bindLink(link *clientapi.SubscriptionLink) (*sub.SubscriptionMeta, string) {
+func (a *mobileAccount) bindLink(ctx context.Context, link *clientapi.SubscriptionLink) (*sub.SubscriptionMeta, string) {
 	if link.SubscriptionToken == "" {
 		return nil, ""
 	}
@@ -410,12 +410,12 @@ func (a *mobileAccount) bindLink(link *clientapi.SubscriptionLink) (*sub.Subscri
 			// 綁定後再更新，讓抓取使用新憑據與綁定的來源。
 			if _, err := a.svc.subMgr.BindAccount(link.SubscriptionToken, fallback, fallback, nil, "", a.lang, ""); err != nil {
 				updateError = err.Error()
-			} else if res, err := a.svc.subMgr.Update(existing, true, ""); err != nil {
+			} else if res, err := a.svc.subMgr.Update(ctx, existing, true, ""); err != nil {
 				updateError = err.Error()
 			} else if res != nil && res.Meta != nil {
 				meta = res.Meta
 			}
-		} else if res, err := a.svc.subMgr.Update(existing, true, ""); err != nil {
+		} else if res, err := a.svc.subMgr.Update(ctx, existing, true, ""); err != nil {
 			updateError = err.Error()
 		} else if res != nil && res.Meta != nil {
 			meta = res.Meta

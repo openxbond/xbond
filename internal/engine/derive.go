@@ -399,6 +399,9 @@ func applyClashTakeover(raw map[string]any, takeoverMode TakeoverMode) {
 	tun["enable"] = true
 	tun["stack"] = "mixed"
 	tun["auto-route"] = true
+	if runtime.GOOS == "linux" {
+		tun["auto-redirect"] = true
+	}
 	tun["strict-route"] = true
 	tun["auto-detect-interface"] = true
 	tun["dns-hijack"] = []any{"any:53"}
@@ -498,11 +501,12 @@ func deriveSingBoxRuntime(
 
 	if takeoverMode == ModeTun {
 		tunInbound := map[string]any{
-			"type":         "tun",
-			"tag":          "tun-in",
-			"address":      []any{"192.168.255.252/30", "fd00:c0a8:fffc::1/126"},
-			"auto_route":   true,
-			"strict_route": true,
+			"type":          "tun",
+			"tag":           "tun-in",
+			"address":       []any{"192.168.255.252/30", "fd00:c0a8:fffc::1/126"},
+			"auto_route":    true,
+			"auto_redirect": runtime.GOOS == "linux",
+			"strict_route":  true,
 			// Keep private ranges on the physical network: LAN, the VM NAT
 			// range and CGNAT must not enter the tunnel, and the tun's own
 			// 192.168.255.x sits outside the excluded 192.168.0.0/17 half.

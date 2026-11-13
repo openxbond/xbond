@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/openxbond/xbond/internal/clientapi"
@@ -229,6 +230,27 @@ func deviceLogin(
 	device, err := conf.DeviceAuth(ctx, clientapi.ResourceOption())
 	if err != nil {
 		return nil, mapOAuthError(err)
+	}
+	origin, err := url.Parse(conf.Endpoint.DeviceAuthURL)
+	if err != nil {
+		return nil, err
+	}
+	resolve := func(raw string) (string, error) {
+		target, err := origin.Parse(raw)
+		if raw == "" || err != nil || target.Hostname() == "" || (target.Scheme != "http" && target.Scheme != "https") {
+			return "", errors.New("invalid device verification URL")
+		}
+		return target.String(), nil
+	}
+	device.VerificationURI, err = resolve(device.VerificationURI)
+	if err != nil {
+		return nil, err
+	}
+	if device.VerificationURIComplete != "" {
+		device.VerificationURIComplete, err = resolve(device.VerificationURIComplete)
+		if err != nil {
+			return nil, err
+		}
 	}
 	reportProgress(progress, Progress{
 		Phase:                   "authorizing",

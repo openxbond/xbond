@@ -49,8 +49,11 @@ type Server struct {
 	privileged   net.Listener
 	remoteServer *http.Server
 
-	webDir string
-	done   chan struct{}
+	webDir           string
+	subscriptionURL  string
+	autostartContext context.Context
+	autostartCancel  context.CancelFunc
+	done             chan struct{}
 	// shutdownCh is closed when a LocalAPI client asked the daemon to exit
 	// (service stop); the daemon main loop watches it beside OS signals.
 	shutdownCh   chan struct{}
@@ -76,6 +79,15 @@ func NewSystemServer(addr string, webDir string) (*Server, error) {
 
 func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	trace := os.Getenv("XBOND_LOCALAPI_TRACE") == "1"
+	autostart := os.Getenv("XBOND_AUTOSTART") == "1"
+	var subscriptionURL string
+	if autostart {
+		var err error
+		subscriptionURL, err = dockerSubscriptionURL(os.Getenv("SUB_URL"))
+		if err != nil {
+			return nil, err
+		}
+	}
 	// The lock must exist before proxy recovery and discovery-file writes:
 	// a second instance must never fight over ports, system proxy, or the
 	// credential files.
@@ -116,16 +128,20 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 		core.EnablePortHandoff()
 	}
 	s := &Server{
-		token:       token,
-		engineMgr:   core,
-		subMgr:      subMgr,
-		runtime:     newRuntimeController(core, subMgr, prefs),
-		webDir:      webDir,
-		done:        make(chan struct{}),
-		shutdownCh:  make(chan struct{}),
-		lock:        lock,
-		systemScope: systemScope,
-		trace:       trace,
+		token:           token,
+		engineMgr:       core,
+		subMgr:          subMgr,
+		runtime:         newRuntimeController(core, subMgr, prefs),
+		webDir:          webDir,
+		done:            make(chan struct{}),
+		shutdownCh:      make(chan struct{}),
+		lock:            lock,
+		systemScope:     systemScope,
+		trace:           trace,
+		subscriptionURL: subscriptionURL,
+	}
+	if autostart {
+		s.autostartContext, s.autostartCancel = context.WithCancel(context.Background())
 	}
 	s.account = newAccountController(
 		account.NewManager(paths.AccountSessionPath()),
@@ -185,23 +201,10 @@ func (s *Server) Token() string {
 	return s.token
 }
 
-// Autostart brings the active subscription's core up after boot when the
-// deployment environment asks for it (XBOND_AUTOSTART=1, the container
-// default): a proxy container that stays down after `docker restart` is a
-// footgun. Desktop keeps the explicit connect — env-free hosts never call
-// this. A failure is logged by the caller and does not kill the daemon: the
-// UI still works and the user can retry the connect.
-func (s *Server) Autostart(ctx context.Context) error {
-	if s.subMgr.ActiveID() == "" {
-		return nil
-	}
-	if err := s.runtime.Up(ctx, runtimeOptions{}); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *Server) Start() error {
+	if s.autostartContext != nil {
+		go s.runAutostart(s.autostartContext)
+	}
 	go s.runScheduledUpdates()
 	if s.delegate != nil {
 		go s.runDelegateReconciler()
@@ -226,6 +229,9 @@ func (s *Server) Stop(ctx context.Context) error {
 		close(s.done)
 		defer s.lock.Release()
 
+		if s.autostartCancel != nil {
+			s.autostartCancel()
+		}
 		s.account.cancelPending()
 		_, runtimeErr := s.runtime.Down()
 
@@ -571,7 +577,7 @@ func (s *Server) bindSubscription(
 	} else if res != nil && res.Meta != nil {
 		finalMeta = res.Meta
 		if activate {
-			if err := s.runtime.Use(ctx, meta.ID); err != nil {
+			if err := s.useImported(ctx, meta.ID); err != nil {
 				return finalMeta, updateErrMsg, &bindError{err: err, input: false}
 			}
 		}
@@ -600,7 +606,7 @@ func (s *Server) bindCredentials(
 		return meta, err.Error(), nil
 	}
 	if options.Use {
-		if err := s.runtime.Use(ctx, meta.ID); err != nil {
+		if err := s.useImported(ctx, meta.ID); err != nil {
 			return result.Meta, "", &bindError{err: err, input: false}
 		}
 	}

@@ -35,16 +35,16 @@ func TestVersionsSnapshotPruneAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Update(meta.ID, true, ""); err != nil {
+	if _, err := manager.Update(t.Context(), meta.ID, true, ""); err != nil {
 		t.Fatal(err)
 	}
 
 	writeUpstreamSource(t, upstream, "v2")
-	if _, err := manager.Update(meta.ID, true, ""); err != nil {
+	if _, err := manager.Update(t.Context(), meta.ID, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	writeUpstreamSource(t, upstream, "v3")
-	if _, err := manager.Update(meta.ID, true, ""); err != nil {
+	if _, err := manager.Update(t.Context(), meta.ID, true, ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -105,7 +105,7 @@ func TestVersionsSnapshotPruneAndRollback(t *testing.T) {
 	// Pruning: versions never exceed versionLimit.
 	for index := 4; index <= 10; index++ {
 		writeUpstreamSource(t, upstream, "v"+string(rune('0'+index)))
-		if _, err := manager.Update(meta.ID, true, ""); err != nil {
+		if _, err := manager.Update(t.Context(), meta.ID, true, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -127,10 +127,10 @@ func TestUpdateWithoutContentChangeKeepsVersions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Update(meta.ID, true, ""); err != nil {
+	if _, err := manager.Update(t.Context(), meta.ID, true, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Update(meta.ID, true, ""); err != nil {
+	if _, err := manager.Update(t.Context(), meta.ID, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	if versions, _ := manager.Versions(meta.ID); len(versions) != 0 {

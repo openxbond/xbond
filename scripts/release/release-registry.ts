@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 
@@ -10,7 +10,8 @@ import { releaseVersion } from "./release-version.ts";
 //                                the candidate digest, otherwise false
 // - push <tag> <digest> <tar>    verifies the OCI archive against the digest
 //                                and pushes it with digests preserved
-// - verify-public <tag> <digest> fails unless anonymous pulls see that digest
+// - verify-public <tag> <digest> [ref] checks the anonymous pull digest
+// - promote <tag> <digest>       copies the verified version to latest
 
 const image = (tag: string) => `docker://ghcr.io/openxbond/xbond:${tag}`;
 
@@ -47,11 +48,26 @@ function expectedPlatformArchitectures(bytes: Buffer): string[] {
     .sort();
 }
 
+function login() {
+  if (!process.env.GH_TOKEN) throw new Error("Set GH_TOKEN for the GHCR login");
+  run(
+    "skopeo",
+    [
+      "login",
+      "--username",
+      process.env.GITHUB_ACTOR ?? "",
+      "--password-stdin",
+      "ghcr.io",
+    ],
+    { input: process.env.GH_TOKEN },
+  );
+}
+
 function main() {
-  const [command, tag, digest, archive] = process.argv.slice(2);
+  const [command, tag, digest, argument] = process.argv.slice(2);
   if (!command || !tag || !digest)
     throw new Error(
-      "Usage: node scripts/release/release-registry.ts <check|push|verify-public> <vX.Y.Z> <sha256:...> [oci-archive.tar]",
+      "Usage: node scripts/release/release-registry.ts <check|push|verify-public|promote> <vX.Y.Z> <sha256:...> [oci-archive.tar|latest]",
     );
   releaseVersion(tag);
 
@@ -71,41 +87,39 @@ function main() {
       );
     fs.appendFileSync(process.env.GITHUB_OUTPUT ?? "", "present=true\n");
   } else if (command === "push") {
-    if (!archive) throw new Error("Expected the path of the OCI archive");
-    if (!process.env.GH_TOKEN)
-      throw new Error("Set GH_TOKEN for the GHCR login");
-    const bytes = fs.readFileSync(archive);
+    if (!argument) throw new Error("Expected the path of the OCI archive");
+    const source = `oci-archive:${argument}`;
+    const bytes = execFileSync("skopeo", ["inspect", "--raw", source]);
     if (indexDigest(bytes) !== digest)
-      throw new Error("The OCI archive digest differs from the release image");
+      throw new Error(
+        "The OCI image index digest differs from the release evidence",
+      );
     const architectures = expectedPlatformArchitectures(bytes);
     if (JSON.stringify(architectures) !== JSON.stringify(["amd64", "arm64"]))
       throw new Error(
         `Expected linux amd64 and arm64 images, found: ${architectures.join(", ") || "none"}`,
       );
-    run(
-      "skopeo",
-      [
-        "login",
-        "--username",
-        process.env.GITHUB_ACTOR ?? "",
-        "--password-stdin",
-        "ghcr.io",
-      ],
-      {
-        input: process.env.GH_TOKEN,
-      },
-    );
+    login();
+    run("skopeo", ["copy", "--all", "--preserve-digests", source, image(tag)]);
+  } else if (command === "promote") {
+    const published = "docker://ghcr.io/openxbond/xbond@" + digest;
+    login();
     run("skopeo", [
       "copy",
       "--all",
       "--preserve-digests",
-      `oci-archive:${archive}`,
-      image(tag),
+      published,
+      image("latest"),
     ]);
   } else if (command === "verify-public") {
     const result = spawnSync(
       "skopeo",
-      ["inspect", "--no-creds", "--raw", image(tag)],
+      [
+        "inspect",
+        "--no-creds",
+        "--raw",
+        image(argument === "latest" ? argument : tag),
+      ],
       { encoding: "buffer", stdio: "pipe" },
     );
     if (result.status !== 0) {

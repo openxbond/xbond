@@ -97,7 +97,7 @@ func TestRuntimeUpHTTPReturnsActualStartedCoreStatus(t *testing.T) {
 	if err := os.WriteFile(f.firstSource, append(source, []byte("rules:\n  - DOMAIN-SUFFIX,example.test,DIRECT\n  - MATCH,DIRECT\n")...), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.subs.Update(f.first.ID, true, ""); err != nil {
+	if _, err := f.subs.Update(t.Context(), f.first.ID, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	freePort := func() int {

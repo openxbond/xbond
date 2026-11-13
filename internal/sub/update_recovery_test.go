@@ -24,7 +24,7 @@ func TestUpdateMetadataFailurePreservesLastDownloadedSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Update(meta.ID, true, ""); err != nil {
+	if _, err := manager.Update(t.Context(), meta.ID, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	before, err := os.ReadFile(paths.SubSourcePath(meta.ID))
@@ -41,7 +41,7 @@ func TestUpdateMetadataFailurePreservesLastDownloadedSource(t *testing.T) {
 	if err := os.WriteFile(source, []byte("proxies:\n  - {name: replacement, type: trojan, server: example.invalid, port: 443, password: fixture-only}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Update(meta.ID, true, ""); err == nil {
+	if _, err := manager.Update(t.Context(), meta.ID, true, ""); err == nil {
 		t.Fatal("metadata persistence failure was hidden")
 	}
 	restored, err := os.ReadFile(paths.SubSourcePath(meta.ID))

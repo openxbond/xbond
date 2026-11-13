@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AuroraWave } from "@/components/aurora-wave";
@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { hasAndroidBridge } from "@/platform/android-bridge";
 import { isMobileApp } from "@/platform/host";
 import { isDesktopApp } from "@/platform/local-api-bootstrap";
 import { openExternalUrl } from "@/platform/open-external";
@@ -74,6 +75,25 @@ export default function AccountPanel() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const authorizationTab = useRef<Window | null>(null);
+  const authorizationURL =
+    account?.authUrl ||
+    account?.verificationUriComplete ||
+    account?.verificationUri;
+
+  useEffect(() => {
+    const tab = authorizationTab.current;
+    if (!tab || !account) return;
+    if (account.status === "pending" && authorizationURL) {
+      authorizationTab.current = null;
+      if (!tab.closed) tab.location.replace(authorizationURL);
+    } else if (account.status === "error" || account.status === "signed_in") {
+      authorizationTab.current = null;
+      tab.close();
+    }
+  }, [account, authorizationURL]);
+
+  useEffect(() => () => authorizationTab.current?.close(), []);
   const connecting = daemonState === "connecting";
   const signedIn = account?.status === "signed_in";
   const serviceHealthy =
@@ -170,6 +190,33 @@ export default function AccountPanel() {
     );
   }
 
+  async function startLogin() {
+    // Reserve the tab during the click so browser popup blocking does not
+    // depend on how long the device-code request takes.
+    if (!isDesktopApp() && !isMobileApp() && !hasAndroidBridge()) {
+      authorizationTab.current?.close();
+      authorizationTab.current = window.open("about:blank", "_blank");
+      if (authorizationTab.current) authorizationTab.current.opener = null;
+    }
+    try {
+      const status = await login();
+      if (status.status !== "pending") {
+        authorizationTab.current?.close();
+        authorizationTab.current = null;
+      }
+    } catch (err) {
+      authorizationTab.current?.close();
+      authorizationTab.current = null;
+      throw err;
+    }
+  }
+
+  async function cancelAuthorization() {
+    authorizationTab.current?.close();
+    authorizationTab.current = null;
+    await cancelLogin();
+  }
+
   async function update() {
     const result = await resync();
     if (result.updateError) throw new Error(result.updateError);
@@ -241,7 +288,7 @@ export default function AccountPanel() {
                 className="h-9 gap-2 rounded-control px-3.5 shadow-2xs"
                 onClick={() =>
                   void action(
-                    isSessionExpiredFailure ? () => login() : update,
+                    isSessionExpiredFailure ? startLogin : update,
                     c("updated"),
                     isSessionExpiredFailure ? "account" : "sync",
                   )
@@ -424,11 +471,16 @@ export default function AccountPanel() {
 
           {phase === "authorizing" && (
             <div className="flex flex-wrap items-center gap-3 pt-1">
-              {account?.authUrl && (
+              {account?.userCode && (
+                <code className="rounded-md bg-inset px-2 py-1 font-mono text-sm">
+                  {account.userCode}
+                </code>
+              )}
+              {authorizationURL && (
                 <Button
                   variant="outline"
                   onClick={() =>
-                    void openExternalUrl(account.authUrl!).catch((err) =>
+                    void openExternalUrl(authorizationURL).catch((err) =>
                       setError(
                         err instanceof Error ? err.message : String(err),
                       ),
@@ -442,7 +494,7 @@ export default function AccountPanel() {
               <Button
                 variant="ghost"
                 disabled={pending}
-                onClick={() => void action(cancelLogin)}
+                onClick={() => void action(cancelAuthorization)}
               >
                 {common("cancel")}
               </Button>
@@ -528,7 +580,7 @@ export default function AccountPanel() {
                     size="sm"
                     variant="brand"
                     disabled={busy}
-                    onClick={() => void action(() => login())}
+                    onClick={() => void action(startLogin)}
                   >
                     {t("loginCta")}
                   </Button>
@@ -789,7 +841,7 @@ export default function AccountPanel() {
               size="lg"
               className="shrink-0"
               disabled={busy}
-              onClick={() => void action(() => login())}
+              onClick={() => void action(startLogin)}
             >
               {t("loginCta")}
             </Button>

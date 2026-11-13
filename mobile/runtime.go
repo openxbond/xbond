@@ -1,6 +1,7 @@
 package mobile
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -94,7 +95,7 @@ func (c *mobileRuntime) activeSource() (string, []byte, error) {
 	}
 	source, err := os.ReadFile(paths.SubSourcePath(id))
 	if err != nil {
-		if _, updateErr := c.subs.Update(id, true, ""); updateErr != nil {
+		if _, updateErr := c.subs.Update(context.Background(), id, true, ""); updateErr != nil {
 			return "", nil, fmt.Errorf("active subscription has no downloaded config and refresh failed: %w", updateErr)
 		}
 		source, err = os.ReadFile(paths.SubSourcePath(id))
@@ -233,7 +234,7 @@ func (c *mobileRuntime) update(id string, force bool) (*sub.UpdateResult, error)
 	if err != nil {
 		return nil, err
 	}
-	result, err := c.subs.Update(id, force, proxyURL)
+	result, err := c.subs.Update(context.Background(), id, force, proxyURL)
 	if err != nil {
 		if proxyURL != "" {
 			return nil, fmt.Errorf("%w (the update channel used the stored proxy; fix it or switch the subscription's update channel to direct)", err)

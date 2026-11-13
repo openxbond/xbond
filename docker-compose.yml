@@ -1,25 +1,25 @@
 # Unified xbond daemon in port mode (docs/specs/docker-daemon.md).
-# Build first:  docker build -t ghcr.io/openxbond/xbond-daemon:local .
+# Start with docker compose up -d. For local builds set XBOND_IMAGE_TAG=local.
 #
 # The management port (9090) serves the web UI with the per-boot access
 # token embedded — publish it to trusted interfaces only.
 
 services:
   xbond:
-    image: ghcr.io/openxbond/xbond-daemon:local
+    image: ghcr.io/openxbond/xbond:${XBOND_IMAGE_TAG:-latest}
     container_name: xbond
     restart: unless-stopped
     ports:
       # Mixed proxy inbound — publish to whatever scope you need.
-      - "7890:7890"
+      - "127.0.0.1:7890:7890"
       # Management + web UI — loopback unless every LAN device should
       # control the daemon.
       - "127.0.0.1:9090:9090"
     volumes:
       - xbond-data:/data
-    # time zone for update scheduling and logs (optional)
-    # environment:
-    #   TZ: Asia/Hong_Kong
+    environment:
+      SUB_URL: ${SUB_URL:-}
 
 volumes:
   xbond-data:
+    name: xbond-data

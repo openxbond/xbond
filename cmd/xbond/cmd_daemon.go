@@ -126,16 +126,6 @@ func serveDaemon(server *daemon.Server, stop <-chan struct{}) error {
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Start() }()
 
-	if os.Getenv("XBOND_AUTOSTART") == "1" {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			if err := server.Autostart(ctx); err != nil {
-				fmt.Printf("autostart did not bring the core up: %v\n", err)
-			}
-		}()
-	}
-
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
