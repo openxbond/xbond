@@ -453,11 +453,15 @@ class XBondVpnService : VpnService() {
             }
             val consent = VpnService.prepare(this@XBondVpnService)
             if (consent != null) {
-                // Bring the system dialog up right over the app: the LocalAPI
-                // answers 409 and the user resolves the dialog, then simply
-                // taps Connect again.
-                consent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                this@XBondVpnService.startActivity(consent)
+                // Do NOT startActivity from this Service context: the system
+                // ConfirmDialog identifies the app to authorize through its
+                // calling package, which only an activity-launched result
+                // flow provides — a Service startActivity makes it finish
+                // instantly (and background-activity-launch rules may abort
+                // the start outright). The LocalAPI answers 409; the UI then
+                // drives the interactive consent through the plugin's
+                // requestVpnConsent (activity + Activity Result API) and
+                // calls /up again.
                 throw Exception("VPN consent required")
             }
             goForeground(R.string.notification_establishing)
