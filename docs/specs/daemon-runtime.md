@@ -97,7 +97,7 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - AC-5 install：注册并启动后 status 显示运行中；重新登录后服务可用（目标平台验收）。
 - AC-6 stop：退出后发现文件已清理、status 如实反映；系统代理恢复失败时输出错误而非「已停止」。
 - AC-7 restart：完整停止后重新启动，LocalAPI 可查询。
-- AC-8 uninstall：注册移除、daemon 停止，用户配置保留（机器级数据目录一并保留；机器二进制与归属文件移除）。桌面卸载器同时收回机器级注册——Windows PREUNINSTALL 经捆绑 CLI 调 `daemon uninstall --scope system`（未提权时走既有 runas 自唤，拒绝授权即如实保留并在日志记录；服务从未安装则为免提权 no-op）；Linux deb/rpm 以 `preRemoveScript`（`src-tauri/scripts/machine-daemon-preremove.sh`，仅在真移除而非升级时触发）同样收回。macOS 删除应用与 AppImage/手动删除没有卸载钩子面——机器级 daemon 在安装时记录归属二进制路径（`install-owner-path`），启动时与运行中每小时探测归属：路径消失（启动时一次即回收；运行中连续两次）则自回收注册与二进制后退出，注册不会在重启后复活。`daemon uninstall --scope system` 手动路径与自回收一致：移除注册、机器二进制与归属文件。
+- AC-8 uninstall：注册移除、daemon 停止，用户配置保留（机器级数据目录一并保留；机器二进制与归属文件移除）。桌面卸载器同时收回两级注册——Windows PREUNINSTALL 经捆绑 CLI 先 `daemon uninstall`（用户级：优雅停止 + autostart 注册移除，防陈旧 Run 值指向已删路径）、再 `daemon uninstall --scope system` 收回机器级注册（未提权时走既有 runas 自唤，拒绝授权即如实保留并在日志记录；服务从未安装则为免提权 no-op）；Linux deb/rpm 以 `preRemoveScript`（`src-tauri/scripts/machine-daemon-preremove.sh`，仅在真移除而非升级时触发）同样收回机器级。macOS 删除应用与 AppImage/手动删除没有卸载钩子面——机器级 daemon 在安装时记录归属二进制路径（`install-owner-path`），启动时与运行中每小时探测归属：路径消失（启动时一次即回收；运行中连续两次）则自回收注册与二进制后退出，注册不会在重启后复活。`daemon uninstall --scope system` 手动路径与自回收一致：移除注册、机器二进制与归属文件。
 - AC-9 scope：`--scope system` 未实现或平台不支持时返回明确「不可用」，不偷换为 user。
 - AC-10 GUI 关窗后，CLI 查询到的连接仍在（与 AC-5 联动，桌面平台验收）。
 - AC-11 移动端：Android `VpnService` 与 iOS `PacketTunnelProvider` 完成原生桥接并跑通真实流量（后续任务）。
