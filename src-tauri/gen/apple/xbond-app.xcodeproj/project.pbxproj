@@ -15,7 +15,6 @@
 		58BBCC72D625A5E9EC6758CC /* PacketTunnel.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B53A4E5F9687C96AB45B59BE /* PacketTunnel.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7B57CE9316862C37CFEF9A95 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BF71A364D69037DE303D3811 /* Metal.framework */; };
 		8B3987CCCD3A270779F5AB38 /* XBondMobile.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9F7F835FBE90C58B138DCA9B /* XBondMobile.xcframework */; };
-		930108035DBB5405F18A03B3 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5EDCC8EB2FB4FDBA08D0ABB1 /* LaunchScreen.storyboard */; };
 		9938221E7ACED60CEBCB6C50 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 651B4E18990C3095639FA163 /* WebKit.framework */; };
 		A85CC8BBFDC591414E6BA8D6 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003434E90532E9C4D8F210D1 /* PacketTunnelProvider.swift */; };
 		BF514F4F7D6CA09F8484625F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = E831636400754D1869560B39 /* assets */; };
@@ -58,9 +57,9 @@
 		3CFD5A9C15F268BBB21C754E /* xbond-app_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "xbond-app_iOS.entitlements"; sourceTree = "<group>"; };
 		467DD070DBA1074A69786BC8 /* XBond.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = XBond.xcconfig; sourceTree = "<group>"; };
 		5CF2BD74B457FC4C0AF58E6F /* localapi.rs */ = {isa = PBXFileReference; path = localapi.rs; sourceTree = "<group>"; };
-		5EDCC8EB2FB4FDBA08D0ABB1 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		5F527BC4E5AA26BE0D2D698C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		651B4E18990C3095639FA163 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		69D815A0F6DBD6A275C8BAAD /* desktop_preferences.rs */ = {isa = PBXFileReference; path = desktop_preferences.rs; sourceTree = "<group>"; };
 		6CF583EAE7AA8FB46A0BA337 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		726B5AC32285BB3B55C5E7E7 /* tray.rs */ = {isa = PBXFileReference; path = tray.rs; sourceTree = "<group>"; };
 		72A3D9503AB0F6E19A782BA0 /* daemon.rs */ = {isa = PBXFileReference; path = daemon.rs; sourceTree = "<group>"; };
@@ -142,6 +141,7 @@
 			children = (
 				1C1BCC2963684AD2A64025E5 /* commands.rs */,
 				72A3D9503AB0F6E19A782BA0 /* daemon.rs */,
+				69D815A0F6DBD6A275C8BAAD /* desktop_preferences.rs */,
 				6CF583EAE7AA8FB46A0BA337 /* lib.rs */,
 				5CF2BD74B457FC4C0AF58E6F /* localapi.rs */,
 				F6C87D11F0FEACCF2729E7BA /* main.rs */,
@@ -216,7 +216,6 @@
 			children = (
 				E831636400754D1869560B39 /* assets */,
 				EF072336A7305B938110D8B9 /* Assets.xcassets */,
-				5EDCC8EB2FB4FDBA08D0ABB1 /* LaunchScreen.storyboard */,
 				7DC5029EC9D564CA0ABC042D /* apple */,
 				66918939EC793A034FE14B2F /* Externals */,
 				00F8B27E68C366B260B71EC3 /* PacketTunnel */,
@@ -238,14 +237,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		"TEMP_17DE98EB-8D86-4621-AA94-122CBD49E319" /* x86_64 */ = {
+		"TEMP_6A7D4A21-FC59-4C63-9297-0DDAC1D15E3D" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = x86_64;
 			sourceTree = "<group>";
 		};
-		"TEMP_DA23ADD7-BE59-4D6B-9FC5-C5E25088DB55" /* arm64 */ = {
+		"TEMP_92DE0952-9F7E-479F-A8F5-A17C95F782FD" /* arm64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -332,7 +331,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				26522358970DA4E8F293D6D1 /* Assets.xcassets in Resources */,
-				930108035DBB5405F18A03B3 /* LaunchScreen.storyboard in Resources */,
 				BF514F4F7D6CA09F8484625F /* assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
