@@ -10,9 +10,10 @@ import { useLocalAPI } from "@/state/local-runtime";
  * 原生层收掉启动画面、按各自的可见性规则揭窗（platform/startup-handoff.ts）。
  */
 
-/** config 解析迟迟不落定（如 daemon 拉起失败）时的兜底预算；主界面的
- * connecting/offline 事实照常表达，启动画面不能替用户挡住它们。 */
-const STARTUP_HANDOFF_CAP_MS = 8_000;
+/** daemon 迟迟不落定（拉起失败、状态迟迟不就绪）时的兜底预算：启动画面
+ * 最长挡到这个时间就把主界面交出来，connecting/offline 的事实由应用内
+ * 状态照常表达——启动画面不能替用户挡住它们，更不能拖慢可用时间。 */
+const STARTUP_HANDOFF_CAP_MS = 3_000;
 
 /** Mount in the app shell: watches the daemon connection and hands the
  * startup off to the native shell exactly once. */

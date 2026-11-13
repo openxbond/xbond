@@ -264,16 +264,21 @@ pub(crate) fn stop_service() -> Result<(), String> {
 }
 
 /// Launch-time bring-up. An explicit quit stops the supervised daemon, so a
-/// fresh GUI launch reconciles the runtime with one supervisor verb — only
-/// `daemon start`, never a bare spawn, and registration stays an explicit
-/// install.
+/// fresh GUI launch reconciles the runtime with supervisor verbs — never a
+/// bare spawn. `daemon start` covers the registered case; its failure falls
+/// back to `daemon install` (user scope, no elevation), which both satisfies
+/// AC-13's 未注册先 install and heals a stale registration whose registered
+/// binary an uninstall removed while the Run value survived.
 pub fn launch_ensure() {
     if daemon_running() {
         return;
     }
     if let Err(err) = cli_verb(&["daemon", "start"]) {
         eprintln!("[XBond Desktop] launch daemon start failed: {err}");
-        return;
+        if let Err(install_err) = cli_verb(&["daemon", "install"]) {
+            eprintln!("[XBond Desktop] launch daemon install failed: {install_err}");
+            return;
+        }
     }
     if wait_for_daemon().is_none() {
         eprintln!(
