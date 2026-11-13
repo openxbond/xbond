@@ -38,7 +38,7 @@ class MainActivity : TauriActivity() {
     // installSplashScreen() must run before super.onCreate and expects the
     // activity theme Theme.XBond.Starting (postSplashScreenTheme swaps back
     // to Theme.XBond once the splash dismisses).
-    val splash = installSplashScreen(this)
+    val splash = installSplashScreen()
     splash.setKeepOnScreenCondition { !StartupSplash.settled }
     Handler(Looper.getMainLooper()).postDelayed(
       { StartupSplash.settled = true },
