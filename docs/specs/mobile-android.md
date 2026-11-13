@@ -43,7 +43,7 @@
 
 ### 啟動畫面（splash hand-off）
 
-冷啟動由 `Theme.XBond.Starting` 供給品牌 splash：`androidx.core:core-splashscreen` 把品牌字形（`xbond_splash_icon`）畫在頁面表面色上，`MainActivity` 以 `setKeepOnScreenCondition { !StartupSplash.settled }` 保持畫面，`postSplashScreenTheme` 收場後換回 `Theme.XBond`。Web UI 的啟動收尾（`packages/client-ui/src/app/startup-handoff.ts`）在 daemon 連接落定（ready 或首個失敗判定）或 8s cap 後調 `plugin:xbond|startup_complete`，Kotlin 置位 `StartupSplash.settled` 釋放畫面；Activity 另有 10s 看門狗兜 webview 起不來的死局。主題、顏色與 splash 圖標資源都在插件庫 res（gen 之外，再生成免疫）。iOS 的 LaunchScreen storyboard（`SplashLogo.imageset` 供圖）由系統在應用首幀自動收掉、無法延長——daemon 等待交由應用內連接動畫（`disconnected-state.tsx` 的 connecting 態）表達。
+冷啟動由 `Theme.XBond.Starting` 供給品牌 splash：`androidx.core:core-splashscreen` 把品牌字形（`xbond_splash_icon`）畫在頁面表面色上，`MainActivity` 以 `setKeepOnScreenCondition { !StartupSplash.settled }` 保持畫面，`postSplashScreenTheme` 收場後換回 `Theme.XBond`。Web UI 的啟動收尾（`packages/client-ui/src/app/startup-handoff.ts`）在 daemon 連接落定（ready 或首個失敗判定）或 8s cap 後調 `plugin:xbond|startup_complete`，Kotlin 置位 `StartupSplash.settled` 釋放畫面；Activity 另有 10s 看門狗兜 webview 起不來的死局。主題、顏色與 splash 圖標資源都在插件庫 res（gen 之外，再生成免疫）。iOS 的啟動畫面走 Info.plist 的 `UILaunchScreen` 鍵（`SplashBackground` 色與 `SplashLogo` 圖，均出自 asset catalog 並帶明暗變體），由系統在應用首幀自動收掉、無法延長——daemon 等待交由應用內連接動畫（`disconnected-state.tsx` 的 connecting 態）表達。
 
 ### 分流與重載
 
