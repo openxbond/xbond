@@ -8,7 +8,7 @@
 
 - **端口模式**是映像預設。代理核心以非 root 身份運行，容器內 mixed 代理預設監聽 `0.0.0.0:7890`，管理介面監聽 `0.0.0.0:19090`，宿主機按需映射。範例只映射至宿主機的回環介面。
 - **網關模式**適用於 Linux Docker 宿主機。使用宿主機網絡、root、`NET_ADMIN`、`/dev/net/tun` 和 `XBOND_TAKEOVER_MODE=tun`，設定 `XBOND_DASHBOARD_LISTEN=127.0.0.1:19090`。接管經本機轉送的區網流量需要宿主機啟用 IP 轉送，並由區網裝置將本機設為網關。
-- `XBOND_MIXED_PORT` 及 `XBOND_ALLOW_LAN` 覆蓋啟動時的儲存偏好。Docker 部署固定核心監聽和接管模式；Web 介面仍可調整分流模式。Cloud 分流策略裡的代理端口會用於部署指令。Cloud 網頁控制台開關、端口及 Secret 供直接運行訂閱的 sing-box／Clash 使用。官方映像的核心 Clash API 由 daemon 管理，Web 介面的策略組、連線及即時日誌經同源 LocalAPI 轉發，瀏覽器毋須連接核心端口。管理請求的 Host 只接受回環名稱。遠端主機透過 SSH 轉送使用管理介面。
+- `XBOND_MIXED_PORT` 及 `XBOND_ALLOW_LAN` 覆蓋啟動時的儲存偏好。Docker 部署固定核心監聽和接管模式；Web 介面仍可調整分流模式。Docker 部署指令使用獨立的宿主機端口設定，預設混合代理為 7890，管理介面為 19090。Cloud 網頁控制台開關、端口及 Secret 供直接運行訂閱的 sing-box／Clash 使用。官方映像的核心 Clash API 由 daemon 管理，Web 介面的策略組、連線及即時日誌經同源 LocalAPI 轉發，瀏覽器毋須連接核心端口。管理請求的 Host 只接受回環名稱。遠端主機透過 SSH 轉送使用管理介面。
 - `SUB_URL` 可提供 HTTP(S) 訂閱網址。沒有活躍配置時，daemon 匯入並嘗試啟動代理，首次失敗後每隔 30 秒重試。成功後，容器重啟使用 `/data` 中的活躍配置。更換配置用 Web 介面，部署在新卷時可用另一個 `SUB_URL`。
 - daemon 按活躍訂閱的更新間隔刷新配置，預設 24 小時，訂閱供應者可提供間隔。下載或校驗失敗時繼續使用上一次可用配置。容器映像升級由宿主機重新拉取和重建容器，保留 `/data`。
 - Web 登入使用 OAuth 設備授權。瀏覽器從登入按鈕開啟 Cloud 授權頁，daemon 輪詢授權結果並同步配置。瀏覽器若阻擋新分頁，可從等待畫面再次開啟。
