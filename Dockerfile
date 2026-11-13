@@ -51,15 +51,15 @@ ENV XBOND_DATA_DIR=/data \
     XBOND_AUTOSTART=1
 
 VOLUME ["/data"]
-# 7890: mixed proxy inbound. 9090: LocalAPI + web UI (the served index
+# 7890: mixed proxy inbound. 19090: LocalAPI + web UI (the served index
 # carries the per-boot access token — publish this port to trusted
 # interfaces only).
-EXPOSE 7890 9090
+EXPOSE 7890 19090
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -q -O /dev/null http://127.0.0.1:9090/ || exit 1
+  CMD wget -q -O /dev/null http://127.0.0.1:19090/ || exit 1
 
 COPY --chmod=755 scripts/dev/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 WORKDIR /app
 ENTRYPOINT ["docker-entrypoint"]
-CMD ["--listen", "0.0.0.0:9090"]
+CMD ["--listen", "0.0.0.0:19090"]

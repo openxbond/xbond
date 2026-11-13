@@ -899,6 +899,7 @@ const KO = {
       "클릭하면 기본 브라우저에서 인증 페이지가 열리고, 완료되면 자동으로 XBond로 돌아와요.",
     note: "현재 설정은 외부 소스입니다. 로그인하면 XBond 구독을 사용할 수 있습니다.",
     pending: "인증 대기 중…",
+    openingAuthPage: "XBond Cloud를 여는 중…",
     openAuthPage: "로그인 페이지 열기",
     retry: "재시도",
     failed: "로그인 실패",

@@ -863,6 +863,7 @@ const HK = {
     loginFlowHint: "點擊後會在預設瀏覽器開啟授權頁，完成後自動返回 XBond。",
     note: "目前配置來自第三方來源；登入後可使用你的 XBond 訂閱。",
     pending: "等待授權…",
+    openingAuthPage: "正在打開 XBond Cloud…",
     openAuthPage: "打開登入頁",
     retry: "重試",
     failed: "登入失敗",

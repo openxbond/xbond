@@ -40,6 +40,9 @@ export function useAccount() {
       // LocalAPI status refresh drives state changes.
       refreshInterval: (latest: AccountStatus | undefined) =>
         latest?.status === "pending" || latest?.phase ? 1000 : 4000,
+      // The authorization tab can put this dashboard in the background.
+      // The interval above still controls how often each state is read.
+      refreshWhenHidden: true,
       shouldRetryOnError: false,
     },
   );
@@ -80,7 +83,7 @@ export function useAccount() {
         noBrowser: !native,
         ...options,
       });
-      await mutate();
+      await mutate(status, { revalidate: false });
       return status;
     },
     [client, mutate, lang],

@@ -57,9 +57,9 @@ $ xbond web                        # 打開本機 Web 管理介面
 $ docker compose up -d
 ```
 
-打開 `http://localhost:9090` 登入 XBond Cloud 或匯入訂閱。也可在首次啟動前設定 `SUB_URL`。配置和登入狀態保存在 `/data` 卷，活躍訂閱會自動更新。預設 mixed 代理位於 `127.0.0.1:7890`。
+打開 `http://localhost:19090` 登入 XBond Cloud 或匯入訂閱。也可在首次啟動前設定 `SUB_URL`。配置和登入狀態保存在 `/data` 卷，活躍訂閱會自動更新。預設 mixed 代理位於 `127.0.0.1:7890`。
 
-遠端 Docker 主機可用 `ssh -L 9090:127.0.0.1:9090 user@host`，再打開本機的管理介面。能到達介面的用戶即可管理 daemon，請將管理端口留在回環介面。
+遠端 Docker 主機可用 `ssh -L 19090:127.0.0.1:19090 user@host`，再打開本機的管理介面。能到達介面的用戶即可管理 daemon，請將管理端口留在回環介面。
 
 更新容器版本可執行 `docker compose up -d --pull always`。如需自動更新映像，可在 Docker 宿主機用具備 Docker 權限的帳戶排程執行，將下方路徑換成 Compose 檔案所在目錄：
 

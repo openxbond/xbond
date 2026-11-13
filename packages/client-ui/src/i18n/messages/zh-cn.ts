@@ -862,6 +862,7 @@ const CN = {
     loginFlowHint: "点击后会在默认浏览器打开授权页，完成后自动返回 XBond。",
     note: "当前配置来自第三方来源；登录后可使用你的 XBond 订阅。",
     pending: "等待授权…",
+    openingAuthPage: "正在打开 XBond Cloud…",
     openAuthPage: "打开登录页",
     retry: "重试",
     failed: "登录失败",

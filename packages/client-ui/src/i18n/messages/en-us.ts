@@ -916,6 +916,7 @@ const EN = {
       "Opens the authorization page in your default browser, then returns here automatically.",
     note: "The active configuration comes from a third-party source; sign in to use your XBond subscription.",
     pending: "Waiting for authorization…",
+    openingAuthPage: "Opening XBond Cloud…",
     openAuthPage: "Open login page",
     retry: "Retry",
     failed: "Sign-in failed",

@@ -195,8 +195,25 @@ export default function AccountPanel() {
     // depend on how long the device-code request takes.
     if (!isDesktopApp() && !isMobileApp() && !hasAndroidBridge()) {
       authorizationTab.current?.close();
-      authorizationTab.current = window.open("about:blank", "_blank");
-      if (authorizationTab.current) authorizationTab.current.opener = null;
+      const tab = window.open("about:blank", "_blank");
+      authorizationTab.current = tab;
+      if (tab) {
+        tab.opener = null;
+        const page = tab.document;
+        page.title = t("openingAuthPage");
+        page.documentElement.lang = document.documentElement.lang;
+        page.documentElement.dir = document.documentElement.dir;
+        page.documentElement.style.colorScheme =
+          document.documentElement.classList.contains("dark")
+            ? "dark"
+            : "light";
+        const status = page.createElement("p");
+        status.setAttribute("role", "status");
+        status.textContent = t("openingAuthPage");
+        page.body.style.cssText =
+          "font: 1rem system-ui; margin: 0; padding: 1.5rem; min-height: 80vh; display: grid; place-items: center; text-align: center";
+        page.body.replaceChildren(status);
+      }
     }
     try {
       const status = await login();
