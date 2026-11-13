@@ -3,11 +3,15 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/openxbond/xbond/internal/upgrade"
 )
@@ -66,9 +70,100 @@ func prepareMachineUpdater(MachineInstallation, string) (func() error, error) {
 // RunSystemService hosts the daemon under launchd/systemd. The supervisor
 // restarts the process and its SIGTERM drives the same graceful shutdown path
 // serveDaemon already handles from signals.
+//
+// Before hosting, an orphaned registration reclaims itself: when the binary
+// that installed the machine service has been removed (app deleted — macOS
+// drag-to-trash, AppImage, manual removal — on platforms whose uninstall has
+// no hook surface), the registration must not resurrect at the next boot.
+// While running, the ownership is re-checked hourly and the registration is
+// reclaimed after two consecutive misses, so an upgrade's brief
+// file-swap window never tears the tunnel down.
 func RunSystemService(listen, webDir string, run func(stop <-chan struct{}) error) error {
+	installation, err := machinePaths()
+	if err != nil {
+		return err
+	}
+	if vanish, err := machineOwnerVanished(filepath.Dir(installation.Binary)); err != nil {
+		// 归属探测失败不拖垮隧道:如实记下,回收交给卸载面。
+		fmt.Fprintf(os.Stderr, "xbond machine service: ownership probe failed: %v\n", err)
+	} else if vanish {
+		return reclaimOrphanedRegistration()
+	}
+	go watchMachineOwner(filepath.Dir(installation.Binary))
 	stop := make(chan struct{})
 	return run(stop)
+}
+
+// watchMachineOwner re-checks the installation ownership while the machine
+// daemon serves; two consecutive misses mean the owning binary is really gone
+// (not an in-flight upgrade) and the registration reclaims itself.
+func watchMachineOwner(binaryDir string) {
+	const (
+		watchInterval = time.Hour
+		watchStrikes  = 2
+	)
+	misses := 0
+	for range time.Tick(watchInterval) {
+		vanish, err := machineOwnerVanished(binaryDir)
+		if err != nil {
+			misses = 0
+			continue
+		}
+		if !vanish {
+			misses = 0
+			continue
+		}
+		misses++
+		if misses >= watchStrikes {
+			_ = reclaimOrphanedRegistration()
+			return
+		}
+	}
+}
+
+// reclaimOrphanedRegistration removes the machine registration from inside
+// the daemon itself: the script-based uninstall cannot be reused because its
+// stop step (systemctl disable --now / launchctl bootout) signals this very
+// process and systemd's cgroup kill takes the calling tree with it before the
+// file removal completes. Removing the files first and exiting is verified
+// safe: once the unit definition is gone and daemon-reload has run, a
+// Restart=always service that exits is not restarted (the definition no
+// longer exists), and the ownership record — the file the reclaim fired on —
+// is removed with the rest.
+func reclaimOrphanedRegistration() error {
+	fmt.Fprintln(os.Stderr, "xbond machine service: the installing application is gone; reclaiming the machine registration")
+	installation, err := machinePaths()
+	if err != nil {
+		return err
+	}
+	dir := filepath.Dir(installation.Binary)
+	removals := []string{
+		installation.Binary,
+		filepath.Join(dir, machineOwnerFile),
+		filepath.Join(dir, machineOwnerPathFile),
+	}
+	if runtime.GOOS == "darwin" {
+		removals = append(removals, darwinSystemPlist)
+	} else {
+		removals = append(removals, linuxSystemUnitPath,
+			filepath.Join("/etc/systemd/system/multi-user.target.wants", linuxSystemUnitName))
+	}
+	for _, path := range removals {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	// 空目录顺手移除;用户放置过文件的目录则保留。
+	if err := os.Remove(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
+		fmt.Fprintf(os.Stderr, "xbond machine service: remove %s: %v\n", dir, err)
+	}
+	if runtime.GOOS == "linux" {
+		if err := exec.Command("systemctl", "daemon-reload").Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "xbond machine service: daemon-reload failed: %v\n", err)
+		}
+	}
+	os.Exit(0)
+	return nil
 }
 
 // SystemAction names the mutating system-scope operation.
@@ -168,6 +263,10 @@ candidate=$(mktemp "$dir/.owner.XXXXXXXX")
 printf '%%s' %s > "$candidate"
 chmod 0644 "$candidate"
 mv -f "$candidate" "$dir/%s"
+candidate=$(mktemp "$dir/.owner.XXXXXXXX")
+printf '%%s' "$source" > "$candidate"
+chmod 0644 "$candidate"
+mv -f "$candidate" "$dir/%s"
 `, shellQuote(filepath.Dir(target)), shellQuote(target), shellQuote(source), shellQuote(checksum),
-		group, stat, shellQuote(registration), shellQuote(registration), group, hash, shellQuote(owner), machineOwnerFile), nil
+		group, stat, shellQuote(registration), shellQuote(registration), group, hash, shellQuote(owner), machineOwnerFile, machineOwnerPathFile), nil
 }

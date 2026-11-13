@@ -1,6 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
-    "targets": ["appimage", "deb", "rpm"]
+    "targets": ["appimage", "deb", "rpm"],
+    "linux": {
+      "deb": {
+        "preRemoveScript": "scripts/machine-daemon-preremove.sh"
+      },
+      "rpm": {
+        "preRemoveScript": "scripts/machine-daemon-preremove.sh"
+      }
+    }
   }
 }

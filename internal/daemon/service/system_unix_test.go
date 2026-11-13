@@ -70,3 +70,54 @@ func TestMachineInstallVerifiesStagedSource(t *testing.T) {
 		t.Fatalf("existing registration was not protected: %v: %s", err, output)
 	}
 }
+
+func TestMachineInstallWritesOwnerPath(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "installing-cli")
+	if err := os.WriteFile(source, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script, err := installUnixSystemBinary(source, filepath.Join(dir, "machine", "xbond"),
+		filepath.Join(dir, "registration"), "root", "stat -c '%u:%a'", "sha256sum")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(script, machineOwnerPathFile) {
+		t.Fatalf("install script does not record the owning binary path")
+	}
+}
+
+func TestMachineOwnerVanished(t *testing.T) {
+	dir := t.TempDir()
+
+	// 安装早于归属记录:无据可查,回收交给卸载面。
+	vanish, err := machineOwnerVanished(dir)
+	if err != nil || vanish {
+		t.Fatalf("missing record = (%v, %v), want false, nil", vanish, err)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, machineOwnerPathFile), []byte("\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if vanish, err := machineOwnerVanished(dir); err != nil || vanish {
+		t.Fatalf("empty record = (%v, %v), want false, nil", vanish, err)
+	}
+
+	owner := filepath.Join(dir, "installing-cli")
+	if err := os.WriteFile(owner, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, machineOwnerPathFile), []byte(owner), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if vanish, err := machineOwnerVanished(dir); err != nil || vanish {
+		t.Fatalf("living owner = (%v, %v), want false, nil", vanish, err)
+	}
+
+	if err := os.Remove(owner); err != nil {
+		t.Fatal(err)
+	}
+	if vanish, err := machineOwnerVanished(dir); err != nil || !vanish {
+		t.Fatalf("removed owner = (%v, %v), want true, nil", vanish, err)
+	}
+}

@@ -51,6 +51,14 @@ func sameRegisteredExecutable(path, target string) bool {
 
 const machineOwnerFile = "install-owner"
 
+// machineOwnerPathFile records the installing binary's path in plaintext
+// beside the hashed install-owner marker: the machine daemon compares it
+// against the filesystem to notice that the application which installed the
+// registration has been removed (Windows reclaims through its uninstaller
+// hook; macOS and Linux AppImage deletes have no uninstall surface, so the
+// daemon reclaims itself).
+const machineOwnerPathFile = "install-owner-path"
+
 func machineOwner(exe string) (string, error) {
 	path, err := filepath.EvalSymlinks(exe)
 	if err != nil {
@@ -65,4 +73,26 @@ func machineOwner(exe string) (string, error) {
 	}
 	digest := sha256.Sum256([]byte(path))
 	return hex.EncodeToString(digest[:]), nil
+}
+
+// machineOwnerVanished reports whether the machine registration's installing
+// binary has been removed from disk while the registration survives. An
+// install that predates the record, or an empty record, answers false: there
+// is nothing to check, and reclaim stays with the platform uninstall surface.
+func machineOwnerVanished(binaryDir string) (bool, error) {
+	data, err := os.ReadFile(filepath.Join(binaryDir, machineOwnerPathFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	owner := strings.TrimSpace(string(data))
+	if owner == "" {
+		return false, nil
+	}
+	if _, err := os.Stat(owner); errors.Is(err, os.ErrNotExist) {
+		return true, nil
+	}
+	return false, nil
 }

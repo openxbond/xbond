@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -89,12 +90,19 @@ fi
 }
 
 func uninstallSystemScope() error {
+	// The caller is the CLI process, never the launchd job, so the bootout
+	// runs first and the script survives to remove every file — including the
+	// machine binary, which plain app deletion would otherwise leave behind.
 	script := fmt.Sprintf(`set -e
 if launchctl print system/%[1]s >/dev/null 2>&1; then
   launchctl bootout system/%[1]s
 fi
-rm -f %[2]s
-`, darwinSystemLabel, shellQuote(darwinSystemPlist))
+rm -f %[2]s %[3]s %[4]s %[5]s
+rmdir --ignore-fail-on-non-empty %[6]s 2>/dev/null || true
+`, darwinSystemLabel, shellQuote(darwinSystemPlist), shellQuote(darwinSystemExe),
+		shellQuote(filepath.Join(filepath.Dir(darwinSystemExe), machineOwnerFile)),
+		shellQuote(filepath.Join(filepath.Dir(darwinSystemExe), machineOwnerPathFile)),
+		shellQuote(filepath.Dir(darwinSystemExe)))
 	return elevateScript("XBond wants to remove its privileged tunnel service.", script)
 }
 
