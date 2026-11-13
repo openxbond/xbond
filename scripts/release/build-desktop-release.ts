@@ -40,6 +40,22 @@ const publicKey = process.env.XBOND_TAURI_PUBLIC_KEY?.trim();
 if (!publicKey || !process.env.TAURI_SIGNING_PRIVATE_KEY) {
   throw new Error("Set XBOND_TAURI_PUBLIC_KEY and TAURI_SIGNING_PRIVATE_KEY");
 }
+// The CI workflow exports empty strings for absent Apple secrets, and the
+// Tauri bundler treats any present value — even empty — as configured, then
+// fails importing an empty PKCS#12. Strip the empties so missing credentials
+// mean the documented ad-hoc fallback instead of a hard failure.
+for (const name of [
+  "APPLE_CERTIFICATE",
+  "APPLE_CERTIFICATE_PASSWORD",
+  "APPLE_API_KEY",
+  "APPLE_API_ISSUER",
+  "APPLE_API_KEY_PATH",
+  "APPLE_ID",
+  "APPLE_PASSWORD",
+  "APPLE_TEAM_ID",
+]) {
+  if (process.env[name] === "") delete process.env[name];
+}
 const macIdentity = process.env.APPLE_SIGNING_IDENTITY;
 // A missing Developer ID certificate falls back to ad-hoc signing ("-", no
 // notarization): same behavior locally and in CI, recorded in release notes.
