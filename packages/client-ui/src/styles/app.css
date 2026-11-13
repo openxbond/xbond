@@ -596,6 +596,46 @@
   }
 }
 
+/* Connect-wait brand animation (components/disconnected-state.tsx): while
+   the local service is starting, the daemon-connecting card trades its
+   static power glyph for the brand mark breathing inside a soft glow —
+   transform/opacity only so the blurred glow stays compositor-cheap;
+   disabled for reduced motion (DESIGN.md 性能預算). */
+.connect-wait-float {
+  animation: connect-wait-float 3.4s ease-in-out infinite;
+}
+
+.connect-wait-glow {
+  animation: connect-wait-glow 3.4s ease-in-out infinite;
+}
+
+@keyframes connect-wait-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes connect-wait-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connect-wait-float,
+  .connect-wait-glow {
+    animation: none;
+  }
+}
+
 /* AuroraWave slow drift: transform-only so the blurred texture is reused by
    the compositor instead of re-filtered per frame; disabled for reduced
    motion (DESIGN.md 性能預算). */

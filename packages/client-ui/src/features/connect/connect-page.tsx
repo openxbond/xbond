@@ -247,6 +247,7 @@ export default function Connect() {
   const {
     hasLocalAPI,
     isLocalTarget,
+    daemonState,
     status,
     up,
     down,
@@ -414,6 +415,11 @@ export default function Connect() {
   const running = hasLocalAPI && (status?.engine.running ?? false);
   const sub = hasLocalAPI ? (status?.activeSub ?? null) : null;
   const quota = subscriptionQuota(sub);
+  // 本地 daemon 冷启动中（config 解析或首次状态读取未完成）：首页不再
+  // 整页换成等待卡，而是渲染真实首页骨架——状态词、禁用按钮与启动
+  // 提示先行，数据卡以零值空态落地，就绪后随轮询自然填充。真正离线
+  // （daemonState === "offline"）仍走重试卡片。
+  const daemonBooting = isLocalTarget && !hasLocalAPI;
 
   // 首頁掛載時核心尚未運行，/proxies 首拉必然失敗且 SWR 不會自行重試；
   // 連接成功後補拉，直到節點鏈落到真實葉子——首個快照不僅可能整體缺失，
@@ -583,9 +589,12 @@ export default function Connect() {
       : running
         ? t("connected")
         : t("stopped")
-    : trafficState === "open"
-      ? t("coreReachable")
-      : r(trafficState);
+    : isLocalTarget
+      ? // daemon 冷启动中：首页词保持「尚未连接」，启动事实由副行交代。
+        t("stopped")
+      : trafficState === "open"
+        ? t("coreReachable")
+        : r(trafficState);
   const connectionAction = (
     pendingConnection ? pendingConnection === "disconnecting" : running
   )
@@ -730,8 +739,9 @@ export default function Connect() {
 
       {hasLocalAPI && !sub && !running ? (
         <OnboardingGuide className="my-auto animate-in fade-in-50 slide-in-from-bottom-2 py-6 duration-300" />
-      ) : isLocalTarget && !hasLocalAPI ? (
-        // 本機 daemon 離線：保留本機身份與重試入口，不顯示遠端控制器視圖。
+      ) : isLocalTarget && !hasLocalAPI && daemonState === "offline" ? (
+        // 本機 daemon 判定離線（超出重試窗口）：保留重試卡片。冷启动的
+        // connecting 窗口不再整页等待——首页骨架直接渲染（见 daemonBooting）。
         <DisconnectedState className="my-auto animate-in fade-in-50 slide-in-from-bottom-2 py-6 duration-300" />
       ) : !hasDaemonConfig() && !active ? (
         <ExternalControllerOnboarding className="my-auto animate-in fade-in-50 slide-in-from-bottom-2 py-6 duration-300" />
@@ -800,32 +810,38 @@ export default function Connect() {
                     )}
                   </h1>
 
-                  {hasLocalAPI && (
+                  {(hasLocalAPI || daemonBooting) && (
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      {stateNote}
-                      {currentSnapshot?.connections && (
-                        <span className="font-mono">
-                          {" "}
-                          · {currentSnapshot.connections.length}{" "}
-                          {t("activeConnections")}
-                        </span>
+                      {daemonBooting ? (
+                        t("daemonConnectingDesc")
+                      ) : (
+                        <>
+                          {stateNote}
+                          {currentSnapshot?.connections && (
+                            <span className="font-mono">
+                              {" "}
+                              · {currentSnapshot.connections.length}{" "}
+                              {t("activeConnections")}
+                            </span>
+                          )}
+                        </>
                       )}
                     </p>
                   )}
                 </div>
 
-                {hasLocalAPI && (
+                {(hasLocalAPI || daemonBooting) && (
                   <div className="flex w-full pt-1">
                     <Button
                       type="button"
                       ref={connectButtonRef}
                       variant="brand"
                       className="h-11 w-full gap-2 px-5 text-sm font-semibold rounded-xl"
-                      disabled={pending || (!running && !sub)}
-                      aria-busy={pending}
+                      disabled={daemonBooting || pending || (!running && !sub)}
+                      aria-busy={daemonBooting || pending}
                       onClick={() => void handleToggleConnection()}
                     >
-                      {pending ? (
+                      {pending || daemonBooting ? (
                         <span
                           aria-hidden="true"
                           className="size-4 shrink-0 animate-[native-spin_0.8s_linear_infinite] rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
@@ -1038,7 +1054,7 @@ export default function Connect() {
                 ariaLabel={tc("routingMode.title")}
                 options={routingOptions}
                 value={routingValue ?? null}
-                disabled={pending}
+                disabled={pending || daemonBooting}
                 className="w-full justify-between rounded-2xl bg-card p-1 shadow-2xs border border-border/80"
                 onChange={(mode) => void switchRouting(mode)}
               />
