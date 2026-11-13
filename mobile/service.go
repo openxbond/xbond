@@ -16,6 +16,7 @@ import (
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/sub"
+	"github.com/openxbond/xbond/internal/telemetry"
 )
 
 type TunnelService struct {
@@ -54,8 +55,16 @@ func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelS
 			// this. Android processes have no HOME/XDG env.
 			_ = os.Setenv("XBOND_DATA_DIR", dir)
 		}
+		// Android can't probe its own release version from the Go sandbox;
+		// an empty bridge value keeps the native probe (iOS).
+		if v := platform.OSVersion(); v != "" {
+			telemetry.SetOSVersion(v)
+		}
 	}
 	initErr := paths.EnsureDirs()
+	// Pre-create the install beacon so update checks (Android reads the file
+	// directly, without this process) count installs that never subscribe.
+	_ = telemetry.InstallID()
 	subMgr, mgrErr := sub.NewManager()
 	if subMgr != nil && initErr == nil && mgrErr == nil {
 		subMgr.MigrateLegacySources()

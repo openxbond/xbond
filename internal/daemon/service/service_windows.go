@@ -5,6 +5,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -69,6 +70,17 @@ func startDaemon() error {
 	}
 	if len(args) != 3 || args[1] != "daemon" || args[2] != "--background" {
 		return errors.New("unexpected daemon Run value")
+	}
+	// A stale registration points at a binary an uninstall removed while the
+	// Run value itself survived: every later start would keep launching the
+	// dead path. Heal it to the running CLI (AC-13 未注册先 install 的陈旧
+	// 注册变体) instead of wedging the supervisor on a missing file.
+	if _, err := os.Stat(args[0]); errors.Is(err, os.ErrNotExist) {
+		exePath, err := SelfPath()
+		if err != nil {
+			return err
+		}
+		return installDaemon(exePath)
 	}
 	return startRegisteredUser(args[0])
 }

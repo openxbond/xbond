@@ -19,6 +19,7 @@ type mockPlatform struct {
 func (m *mockPlatform) OpenURL(url string) error { return nil }
 func (m *mockPlatform) RequestConnect() error    { return errors.New("connect not available in tests") }
 func (m *mockPlatform) RequestDisconnect() error { return nil }
+func (m *mockPlatform) OSVersion() string        { return "" }
 
 func (m *mockPlatform) ProtectSocket(fd int32) error {
 	return nil

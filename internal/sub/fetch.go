@@ -60,6 +60,10 @@ type FetchOptions struct {
 	// OnProgress reports cumulative bytes read and the total size when the
 	// response carries Content-Length (-1 otherwise). Nil disables reporting.
 	OnProgress func(read, total int64)
+	// InstallHeader carries the X-XBond-Install beacon value (telemetry.Header)
+	// for XBond-owned fetches; empty omits it. Universal subscriptions never
+	// set it — third-party servers learn nothing about the install.
+	InstallHeader string
 }
 
 // FetchError distinguishes a failed subscription request from validation or storage failures.
@@ -179,6 +183,9 @@ func FetchSubscription(ctx context.Context, fetchURL string, opts FetchOptions) 
 
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("User-Agent", fmt.Sprintf("xbond/%s mihomo/%s", version.Version, version.CoreVersion))
+	if opts.InstallHeader != "" {
+		req.Header.Set("X-XBond-Install", opts.InstallHeader)
+	}
 
 	if opts.ETag != "" {
 		req.Header.Set("If-None-Match", opts.ETag)

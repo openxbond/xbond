@@ -207,6 +207,16 @@ func currentUserSID() (string, error) {
 }
 
 func uninstallSystem(exePath string) error {
+	// Probe the registration before touching elevation: uninstalling a
+	// machine service that was never installed must stay a no-op instead of
+	// spending a UAC prompt on it. The query needs only CONNECT +
+	// QUERY_STATUS, which unprivileged callers hold.
+	if _, err := querySystem(); err != nil {
+		if errors.Is(err, ErrServiceNotInstalled) {
+			return nil
+		}
+		return err
+	}
 	if ok, err := isElevated(); err != nil || !ok {
 		return elevateForSystemAction(exePath, "system-uninstall")
 	}

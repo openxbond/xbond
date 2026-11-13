@@ -18,14 +18,20 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/openxbond/xbond/internal/telemetry"
 )
 
 const (
-	FeedURL     = "https://openxbond.github.io/xbond/release.json"
-	DownloadURL = "https://openxbond.github.io/xbond/download/"
-	releaseRoot = "https://github.com/openxbond/xbond/releases/download/"
-	maxManifest = 1 << 20
-	maxBinary   = 512 << 20
+	// CloudFeedURL serves the same signed feed through the cloud API, which
+	// records the update check-in; FeedURL on GitHub Pages is the fallback
+	// that keeps updates working without the cloud.
+	CloudFeedURL = "https://www.xbond.net/api/clients/update/release.json"
+	FeedURL      = "https://openxbond.github.io/xbond/release.json"
+	DownloadURL  = "https://openxbond.github.io/xbond/download/"
+	releaseRoot  = "https://github.com/openxbond/xbond/releases/download/"
+	maxManifest  = 1 << 20
+	maxBinary    = 512 << 20
 )
 
 var stable = regexp.MustCompile(`^(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)$`)
@@ -108,7 +114,16 @@ func (r Release) CLI() (Asset, error) {
 }
 
 func Fetch(ctx context.Context, key string) (Release, error) {
-	body, err := get(ctx, FeedURL, 30*time.Second, "openxbond.github.io")
+	// The install beacon only rides the cloud attempt: GitHub Pages is a
+	// third party and learns nothing about the install.
+	cloudHeader := http.Header{}
+	if beacon := telemetry.Header(); beacon != "" {
+		cloudHeader.Set("X-XBond-Install", beacon)
+	}
+	body, err := get(ctx, CloudFeedURL, 30*time.Second, cloudHeader, "www.xbond.net")
+	if err != nil {
+		body, err = get(ctx, FeedURL, 30*time.Second, nil, "openxbond.github.io")
+	}
 	if err != nil {
 		return Release{}, err
 	}
@@ -124,7 +139,7 @@ func Fetch(ctx context.Context, key string) (Release, error) {
 }
 
 func (a Asset) Download(ctx context.Context, dir string) (string, error) {
-	body, err := get(ctx, a.URL, 10*time.Minute, "github.com", "release-assets.githubusercontent.com")
+	body, err := get(ctx, a.URL, 10*time.Minute, nil, "github.com", "release-assets.githubusercontent.com")
 	if err != nil {
 		return "", err
 	}
@@ -198,7 +213,7 @@ func Checksum(path string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func get(ctx context.Context, url string, timeout time.Duration, hosts ...string) (io.ReadCloser, error) {
+func get(ctx context.Context, url string, timeout time.Duration, extra http.Header, hosts ...string) (io.ReadCloser, error) {
 	allowed := func(req *http.Request) bool {
 		if req.URL.Scheme != "https" || req.URL.User != nil {
 			return false
@@ -227,6 +242,11 @@ func get(ctx context.Context, url string, timeout time.Duration, hosts ...string
 		return nil, errors.New("unexpected release download host")
 	}
 	req.Header.Set("Cache-Control", "no-cache")
+	for key, values := range extra {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request release download: %w", err)

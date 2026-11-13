@@ -405,6 +405,10 @@ class XBondVpnService : VpnService() {
     private inner class PlatformBridgeImpl : mobile.PlatformBridge {
         override fun dataDir(): String = filesDir.absolutePath
 
+        // 安装信标的 osv 字段：Go 沙箱内探不到系统版本，由这里提供
+        // （internal/telemetry 的 SetOSVersion）。
+        override fun osVersion(): String = Build.VERSION.RELEASE
+
         // gomobile maps Go (int32, error) to a Java (int, throws Exception)
         // method: protect failures surface as exceptions to the core.
         override fun protectSocket(fd: Int) {

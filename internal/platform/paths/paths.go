@@ -13,11 +13,16 @@ func DataDir() string {
 
 	switch runtime.GOOS {
 	case "windows":
-		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-			return filepath.Join(localAppData, "xbond")
+		// Roaming AppData, deliberately NOT the NSIS per-user install dir
+		// (%LOCALAPPDATA%\XBond): NTFS is case-insensitive, so the installer
+		// would drop program files into the data directory, and its
+		// uninstaller would wipe subscriptions, the account binding and
+		// preferences with it.
+		if appdata := os.Getenv("APPDATA"); appdata != "" {
+			return filepath.Join(appdata, "xbond")
 		}
 		home, _ := os.UserHomeDir()
-		return filepath.Join(home, "AppData", "Local", "xbond")
+		return filepath.Join(home, "AppData", "Roaming", "xbond")
 	case "darwin":
 		home, _ := os.UserHomeDir()
 		return filepath.Join(home, "Library", "Application Support", "xbond")

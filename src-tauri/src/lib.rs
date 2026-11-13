@@ -181,11 +181,11 @@ pub fn run() {
 
             // Complete startup even if the webview never reports settled.
             // Both paths use the same visibility decision; the budget leaves
-            // room for the frontend's own 8s hand-off cap plus webview mount
+            // room for the frontend's own 3s hand-off cap plus webview mount
             // time, so the splash never sticks around.
             let handle = app.handle().clone();
             std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(10));
+                std::thread::sleep(std::time::Duration::from_secs(5));
                 commands::startup_complete(handle);
             });
 

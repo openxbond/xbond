@@ -6,7 +6,10 @@
   "plugins": {
     "updater": {
       "requireSignedVersion": true,
-      "endpoints": ["https://openxbond.github.io/xbond/desktop.json"]
+      "endpoints": [
+        "https://www.xbond.net/api/clients/update/desktop.json",
+        "https://openxbond.github.io/xbond/desktop.json"
+      ]
     }
   }
 }

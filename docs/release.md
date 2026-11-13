@@ -117,3 +117,5 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 上架後核對安裝與登入，再填 App Store 的 URL。重跑當前正式 Tag 的 **Publish XBond release** 即可更新下載頁，既有 GitHub Release 和 GHCR 鏡像按摘要沿用。
 
 CLI 用 `xbond upgrade --check` 檢查、`xbond upgrade` 安裝，`--yes` 跳過 CLI 確認，系統級服務仍可能要求原生提權。桌面在設定頁更新，Android 用應用內入口與系統安裝器。iOS 測試版由 TestFlight 更新。商店版由原商店更新。
+
+更新清單（`desktop.json`、`release.json`）客戶端先經 `www.xbond.net/api/clients/update/` 取得：該代理回傳與 Pages 相同內容的簽名清單，並記錄匿名更新檢查（安裝信標契約見 [訂閱導入](specs/subscription-import.md)）。Pages 上的清單是雲端不可用時的回退，仍隨發佈流程同步部署；回退請求不帶信標。
