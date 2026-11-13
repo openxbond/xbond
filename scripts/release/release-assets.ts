@@ -12,6 +12,7 @@ import path from "node:path";
 
 import { checksum, validateArchive } from "./artifact.ts";
 import {
+  androidAbis,
   androidAsset,
   cliAsset,
   desktopRelease,
@@ -144,6 +145,9 @@ export function assemble(
       url: updater.url,
       signature,
     };
+  }
+  for (const abi of androidAbis) {
+    asset(`android-${abi}`, androidAsset(tag, abi));
   }
   asset("android-universal", androidAsset(tag));
   asset("dashboard", "dashboard.zip");
@@ -307,6 +311,27 @@ export function buildPages(
     stores[0] + stores[1] ||
     "<li>Contact the release maintainer for a TestFlight invitation.</li>";
   fs.mkdirSync(path.join(output, "download"), { recursive: true });
+  // Display order with the default choice first: arm64-v8a covers most
+  // phones and is the smallest download; emulators come next, universal
+  // last for users unsure of their device's ABI.
+  const androidAbiOrder = [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64",
+    "x86",
+  ] as const satisfies readonly (typeof androidAbis)[number][];
+  const androidAbiLinks = androidAbiOrder
+    .map((abi) => {
+      const asset = assets[`android-${abi}`];
+      const label =
+        abi === "arm64-v8a"
+          ? "arm64-v8a (most phones)"
+          : abi === "armeabi-v7a"
+            ? "armeabi-v7a"
+            : `${abi} (emulator)`;
+      return `<li><strong>${label}</strong><a href="${escape(asset.url)}">Android APK</a></li>`;
+    })
+    .join("");
   fs.writeFileSync(
     path.join(output, "download/index.html"),
     `<!doctype html>
@@ -326,7 +351,7 @@ summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inhe
 <main><nav><a href="../">XBond Dashboard</a></nav><h1>Download XBond</h1>
 <p>Version ${version}. Choose an installer or download the standalone CLI.</p>
 ${platforms}
-<section><h2>Android and iOS</h2><ul><li><a href="${escape(assets["android-universal"].url)}">Android APK</a></li>${iosInstall}</ul></section>
+<section><h2>Android and iOS</h2><p>Most phones use arm64-v8a. Not sure which ABI your device runs? Pick universal — it works everywhere but is larger.</p><ul>${androidAbiLinks}<li><strong>universal (any device)</strong><a href="${escape(assets["android-universal"].url)}">Android APK</a></li>${iosInstall}</ul></section>
 <section><h2>Docker</h2><p><code>docker pull ghcr.io/openxbond/xbond:${tag}</code></p></section>
 <section><h2>Release information</h2><ul><li><a href="${repo}/releases/tag/${tag}">GitHub Release</a><a href="../SHA256SUMS">SHA-256 checksums</a></li></ul>
 <details><summary>Release notes</summary><pre>${escape(notes)}</pre></details></section></main></html>\n`,

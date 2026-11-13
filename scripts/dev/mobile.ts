@@ -239,7 +239,7 @@ export function buildAndroidAPK(
 ): string {
   const androidHome = detectAndroidHome();
   if (!androidHome) throw new Error("Set ANDROID_HOME to the Android SDK root");
-  if (options.release || !fs.existsSync(path.join(root, ANDROID_AAR))) {
+  if (!fs.existsSync(path.join(root, ANDROID_AAR))) {
     const result = buildAndroidAAR();
     if (!result.ok) throw new Error(result.message);
   }
@@ -273,6 +273,8 @@ export function buildAndroidAPK(
   );
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error("Tauri Android build failed");
+  // The CLI always builds the universal flavor and narrows the packaged ABIs
+  // through -PabiList for --target, so the output path is the universal one.
   return path.join(
     root,
     ANDROID_TAURI,

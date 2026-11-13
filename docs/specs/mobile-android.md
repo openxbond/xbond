@@ -54,7 +54,7 @@
 
 ### 自我更新（`AppUpdates`）
 
-release 包帶 `BuildConfig.RELEASE_PUBLIC_KEY`（gradle 環境變量 `XBOND_RELEASE_PUBLIC_KEY`，由插件模塊編入；dev 包為空、手動檢查提示開發版）。更新流：拉 `https://openxbond.github.io/xbond/release.json` → minisign 驗簽（gomobile `Mobile.verifyReleaseSignature`）→ build number 必須等於 `major*10000+minor*100+patch` → 下載 `android-universal` APK（SHA-256、重定向域白名單、包身份與簽名者證書逐項校驗）→ 未知來源授權（插件 `onResume` 續接，等同舊 `onActivityResult`）→ FileProvider（`${applicationId}.updates`）→ 包安裝 intent。發佈管線（CI）以外部 apksigner 簽名後 `release-android.ts` 校驗同一身份，見 `docs/release.md`。
+release 包帶 `BuildConfig.RELEASE_PUBLIC_KEY`（gradle 環境變量 `XBOND_RELEASE_PUBLIC_KEY`，由插件模塊編入；dev 包為空、手動檢查提示開發版）。更新流：拉 `https://openxbond.github.io/xbond/release.json` → minisign 驗簽（gomobile `Mobile.verifyReleaseSignature`）→ build number 必須等於 `major*10000+minor*100+patch` → 按 `Build.SUPPORTED_ABIS` 首個支持 ABI 取 `android-<abi>` 資產下載 per-ABI APK（清單必含全部四個 ABI 的條目，缺即發版錯誤，直接失敗；SHA-256、重定向域白名單、包身份與簽名者證書逐項校驗）→ 未知來源授權（插件 `onResume` 續接，等同舊 `onActivityResult`）→ FileProvider（`${applicationId}.updates`）→ 包安裝 intent。發佈管線（CI）以外部 apksigner 簽名後 `release-android.ts` 校驗同一身份，見 `docs/release.md`。
 
 ## gen 再生成清單
 

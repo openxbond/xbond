@@ -149,8 +149,13 @@ internal class AppUpdates(private val activity: Activity) {
         require(parts.all { it <= 99 } && build == parts[0] * 10_000 + parts[1] * 100 + parts[2])
         if (build <= versionCode) return null
 
-        val asset = release.getJSONObject("assets").getJSONObject("android-universal")
-        val name = "xbond-android-v$version.apk"
+        // 清单带全部 ABI 的 per-ABI 资产；设备首个支持 ABI 必在其中之一
+        // （Build.SUPPORTED_ABIS 已按设备偏好排序），缺条目是发版错误，
+        // 直接失败，不静默回落别的包。
+        val assets = release.getJSONObject("assets")
+        val abi = Build.SUPPORTED_ABIS.first { assets.has("android-$it") }
+        val asset = assets.getJSONObject("android-$abi")
+        val name = "xbond-android-v$version-$abi.apk"
         val url = "$RELEASES_URL/v$version/$name"
         require(asset.getString("name") == name && asset.getString("url") == url)
         val sha256 = asset.getString("sha256")
