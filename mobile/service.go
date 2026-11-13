@@ -55,6 +55,11 @@ func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelS
 			// this. Android processes have no HOME/XDG env.
 			_ = os.Setenv("XBOND_DATA_DIR", dir)
 		}
+		// Android can't probe its own release version from the Go sandbox;
+		// an empty bridge value keeps the native probe (iOS).
+		if v := platform.OSVersion(); v != "" {
+			telemetry.SetOSVersion(v)
+		}
 	}
 	initErr := paths.EnsureDirs()
 	// Pre-create the install beacon so update checks (Android reads the file

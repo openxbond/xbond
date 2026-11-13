@@ -87,6 +87,8 @@ private final class ExtensionPlatform: NSObject, MobilePlatformBridgeProtocol {
     }
 
     func dataDir() -> String { directory.path }
+    // osv 由 Go 的 darwin sysctl 探测拿到，桥接值留空（协议要求全实现）。
+    func osVersion() -> String { "" }
     // The network extension's own sockets are outside its VPN routes.
     func protectSocket(_ fd: Int32) throws {}
     func onStateChanged(_ state: Int32, message: String?) {}
