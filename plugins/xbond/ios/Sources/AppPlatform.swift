@@ -13,6 +13,9 @@ final class AppPlatform: NSObject, MobilePlatformBridgeProtocol {
     }
 
     func dataDir() -> String { directory.path }
+    // 安装信标的 osv：iOS 的版本号由 Go 的 darwin sysctl 探测拿到，桥接值
+    // 留空即回退原生探测（gomobile 协议要求全部方法实现）。
+    func osVersion() -> String { "" }
     func protectSocket(_ fd: Int32) throws {}
     func onStateChanged(_ state: Int32, message: String?) {}
     func onTraffic(_ uploadBytes: Int64, downloadBytes: Int64) {}

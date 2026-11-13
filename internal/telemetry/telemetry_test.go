@@ -107,6 +107,25 @@ func TestInstallIDFailsSoftWithoutDataDir(t *testing.T) {
 	}
 }
 
+func TestSetOSVersionOverridesProbe(t *testing.T) {
+	withTempDataDir(t)
+	t.Cleanup(func() { SetOSVersion("") })
+
+	// Android 桥接注入的版本号必须原样进 header；Go 沙箱内探不到它。
+	SetOSVersion("14")
+	if h := Header(); !strings.Contains(h, "osv=14") {
+		t.Fatalf("bridge osv missing from header: %q", h)
+	}
+
+	// 空值不覆盖：iOS 桥接返回空时回退平台探测（本机探测非空，android
+	// 桩为空——两种形态都合法，只验证 header 不带空 osv 字段）。
+	SetOSVersion("")
+	h := Header()
+	if strings.Contains(h, "osv=") && strings.Contains(h, "osv=;") {
+		t.Fatalf("empty osv must be omitted, not emitted blank: %q", h)
+	}
+}
+
 func TestHeaderShape(t *testing.T) {
 	withTempDataDir(t)
 

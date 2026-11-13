@@ -24,8 +24,9 @@ import (
 const installIDFile = "install-id"
 
 var (
-	mu       sync.Mutex
-	cachedID string
+	mu                sync.Mutex
+	cachedID          string
+	osVersionOverride string
 )
 
 // InstallID returns the persistent random install identifier, creating it on
@@ -43,9 +44,19 @@ func InstallID() string {
 	return cachedID
 }
 
+// SetOSVersion supplies the OS release version for hosts where Go cannot
+// probe it (Android's sandbox); the mobile bridge calls it once at service
+// construction. An empty value keeps the platform probe, so a bridge that
+// has nothing to add (iOS, where the darwin probe works) stays silent.
+func SetOSVersion(version string) {
+	mu.Lock()
+	defer mu.Unlock()
+	osVersionOverride = version
+}
+
 // Header renders the X-XBond-Install beacon value as a semicolon-separated
-// key=value list. OS version is omitted when the host cannot report it
-// (Android today). Empty when there is no install ID — without it the rest
+// key=value list. OS version is omitted when no probe and no bridge value
+// are available. Empty when there is no install ID — without it the rest
 // of the facts cannot be attributed to an install.
 func Header() string {
 	id := InstallID()
@@ -57,11 +68,22 @@ func Header() string {
 		"app=" + version.Version,
 		"os=" + runtime.GOOS,
 	}
-	if v := osVersion(); v != "" {
+	if v := reportedOSVersion(); v != "" {
 		parts = append(parts, "osv="+v)
 	}
 	parts = append(parts, "arch="+runtime.GOARCH)
 	return strings.Join(parts, "; ")
+}
+
+// reportedOSVersion prefers the bridge value over the platform probe; the
+// probe runs under the same lock because it is cheap and Header is rare.
+func reportedOSVersion() string {
+	mu.Lock()
+	defer mu.Unlock()
+	if osVersionOverride != "" {
+		return osVersionOverride
+	}
+	return osVersion()
 }
 
 func loadOrCreate() string {

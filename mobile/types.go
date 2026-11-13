@@ -23,6 +23,10 @@ type PlatformBridge interface {
 	// DataDir resolution lands on an unwritable path — the platform owns
 	// this answer.
 	DataDir() string
+	// OSVersion is the OS release version for the install beacon's osv
+	// field, which Go cannot probe inside the Android sandbox (iOS answers
+	// natively via the darwin sysctl probe). Return "" to keep that probe.
+	OSVersion() string
 	// OpenURL opens a URL in the platform browser (account OAuth). Error
 	// when no browser/handler is available.
 	OpenURL(url string) error
