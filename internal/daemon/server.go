@@ -239,7 +239,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		defer s.lock.Release()
 
 		s.cancelLifecycle()
-		s.account.cancelPending()
+		s.account.cancelPending(false)
 		_, runtimeErr := s.runtime.Down()
 
 		_ = os.Remove(paths.LocalAPITokenPath())
