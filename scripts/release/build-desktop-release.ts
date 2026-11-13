@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
-  constants,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -16,6 +15,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  buildDesktopBundle,
+  desktopRustTarget,
+} from "../dev/package-desktop.ts";
 import { cliAsset, desktopRelease, releaseVersion } from "./release-version.ts";
 
 const [tag, releaseOS, arch] = process.argv.slice(2);
@@ -37,31 +40,37 @@ const publicKey = process.env.XBOND_TAURI_PUBLIC_KEY?.trim();
 if (!publicKey || !process.env.TAURI_SIGNING_PRIVATE_KEY) {
   throw new Error("Set XBOND_TAURI_PUBLIC_KEY and TAURI_SIGNING_PRIVATE_KEY");
 }
+// The CI workflow exports empty strings for absent Apple secrets, and the
+// Tauri bundler treats any present value — even empty — as configured, then
+// fails importing an empty PKCS#12. Strip the empties so missing credentials
+// mean the documented ad-hoc fallback instead of a hard failure.
+for (const name of [
+  "APPLE_CERTIFICATE",
+  "APPLE_CERTIFICATE_PASSWORD",
+  "APPLE_API_KEY",
+  "APPLE_API_ISSUER",
+  "APPLE_API_KEY_PATH",
+  "APPLE_ID",
+  "APPLE_PASSWORD",
+  "APPLE_TEAM_ID",
+]) {
+  if (process.env[name] === "") delete process.env[name];
+}
 const macIdentity = process.env.APPLE_SIGNING_IDENTITY;
-const macRehearsal = process.env.XBOND_DESKTOP_REHEARSAL === "1";
+// A missing Developer ID certificate falls back to ad-hoc signing ("-", no
+// notarization): same behavior locally and in CI, recorded in release notes.
+const macAdHoc = os === "darwin" && !process.env.APPLE_CERTIFICATE;
 const appleID = process.env.APPLE_ID;
 const applePassword = process.env.APPLE_PASSWORD;
 const appleTeam = process.env.APPLE_TEAM_ID;
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const tauriDirectory = join(root, "src-tauri");
-const rustOS =
-  os === "win32"
-    ? "pc-windows-msvc"
-    : os === "darwin"
-      ? "apple-darwin"
-      : "unknown-linux-gnu";
-const rustTarget = `${arch === "amd64" ? "x86_64" : "aarch64"}-${rustOS}`;
+const rustTarget = desktopRustTarget(releaseOS, arch);
 const { bundle, extension, installer, updater, packages } = desktopRelease(
   tag,
   releaseOS,
   arch,
-);
-const exeExtension = os === "win32" ? ".exe" : "";
-const sidecar = join(
-  tauriDirectory,
-  "binaries",
-  `xbond-daemon-${rustTarget}${exeExtension}`,
 );
 const releaseDirectory = join(root, "release", tag);
 const cliDirectory = join(releaseDirectory, "core");
@@ -112,18 +121,19 @@ function run(command: string, args: string[], env = process.env) {
   }
 }
 
-let copiedSidecar = false;
 try {
   // Notarization accepts an App Store Connect API key (ASC_KEY with its id and
   // issuer) or the legacy Apple ID credentials. The key is materialized into
   // the temporary config directory, which is removed in the finally block.
   const notaryKeyPath = join(configDir, "asc.p8");
   let notaryArgs: string[] | null = null;
-  if (os === "darwin" && process.env.ASC_KEY) {
+  let notaryEnv: NodeJS.ProcessEnv = {};
+  const notaryKey = os === "darwin" ? process.env.ASC_KEY : undefined;
+  if (notaryKey) {
     const appleKeyID = process.env.ASC_KEY_ID;
     const appleIssuer = process.env.ASC_ISSUER_ID;
     if (appleKeyID && appleIssuer) {
-      writeFileSync(notaryKeyPath, process.env.ASC_KEY, { mode: 0o600 });
+      writeFileSync(notaryKeyPath, notaryKey, { mode: 0o600 });
       notaryArgs = [
         "--key",
         notaryKeyPath,
@@ -132,6 +142,12 @@ try {
         "--issuer",
         appleIssuer,
       ];
+      // Tauri notarizes the .app before creating its updater archive.
+      notaryEnv = {
+        APPLE_API_KEY: appleKeyID,
+        APPLE_API_ISSUER: appleIssuer,
+        APPLE_API_KEY_PATH: notaryKeyPath,
+      };
     }
   } else if (appleID && applePassword && appleTeam) {
     notaryArgs = [
@@ -145,7 +161,7 @@ try {
   }
   if (
     os === "darwin" &&
-    !macRehearsal &&
+    !macAdHoc &&
     (!macIdentity || macIdentity === "-" || !notaryArgs)
   ) {
     throw new Error(
@@ -153,18 +169,9 @@ try {
     );
   }
 
-  mkdirSync(join(tauriDirectory, "binaries"), { recursive: true });
-  copyFileSync(
-    join(cliDirectory, cliAsset(tag, releaseOS, arch)),
-    sidecar,
-    constants.COPYFILE_EXCL,
-  );
-  copiedSidecar = true;
-  if (os !== "win32") chmodSync(sidecar, 0o755);
   writeFileSync(
     signingConfig,
     JSON.stringify({
-      version,
       plugins: { updater: { pubkey: publicKey } },
       ...(os === "win32" && process.env.WINDOWS_CERTIFICATE_THUMBPRINT
         ? {
@@ -183,43 +190,43 @@ try {
         : {}),
     }),
   );
-  run(
-    process.execPath,
-    [
-      join(root, "node_modules", "@tauri-apps", "cli", "tauri.js"),
-      "build",
-      "--config",
-      join(tauriDirectory, "tauri.desktop.conf.json"),
-      "--config",
-      join(tauriDirectory, "tauri.release.conf.json"),
-      "--config",
-      signingConfig,
-      "--target",
-      rustTarget,
-      "--features",
-      "desktop",
-    ],
-    {
-      ...process.env,
-      CARGO_TARGET_DIR: targetDirectory,
-      XBOND_VERSION: version,
-      XBOND_DESKTOP_RELEASE: "1",
-      ...(os === "darwin" && macRehearsal
-        ? { APPLE_SIGNING_IDENTITY: "-" }
-        : {}),
+  buildDesktopBundle({
+    target: rustTarget,
+    targetDirectory,
+    version,
+    prepareSidecar(destination) {
+      copyFileSync(
+        join(cliDirectory, cliAsset(tag, releaseOS, arch)),
+        destination,
+      );
+      if (os !== "win32") chmodSync(destination, 0o755);
     },
-  );
+    configs: [join(tauriDirectory, "tauri.release.conf.json"), signingConfig],
+    env:
+      os === "darwin" && macAdHoc ? { APPLE_SIGNING_IDENTITY: "-" } : notaryEnv,
+  });
 
   mkdirSync(dirname(output), { recursive: true });
   const staging = mkdtempSync(join(dirname(output), ".bundle-"));
   try {
     copyBundle(staging, bundle, extension, installer, os !== "darwin");
+    if (os === "win32") {
+      run("powershell.exe", [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        join(root, "scripts/release/verify-windows-signature.ps1"),
+        join(staging, installer),
+      ]);
+    }
     for (const { format, name } of packages) {
       copyBundle(staging, format, `.${format}`, name, false);
     }
     if (os === "darwin") {
       copyBundle(staging, "macos", ".app.tar.gz", updater, true);
-      if (!macRehearsal && macIdentity && notaryArgs) {
+      if (!macAdHoc && macIdentity && notaryArgs) {
         const dmg = join(staging, installer);
         // Tauri signs the DMG while its temporary signing keychain is open.
         run("codesign", ["--verify", "--strict", dmg]);
@@ -234,5 +241,4 @@ try {
   }
 } finally {
   rmSync(configDir, { recursive: true, force: true });
-  if (copiedSidecar) rmSync(sidecar);
 }

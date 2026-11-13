@@ -92,9 +92,13 @@ pub fn run() {
         // twice per press: show, then immediately re-show, never hide.
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
-            if daemon::packaged() {
+            // The updater plugin panics without a plugins.updater config, so
+            // register it only when the build actually carries updater keys
+            // (release bundles overlay them via their signing config).
+            if daemon::packaged() && app.config().plugins.0.get("updater").is_some() {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
+                updater::mark_registered();
             }
 
             // Frameless main window on Windows/Linux: the webview draws its

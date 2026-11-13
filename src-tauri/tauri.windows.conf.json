@@ -14,8 +14,6 @@
           "Farsi"
         ],
         "displayLanguageSelector": true,
-        "headerImage": "./icons/installer-header.bmp",
-        "sidebarImage": "./icons/installer-sidebar.bmp",
         "installerHooks": "./installer-hooks.nsh"
       }
     }

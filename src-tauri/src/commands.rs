@@ -293,9 +293,12 @@ pub(crate) struct AuthCallback {
 }
 
 /// Strict route match: `xbond://callback` (query optional) and nothing else —
-/// `xbond://callback/extra` must not masquerade as the auth landing.
+/// `xbond://callback/extra` must not masquerade as the auth landing. Windows
+/// normalizes the URL to `xbond://callback/?query` (authority slash before the
+/// query), so a single `/` right before `?` is accepted here.
 pub(crate) fn auth_callback_from_deep_link(raw: &str) -> Option<AuthCallback> {
     let rest = raw.strip_prefix("xbond://callback")?;
+    let rest = rest.strip_prefix('/').unwrap_or(rest);
     if !rest.is_empty() && !rest.starts_with('?') {
         return None;
     }
@@ -497,6 +500,15 @@ mod tests {
             Some(AuthCallback {
                 code: "a+b".into(),
                 state: "s t".into(),
+            })
+        );
+        // Windows ShellExecute normalizes the scheme URL to an authority form
+        // with a slash before the query; the landing must still parse.
+        assert_eq!(
+            auth_callback_from_deep_link("xbond://callback/?code=abc&state=st"),
+            Some(AuthCallback {
+                code: "abc".into(),
+                state: "st".into(),
             })
         );
     }

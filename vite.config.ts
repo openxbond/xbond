@@ -106,7 +106,13 @@ export default defineConfig((env) => ({
             process.env.TAURI_ENV_PLATFORM ?? process.platform,
           )
           ? "chrome105"
-          : "safari13"
+          : // 與 dev 的 tailwindDevOptimize 同一地板（chrome111／safari16.4）。
+            // safari13 會讓 lightningcss 把 inset 邏輯屬性降級成「物理屬性 +
+            // :lang() RTL 守衛」，但它生成的 :not(:lang(list))／:where(, …)
+            // 首項為空——任何引擎都解析不了，整條規則被丟棄（首頁綢帶的
+            // end-0 右錨定因此失效）。safari16.4 起邏輯屬性與 :dir() 原生
+            // 支持，無需降級，產物與 dev 一致。
+            "safari16.4"
         : undefined,
     sourcemap: false,
     reportCompressedSize: false,

@@ -5,7 +5,7 @@ inputs:
     description: Install the Go toolchain
     default: "false"
   install:
-    description: Run pnpm install --frozen-lockfile
+    description: Run pnpm setup
     default: "true"
 runs:
   using: composite
@@ -19,6 +19,6 @@ runs:
       if: inputs.go == 'true'
       with:
         go-version-file: go.mod
-    - run: pnpm install --frozen-lockfile
+    - run: pnpm setup
       if: inputs.install == 'true'
       shell: bash

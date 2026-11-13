@@ -28,11 +28,16 @@ done
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   draft_url=$(gh release view "$tag" --json url --jq '.url')
+  if [[ "$(jq -r '.iosSHA256' "$directory/release-evidence.json")" == "" ]]; then
+    testflight_step='2. This candidate has no iOS archive (distribution credentials absent); macOS installers are ad-hoc signed. Configure Apple credentials and rebuild a later tag for TestFlight and notarized installers.'
+  else
+    testflight_step='2. Run **Submit XBond to TestFlight** for this tag, then verify installation through TestFlight.'
+  fi
   {
     printf '### %s is ready for installation checks\n\n' "$tag"
     printf '[Release draft](%s)\n\n' "$draft_url"
     printf '1. Verify the installers.\n'
-    printf '2. Run **Submit XBond to TestFlight** for this tag, then verify installation through TestFlight.\n'
+    printf '%s\n' "$testflight_step"
     printf '3. Run **Publish XBond release** for this tag and confirm installation verification. Use the same candidate for later store submissions.\n'
   } >> "$GITHUB_STEP_SUMMARY"
 fi

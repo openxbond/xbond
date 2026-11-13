@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { ANDROID_NDK_VERSION } from "./android-sdk.ts";
 import { BUILD_TAGS, MOBILE_ANDROID_TAGS } from "./go.ts";
 
 const MOBILE_PKG = "github.com/openxbond/xbond/mobile";
@@ -74,9 +75,9 @@ function compareVersionsDesc(a: string, b: string): number {
 }
 
 // Single source for the NDK gomobile binds against: an explicit
-// ANDROID_NDK_HOME wins, otherwise the newest SDK-installed NDK.
+// Explicit ANDROID_NDK_HOME or NDK_HOME wins over SDK discovery.
 export function resolveAndroidNdk(): string {
-  const configured = process.env.ANDROID_NDK_HOME;
+  const configured = process.env.ANDROID_NDK_HOME || process.env.NDK_HOME;
   if (configured) return configured;
   const home = process.env.ANDROID_HOME ?? detectAndroidHome();
   if (!home)
@@ -84,6 +85,8 @@ export function resolveAndroidNdk(): string {
       "Set ANDROID_HOME (the Android SDK root) or ANDROID_NDK_HOME for the Android bind",
     );
   const ndkRoot = path.join(home, "ndk");
+  const pinned = path.join(ndkRoot, ANDROID_NDK_VERSION);
+  if (fs.existsSync(pinned)) return pinned;
   const versions = fs.existsSync(ndkRoot)
     ? fs
         .readdirSync(ndkRoot)
@@ -124,7 +127,11 @@ export function buildAndroidAAR(outputPath = ANDROID_AAR): {
     ],
     {
       stdio: "inherit",
-      env: { ...process.env, ANDROID_NDK_HOME: resolveAndroidNdk() },
+      env: {
+        ...process.env,
+        ANDROID_HOME: detectAndroidHome() ?? process.env.ANDROID_HOME,
+        ANDROID_NDK_HOME: resolveAndroidNdk(),
+      },
     },
   );
 
@@ -211,7 +218,7 @@ function onlineDevices(): string[] {
     .map((line) => line.split("\t")[0]);
 }
 
-function detectAndroidHome(): string | null {
+export function detectAndroidHome(): string | null {
   const candidates = [
     process.env.ANDROID_HOME,
     process.env.ANDROID_SDK_ROOT,
@@ -224,16 +231,61 @@ function detectAndroidHome(): string | null {
   return null;
 }
 
-/** Installs the debug APK (building the AAR and the web dist when missing).
- * Returns once `net.xbond.app` is present on the connected device. */
-function installDebugAPK(): void {
-  const devices = onlineDevices();
-  if (devices.length === 0) throw new Error("no online Android device");
-  if (!fs.existsSync(path.join(root, ANDROID_AAR))) {
-    console.log("[mobile:dev] AAR missing; binding (pnpm android:bind)…");
-    const res = buildAndroidAAR();
-    if (!res.ok) throw new Error(res.message);
+export function buildAndroidAPK(
+  options: {
+    target?: string;
+    release?: { version: string; build: number };
+  } = {},
+): string {
+  const androidHome = detectAndroidHome();
+  if (!androidHome) throw new Error("Set ANDROID_HOME to the Android SDK root");
+  if (options.release || !fs.existsSync(path.join(root, ANDROID_AAR))) {
+    const result = buildAndroidAAR();
+    if (!result.ok) throw new Error(result.message);
   }
+
+  const ndk = resolveAndroidNdk();
+  const release = options.release;
+  const result = spawnSync(
+    process.execPath,
+    [
+      tauri,
+      "android",
+      "build",
+      "--apk",
+      ...(release ? [] : ["--debug"]),
+      ...(options.target ? ["--target", options.target] : []),
+    ],
+    {
+      cwd: root,
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        ANDROID_HOME: androidHome,
+        ANDROID_NDK_HOME: ndk,
+        NDK_HOME: ndk,
+        ...(release && {
+          XBOND_VERSION: release.version,
+          XBOND_BUILD_NUMBER: String(release.build),
+        }),
+      },
+    },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error("Tauri Android build failed");
+  return path.join(
+    root,
+    ANDROID_TAURI,
+    "app/build/outputs/apk/universal",
+    release
+      ? "release/app-universal-release-unsigned.apk"
+      : "debug/app-universal-debug.apk",
+  );
+}
+
+/** Installs the debug APK for the connected device's ABI. */
+function installDebugAPK(): void {
+  if (!onlineDevices().length) throw new Error("no online Android device");
   const abi = adb(["shell", "getprop", "ro.product.cpu.abi"], {
     capture: true,
   }).trim();
@@ -245,29 +297,7 @@ function installDebugAPK(): void {
   };
   const target = targets[abi];
   if (!target) throw new Error(`Unsupported Android ABI: ${abi}`);
-
-  console.log("[mobile:dev] building and installing Tauri debug APK…");
-  const env = {
-    ...process.env,
-    ANDROID_HOME: detectAndroidHome() ?? "",
-    NDK_HOME: process.env.NDK_HOME ?? resolveAndroidNdk(),
-  };
-  const res = spawnSync(
-    process.execPath,
-    [tauri, "android", "build", "--debug", "--apk", "--target", target],
-    { cwd: root, stdio: "inherit", env },
-  );
-  if (res.error) throw res.error;
-  if (res.status !== 0) throw new Error("Tauri Android build failed");
-  adb([
-    "install",
-    "-r",
-    path.join(
-      root,
-      ANDROID_TAURI,
-      "app/build/outputs/apk/universal/debug/app-universal-debug.apk",
-    ),
-  ]);
+  adb(["install", "-r", buildAndroidAPK({ target })]);
 }
 
 /** Returns the adb endpoint of a running Waydroid session (the Linux
@@ -474,6 +504,11 @@ function main(): void {
     }
   } else if (command === "dev:android") {
     runMobileDev(process.argv.slice(3));
+  } else if (command === "package:android") {
+    const [, , , target, ...extra] = process.argv;
+    if (extra.length || target?.startsWith("-"))
+      throw new Error("Usage: pnpm package:android [target]");
+    console.log(buildAndroidAPK({ target }));
   } else if (command === "install:android") {
     runMobileAndroid();
   } else if (command === "dev:ios") {
@@ -487,7 +522,7 @@ function main(): void {
     }
   } else {
     console.error(
-      "Usage: node scripts/dev/mobile.ts [bind:android|bind:ios|dev:android|install:android|dev:ios]",
+      "Usage: node scripts/dev/mobile.ts [bind:android|bind:ios|dev:android|package:android|install:android|dev:ios]",
     );
     process.exit(1);
   }

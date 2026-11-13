@@ -13,7 +13,7 @@ type Release = { tag_name: string; draft: boolean; prerelease: boolean };
 //   enforces version ordering, and emits tag/version/build/commit plus the
 //   derived mode and Apple signing flag. Raw event context arrives through
 //   GITHUB_EVENT_NAME and RELEASE_MODE.
-// - evidence <tag> <dir>                      writes release-evidence.json.
+// - assemble <tag>                           signs the candidate and generates Pages.
 // - verify-evidence <tag> <file>              re-validates evidence and emits
 //   run/digest/ios_sha256 for cross-run artifact downloads.
 // - require-artifact <run-id> <name>          fails with a clear message when
@@ -141,18 +141,41 @@ function evidence(tag: string, directory: string) {
   const run = process.env.GITHUB_RUN_ID;
   const digest = process.env.IMAGE_DIGEST ?? "";
   const iosSHA256 = process.env.IOS_SHA256 ?? "";
-  const partial = !iosSHA256 && mode === "rehearsal";
+  // A release may ship without an iOS archive when the distribution
+  // credentials are not configured; an Apple-signed rehearsal must not.
+  const iosRequired =
+    mode === "rehearsal" && process.env.RELEASE_APPLE_SIGNING === "true";
+  const iosValid = iosSHA256 === "" || /^[a-f0-9]{64}$/.test(iosSHA256);
   if (
     (mode !== "release" && mode !== "rehearsal") ||
     !run ||
     !/^\d+$/.test(run) ||
     !/^sha256:[a-f0-9]{64}$/.test(digest) ||
-    (!partial && !/^[a-f0-9]{64}$/.test(iosSHA256))
+    !iosValid ||
+    (iosRequired && !iosSHA256)
   )
     throw new Error("Missing candidate evidence");
   fs.writeFileSync(
     path.join(directory, "release-evidence.json"),
     JSON.stringify({ tag, commit, run, digest, iosSHA256, mode }) + "\n",
+  );
+}
+
+function assembleCandidate(tag: string) {
+  const { tag: validatedTag } = releaseVersion(tag);
+  const release = path.join("release", validatedTag);
+  const assets = path.join(release, "assets");
+  const cli = fileURLToPath(new URL("./release-assets.ts", import.meta.url));
+  evidence(validatedTag, assets);
+  execFileSync(
+    process.execPath,
+    [cli, "assemble", validatedTag, assets, "release-notes.md"],
+    { stdio: "inherit" },
+  );
+  execFileSync(
+    process.execPath,
+    [cli, "pages", validatedTag, assets, path.join(release, "pages")],
+    { stdio: "inherit" },
   );
 }
 
@@ -171,7 +194,7 @@ function verifyEvidence(tag: string, file: string) {
     commit !== git("rev-parse", `refs/tags/${tag}^{commit}`) ||
     !/^\d+$/.test(run) ||
     !/^sha256:[a-f0-9]{64}$/.test(digest) ||
-    !/^[a-f0-9]{64}$/.test(iosSHA256)
+    !/^(|[a-f0-9]{64})$/.test(iosSHA256)
   ) {
     throw new Error(
       "Candidate evidence is not a complete release for the requested Tag",
@@ -209,7 +232,7 @@ function main() {
   if (command === "preflight") {
     if (first === undefined || first === "") throw new Error("Expected a tag");
     preflight(first, preflightContext(second));
-  } else if (command === "evidence") evidence(first, second);
+  } else if (command === "assemble") assembleCandidate(first ?? "");
   else if (command === "verify-evidence") verifyEvidence(first, second);
   else if (command === "require-artifact") requireArtifact(first, second);
   else throw new Error(`Unknown release CI command: ${command}`);

@@ -216,6 +216,26 @@ export function generateAllLogoAssets(): void {
   }));
   fs.writeFileSync(path.join(desktopIcons, "icon.ico"), createIco(icoImages));
 
+  // The Windows installer ships the same rounded mark with a download
+  // badge in the corner: the app at a glance, still readable as a setup
+  // binary in a file list.
+  const installerIconSvg = roundedSvg.replace(
+    "</svg>",
+    `  <circle cx="78" cy="78" r="17" fill="#F38020" stroke="#131313" stroke-width="4" />
+  <g stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M78 70v10M73.5 76l4.5 4.5L82.5 76M70 84h16" />
+  </g>
+</svg>`,
+  );
+  const installerImages = icoSizes.map((size) => ({
+    size,
+    png: renderPng(installerIconSvg, size),
+  }));
+  fs.writeFileSync(
+    path.join(desktopIcons, "installer.ico"),
+    createIco(installerImages),
+  );
+
   // Build macOS ICNS via tauri icon in a temp directory
   try {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "xbond-tauri-icon-"));

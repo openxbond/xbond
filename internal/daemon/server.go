@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -57,6 +58,8 @@ type Server struct {
 	stopOnce     sync.Once
 	stopErr      error
 	lock         *instanceLock
+	// Dev knob (XBOND_LOCALAPI_TRACE=1): per-request latency log to stderr.
+	trace bool
 }
 
 // NewServer builds the per-user control service.
@@ -72,6 +75,7 @@ func NewSystemServer(addr string, webDir string) (*Server, error) {
 }
 
 func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
+	trace := os.Getenv("XBOND_LOCALAPI_TRACE") == "1"
 	// The lock must exist before proxy recovery and discovery-file writes:
 	// a second instance must never fight over ports, system proxy, or the
 	// credential files.
@@ -121,6 +125,7 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 		shutdownCh:  make(chan struct{}),
 		lock:        lock,
 		systemScope: systemScope,
+		trace:       trace,
 	}
 	s.account = newAccountController(
 		account.NewManager(paths.AccountSessionPath()),
@@ -255,6 +260,12 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		token := r.Header.Get("X-XBond-Token")
 		if token != s.token {
 			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		if s.trace {
+			start := time.Now()
+			next(w, r)
+			log.Printf("TRACE %s %s remote=%s dur=%s", r.Method, r.URL.RequestURI(), r.RemoteAddr, time.Since(start))
 			return
 		}
 		next(w, r)
