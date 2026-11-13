@@ -34,7 +34,7 @@ func importOverrideFixture(t *testing.T, manager *Manager, name, source string) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Update(meta.ID, true, ""); err != nil {
+	if _, err := manager.Update(t.Context(), meta.ID, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	return meta.ID
@@ -122,7 +122,7 @@ rules:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Update(id, true, ""); err == nil {
+	if _, err := manager.Update(t.Context(), id, true, ""); err == nil {
 		t.Fatal("update conflicting with the override succeeded")
 	} else if !strings.Contains(err.Error(), "override") {
 		t.Fatalf("update failure does not mention the override: %v", err)

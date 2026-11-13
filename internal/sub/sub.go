@@ -570,6 +570,7 @@ func (m *Manager) Progress() FetchProgress {
 }
 
 func (m *Manager) Update(
+	ctx context.Context,
 	idOrName string,
 	force bool,
 	proxyURL string,
@@ -582,7 +583,7 @@ func (m *Manager) Update(
 
 	// The context must outlast the fetch client's own timeout (120s) and the
 	// fallback-origin probes that run after a transient primary failure.
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 150*time.Second)
 	defer cancel()
 
 	var rawContent []byte

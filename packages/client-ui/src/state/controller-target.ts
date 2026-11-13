@@ -146,28 +146,35 @@ export function useAPIInfo(): TargetInfo {
       });
     });
   }, [clashx, setClashx]);
-  const { data } = useDaemonConnection();
+  const { data, config } = useDaemonConnection();
   const location = useLocation();
   const selection = useAtomValue(targetSelectionAtom);
   const saved = useAtomValue(externalsStorageAtom);
   const externals = useMemo(() => migrateExternals(saved), [saved]);
   const info = useMemo<TargetInfo>(() => {
+    const proxyPath = document.querySelector<HTMLMetaElement>(
+      'meta[name="localapi-controller"]',
+    )?.content;
+    const core = proxyPath
+      ? config && data?.engine.running
+        ? {
+            url: new URL(proxyPath, window.location.origin).href,
+            secret: config.token,
+          }
+        : undefined
+      : data
+        ? {
+            url: `http://127.0.0.1:${data.preferences.clashPort}`,
+            secret: data.preferences.clashSecret ?? "",
+          }
+        : undefined;
     const target = resolveControlTarget(externals, selection, {
       meta: document.querySelector<HTMLMetaElement>(
         'meta[name="external-controller"]',
       )?.content,
       search: location.search,
       bridge: clashx,
-      daemon: hasDaemonConfig()
-        ? {
-            core: data
-              ? {
-                  url: `http://127.0.0.1:${data.preferences.clashPort}`,
-                  secret: data.preferences.clashSecret ?? "",
-                }
-              : undefined,
-          }
-        : null,
+      daemon: hasDaemonConfig() ? { core } : null,
     });
     if (target.kind === "daemon") {
       const endpoint = target.endpoint ?? EMPTY_ENDPOINT;
@@ -203,7 +210,7 @@ export function useAPIInfo(): TargetInfo {
       protocol: url.protocol,
       focusKey: controllerIdentity(target.controller.id, target.controller.url),
     };
-  }, [clashx, externals, selection, location.search, data]);
+  }, [clashx, externals, selection, location.search, data, config]);
   return info;
 }
 

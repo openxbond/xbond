@@ -4,7 +4,7 @@ version = "0.3.0"
 description = "XBond client shell (desktop and mobile)"
 authors = ["openxbond <no-reply@xbond.net>"]
 edition = "2021"
-license = "MIT"
+license = "AGPL-3.0-only"
 
 [lib]
 name = "xbond_app_lib"

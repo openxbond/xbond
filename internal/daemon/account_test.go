@@ -69,7 +69,7 @@ func waitForAccountStatus(t *testing.T, controller *accountController, want stri
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		state := controller.snapshot()
-		if state.Status == want {
+		if state.Status == want && state.Phase == "" {
 			return state
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -188,10 +188,19 @@ func TestAccountControllerSchemeCallbackDelivery(t *testing.T) {
 
 func TestAccountControllerReportsSubscriptionSyncAfterAuthorization(t *testing.T) {
 	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	fetching := make(chan struct{})
+	continueLogin := make(chan struct{})
 	entered := make(chan struct{})
 	release := make(chan struct{})
 	manager := &fakeAccountManager{
-		login: func(context.Context, account.LoginOptions, func(account.Progress)) (*account.Credentials, error) {
+		login: func(ctx context.Context, _ account.LoginOptions, progress func(account.Progress)) (*account.Credentials, error) {
+			progress(account.Progress{Phase: "fetching_subscription"})
+			close(fetching)
+			select {
+			case <-continueLogin:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
 			return &account.Credentials{SubscriptionToken: "sub-fixture"}, nil
 		},
 	}
@@ -206,6 +215,17 @@ func TestAccountControllerReportsSubscriptionSyncAfterAuthorization(t *testing.T
 			}
 		}, nil, func() *sub.SubscriptionMeta { return nil })
 	controller.start(account.LoginOptions{}, accountBindOptions{})
+	t.Cleanup(func() { controller.cancelPending(false) })
+	select {
+	case <-fetching:
+	case <-time.After(2 * time.Second):
+		t.Fatal("subscription lookup did not start")
+	}
+	if state := controller.snapshot(); state.Status != "signed_in" || state.Phase != "fetching_subscription" {
+		t.Errorf("saved session must be signed in during subscription lookup: %+v", state)
+	}
+	controller.cancelPending(true)
+	close(continueLogin)
 	select {
 	case <-entered:
 	case <-time.After(2 * time.Second):
@@ -215,6 +235,9 @@ func TestAccountControllerReportsSubscriptionSyncAfterAuthorization(t *testing.T
 	close(release)
 	if !bytes.Contains(state, []byte(`"phase":"syncing_subscription"`)) {
 		t.Errorf("authorization still looks idle during subscription sync: %s", state)
+	}
+	if !bytes.Contains(state, []byte(`"status":"signed_in"`)) {
+		t.Errorf("saved session must be signed in while subscription sync runs: %s", state)
 	}
 	final := waitForAccountStatus(t, controller, "signed_in")
 	if final.UpdateError != "fixture validation failure" {
@@ -411,7 +434,7 @@ func TestAccountControllerCancelThenRestart(t *testing.T) {
 		t.Fatalf("pkce progress never surfaced: %+v", state)
 	}
 	<-started
-	controller.cancelPending()
+	controller.cancelPending(false)
 	if state := controller.snapshot(); state.Status != "signed_out" {
 		t.Fatalf("cancel did not reset to signed_out: %+v", state)
 	}

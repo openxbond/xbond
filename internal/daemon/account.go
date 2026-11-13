@@ -190,6 +190,16 @@ func (c *accountController) run(
 		if progress.Phase != "" {
 			c.state.Phase = progress.Phase
 		}
+		// Login reports this phase after it has persisted the OAuth session.
+		if progress.Phase == "fetching_subscription" {
+			c.state.Status = "signed_in"
+			c.state.AuthURL = ""
+			c.state.VerificationURI = ""
+			c.state.VerificationURIComplete = ""
+			c.state.UserCode = ""
+			c.mu.Unlock()
+			return
+		}
 		c.state.AuthURL = progress.AuthURL
 		c.state.VerificationURI = progress.VerificationURI
 		c.state.VerificationURIComplete = progress.VerificationURIComplete
@@ -230,28 +240,21 @@ func (c *accountController) run(
 		}
 	}
 
-	// The overview sync rides the login context before the state flips to
-	// signed_in: the UI stops polling once signed in, so identity must be
-	// present in that flip.
 	c.setPhase(generation, "loading_account")
 	c.syncOverviewCtx(ctx)
 
 	c.mu.Lock()
-	if ctx.Err() != nil || c.syncGen != generation {
-		c.mu.Unlock()
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			c.fail(ctx.Err(), generation)
-		}
+	defer c.mu.Unlock()
+	if c.syncGen != generation || errors.Is(ctx.Err(), context.Canceled) {
 		return
 	}
-	c.state.Status = "signed_in"
 	c.state.Phase = ""
-	c.state.Subscription = meta
-	c.state.UpdateError = updateError
-	c.state.Error = ""
-	c.state.ErrorCode = ""
 	c.cancel = nil
-	c.mu.Unlock()
+	if c.state.Status != "error" {
+		c.state.Status = "signed_in"
+		c.state.Subscription = meta
+		c.state.UpdateError = updateError
+	}
 }
 
 func (c *accountController) fail(err error, generation int) {
@@ -281,8 +284,12 @@ func (c *accountController) fail(err error, generation int) {
 	c.cancel = nil
 }
 
-func (c *accountController) cancelPending() {
+func (c *accountController) cancelPending(authorizationOnly bool) {
 	c.mu.Lock()
+	if authorizationOnly && c.state.Status != "pending" {
+		c.mu.Unlock()
+		return
+	}
 	cancel := c.cancel
 	c.cancel = nil
 	// Invalidate any in-flight overview sync so it cannot resurrect state
@@ -298,7 +305,7 @@ func (c *accountController) cancelPending() {
 }
 
 func (c *accountController) logout(ctx context.Context) ([]sub.SubscriptionMeta, error) {
-	c.cancelPending()
+	c.cancelPending(false)
 	err := c.manager.Logout(ctx)
 	c.operation.Lock()
 	defer c.operation.Unlock()
@@ -626,7 +633,7 @@ func (s *Server) handleAccountCancel(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	s.account.cancelPending()
+	s.account.cancelPending(true)
 	writeJSON(w, http.StatusOK, s.account.snapshot())
 }
 

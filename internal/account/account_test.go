@@ -44,6 +44,43 @@ func TestRefreshAfterLogoutCannotRestoreSessionFile(t *testing.T) {
 	}
 }
 
+func TestDeviceCodeRequestStopsOnCancellation(t *testing.T) {
+	started := make(chan struct{})
+	finished := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		defer close(finished)
+		select {
+		case <-r.Context().Done():
+		case <-time.After(3 * time.Second):
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		_, err := Authenticate(ctx, LoginOptions{Origin: server.URL, Device: true}, nil)
+		result <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("device-code request did not arrive")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected cancellation, got %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancellation did not interrupt the device-code request")
+	}
+	<-finished
+}
+
 func TestDeviceLoginPersistsSessionAndResolvesLink(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -52,8 +89,8 @@ func TestDeviceLoginPersistsSessionAndResolvesLink(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"device_code":               "dvc-1",
 				"user_code":                 "ABCD-EFGH",
-				"verification_uri":          "https://www.xbond.net/auth/activate",
-				"verification_uri_complete": "https://www.xbond.net/auth/activate?user_code=ABCD-EFGH",
+				"verification_uri":          "/auth/activate",
+				"verification_uri_complete": "/auth/activate?user_code=ABCD-EFGH",
 				"expires_in":                900,
 				"interval":                  1,
 			})
@@ -121,10 +158,10 @@ func TestDeviceLoginPersistsSessionAndResolvesLink(t *testing.T) {
 	if progress.Method != "device" || progress.UserCode != "ABCD-EFGH" {
 		t.Errorf("progress: %+v", progress)
 	}
-	if progress.VerificationURI != "https://www.xbond.net/auth/activate" {
+	if progress.VerificationURI != server.URL+"/auth/activate" {
 		t.Errorf("verification URI: got %q", progress.VerificationURI)
 	}
-	const verificationURL = "https://www.xbond.net/auth/activate?user_code=ABCD-EFGH"
+	verificationURL := server.URL + "/auth/activate?user_code=ABCD-EFGH"
 	if progress.VerificationURIComplete != verificationURL {
 		t.Errorf("complete verification URI: got %q", progress.VerificationURIComplete)
 	}

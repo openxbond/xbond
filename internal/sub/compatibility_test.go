@@ -146,7 +146,7 @@ func TestImportFormatsPersistAndFailedUpdatesKeepKnownGoodConfiguration(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	initial, err := manager.Update(imported.ID, true, "")
+	initial, err := manager.Update(t.Context(), imported.ID, true, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestImportFormatsPersistAndFailedUpdatesKeepKnownGoodConfiguration(t *testi
 	if err := os.WriteFile(source, []byte("proxies:\n  - {name: edge, type: unsupported, server: example.invalid, port: 443}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Update(imported.ID, true, ""); err == nil {
+	if _, err := manager.Update(t.Context(), imported.ID, true, ""); err == nil {
 		t.Fatal("invalid configuration update succeeded")
 	}
 	after, _ := os.ReadFile(paths.SubSourcePath(imported.ID))
@@ -177,7 +177,7 @@ func TestImportFormatsPersistAndFailedUpdatesKeepKnownGoodConfiguration(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Update(fromSingBox.ID, true, ""); err != nil {
+	if _, err := manager.Update(t.Context(), fromSingBox.ID, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	stored, err := os.ReadFile(paths.SubSourcePath(fromSingBox.ID))

@@ -682,6 +682,8 @@ const EN = {
     takeover: {
       title: "Traffic takeover mode",
       mixedPort: "Mixed proxy port",
+      dockerPortDesc:
+        "Docker deployment controls this listener. Change the published port in Docker.",
       mixedPortDesc: "Local mixed proxy port for standard HTTP / SOCKS traffic",
       portNoteOverride:
         "Local port fixed at {{port}}; the subscription's own port is overridden",
@@ -916,6 +918,7 @@ const EN = {
       "Opens the authorization page in your default browser, then returns here automatically.",
     note: "The active configuration comes from a third-party source; sign in to use your XBond subscription.",
     pending: "Waiting for authorization…",
+    openingAuthPage: "Opening XBond Cloud…",
     openAuthPage: "Open login page",
     retry: "Retry",
     failed: "Sign-in failed",

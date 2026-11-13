@@ -49,8 +49,13 @@ type Server struct {
 	privileged   net.Listener
 	remoteServer *http.Server
 
-	webDir string
-	done   chan struct{}
+	webDir          string
+	subscriptionURL string
+	lifecycle       context.Context
+	cancelLifecycle context.CancelFunc
+	autostart       bool
+	container       bool
+	done            chan struct{}
 	// shutdownCh is closed when a LocalAPI client asked the daemon to exit
 	// (service stop); the daemon main loop watches it beside OS signals.
 	shutdownCh   chan struct{}
@@ -76,6 +81,15 @@ func NewSystemServer(addr string, webDir string) (*Server, error) {
 
 func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	trace := os.Getenv("XBOND_LOCALAPI_TRACE") == "1"
+	autostart := os.Getenv("XBOND_AUTOSTART") == "1"
+	var subscriptionURL string
+	if autostart {
+		var err error
+		subscriptionURL, err = dockerSubscriptionURL(os.Getenv("SUB_URL"))
+		if err != nil {
+			return nil, err
+		}
+	}
 	// The lock must exist before proxy recovery and discovery-file writes:
 	// a second instance must never fight over ports, system proxy, or the
 	// credential files.
@@ -84,13 +98,17 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 		return nil, err
 	}
 
+	started := false
+	defer func() {
+		if !started {
+			lock.Release()
+		}
+	}()
 	if err := paths.EnsureDirs(); err != nil {
-		lock.Release()
 		return nil, err
 	}
 
 	if err := sysproxy.AutoRecoverOnStartup(); err != nil {
-		lock.Release()
 		return nil, err
 	}
 
@@ -116,23 +134,21 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 		core.EnablePortHandoff()
 	}
 	s := &Server{
-		token:       token,
-		engineMgr:   core,
-		subMgr:      subMgr,
-		runtime:     newRuntimeController(core, subMgr, prefs),
-		webDir:      webDir,
-		done:        make(chan struct{}),
-		shutdownCh:  make(chan struct{}),
-		lock:        lock,
-		systemScope: systemScope,
-		trace:       trace,
+		token:           token,
+		engineMgr:       core,
+		subMgr:          subMgr,
+		runtime:         newRuntimeController(core, subMgr, prefs),
+		webDir:          webDir,
+		done:            make(chan struct{}),
+		shutdownCh:      make(chan struct{}),
+		lock:            lock,
+		systemScope:     systemScope,
+		trace:           trace,
+		subscriptionURL: subscriptionURL,
+		autostart:       autostart,
+		container:       os.Getenv("XBOND_DASHBOARD_LISTEN") != "",
 	}
-	s.account = newAccountController(
-		account.NewManager(paths.AccountSessionPath()),
-		s.bindCredentials,
-		s.runtime.LogoutAccount,
-		s.activeXBondSub,
-	)
+	s.runtime.fixedDeployment = s.container
 
 	if s.webDir == "" {
 		s.webDir = "dist"
@@ -146,6 +162,14 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.lifecycle, s.cancelLifecycle = context.WithCancel(context.Background())
+	s.account = newAccountController(
+		account.NewManager(paths.AccountSessionPath()),
+		s.bindCredentials,
+		s.runtime.LogoutAccount,
+		s.activeXBondSub,
+	)
+
 	s.listener = l
 	s.addr = l.Addr().String()
 
@@ -174,6 +198,7 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	_ = os.WriteFile(paths.LocalAPITokenPath(), []byte(token), 0o600)
 	_ = os.WriteFile(paths.LocalAPIAddrPath(), []byte(s.addr), 0o600)
 
+	started = true
 	return s, nil
 }
 
@@ -185,23 +210,10 @@ func (s *Server) Token() string {
 	return s.token
 }
 
-// Autostart brings the active subscription's core up after boot when the
-// deployment environment asks for it (XBOND_AUTOSTART=1, the container
-// default): a proxy container that stays down after `docker restart` is a
-// footgun. Desktop keeps the explicit connect — env-free hosts never call
-// this. A failure is logged by the caller and does not kill the daemon: the
-// UI still works and the user can retry the connect.
-func (s *Server) Autostart(ctx context.Context) error {
-	if s.subMgr.ActiveID() == "" {
-		return nil
-	}
-	if err := s.runtime.Up(ctx, runtimeOptions{}); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *Server) Start() error {
+	if s.autostart {
+		go s.runAutostart(s.lifecycle)
+	}
 	go s.runScheduledUpdates()
 	if s.delegate != nil {
 		go s.runDelegateReconciler()
@@ -226,7 +238,8 @@ func (s *Server) Stop(ctx context.Context) error {
 		close(s.done)
 		defer s.lock.Release()
 
-		s.account.cancelPending()
+		s.cancelLifecycle()
+		s.account.cancelPending(false)
 		_, runtimeErr := s.runtime.Down()
 
 		_ = os.Remove(paths.LocalAPITokenPath())
@@ -296,6 +309,7 @@ func (s *Server) coreClient() *engine.ClashClient {
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
+	mux.HandleFunc(controllerProxyPath, s.handleControllerProxy)
 	mux.HandleFunc("/localapi/v0/status", s.authMiddleware(s.handleStatus))
 	mux.HandleFunc("/localapi/v0/up", s.authMiddleware(s.handleUp))
 	mux.HandleFunc("/localapi/v0/down", s.authMiddleware(s.handleDown))
@@ -343,6 +357,10 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/service/install", s.authMiddleware(s.handleServiceInstall))
 	mux.HandleFunc("/localapi/v0/service/uninstall", s.authMiddleware(s.handleServiceUninstall))
 
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	// Web UI static files
 	mux.HandleFunc("/", s.handleWeb)
 }
@@ -377,6 +395,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"activeSub":        activeSub,
 		"capabilities":     tunCapability(s.delegate),
 		"rulePaging":       true,
+		"container":        s.container,
 	}
 
 	writeJSON(w, http.StatusOK, response)
@@ -571,7 +590,7 @@ func (s *Server) bindSubscription(
 	} else if res != nil && res.Meta != nil {
 		finalMeta = res.Meta
 		if activate {
-			if err := s.runtime.Use(ctx, meta.ID); err != nil {
+			if err := s.useImported(ctx, meta.ID); err != nil {
 				return finalMeta, updateErrMsg, &bindError{err: err, input: false}
 			}
 		}
@@ -600,7 +619,7 @@ func (s *Server) bindCredentials(
 		return meta, err.Error(), nil
 	}
 	if options.Use {
-		if err := s.runtime.Use(ctx, meta.ID); err != nil {
+		if err := s.useImported(ctx, meta.ID); err != nil {
 			return result.Meta, "", &bindError{err: err, input: false}
 		}
 	}
@@ -1321,6 +1340,7 @@ func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	s.cancelLifecycle()
 	_, cleanupErr := s.runtime.Down()
 	response := map[string]any{"ok": true, "shuttingDown": true, "cleanedUp": cleanupErr == nil}
 	if cleanupErr != nil {
@@ -1375,7 +1395,7 @@ func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	info, err := os.Stat(filePath)
-	if err != nil || info.IsDir() {
+	if err != nil || info.IsDir() || r.URL.Path == "/index.html" {
 		indexPath := filepath.Join(s.webDir, "index.html")
 		indexBytes, err := os.ReadFile(indexPath)
 		if err != nil {
@@ -1383,17 +1403,11 @@ func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		prefs := s.runtime.Preferences()
-		clashPort, clashSecret := prefs.ClashPort, prefs.ClashSecret
-
-		// The token rides the served page; no address meta — the UI talks to
-		// its own origin (relative paths), which keeps remote management
-		// working from any host that can reach this listener. The daemon
-		// publishes this port as the management boundary.
-		metaTag := fmt.Sprintf(`<meta name="external-controller" content="http://:%s@127.0.0.1:%d">
-    <meta name="localapi-token" content="%s">`, clashSecret, clashPort, s.token)
+		metaTag := fmt.Sprintf(`<meta name="localapi-controller" content="%s">
+    <meta name="localapi-token" content="%s">`, controllerProxyPath, s.token)
 		html := strings.Replace(string(indexBytes), "<head>", "<head>\n    "+metaTag, 1)
 
+		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(html))
 		return
@@ -1410,7 +1424,7 @@ func (s *Server) runScheduledUpdates() {
 		case <-s.done:
 			return
 		case now := <-ticker.C:
-			if err := s.runtime.UpdateDue(context.Background(), now); err != nil {
+			if err := s.runtime.UpdateDue(s.lifecycle, now); err != nil && s.lifecycle.Err() == nil {
 				s.engineMgr.RingLog().Append(engine.LogLevelError, "Scheduled subscription update or runtime application failed")
 			}
 		}

@@ -76,7 +76,7 @@ TestFlight 內部測試需要 Apple Developer 簽名與 App Store Connect 帳號
 
 ## 3. 批准公開
 
-從 `main` 執行 **Publish XBond release**，填 `tag`，確認上表後勾選 `install_verified`。由 `release-production` 審核人核對同一候選和驗收記錄後批准。工作流發佈 GHCR、公開 GitHub Release、部署 Pages，並逐項比對線上的頁面與兩份更新清單。
+從 `main` 執行 **Publish XBond release**，填 `tag`，確認上表後勾選 `install_verified`。由 `release-production` 審核人核對同一候選和驗收記錄後批准。工作流將映像發佈至 `ghcr.io/openxbond/xbond` 的版本標籤，確認可匿名拉取後公開 GitHub Release，並將同一映像摘要發佈為 `latest`。最後部署 Pages，逐項比對線上的頁面與兩份更新清單。
 
 完成後打開下載頁，下載一個產物比對 `SHA256SUMS`。已有公開舊版時，再用 `xbond upgrade --check` 和桌面設定頁確認能找到新版本。 [下載頁](https://openxbond.github.io/xbond/download/)
 

@@ -90,6 +90,12 @@ jobs:
       - name: Publish GitHub Release
         if: steps.candidate.outputs.draft == 'true'
         run: gh release edit "$TAG" --draft=false --latest
+      - name: Promote the public Docker image to latest
+        env:
+          IMAGE_DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          node scripts/release/release-registry.ts promote "$TAG" "$IMAGE_DIGEST"
+          node scripts/release/release-registry.ts verify-public "$TAG" "$IMAGE_DIGEST" latest
       - uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: release/${{ inputs.tag }}/pages

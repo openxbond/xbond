@@ -80,15 +80,16 @@ func resolveMixedPort(override, sourcePort int) (int, PortSource) {
 }
 
 type runtimeController struct {
-	mu            sync.Mutex
-	stateMu       sync.RWMutex
-	prefs         RuntimePreferences
-	engine        runtimeEngine
-	subs          *sub.Manager
-	applied       []byte
-	appliedSubID  string
-	pendingApply  bool
-	originalProxy *sysproxy.Snapshot
+	mu              sync.Mutex
+	stateMu         sync.RWMutex
+	prefs           RuntimePreferences
+	engine          runtimeEngine
+	subs            *sub.Manager
+	applied         []byte
+	appliedSubID    string
+	pendingApply    bool
+	fixedDeployment bool
+	originalProxy   *sysproxy.Snapshot
 	// delegate hands TUN takeover to the machine-scoped daemon when the
 	// user-session process cannot open the adapter itself; nil on platforms
 	// and tests without delegation.
@@ -458,6 +459,11 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	if options.AllowLan != nil {
 		next.AllowLan = *options.AllowLan
 	}
+	if c.fixedDeployment && (next.SystemProxy != previousPrefs.SystemProxy ||
+		next.Tun != previousPrefs.Tun || next.PortOverride != previousPrefs.PortOverride ||
+		next.AllowLan != previousPrefs.AllowLan) {
+		return &runtimeInputError{errors.New("proxy listeners and takeover mode are set by the Docker deployment")}
+	}
 	if err := validatePreferences(next); err != nil {
 		return &runtimeInputError{err}
 	}
@@ -543,7 +549,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		}
 		source, err := os.ReadFile(paths.SubSourcePath(targetID))
 		if errors.Is(err, fs.ErrNotExist) {
-			if _, updateErr := c.subs.Update(targetID, true, ""); updateErr != nil {
+			if _, updateErr := c.subs.Update(ctx, targetID, true, ""); updateErr != nil {
 				return fmt.Errorf("active subscription has no downloaded config and refresh failed: %w", updateErr)
 			}
 			source, err = os.ReadFile(paths.SubSourcePath(targetID))
@@ -933,13 +939,13 @@ func (c *runtimeController) updateLocked(ctx context.Context, id string, force b
 	if err != nil {
 		return nil, err
 	}
-	result, err := c.subs.Update(id, force, proxyURL)
+	result, err := c.subs.Update(ctx, id, force, proxyURL)
 	var fetchErr *sub.FetchError
 	if err != nil && proxyURL != "" && viaProxy == nil && errors.As(err, &fetchErr) {
 		meta, metaErr := c.subs.Get(id)
 		if metaErr == nil && meta.Kind == sub.KindCloud && (meta.UpdateChannel == "" || meta.UpdateChannel == sub.ChannelSelf) && ctx.Err() == nil {
 			proxyErr := err
-			result, err = c.subs.Update(id, force, "")
+			result, err = c.subs.Update(ctx, id, force, "")
 			if err != nil {
 				return nil, fmt.Errorf("subscription update failed via XBond proxy and directly: %w", errors.Join(proxyErr, err))
 			}
@@ -1011,8 +1017,8 @@ func (c *runtimeController) resolveUpdateProxy(id string, override *bool) (strin
 func (c *runtimeController) UpdateDue(ctx context.Context, now time.Time) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.pendingApply && c.connectedLocked() {
-		return c.applyLocked(ctx, runtimeOptions{}, true)
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	id := c.subs.ActiveID()
 	if id == "" {
@@ -1022,23 +1028,20 @@ func (c *runtimeController) UpdateDue(ctx context.Context, now time.Time) error 
 	if err != nil {
 		return err
 	}
-	if !meta.AutoUpdate {
-		return nil
+	if meta.AutoUpdate && !meta.SourcePinned {
+		interval := time.Duration(meta.UpdateIntervalHours) * time.Hour
+		if interval <= 0 {
+			interval = 24 * time.Hour
+		}
+		if now.Sub(meta.LastCheckedAt) >= interval {
+			_, err = c.updateLocked(ctx, id, false, nil)
+			return err
+		}
 	}
-	// A pinned source is an edited local copy: automatic updates never
-	// overwrite it (client-rethink §四.2). A manual update removes the pin.
-	if meta.SourcePinned {
-		return nil
+	if c.pendingApply && c.connectedLocked() {
+		return c.applyLocked(ctx, runtimeOptions{}, true)
 	}
-	interval := time.Duration(meta.UpdateIntervalHours) * time.Hour
-	if interval <= 0 {
-		interval = 24 * time.Hour
-	}
-	if now.Sub(meta.LastCheckedAt) < interval {
-		return nil
-	}
-	_, err = c.updateLocked(ctx, id, false, nil)
-	return err
+	return nil
 }
 
 // Delegated reports whether takeover currently rides the machine-scoped

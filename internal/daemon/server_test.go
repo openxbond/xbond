@@ -115,8 +115,9 @@ func TestLocalAPIServerAndClient(t *testing.T) {
 	n, _ := resp.Body.Read(buf[:])
 	html := string(buf[:n])
 
-	if !strings.Contains(html, `<meta name="external-controller"`) {
-		t.Errorf("expected meta external-controller injected into html, got:\n%s", html)
+	if !strings.Contains(html, `<meta name="localapi-controller" content="`+controllerProxyPath+`">`) ||
+		strings.Contains(html, `<meta name="external-controller"`) {
+		t.Fatal("dashboard must discover the same-origin controller path")
 	}
 }
 

@@ -651,6 +651,8 @@ const HK = {
     takeover: {
       title: "流量接管模式",
       mixedPort: "混合代理連接埠",
+      dockerPortDesc:
+        "監聽由 Docker 部署管理。請在部署指令中修改對外映射的連接埠。",
       mixedPortDesc: "本機 HTTP / SOCKS 混合代理監聽連接埠",
       portNoteOverride: "已固定本機連接埠 {{port}}，訂閱自帶的連接埠將被覆蓋",
       portNoteSubscription:
@@ -863,6 +865,7 @@ const HK = {
     loginFlowHint: "點擊後會在預設瀏覽器開啟授權頁，完成後自動返回 XBond。",
     note: "目前配置來自第三方來源；登入後可使用你的 XBond 訂閱。",
     pending: "等待授權…",
+    openingAuthPage: "正在打開 XBond Cloud…",
     openAuthPage: "打開登入頁",
     retry: "重試",
     failed: "登入失敗",

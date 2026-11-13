@@ -216,7 +216,7 @@ rules:
 	}
 
 	// 2. Fetch update (200 OK)
-	res, err := mgr.Update(subMeta.ID, false, "")
+	res, err := mgr.Update(t.Context(), subMeta.ID, false, "")
 	if err != nil {
 		t.Fatalf("Update failed: %v", err)
 	}
@@ -231,7 +231,7 @@ rules:
 	}
 
 	// 3. Update again with ETag -> 304 Not Modified
-	res304, err := mgr.Update(subMeta.ID, false, "")
+	res304, err := mgr.Update(t.Context(), subMeta.ID, false, "")
 	if err != nil {
 		t.Fatalf("Update 304 failed: %v", err)
 	}
@@ -241,7 +241,7 @@ rules:
 
 	// 4. Test 401 Credential Invalid
 	subInvalid, _ := mgr.AddXBond("sub-invalid", server.URL, nil, "vless-reality", "zh-HK", "InvalidSub", 24, false)
-	_, err = mgr.Update(subInvalid.ID, false, "")
+	_, err = mgr.Update(t.Context(), subInvalid.ID, false, "")
 	if err == nil {
 		t.Fatalf("expected error on 401, got nil")
 	}
@@ -252,7 +252,7 @@ rules:
 
 	// 5. Test 403 Quota Exhausted
 	subExhausted, _ := mgr.AddXBond("sub-exhausted", server.URL, nil, "vless-reality", "zh-HK", "ExhaustedSub", 24, false)
-	_, err = mgr.Update(subExhausted.ID, false, "")
+	_, err = mgr.Update(t.Context(), subExhausted.ID, false, "")
 	if err == nil {
 		t.Fatalf("expected error on 403, got nil")
 	}

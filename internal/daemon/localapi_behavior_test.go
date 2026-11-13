@@ -15,7 +15,8 @@ import (
 // can distinguish "exit accepted" from "proxy restored, engine down".
 func TestShutdownHandlerCleansUpBeforeAnswering(t *testing.T) {
 	f := newRuntimeFixture(t)
-	server := &Server{subMgr: f.subs, runtime: f.controller, shutdownCh: make(chan struct{})}
+	lifecycle, cancel := context.WithCancel(t.Context())
+	server := &Server{subMgr: f.subs, runtime: f.controller, shutdownCh: make(chan struct{}), cancelLifecycle: cancel}
 	if !f.core.IsRunning() {
 		t.Fatal("fixture core should start running")
 	}
@@ -28,8 +29,8 @@ func TestShutdownHandlerCleansUpBeforeAnswering(t *testing.T) {
 	if response.Code != http.StatusOK || !result.CleanedUp || result.Error != "" {
 		t.Fatalf("shutdown did not report completed cleanup: %d %s", response.Code, response.Body)
 	}
-	if f.core.IsRunning() {
-		t.Fatal("shutdown answered before the core stopped")
+	if f.core.IsRunning() || lifecycle.Err() == nil {
+		t.Fatal("shutdown answered before the core stopped and background work was cancelled")
 	}
 }
 

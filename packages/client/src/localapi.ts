@@ -250,6 +250,8 @@ export interface LocalAPIStatusResponse {
   activeSub: SubscriptionMeta | null;
   capabilities?: LocalAPICapabilities;
   rulePaging?: boolean;
+  /** Docker owns published ports and takeover for this daemon. */
+  container?: boolean;
 }
 
 /** Service status from user.billing.subscription (billing-disabled collapses

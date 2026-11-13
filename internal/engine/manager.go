@@ -59,6 +59,13 @@ func (c *mihomoCore) start(config []byte, m *Manager) error {
 		c.logSub = nil
 		return fmt.Errorf("failed to start mihomo core: %w", err)
 	}
+	// Mihomo reports a TUN setup failure only in its log. Treat it as a
+	// failed start so the dashboard cannot report a mixed-only gateway.
+	if meta, err := inspectMihomoConfig(config, FormatClash); err == nil &&
+		meta.TakeoverMode == ModeTun && meta.MixedPort > 0 && !listener.GetTunConf().Enable {
+		_ = c.stop()
+		return errors.New("mihomo failed to open the TUN adapter; check the core log")
+	}
 	return nil
 }
 

@@ -1,7 +1,5 @@
 # syntax=docker/dockerfile:1
-# Unified xbond daemon image (port mode): full LocalAPI + dual cores + web
-# UI. This is NOT the openxbond/docker-sing-box wrapper image — see
-# docs/specs/docker-daemon.md for the contract and the boundary between them.
+# Official XBond image with the daemon, both proxy cores and the Web UI.
 
 # --- web UI bundle -----------------------------------------------------------
 FROM --platform=$BUILDPLATFORM node:24-alpine AS web
@@ -37,7 +35,7 @@ RUN CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath \
 
 # --- runtime -----------------------------------------------------------------
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates tzdata wget \
+RUN apk add --no-cache ca-certificates tzdata wget iptables su-exec \
     && addgroup -g 1000 xbond \
     && adduser -D -u 1000 -G xbond -h /data xbond \
     && mkdir -p /data /app/dist \
@@ -45,25 +43,23 @@ RUN apk add --no-cache ca-certificates tzdata wget \
 COPY --from=build /out/xbond /usr/local/bin/xbond
 COPY --from=web --chown=xbond:xbond /src/dist/web /app/dist
 
-# Headless defaults: port takeover (sysproxy/TUN are meaningless in a
-# container), LAN binding so published ports work, fixed proxy port, and the
-# active subscription's core comes up on boot. All four can be overridden
-# per container via -e; see the spec for semantics.
+# The image defaults to port mode. Linux gateways opt into TUN and run as root.
 ENV XBOND_DATA_DIR=/data \
     XBOND_TAKEOVER_MODE=port \
     XBOND_ALLOW_LAN=true \
     XBOND_MIXED_PORT=7890 \
-    XBOND_AUTOSTART=1
+    XBOND_AUTOSTART=1 \
+    XBOND_DASHBOARD_LISTEN=0.0.0.0:19090
 
 VOLUME ["/data"]
-# 7890: mixed proxy inbound. 9090: LocalAPI + web UI (the served index
+# 7890: mixed proxy inbound. 19090: LocalAPI + web UI (the served index
 # carries the per-boot access token — publish this port to trusted
 # interfaces only).
-EXPOSE 7890 9090
+EXPOSE 7890 19090
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -q -O /dev/null http://127.0.0.1:9090/ || exit 1
+  CMD wget -q -O /dev/null "http://127.0.0.1:${XBOND_DASHBOARD_LISTEN##*:}/healthz" || exit 1
 
-USER xbond
+COPY --chmod=755 scripts/dev/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 WORKDIR /app
-ENTRYPOINT ["xbond", "daemon", "--listen", "0.0.0.0:9090", "--web-dir", "/app/dist"]
+ENTRYPOINT ["docker-entrypoint"]

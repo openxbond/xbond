@@ -21,7 +21,7 @@
 控制目標是判別聯合：本機 daemon（宿主身份，不是已儲存列表的條目）、外部核心控制器（用戶顯式添加），以及「無目標」（純 Web 且未保存任何外部控制器）。存儲鍵 `external-controllers.v1` 只存外部條目，`target.selected.v1` 記錄選擇。
 
 1. 由用戶選擇開始：本機，或某條已儲存的外部控制器。選中的外部條目不存在（已刪除）時回落——有 daemon 宿主回落本機，純 Web 回落第一條已儲存項，都沒有則無目標。
-2. `external-controller` metadata 只在本機分支填充端點：daemon 廣播的核心端點（status）優先於 meta，daemon 重啟更換核心端點後跟隨最新快照。尚未取得首次狀態時保留本機身份供載入／失敗處理，不授予寫能力。
+2. daemon 提供的 Web 頁面以 `localapi-controller` metadata 宣告同源核心接口，由 LocalAPI 轉發 REST 及 WebSocket。核心運行後才連接；更換內部核心端口時由 daemon 取用當前端點。原生宿主可從 status 取得可達的核心端點。
 3. 宿主提供的 ClashX bridge 優先於 URL 控制器參數，屬外部核心控制器。
 4. 沒有 bridge 時，帶 `host` 的啟動參數指定外部核心控制器——即使當前選本機，也不取得本機能力；端點改變而沒有明確提供新憑據時，清除憑據，包括 metadata 注入的 daemon 核心憑據。一般導覽參數不改變目標身份。
 5. 無效 metadata 或無法解析的啟動設定保留上一個可用目標；此行為不代表無效設定成功連線。

@@ -101,7 +101,7 @@ func newRuntimeFixture(t *testing.T) runtimeFixture {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := manager.Update(meta.ID, true, ""); err != nil {
+		if _, err := manager.Update(t.Context(), meta.ID, true, ""); err != nil {
 			t.Fatal(err)
 		}
 		return meta, source

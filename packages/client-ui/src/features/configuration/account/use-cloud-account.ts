@@ -39,7 +39,13 @@ export function useAccount() {
       // Fast-poll only while an authorization is pending; otherwise the
       // LocalAPI status refresh drives state changes.
       refreshInterval: (latest: AccountStatus | undefined) =>
-        latest?.status === "pending" || latest?.phase ? 1000 : 4000,
+        latest?.status === "pending" || latest?.phase
+          ? 1000
+          : document.visibilityState === "hidden"
+            ? 30000
+            : 4000,
+      // The authorization tab can put this dashboard in the background.
+      refreshWhenHidden: true,
       shouldRetryOnError: false,
     },
   );
@@ -69,23 +75,18 @@ export function useAccount() {
     };
   }, [mutate, config, mutateCache]);
 
-  // One login path: the system browser plus the shell-registered deep
-  // link. Desktop and the Android host redirect back through the custom
-  // scheme (the OS deep link jumps back into the app); other hosts (web,
-  // iOS — the app registers no URL scheme yet, so a scheme
-  // redirect would dead-end in the browser) keep the loopback callback.
   const login = useCallback(
     async (options?: { origin?: string }) => {
       if (!client) throw new Error("LocalAPI not available");
+      const native = isDesktopApp() || hasAndroidBridge() || isIOSNativeApp();
       const status = await client.accountLogin({
         lang: subscriptionLang(lang),
-        callbackScheme:
-          isDesktopApp() || hasAndroidBridge() || isIOSNativeApp()
-            ? "xbond"
-            : undefined,
+        callbackScheme: native ? "xbond" : undefined,
+        device: !native,
+        noBrowser: !native,
         ...options,
       });
-      await mutate();
+      await mutate(status, { revalidate: false });
       return status;
     },
     [client, mutate, lang],
