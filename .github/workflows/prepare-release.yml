@@ -300,12 +300,12 @@ jobs:
       - uses: ./.github/actions/toolchain
         with:
           install: "false"
-      - uses: actions/download-artifact@v7.0.2
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: "{core-assets,desktop-*,android}"
           merge-multiple: true
           path: release/${{ needs.preflight.outputs.tag }}/assets
-      - uses: actions/download-artifact@v7.0.2
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: release-notes
       - run: pnpm setup:release
