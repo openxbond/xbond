@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/openxbond/xbond/issues"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "author": "openxbond <no-reply@xbond.net>",
   "repository": {
     "type": "git",

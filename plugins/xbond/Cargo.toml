@@ -4,7 +4,7 @@ version = "0.3.0"
 description = "XBond mobile native capabilities: LocalAPI config, split tunnel, self-hosted updates, preferences, system bars, account callbacks."
 authors = ["openxbond <no-reply@xbond.net>"]
 edition = "2021"
-license = "MIT"
+license = "AGPL-3.0-only"
 links = "tauri-plugin-xbond"
 autolib = false
 
