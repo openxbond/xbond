@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta
+    name="theme-color"
+    content="#f7f7f7"
+    media="(prefers-color-scheme: light)"
+  />
+  <meta
+    name="theme-color"
+    content="#0a0a0a"
+    media="(prefers-color-scheme: dark)"
+  />
+  <meta
+    name="description"
+    content="Download XBond for Windows, macOS, Linux and Android."
+  />
+  <title data-i18n="title">Download XBond</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --canvas: #f7f7f7;
+      --canvas: oklch(0.975 0 0);
+      --card: #ffffff;
+      --card: oklch(1 0 0);
+      --inset: #f2f2f2;
+      --inset: oklch(0.955 0 0);
+      --fg: #252525;
+      --fg: oklch(0.145 0 0);
+      --muted: #737373;
+      --muted: oklch(0.5 0 0);
+      --border: #e5e5e5;
+      --border: oklch(0.915 0 0);
+      --border-strong: #d4d4d4;
+      --border-strong: oklch(0.86 0 0);
+      --primary: #303030;
+      --primary: oklch(0.205 0 0);
+      --primary-fg: #fafafa;
+      --primary-fg: oklch(0.985 0 0);
+      --primary-hover: #1c1c1c;
+      --primary-hover: oklch(0.32 0 0);
+      --brand: #f38020;
+      --brand: oklch(0.7163 0.1706 53.45);
+      --brand-text: #b45309;
+      --brand-text: oklch(0.55 0.15 45);
+      --brand-soft: #feebdd;
+      --brand-soft: oklch(0.95 0.045 60);
+      --ring: #f38020;
+      --ring: oklch(0.7163 0.1706 53.45);
+      --elev:
+        inset 0 1px 0 oklch(1 0 0/70%), 0 1px 3px oklch(0.145 0 0/0.03),
+        0 6px 20px oklch(0.145 0 0/0.05);
+      --elev-raised:
+        inset 0 1px 0 oklch(1 0 0/70%), 0 4px 12px oklch(0.145 0 0/0.06),
+        0 18px 36px oklch(0.145 0 0/0.08);
+      --brand-highlight: #ff914d;
+      --brand-highlight: oklch(0.78 0.15 58);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --canvas: #0a0a0a;
+        --canvas: oklch(0.145 0 0);
+        --card: #262422;
+        --card: oklch(0.185 0.004 55);
+        --inset: #1c1b19;
+        --inset: oklch(0.115 0.003 55);
+        --fg: #fafafa;
+        --fg: oklch(0.985 0 0);
+        --muted: #b4b4b4;
+        --muted: oklch(0.72 0 0);
+        --border: rgb(255 255 255/8%);
+        --border: oklch(1 0 0/8%);
+        --border-strong: rgb(255 255 255/14%);
+        --border-strong: oklch(1 0 0/14%);
+        --primary: #eaeaea;
+        --primary: oklch(0.922 0 0);
+        --primary-fg: #262422;
+        --primary-fg: oklch(0.205 0 0);
+        --primary-hover: #d6d6d6;
+        --primary-hover: oklch(0.82 0 0);
+        --brand-text: #ff9a4d;
+        --brand-text: oklch(0.78 0.13 58);
+        --brand-soft: rgb(243 128 32/14%);
+        --brand-soft: oklch(0.7163 0.1706 53.45/14%);
+        --elev: inset 0 1px 0 oklch(1 0 0/7%), 0 2px 8px oklch(0 0 0/25%);
+        --elev-raised:
+          inset 0 1px 0 oklch(1 0 0/10%), 0 8px 24px oklch(0 0 0/45%);
+      }
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body::before {
+      content: "";
+      display: block;
+      height: 3px;
+      background: linear-gradient(90deg, var(--brand), var(--brand-highlight));
+    }
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--fg);
+      font:
+        1rem/1.55 system-ui,
+        -apple-system,
+        "Segoe UI",
+        Roboto,
+        "PingFang SC",
+        "Hiragino Sans GB",
+        "Microsoft YaHei",
+        "Noto Sans CJK SC",
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection {
+      background: color-mix(in oklch, var(--brand) 22%, transparent);
+    }
+    :focus-visible {
+      outline: 2px solid var(--ring);
+      outline-offset: 2px;
+      border-radius: 0.375rem;
+    }
+    a {
+      color: inherit;
+    }
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      max-width: 64rem;
+      margin: 0 auto;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 1.0625rem;
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+    .brand svg {
+      width: 1.375rem;
+      height: 1.375rem;
+      color: var(--fg);
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      flex-wrap: wrap;
+    }
+    .chip {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--inset);
+      border-radius: 9999px;
+      padding: 0.25rem 0.625rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .top-link {
+      font-size: 0.8125rem;
+    }
+    #lang {
+      appearance: none;
+      -webkit-appearance: none;
+      font: inherit;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--fg);
+      background: var(--card)
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+        no-repeat right 0.5rem center/0.75rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 0.625rem;
+      padding: 0.375rem 1.75rem 0.375rem 0.625rem;
+      cursor: pointer;
+    }
+    [dir="rtl"] #lang {
+      background-position: left 0.5rem center;
+      padding: 0.375rem 0.625rem 0.375rem 1.75rem;
+    }
+    main {
+      max-width: 64rem;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+    .hero {
+      padding: 2.75rem 0 1.75rem;
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: clamp(2rem, 5vw, 2.75rem);
+      font-weight: 700;
+      line-height: 1.12;
+      letter-spacing: -0.025em;
+    }
+    .lede {
+      margin: 0;
+      font-size: 1.0625rem;
+      line-height: 1.5;
+      color: var(--muted);
+      max-width: 44rem;
+    }
+    .grid {
+      display: grid;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      align-items: start;
+    }
+    @media (min-width: 56rem) {
+      .grid-desktop {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .grid-mobile {
+        grid-template-columns: 1.6fr 1fr;
+      }
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      box-shadow: var(--elev);
+      padding: 1.25rem;
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .card-head h2 {
+      margin: 0;
+      font-size: 1.0625rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+    .icon-tile {
+      display: grid;
+      place-items: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.625rem;
+      background: var(--inset);
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .platform-icon {
+      width: 1.25rem;
+      height: 1.25rem;
+      color: var(--fg);
+    }
+    .card-hint {
+      margin: 0 0 1rem;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+    .rows {
+      display: flex;
+      flex-direction: column;
+    }
+    .entries {
+      display: flex;
+      flex-direction: column;
+    }
+    .entry {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      background: var(--inset);
+      border: 1px solid var(--border);
+      border-radius: 0.625rem;
+      padding: 0.625rem 0.75rem;
+      text-decoration: none;
+      transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease;
+    }
+    .entry:hover {
+      border-color: var(--border-strong);
+    }
+    .entry + .entry,
+    .cli-grid .entry + .entry {
+      margin-top: 0;
+    }
+    .entries .entry + .entry {
+      margin-top: 0.5rem;
+    }
+    .entry.recommended {
+      background: var(--brand-soft);
+      border-color: color-mix(in oklch, var(--brand) 35%, transparent);
+    }
+    .entry-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+    .entry-label strong {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .entry-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+      color: var(--muted);
+    }
+    .entry-arrow {
+      width: 1rem;
+      height: 1rem;
+    }
+    .fmt {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.6875rem;
+      color: var(--muted);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      padding: 0.0625rem 0.375rem;
+    }
+    .entry-group {
+      background: var(--inset);
+      border: 1px solid var(--border);
+      border-radius: 0.625rem;
+      padding: 0.625rem 0.75rem;
+    }
+    .entry-group + .entry-group {
+      margin-top: 0.5rem;
+    }
+    .group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .group-head strong {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .group-actions {
+      display: flex;
+      gap: 0.375rem;
+      flex-wrap: wrap;
+    }
+    .entry-group .btn:not(.btn-primary) {
+      background: var(--card);
+    }
+    .cli-columns {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    }
+    .cli-group-head {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+    }
+    .cli-group-head .platform-icon {
+      width: 1rem;
+      height: 1rem;
+    }
+    .pull-line {
+      margin: 0 0 1rem;
+    }
+    .mode-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .mode-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border: 1px solid var(--border-strong);
+      background: var(--card);
+      border-radius: 0.625rem;
+      padding: 0.5rem 0.75rem;
+      font: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition:
+        background-color 0.15s ease,
+        color 0.15s ease,
+        border-color 0.15s ease;
+    }
+    .mode-btn.active {
+      background: var(--brand-soft);
+      border-color: color-mix(in oklch, var(--brand) 35%, transparent);
+      color: var(--brand-text);
+    }
+    .mode-btn svg {
+      width: 1rem;
+      height: 1rem;
+    }
+    .code-panel {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 0.625rem;
+      background: var(--inset);
+    }
+    .code-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding: 0.375rem;
+    }
+    .code-tabs {
+      display: inline-flex;
+      gap: 0.125rem;
+    }
+    .code-tab {
+      border: 0;
+      background: transparent;
+      border-radius: 0.5rem;
+      padding: 0.375rem 0.625rem;
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .code-tab.active {
+      background: var(--card);
+      color: var(--fg);
+      box-shadow: 0 1px 2px oklch(0.145 0 0/0.06);
+    }
+    .code-tab:focus-visible {
+      outline: 2px solid var(--ring);
+      outline-offset: 1px;
+    }
+    .code-cmd {
+      margin: 0;
+      padding: 0.75rem;
+      font:
+        0.8125rem/1.6 ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+      background: transparent;
+      max-height: 18rem;
+      overflow: auto;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    @media (max-width: 40rem) {
+      .code-cmd {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+    }
+    .card-foot-hint {
+      margin: 0.75rem 0 0;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .badge {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--brand-text);
+      border: 1px solid color-mix(in oklch, var(--brand) 35%, transparent);
+      background: var(--brand-soft);
+      border-radius: 9999px;
+      padding: 0.125rem 0.5rem;
+    }
+    .caption {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .entry.fallback {
+      margin-top: 0.875rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      border-radius: 9999px;
+      padding: 0.375rem 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--fg);
+      background: var(--card);
+      border: 1px solid var(--border-strong);
+      text-decoration: none;
+      white-space: nowrap;
+      transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
+    }
+    .btn:hover {
+      background: var(--inset);
+    }
+    .btn-primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--brand-strong);
+      border-color: var(--brand-strong);
+    }
+    .pull {
+      display: block;
+      font:
+        0.8125rem/1.6 ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+      background: var(--inset);
+      border: 1px solid var(--border);
+      border-radius: 0.625rem;
+      padding: 0.625rem 0.75rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .pull[hidden] {
+      display: none;
+    }
+    details {
+      margin-top: 1rem;
+    }
+    summary {
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    summary:hover {
+      color: var(--fg);
+    }
+    details pre {
+      margin: 0.5rem 0 0;
+      padding: 0.75rem;
+      background: var(--inset);
+      border-radius: 0.625rem;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .release-links {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.25rem;
+    }
+    @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+      .card {
+        transition:
+          box-shadow 0.18s ease,
+          translate 0.18s ease;
+      }
+      .card:hover {
+        translate: 0 -2px;
+        box-shadow: var(--elev-raised);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition: none !important;
+      }
+    }
+  </style>
+  <header class="top">
+    <a class="brand" href="https://www.xbond.net/dash"
+      ><svg
+        viewBox="0 0 100 100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path d="M14 14H35.5L58 50L35.5 86H14L36.5 50L14 14Z" fill="#F38020" />
+        <path
+          d="M64.5 14H86L65.25 47.2L54.5 30Z M54.5 70L65.25 52.8L86 86H64.5Z"
+          fill="currentColor"
+        /></svg
+      ><span>XBond</span></a
+    >
+    <div class="top-actions">
+      <span class="chip">v@@version@@</span>
+      <select id="lang" aria-label="Language">
+        <option value="en" selected>English</option>
+        <option value="zh">简体中文</option>
+        <option value="zh-HK">繁體中文</option>
+        <option value="ko">한국어</option>
+        <option value="fa">فارسی</option>
+      </select>
+      <a
+        class="btn top-link"
+        href="https://www.xbond.net/dash"
+        data-i18n="dashboard"
+        >XBond Dashboard</a
+      >
+    </div>
+  </header>
+  <main>
+    <section class="hero">
+      <h1 data-i18n="title">Download XBond</h1>
+      <p class="lede" data-i18n="lede">
+        The dual-core proxy client for desktop and mobile — import your
+        subscription and connect.
+      </p>
+    </section>
+    <section class="grid grid-desktop">@@desktopCards@@</section>
+    <section class="grid grid-mobile">@@mobileCards@@</section>
+    <section class="grid">@@cliCard@@</section>
+    <section class="grid">@@dockerCard@@</section>
+    <section class="grid">@@releaseCard@@</section>
+  </main>
+  <script>
+    const STRINGS = @@stringsJson@@;
+    const LOCALES = @@localesJson@@;
+    const select = document.getElementById("lang");
+    let currentLocale = "en";
+    const docker = {
+      mode: /Macintosh|Windows/.test(navigator.userAgent) ? "port" : "tun",
+      form: "run",
+      tz: "Asia/Shanghai",
+      autoPort: false,
+      touched: false,
+    };
+    try {
+      docker.tz = Intl.DateTimeFormat().resolvedOptions().timeZone || docker.tz;
+    } catch {}
+    docker.autoPort = docker.mode === "port";
+    const DOCKER_IMAGE = "ghcr.io/openxbond/xbond:latest";
+    const DOCKER_PORTS = ["127.0.0.1:7890:7890", "127.0.0.1:19090:19090"];
+    const shellQuote = (value) => "'" + value.replace(/'/g, "'\\''") + "'";
+    function dockerCommands() {
+      const tun = docker.mode === "tun";
+      const environment = { TZ: docker.tz };
+      if (tun)
+        Object.assign(environment, {
+          XBOND_TAKEOVER_MODE: "tun",
+          XBOND_MIXED_PORT: "7890",
+          XBOND_DASHBOARD_LISTEN: "127.0.0.1:19090",
+        });
+      const runLines = [
+        "docker run -d",
+        "  --pull always",
+        "  --name xbond",
+        "  --restart unless-stopped",
+      ];
+      if (tun)
+        runLines.push(
+          "  --network host",
+          "  --cap-add NET_ADMIN",
+          "  --device /dev/net/tun",
+        );
+      else for (const port of DOCKER_PORTS) runLines.push(`  -p ${port}`);
+      runLines.push("  -v xbond-data:/data");
+      for (const [key, value] of Object.entries(environment))
+        runLines.push(`  -e ${key}=${shellQuote(value)}`);
+      runLines.push(`  ${DOCKER_IMAGE}`);
+      const composeLines = [
+        "services:",
+        "  xbond:",
+        `    image: ${DOCKER_IMAGE}`,
+        "    container_name: xbond",
+        "    restart: unless-stopped",
+        "    pull_policy: always",
+      ];
+      if (tun)
+        composeLines.push(
+          "    network_mode: host",
+          "    cap_add:",
+          "      - NET_ADMIN",
+          "    devices:",
+          "      - /dev/net/tun:/dev/net/tun",
+        );
+      else {
+        composeLines.push("    ports:");
+        for (const port of DOCKER_PORTS) composeLines.push(`      - "${port}"`);
+      }
+      composeLines.push("    environment:");
+      for (const [key, value] of Object.entries(environment))
+        composeLines.push(`      ${key}: ${JSON.stringify(value).replaceAll("$", "$$")}`);
+      composeLines.push(
+        "    volumes:",
+        "      - xbond-data:/data",
+        "volumes:",
+        "  xbond-data:",
+        "    name: xbond-data",
+      );
+      return { run: runLines.join(" \\\n"), compose: composeLines.join("\n") + "\n" };
+    }
+    function detect() {
+      try {
+        const saved = localStorage.getItem("xbond-lang");
+        if (saved && STRINGS[saved]) return saved;
+      } catch {}
+      for (const tag of navigator.languages || []) {
+        const lower = tag.toLowerCase();
+        if (/^(zh-tw|zh-hk|zh-hant)/.test(lower)) return "zh-HK";
+        if (lower.startsWith("zh")) return "zh";
+        if (lower.startsWith("ko")) return "ko";
+        if (lower.startsWith("fa")) return "fa";
+      }
+      return "en";
+    }
+    function rebuildDocker() {
+      const commands = dockerCommands();
+      document.getElementById("docker-cmd-code").textContent =
+        docker.form === "run" ? commands.run : commands.compose;
+      const strings = STRINGS[currentLocale] || STRINGS.en;
+      document.getElementById("mode-tip").textContent =
+        docker.mode === "tun" ? strings.tipTun : strings.tipPort;
+      document.getElementById("proxy-hint").hidden = docker.mode !== "port";
+      document.getElementById("auto-port").hidden =
+        !(docker.autoPort && !docker.touched && docker.mode === "port");
+      for (const button of document.querySelectorAll(".mode-btn"))
+        button.classList.toggle("active", button.dataset.mode === docker.mode);
+      for (const tab of document.querySelectorAll(".code-tab"))
+        tab.classList.toggle("active", tab.dataset.form === docker.form);
+    }
+    function apply(locale) {
+      const strings = STRINGS[locale] || STRINGS.en;
+      const meta = LOCALES[locale] || LOCALES.en;
+      document.documentElement.lang = meta.lang;
+      document.documentElement.dir = meta.dir;
+      for (const el of document.querySelectorAll("[data-i18n]")) {
+        const value = strings[el.getAttribute("data-i18n")];
+        if (value) el.textContent = value;
+      }
+      document.title = strings.title;
+      currentLocale = locale;
+      select.value = locale;
+      select.setAttribute("aria-label", strings.langAria);
+      try {
+        localStorage.setItem("xbond-lang", locale);
+      } catch {}
+      rebuildDocker();
+    }
+    for (const button of document.querySelectorAll(".mode-btn"))
+      button.addEventListener("click", () => {
+        docker.mode = button.dataset.mode;
+        docker.touched = true;
+        rebuildDocker();
+      });
+    for (const tab of document.querySelectorAll(".code-tab"))
+      tab.addEventListener("click", () => {
+        docker.form = tab.dataset.form;
+        rebuildDocker();
+      });
+    select.addEventListener("change", () => apply(select.value));
+    apply(detect());
+  </script>
+</html>

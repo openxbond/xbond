@@ -118,11 +118,12 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
     assert.ok(downloads.includes(`xbond-android-${tag}-${abi}.apk`));
   }
   assert.ok(downloads.includes(`xbond-android-${tag}.apk`));
-  // 默认推荐在最前：arm64-v8a 标注 most phones，universal 兜底殿后。
-  assert.match(downloads, /arm64-v8a \(most phones\)/);
+  // 默认推荐在最前：arm64-v8a 带推荐徽章，universal 兜底殿后。
+  assert.match(downloads, /<strong>arm64-v8a<\/strong>/);
+  assert.match(downloads, /data-i18n="recommended">Recommended</);
   assert.ok(
-    downloads.indexOf("most phones") <
-      downloads.indexOf("universal (any device)"),
+    downloads.indexOf('data-i18n="mostPhones"') <
+      downloads.indexOf('data-i18n="anyDevice"'),
   );
   assert.match(downloads, /App Store/);
   buildPages(directory, pages, tag, [], key);
@@ -142,9 +143,14 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
     ["", "https://testflight.apple.com/join/Example1"],
     key,
   );
+  const withTestFlight = fs.readFileSync(
+    path.join(pages, "download/index.html"),
+    "utf8",
+  );
+  assert.match(withTestFlight, /<strong>TestFlight<\/strong>/);
   assert.match(
-    fs.readFileSync(path.join(pages, "download/index.html"), "utf8"),
-    /href="https:\/\/testflight\.apple\.com\/join\/Example1">TestFlight/,
+    withTestFlight,
+    /href="https:\/\/testflight\.apple\.com\/join\/Example1"/,
   );
   const sumFile = path.join(directory, "SHA256SUMS");
   const originalSum = checksum(path.join(directory, "desktop.json"));

@@ -234,6 +234,236 @@ export function verifyManifestAsset(
   }
 }
 
+const PLATFORM_ICON_PATHS = {
+  windows:
+    "M0,0H11.377V11.372H0ZM12.623,0H24V11.372H12.623ZM0,12.623H11.377V24H0Zm12.623,0H24V24H12.623",
+  apple:
+    "M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701",
+  android:
+    "M18.4395 5.5586c-.675 1.1664-1.352 2.3318-2.0274 3.498-.0366-.0155-.0742-.0286-.1113-.043-1.8249-.6957-3.484-.8-4.42-.787-1.8551.0185-3.3544.4643-4.2597.8203-.084-.1494-1.7526-3.021-2.0215-3.4864a1.1451 1.1451 0 0 0-.1406-.1914c-.3312-.364-.9054-.4859-1.379-.203-.475.282-.7136.9361-.3886 1.5019 1.9466 3.3696-.0966-.2158 1.9473 3.3593.0172.031-.4946.2642-1.3926 1.0177C2.8987 12.176.452 14.772 0 18.9902h24c-.119-1.1108-.3686-2.099-.7461-3.0683-.7438-1.9118-1.8435-3.2928-2.7402-4.1836a12.1048 12.1048 0 0 0-2.1309-1.6875c.6594-1.122 1.312-2.2559 1.9649-3.3848.2077-.3615.1886-.7956-.0079-1.1191a1.1001 1.1001 0 0 0-.8515-.5332c-.5225-.0536-.9392.3128-1.0488.5449zm-.0391 8.461c.3944.5926.324 1.3306-.1563 1.6503-.4799.3197-1.188.0985-1.582-.4941-.3944-.5927-.324-1.3307.1563-1.6504.4727-.315 1.1812-.1086 1.582.4941zM7.207 13.5273c.4803.3197.5506 1.0577.1563 1.6504-.394.5926-1.1038.8138-1.584.4941-.48-.3197-.5503-1.0577-.1563-1.6504.4008-.6021 1.1087-.8106 1.584-.4941z",
+  linux:
+    "M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z",
+  docker:
+    "M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z",
+  github:
+    "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12",
+};
+
+function platformIcon(name: keyof typeof PLATFORM_ICON_PATHS) {
+  // Brand-colored where the mark is famous for it; the rest follow the text.
+  if (name === "windows") {
+    return `<svg class="platform-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="#F25022" d="M0,0H11.377V11.372H0Z"/><path fill="#7FBA00" d="M12.623,0H24V11.372H12.623Z"/><path fill="#00A4EF" d="M0,12.623H11.377V24H0Z"/><path fill="#FFB900" d="M12.623,12.623H24V24H12.623Z"/></svg>`;
+  }
+  const fill =
+    name === "android"
+      ? "#3DDC84"
+      : name === "docker"
+        ? "#2496ED"
+        : "currentColor";
+  return `<svg class="platform-icon" viewBox="0 0 24 24" fill="${fill}" aria-hidden="true"><path d="${PLATFORM_ICON_PATHS[name]}"/></svg>`;
+}
+
+// Locales mirror the cloud dash (apps/dash/locales); English is the no-JS
+// fallback baked into the markup, the rest apply client-side.
+type DownloadLocale = "en" | "zh" | "zh-HK" | "ko" | "fa";
+
+const DOWNLOAD_LOCALES: Record<
+  DownloadLocale,
+  { lang: string; dir: "ltr" | "rtl"; name: string }
+> = {
+  en: { lang: "en", dir: "ltr", name: "English" },
+  zh: { lang: "zh-Hans", dir: "ltr", name: "简体中文" },
+  "zh-HK": { lang: "zh-Hant", dir: "ltr", name: "繁體中文" },
+  ko: { lang: "ko", dir: "ltr", name: "한국어" },
+  fa: { lang: "fa", dir: "rtl", name: "فارسی" },
+};
+
+const DOWNLOAD_STRINGS: Record<DownloadLocale, Record<string, string>> = {
+  en: {
+    title: "Download XBond",
+    lede: "The dual-core proxy client for desktop and mobile — import your subscription and connect.",
+    dashboard: "XBond Dashboard",
+    installer: "Installer",
+    diskImage: "Disk image",
+    cli: "CLI",
+    download: "Download",
+    abiHint:
+      "Most phones run arm64-v8a. Not sure? universal works on any device, but is larger.",
+    recommended: "Recommended",
+    mostPhones: "most phones",
+    emulator: "emulator",
+    anyDevice: "any device",
+    iosInvite: "Contact the release maintainer for a TestFlight invitation.",
+    dockerHint:
+      "Start the official XBond image with your subscription. XBond refreshes the configuration automatically.",
+    dockerTitle: "Docker deployment",
+    modeTun: "Gateway mode",
+    modePort: "Port mode",
+    tipTun:
+      "Routes all traffic from the machine and your LAN. Linux hosts only (routers, NAS, servers). Docker Desktop on macOS/Windows can't do this — use port mode.",
+    tipPort: "Use a local HTTP or SOCKS proxy on any Docker host.",
+    dashboardHint:
+      "On the Docker host, open http://localhost:19090 to manage XBond. Use an SSH tunnel for a remote host.",
+    proxyHint: "Set your app's HTTP or SOCKS proxy to 127.0.0.1:7890.",
+    autoPort: "Docker Desktop detected — port mode selected for you",
+    loginHint:
+      "SUB_URL is optional — sign in from the web dashboard (OAuth device authorization) and your subscription syncs automatically.",
+    cliHint: "Standalone binaries — no installation required.",
+    dockerDash:
+      "For subscription config and gateway / port modes, use the dashboard's Docker deployment.",
+    releaseInfo: "Release information",
+    githubRelease: "GitHub Release",
+    checksums: "SHA-256 checksums",
+    releaseNotes: "Release notes",
+    langAria: "Language",
+  },
+  zh: {
+    title: "下载 XBond",
+    lede: "面向桌面与移动的双核代理客户端——导入订阅，即刻连接。",
+    dashboard: "XBond 控制台",
+    installer: "安装包",
+    diskImage: "磁盘映像",
+    cli: "CLI",
+    download: "下载",
+    abiHint: "大多数手机是 arm64-v8a；不确定机型就选 universal，通用但更大。",
+    recommended: "推荐",
+    mostPhones: "大多数手机",
+    emulator: "模拟器",
+    anyDevice: "任意设备",
+    iosInvite: "联系发布维护者获取 TestFlight 邀请。",
+    dockerHint: "用你的订阅启动 XBond 官方镜像，配置会自动更新。",
+    dockerTitle: "Docker 部署",
+    modeTun: "网关模式",
+    modePort: "端口模式",
+    tipTun:
+      "接管整机和局域网的全部流量。仅限 Linux 主机（软路由、NAS、服务器）；macOS / Windows 的 Docker Desktop 不支持，请用端口模式。",
+    tipPort: "通过本地 HTTP 或 SOCKS 代理连接，适用于所有 Docker 主机。",
+    dashboardHint:
+      "在 Docker 主机打开 http://localhost:19090 管理 XBond。远程主机可通过 SSH 隧道访问。",
+    proxyHint: "将应用的 HTTP 或 SOCKS 代理设为 127.0.0.1:7890。",
+    autoPort: "检测到 Docker Desktop，已为你选中端口模式",
+    loginHint:
+      "SUB_URL 可选——在管理页面网页登录（OAuth 设备授权）即可自动同步订阅。",
+    cliHint: "独立命令行二进制，无需安装。",
+    releaseInfo: "发布信息",
+    githubRelease: "GitHub Release",
+    checksums: "SHA-256 校验和",
+    releaseNotes: "发布说明",
+    langAria: "语言",
+  },
+  "zh-HK": {
+    title: "下載 XBond",
+    lede: "面向桌面與流動的雙核代理用戶端——匯入訂閱，即刻連線。",
+    dashboard: "XBond 控制台",
+    installer: "安裝包",
+    diskImage: "磁碟映像",
+    cli: "CLI",
+    download: "下載",
+    abiHint: "大多數手機是 arm64-v8a；不確定機型就選 universal，通用但更大。",
+    recommended: "推薦",
+    mostPhones: "大多數手機",
+    emulator: "模擬器",
+    anyDevice: "任何裝置",
+    iosInvite: "聯絡發布維護者獲取 TestFlight 邀請。",
+    dockerHint: "使用你的訂閱啟動 XBond 官方映像，配置會自動更新。",
+    dockerTitle: "Docker 部署",
+    modeTun: "網關模式",
+    modePort: "連接埠模式",
+    tipTun:
+      "接管整機和區域網絡的全部流量。僅限 Linux 主機（軟路由、NAS、伺服器）；macOS / Windows 的 Docker Desktop 不支援，請用連接埠模式。",
+    tipPort: "透過本機 HTTP 或 SOCKS 代理連線，適用於所有 Docker 主機。",
+    dashboardHint:
+      "在 Docker 主機打開 http://localhost:19090 管理 XBond。遠端主機可透過 SSH 隧道存取。",
+    proxyHint: "將應用程式的 HTTP 或 SOCKS 代理設為 127.0.0.1:7890。",
+    autoPort: "偵測到 Docker Desktop，已為你選中連接埠模式",
+    loginHint:
+      "SUB_URL 可選——在管理頁面網頁登入（OAuth 裝置授權）即可自動同步訂閱。",
+    cliHint: "獨立命令列二進位檔，無需安裝。",
+    releaseInfo: "發布資訊",
+    githubRelease: "GitHub Release",
+    checksums: "SHA-256 校驗和",
+    releaseNotes: "發布說明",
+    langAria: "語言",
+  },
+  ko: {
+    title: "XBond 다운로드",
+    lede: "데스크톱과 모바일을 위한 듀얼 코어 프록시 클라이언트 — 구독을 가져오고 바로 연결하세요.",
+    dashboard: "XBond 콘솔",
+    installer: "설치 프로그램",
+    diskImage: "디스크 이미지",
+    cli: "CLI",
+    download: "다운로드",
+    abiHint:
+      "대부분의 휴대폰은 arm64-v8a입니다. 확실하지 않으면 universal을 선택하세요 — 모든 기기에서 작동하지만 더 큽니다.",
+    recommended: "추천",
+    mostPhones: "대부분의 휴대폰",
+    emulator: "에뮬레이터",
+    anyDevice: "모든 기기",
+    iosInvite: "TestFlight 초대는 릴리스 담당자에게 문의하세요.",
+    dockerHint:
+      "구독으로 공식 XBond 이미지를 시작합니다. 구성이 자동으로 갱신됩니다.",
+    dockerTitle: "Docker 배포",
+    modeTun: "게이트웨이 모드",
+    modePort: "포트 모드",
+    tipTun:
+      "기기 전체와 로컬 네트워크의 모든 트래픽을 처리합니다. Linux 호스트(공유기, NAS, 서버)에서만 가능하며, macOS/Windows의 Docker Desktop에서는 지원되지 않으니 포트 모드를 사용하세요.",
+    tipPort:
+      "모든 Docker 호스트에서 로컬 HTTP 또는 SOCKS 프록시를 사용할 수 있습니다.",
+    dashboardHint:
+      "Docker 호스트에서 http://localhost:19090를 열어 XBond를 관리하세요. 원격 호스트에는 SSH 터널을 사용하세요.",
+    proxyHint: "앱의 HTTP 또는 SOCKS 프록시를 127.0.0.1:7890으로 설정하세요.",
+    autoPort: "Docker Desktop이 감지되어 포트 모드를 선택했습니다",
+    loginHint:
+      "SUB_URL은 선택 사항입니다 — 관리 페이지에서 웹 로그인(OAuth 기기 승인)하면 구독이 자동으로 동기화됩니다.",
+    cliHint: "독립 실행 바이너리 — 설치가 필요 없습니다.",
+    dockerDash:
+      "구독 설정과 실행 모드(게이트웨이/포트)는 콘솔의 Docker 배포에서 구성하세요.",
+    releaseInfo: "릴리스 정보",
+    githubRelease: "GitHub Release",
+    checksums: "SHA-256 체크섬",
+    releaseNotes: "릴리스 노트",
+    langAria: "언어",
+  },
+  fa: {
+    title: "دانلود XBond",
+    lede: "کلاینت پروکسی دو هسته‌ای برای دسکتاپ و موبایل — اشتراک خود را وارد کنید و متصل شوید.",
+    dashboard: "کنسول XBond",
+    installer: "نصب‌کننده",
+    diskImage: "تصویر دیسک",
+    cli: "CLI",
+    download: "دانلود",
+    abiHint:
+      "بیشتر گوشی‌ها arm64-v8a هستند. اگر مطمئن نیستید، universal را انتخاب کنید — روی همه دستگاه‌ها کار می‌کند اما بزرگ‌تر است.",
+    recommended: "پیشنهادی",
+    mostPhones: "بیشتر گوشی‌ها",
+    emulator: "شبیه‌ساز",
+    anyDevice: "همه دستگاه‌ها",
+    iosInvite: "برای دریافت دعوت‌نامه TestFlight با مسئول انتشار تماس بگیرید.",
+    dockerHint:
+      "تصویر رسمی XBond را با اشتراک خود اجرا کنید. پیکربندی به‌صورت خودکار به‌روز می‌شود.",
+    dockerTitle: "استقرار Docker",
+    modeTun: "حالت دروازه",
+    modePort: "حالت پورت",
+    tipTun:
+      "تمام ترافیک دستگاه و شبکه محلی را از مسیر پروکسی عبور می‌دهد. فقط روی میزبان‌های Linux (روتر، NAS، سرور) کار می‌کند؛ Docker Desktop در macOS/Windows پشتیبانی نمی‌شود، از حالت پورت استفاده کنید.",
+    tipPort: "در هر میزبان Docker از پروکسی محلی HTTP یا SOCKS استفاده کنید.",
+    dashboardHint:
+      "برای مدیریت XBond در میزبان Docker، http://localhost:19090 را باز کنید. برای میزبان راه دور از تونل SSH استفاده کنید.",
+    proxyHint: "پروکسی HTTP یا SOCKS برنامه را روی 127.0.0.1:7890 تنظیم کنید.",
+    autoPort: "Docker Desktop شناسایی شد؛ حالت پورت برای شما انتخاب شد",
+    loginHint:
+      "SUB_URL اختیاری است — از داشبورد وب وارد شوید (احراز هویت دستگاه OAuth) تا اشتراک شما به‌صورت خودکار همگام‌سازی شود.",
+    cliHint: "باینری‌های مستقل — نیازی به نصب نیست.",
+    dockerDash:
+      "پیکربندی اشتراک و حالت‌های اجرا (دروازه/پورت) را از استقرار Docker کنسول انجام دهید.",
+    releaseInfo: "اطلاعات انتشار",
+    githubRelease: "GitHub Release",
+    checksums: "چک‌سام SHA-256",
+    releaseNotes: "یادداشت‌های انتشار",
+    langAria: "زبان",
+  },
+};
+
 export function buildPages(
   directory: string,
   output: string,
@@ -263,34 +493,104 @@ export function buildPages(
   for (const name of ["release.json", "desktop.json", "SHA256SUMS"]) {
     fs.copyFileSync(path.join(directory, name), path.join(output, name));
   }
-  const labels: Record<string, string> = {
+  const versionCaption = `<span class="caption">v${version}</span>`;
+  const downloadArrow = `<svg class="entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14m-7-7 7 7 7-7"/></svg>`;
+  const externalArrow = `<svg class="entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg>`;
+
+  // Download entries: the whole row is the link — label and format chip on
+  // the left, version and a download arrow on the right. Arch labels and
+  // file formats are product vocabulary; the rest goes through data-i18n.
+  const fmtChip = (text: string) => `<span class="fmt">${text}</span>`;
+  const entryRow = (options: {
+    url: string;
+    label: string;
+    chip?: string;
+    captionI18n?: [string, string] | null;
+    recommended?: boolean;
+    className?: string;
+  }) =>
+    `<a class="entry${options.recommended ? " recommended" : ""}${options.className ? ` ${options.className}` : ""}" href="${escape(options.url)}">
+  <span class="entry-label"><strong>${options.label}</strong>${options.recommended ? `<span class="badge" data-i18n="recommended">Recommended</span>` : ""}${options.captionI18n ? `<span class="caption" data-i18n="${options.captionI18n[0]}">${options.captionI18n[1]}</span>` : ""}${options.chip ? fmtChip(options.chip) : ""}</span>
+  <span class="entry-meta">${versionCaption}${downloadArrow}<span class="sr-only" data-i18n="download">Download</span></span>
+</a>`;
+
+  const archLabel = (arch: string) => (arch === "amd64" ? "x64" : "ARM64");
+  const osLabel: Record<string, string> = {
     windows: "Windows",
     darwin: "macOS",
     linux: "Linux",
   };
-  const platforms = Object.entries(labels)
-    .map(([os, label]) => {
-      const links = ["amd64", "arm64"]
-        .map((arch) => {
-          const desktop = assets[`desktop-${os}-${arch}`];
-          const cli = assets[`cli-${os}-${arch}`];
-          const nativePackages =
-            os === "linux"
-              ? linuxPackageFormats
-                  .map((format) => {
-                    const pkg = assets[`desktop-linux-${arch}-${format}`];
-                    return pkg
-                      ? `<a href="${escape(pkg.url)}">.${format}</a>`
-                      : "";
-                  })
-                  .join("")
-              : "";
-          return `<li><strong>${arch === "amd64" ? "x64" : "ARM64"}</strong>${nativePackages}<a href="${escape(desktop.url)}">${os === "linux" ? "AppImage" : "Desktop installer"}</a><a href="${escape(cli.url)}">CLI binary</a></li>`;
-        })
-        .join("");
-      return `<section><h2>${label}</h2><ul>${links}</ul></section>`;
-    })
+  const desktopFormat: Record<string, string | null> = {
+    windows: ".exe",
+    darwin: ".dmg",
+    linux: null,
+  };
+  const desktopCard = (os: "windows" | "darwin" | "linux") => {
+    const entries = ["amd64", "arm64"]
+      .map((arch) =>
+        entryRow({
+          url: assets[`desktop-${os}-${arch}`].url,
+          label: archLabel(arch),
+          chip: desktopFormat[os] ?? undefined,
+        }),
+      )
+      .join("");
+    return `<article class="card">
+  <div class="card-head"><span class="icon-tile">${platformIcon(os === "windows" ? "windows" : os === "darwin" ? "apple" : "linux")}</span><h2>${osLabel[os]}</h2></div>
+  <div class="entries">${entries}</div>
+</article>`;
+  };
+  // Linux groups its three package formats per architecture, matching the
+  // reference layout: group header with version, then one button per format.
+  const linuxCard = `<article class="card">
+  <div class="card-head"><span class="icon-tile">${platformIcon("linux")}</span><h2>Linux</h2></div>
+  <div class="entries">${["amd64", "arm64"]
+    .map(
+      (arch) => `<div class="entry-group">
+  <div class="group-head"><strong>Linux ${archLabel(arch)}</strong>${versionCaption}</div>
+  <div class="group-actions">${linuxPackageFormats
+    .filter((format) => assets[`desktop-linux-${arch}-${format}`])
+    .map(
+      (format) =>
+        `<a class="btn" href="${escape(assets[`desktop-linux-${arch}-${format}`]!.url)}">.${format}</a>`,
+    )
+    .join(
+      "",
+    )}<a class="btn btn-primary" href="${escape(assets[`desktop-linux-${arch}`].url)}">AppImage</a></div>
+</div>`,
+    )
+    .join("")}</div>
+</article>`;
+
+  const desktopCards =
+    desktopCard("windows") + desktopCard("darwin") + linuxCard;
+
+  // Android card: per-ABI entries with the recommended default first, then
+  // the universal fallback for users unsure of their device's ABI.
+  const abiCaption: Record<string, [string, string] | null> = {
+    "arm64-v8a": ["mostPhones", "most phones"],
+    x86_64: ["emulator", "emulator"],
+    x86: ["emulator", "emulator"],
+  };
+  const androidEntries = ["arm64-v8a", "armeabi-v7a", "x86_64", "x86"]
+    .map((abi, index) =>
+      entryRow({
+        url: assets[`android-${abi}`].url,
+        label: abi,
+        chip: ".apk",
+        captionI18n: abiCaption[abi] ?? null,
+        recommended: index === 0,
+      }),
+    )
     .join("");
+  const androidCard = `<article class="card android">
+  <div class="card-head"><span class="icon-tile">${platformIcon("android")}</span><h2>Android</h2></div>
+  <p class="card-hint" data-i18n="abiHint">Most phones run arm64-v8a. Not sure? universal works on any device, but is larger.</p>
+  <div class="entries">${androidEntries}
+    ${entryRow({ url: assets["android-universal"].url, label: "universal", chip: ".apk", captionI18n: ["anyDevice", "any device"], className: "fallback" })}
+  </div>
+</article>`;
+
   const storeHosts = ["apps.apple.com", "testflight.apple.com"];
   const stores = ["App Store", "TestFlight"].map((label, index) => {
     const value = storeLinks[index]?.trim();
@@ -305,57 +605,129 @@ export function buildPages(
         !/^\/join\/[a-zA-Z0-9]+\/?$/.test(link.pathname))
     )
       throw new Error(`Invalid ${label} URL`);
-    return `<li><a href="${escape(link.href)}">${label}</a></li>`;
+    return `<a class="entry" href="${escape(link.href)}">
+  <span class="entry-label"><strong>${label}</strong></span>
+  <span class="entry-meta">${externalArrow}</span>
+</a>`;
   });
-  const iosInstall =
-    stores[0] + stores[1] ||
-    "<li>Contact the release maintainer for a TestFlight invitation.</li>";
-  fs.mkdirSync(path.join(output, "download"), { recursive: true });
-  // Display order with the default choice first: arm64-v8a covers most
-  // phones and is the smallest download; emulators come next, universal
-  // last for users unsure of their device's ABI.
-  const androidAbiOrder = [
-    "arm64-v8a",
-    "armeabi-v7a",
-    "x86_64",
-    "x86",
-  ] as const satisfies readonly (typeof androidAbis)[number][];
-  const androidAbiLinks = androidAbiOrder
-    .map((abi) => {
-      const asset = assets[`android-${abi}`];
-      const label =
-        abi === "arm64-v8a"
-          ? "arm64-v8a (most phones)"
-          : abi === "armeabi-v7a"
-            ? "armeabi-v7a"
-            : `${abi} (emulator)`;
-      return `<li><strong>${label}</strong><a href="${escape(asset.url)}">Android APK</a></li>`;
-    })
-    .join("");
-  fs.writeFileSync(
-    path.join(output, "download/index.html"),
-    `<!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Download XBond</title>
-<style>
-:root{color-scheme:light dark;--accent:#a24006;--line:#ddd;--bg:#faf9f7;--fg:#191714}
-@media(prefers-color-scheme:dark){:root{--accent:#ffab70;--line:#413b35;--bg:#181613;--fg:#fbf6f0}}
-body{margin:0;background:var(--bg);color:var(--fg);font:1rem/1.55 system-ui,sans-serif}
-main{max-width:44rem;margin:auto;padding:2rem 1.25rem 4rem}
-a{color:var(--accent);text-underline-offset:.2em}a:focus-visible{outline:2px solid;outline-offset:4px}
-h1{font-size:2.5rem;line-height:1.15;margin:1.5rem 0 .5rem}h2{font-size:1.15rem;margin:0}
-section{border-top:1px solid var(--line);padding:1.15rem 0}
-ul{padding:0;margin:.5rem 0 0;list-style:none}li{display:flex;flex-wrap:wrap;gap:.25rem 1.25rem;padding:.25rem 0}
-li strong{min-width:4rem}code{overflow-wrap:anywhere}
-summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
-</style>
-<main><nav><a href="../">XBond Dashboard</a></nav><h1>Download XBond</h1>
-<p>Version ${version}. Choose an installer or download the standalone CLI.</p>
-${platforms}
-<section><h2>Android and iOS</h2><p>Most phones use arm64-v8a. Not sure which ABI your device runs? Pick universal — it works everywhere but is larger.</p><ul>${androidAbiLinks}<li><strong>universal (any device)</strong><a href="${escape(assets["android-universal"].url)}">Android APK</a></li>${iosInstall}</ul></section>
-<section><h2>Docker</h2><p><code>docker pull ghcr.io/openxbond/xbond:${tag}</code></p></section>
-<section><h2>Release information</h2><ul><li><a href="${repo}/releases/tag/${tag}">GitHub Release</a><a href="../SHA256SUMS">SHA-256 checksums</a></li></ul>
-<details><summary>Release notes</summary><pre>${escape(notes)}</pre></details></section></main></html>\n`,
+  const iosBody =
+    stores.join("") ||
+    `<p class="card-hint" data-i18n="iosInvite">Contact the release maintainer for a TestFlight invitation.</p>`;
+  const iosCard = `<article class="card">
+  <div class="card-head"><span class="icon-tile">${platformIcon("apple")}</span><h2>iOS</h2></div>
+  <div class="entries">${iosBody}</div>
+</article>`;
+
+  // CLI binaries ship as their own card below the installers.
+  const cliColumn = (os: "windows" | "darwin" | "linux") => {
+    const entries = ["amd64", "arm64"]
+      .map((arch) =>
+        entryRow({
+          url: assets[`cli-${os}-${arch}`].url,
+          label: archLabel(arch),
+          chip: os === "windows" ? ".exe" : undefined,
+        }),
+      )
+      .join("");
+    const icon = platformIcon(
+      os === "windows" ? "windows" : os === "darwin" ? "apple" : "linux",
+    );
+    return `<div class="cli-group">
+  <div class="cli-group-head">${icon}<span>${osLabel[os]}</span></div>
+  <div class="entries">${entries}</div>
+</div>`;
+  };
+  const cliCard = `<article class="card">
+  <div class="card-head"><span class="icon-tile"><svg class="platform-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 17 6-5-6-5M12 19h8"/></svg></span><h2>CLI</h2></div>
+  <p class="card-hint" data-i18n="cliHint">Standalone binaries — no installation required.</p>
+  <div class="cli-columns">${(["windows", "linux", "darwin"] as const)
+    .map((os) => cliColumn(os))
+    .join("")}</div>
+</article>`;
+
+  // Docker card adapted from the dash's deployment card for the anonymous
+  // release page: pull on its own line, a gateway/port mode toggle, and a
+  // run/compose command panel built by the page script. Commands carry no
+  // SUB_URL — the contract makes it optional and the web dashboard (OAuth
+  // device authorization) is the intended setup path here.
+  const dockerInitial = [
+    "docker run -d",
+    "  --pull always",
+    "  --name xbond",
+    "  --restart unless-stopped",
+    "  --network host",
+    "  --cap-add NET_ADMIN",
+    "  --device /dev/net/tun",
+    "  -v xbond-data:/data",
+    "  -e TZ='Asia/Shanghai'",
+    "  -e XBOND_TAKEOVER_MODE='tun'",
+    "  -e XBOND_MIXED_PORT='7890'",
+    "  -e XBOND_DASHBOARD_LISTEN='127.0.0.1:19090'",
+    "  ghcr.io/openxbond/xbond:latest",
+  ].join(" \\\n");
+  const dockerCard = `<article class="card">
+  <div class="card-head"><span class="icon-tile">${platformIcon("docker")}</span><h2 data-i18n="dockerTitle">Docker deployment</h2></div>
+  <p class="card-hint" data-i18n="dockerHint">Start the official XBond image with your subscription. XBond refreshes the configuration automatically.</p>
+  <code class="pull pull-line" dir="ltr">docker pull ghcr.io/openxbond/xbond:latest</code>
+  <div class="mode-toggle">
+    <button type="button" class="mode-btn active" data-mode="tun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg><span data-i18n="modeTun">Gateway mode</span></button>
+    <button type="button" class="mode-btn" data-mode="port"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg><span data-i18n="modePort">Port mode</span></button>
+  </div>
+  <p class="card-hint" id="mode-tip">Routes all traffic from the machine and your LAN. Linux hosts only (routers, NAS, servers). Docker Desktop on macOS/Windows can't do this — use port mode.</p>
+  <p class="card-hint" data-i18n="dashboardHint">On the Docker host, open http://localhost:19090 to manage XBond. Use an SSH tunnel for a remote host.</p>
+  <p class="card-hint" id="proxy-hint" data-i18n="proxyHint" hidden>Set your app's HTTP or SOCKS proxy to 127.0.0.1:7890.</p>
+  <p class="card-hint" id="auto-port" data-i18n="autoPort" hidden>Docker Desktop detected — port mode selected for you</p>
+  <div class="code-panel">
+    <div class="code-panel-head">
+      <div class="code-tabs">
+        <button type="button" class="code-tab active" data-form="run">docker run</button>
+        <button type="button" class="code-tab" data-form="compose">docker-compose</button>
+      </div>
+    </div>
+    <pre class="code-cmd" dir="ltr"><code id="docker-cmd-code">${dockerInitial}</code></pre>
+  </div>
+  <p class="card-hint card-foot-hint" data-i18n="loginHint">SUB_URL is optional — sign in from the web dashboard (OAuth device authorization) and your subscription syncs automatically.</p>
+</article>`;
+
+  const releaseCard = `<article class="card">
+  <div class="card-head"><span class="icon-tile">${platformIcon("github")}</span><h2 data-i18n="releaseInfo">Release information</h2></div>
+  <div class="release-links">
+    <a class="btn" href="${escape(`${repo}/releases/tag/${tag}`)}" data-i18n="githubRelease">GitHub Release</a>
+    <a class="btn" href="../SHA256SUMS" data-i18n="checksums">SHA-256 checksums</a>
+  </div>
+  <details><summary data-i18n="releaseNotes">Release notes</summary><pre dir="auto">${escape(notes)}</pre></details>
+</article>`;
+
+  // The page shell (CSS, topbar, hero, script) lives in
+  // download-page.html.template
+  // as plain HTML; this function only injects the per-release pieces. The
+  // template's own script owns locale detection and the Docker command
+  // builder, so no JS is authored inside this module's template strings.
+  const template = fs.readFileSync(
+    new URL("./download-page.html.template", import.meta.url),
+    "utf8",
   );
+  const replacements: Record<string, string> = {
+    version,
+    desktopCards,
+    mobileCards: `${androidCard}${iosCard}`,
+    cliCard,
+    dockerCard,
+    releaseCard,
+    stringsJson: JSON.stringify(DOWNLOAD_STRINGS),
+    localesJson: JSON.stringify(DOWNLOAD_LOCALES),
+  };
+  let html = template;
+  for (const [name, value] of Object.entries(replacements)) {
+    const token = `@@${name}@@`;
+    if (!html.includes(token))
+      throw new Error(`Download page template is missing ${token}`);
+    html = html.replaceAll(token, value);
+  }
+  if (html.includes("@@"))
+    throw new Error("Unresolved placeholder in download page template");
+  fs.mkdirSync(path.join(output, "download"), { recursive: true });
+  fs.writeFileSync(path.join(output, "download/index.html"), html);
   const pages = new Map<string, Buffer>(
     PAGES_FILES.map((name) => [name, fs.readFileSync(path.join(output, name))]),
   );
