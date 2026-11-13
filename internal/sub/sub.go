@@ -20,6 +20,7 @@ import (
 
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
 	"github.com/openxbond/xbond/internal/platform/paths"
+	"github.com/openxbond/xbond/internal/telemetry"
 )
 
 // FetchProgress reports the in-flight subscription config download so
@@ -600,12 +601,16 @@ func (m *Manager) Update(
 	}
 
 	if subMeta.Type == SubTypeXBond {
+		// XBond-owned gateway only: the install beacon rides this fetch so the
+		// cloud can count installs, OS and versions. Universal fetches stay bare.
+		installHeader := telemetry.Header()
 		fetchURL := BuildXBondURL(subMeta.Origin, subMeta.Token, subMeta.Protocol, subMeta.Lang)
 		m.setFetchProgress(true, subMeta.ID, subMeta.Name)
 		resp, err := FetchSubscription(ctx, fetchURL, FetchOptions{
-			ETag:       etag,
-			ProxyURL:   proxyURL,
-			OnProgress: m.setFetchProgressBytes,
+			ETag:          etag,
+			ProxyURL:      proxyURL,
+			OnProgress:    m.setFetchProgressBytes,
+			InstallHeader: installHeader,
 		})
 
 		// Try fallback origins if primary fails with transient error
@@ -616,9 +621,10 @@ func (m *Manager) Update(
 					fetchURL = BuildXBondURL(fallback, subMeta.Token, subMeta.Protocol, subMeta.Lang)
 					m.setFetchProgress(true, subMeta.ID, subMeta.Name)
 					resp, err = FetchSubscription(ctx, fetchURL, FetchOptions{
-						ETag:       etag,
-						ProxyURL:   proxyURL,
-						OnProgress: m.setFetchProgressBytes,
+						ETag:          etag,
+						ProxyURL:      proxyURL,
+						OnProgress:    m.setFetchProgressBytes,
+						InstallHeader: installHeader,
 					})
 					if err == nil {
 						break

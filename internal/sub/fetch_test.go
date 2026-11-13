@@ -2,6 +2,8 @@ package sub
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -35,5 +37,33 @@ func TestRedactURL(t *testing.T) {
 	}
 	if got := redactURL("weird input"); strings.ContainsAny(got, "?@") {
 		t.Fatalf("redacted URL must not carry query or userinfo: %q", got)
+	}
+}
+
+// 安装信标只随 XBond 自有抓取发送：调用方设置 InstallHeader 才带头，
+// 第三方（universal）订阅走同一 HTTP 栈但保持原样。
+func TestFetchSubscriptionInstallHeader(t *testing.T) {
+	var got http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Clone()
+		w.Header().Set("ETag", `"test-etag"`)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer srv.Close()
+
+	const beacon = "id=0123456789abcdef0123456789abcdef; app=0.1.0; os=linux; arch=amd64"
+	if _, err := FetchSubscription(context.Background(), srv.URL, FetchOptions{InstallHeader: beacon}); err != nil {
+		t.Fatalf("fetch failed: %v", err)
+	}
+	if got.Get("X-XBond-Install") != beacon {
+		t.Fatalf("install beacon not sent verbatim: %q", got.Get("X-XBond-Install"))
+	}
+
+	got = nil
+	if _, err := FetchSubscription(context.Background(), srv.URL, FetchOptions{}); err != nil {
+		t.Fatalf("fetch failed: %v", err)
+	}
+	if got.Get("X-XBond-Install") != "" {
+		t.Fatalf("install beacon must be omitted when unset: %q", got.Get("X-XBond-Install"))
 	}
 }

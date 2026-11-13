@@ -16,6 +16,7 @@ import (
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/sub"
+	"github.com/openxbond/xbond/internal/telemetry"
 )
 
 type TunnelService struct {
@@ -56,6 +57,9 @@ func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelS
 		}
 	}
 	initErr := paths.EnsureDirs()
+	// Pre-create the install beacon so update checks (Android reads the file
+	// directly, without this process) count installs that never subscribe.
+	_ = telemetry.InstallID()
 	subMgr, mgrErr := sub.NewManager()
 	if subMgr != nil && initErr == nil && mgrErr == nil {
 		subMgr.MigrateLegacySources()
