@@ -48,6 +48,11 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
         with:
           components: rustfmt
+          # The Cargo workspace lives in src-tauri, not the repo root. Without
+          # this, rust-cache falls back to ". -> target": cargo metadata fails
+          # at the root, src-tauri/target is never cached, and every run
+          # recompiles all Tauri dependencies from scratch.
+          cache-workspaces: "src-tauri -> target"
 
       - run: pnpm setup:desktop
 
