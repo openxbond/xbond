@@ -35,7 +35,6 @@ desktop = [
 tauri = { version = "2", features = [] }
 tauri-plugin-deep-link = "2"
 tauri-plugin-opener = "2"
-tauri-plugin-xbond = { path = "../plugins/xbond" }
 serde = { version = "1.0", features = ["derive"] }
 # preserve_order keeps the core's proxy-group order (config order) in tray menus.
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -56,6 +55,11 @@ tauri-plugin-updater = { version = "2.14.1", default-features = false, features 
 ureq = { version = "2", default-features = false, features = [
   "json",
 ], optional = true }
+
+# Mobile-only native capability plugin: consumed by the mobile entry point in
+# lib.rs, so desktop targets keep it out of the dependency graph entirely.
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-xbond = { path = "../plugins/xbond" }
 
 # Windows minimum-version gate (Windows 10+): the version probe and the
 # native message box shown when an older system runs the executable directly.
