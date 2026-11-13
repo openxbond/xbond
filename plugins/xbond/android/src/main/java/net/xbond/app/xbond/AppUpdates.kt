@@ -127,8 +127,15 @@ internal class AppUpdates(private val activity: Activity) {
     }
 
     private fun findUpdate(): Release? {
-        val envelope = read(MANIFEST_URL, emptySet()) { input ->
+        val parse = { input: InputStream ->
             JSONObject(input.readBounded(MAX_MANIFEST).toString(Charsets.UTF_8))
+        }
+        // 云端清单优先（它会记录这次更新检查）；GitHub Pages 是无云环境的
+        // 回退，不带安装信标。信标缺文件（核心还没起过）就不带，不编数据。
+        val envelope = try {
+            read(CLOUD_MANIFEST_URL, emptySet(), installHeader(), parse)
+        } catch (first: Exception) {
+            read(MANIFEST_URL, emptySet(), null, parse)
         }
         val payload = decode(envelope.getString("payload"))
         val signature = decode(envelope.getString("signature"))
@@ -210,6 +217,27 @@ internal class AppUpdates(private val activity: Activity) {
 
     private fun ByteArray.hex(): String = joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
+    /** 匿名安装信标，读 Go 核心在数据目录（filesDir）写的同一个 install-id
+     * 文件（internal/telemetry），两边对同一台设备报同一个安装。 */
+    private fun installHeader(): String? {
+        val id = runCatching {
+            File(activity.filesDir, "install-id").readText().trim()
+        }.getOrNull()
+        if (id == null || !id.matches(Regex("[0-9a-f]{32}"))) return null
+        @Suppress("DEPRECATION")
+        val app = runCatching {
+            activity.packageManager.getPackageInfo(activity.packageName, 0).versionName
+        }.getOrNull() ?: return null
+        val arch = Build.SUPPORTED_ABIS.firstOrNull() ?: return null
+        return listOf(
+            "id=$id",
+            "app=$app",
+            "os=android",
+            "osv=${Build.VERSION.RELEASE}",
+            "arch=$arch",
+        ).joinToString("; ")
+    }
+
     private fun decode(encoded: String): ByteArray = Base64.decode(encoded, Base64.NO_WRAP)
 
     private fun InputStream.readBounded(limit: Int): ByteArray {
@@ -224,7 +252,7 @@ internal class AppUpdates(private val activity: Activity) {
         }
     }
 
-    private fun <T> read(address: String, allowedRedirects: Set<String>, consume: (InputStream) -> T): T {
+    private fun <T> read(address: String, allowedRedirects: Set<String>, beacon: String? = null, consume: (InputStream) -> T): T {
         var url = URL(address)
         repeat(5) {
             val connection = (url.openConnection() as HttpsURLConnection).apply {
@@ -233,6 +261,7 @@ internal class AppUpdates(private val activity: Activity) {
                 instanceFollowRedirects = false
                 useCaches = false
                 setRequestProperty("Cache-Control", "no-cache")
+                if (beacon != null) setRequestProperty("X-XBond-Install", beacon)
             }
             try {
                 val status = connection.responseCode
@@ -254,6 +283,7 @@ internal class AppUpdates(private val activity: Activity) {
         private const val DAY_MS = 86_400_000L
         private const val MAX_MANIFEST = 512 * 1024
         private const val MAX_APK = 512L * 1024 * 1024
+        private const val CLOUD_MANIFEST_URL = "https://www.xbond.net/api/clients/update/release.json"
         private const val MANIFEST_URL = "https://openxbond.github.io/xbond/release.json"
         private const val RELEASES_URL = "https://github.com/openxbond/xbond/releases/download"
         private val ASSET_REDIRECTS = setOf("release-assets.githubusercontent.com", "objects.githubusercontent.com")

@@ -82,6 +82,62 @@ fn release_asset(update: &Update) -> bool {
         )
 }
 
+// Install beacon read from the shared data-dir file the Go daemon writes
+// (internal/telemetry). The shell has no Go runtime, so the data-dir
+// derivation mirrors paths.go for the three desktop platforms. A missing or
+// malformed file (daemon never ran, hand-edited) omits the header instead of
+// sending a broken beacon.
+fn install_header(app: &AppHandle) -> Option<String> {
+    let id = std::fs::read_to_string(install_id_path()?).ok()?;
+    let id = id.trim();
+    if id.len() != 32
+        || !id
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return None;
+    }
+    // Go names the platform "darwin"; keep the beacon values aligned with it.
+    let os = match std::env::consts::OS {
+        "macos" => "darwin",
+        other => other,
+    };
+    Some(format!(
+        "id={id}; app={}; os={os}; arch={}",
+        app.package_info().version,
+        std::env::consts::ARCH
+    ))
+}
+
+fn install_id_path() -> Option<std::path::PathBuf> {
+    if let Some(dir) = std::env::var_os("XBOND_DATA_DIR") {
+        return Some(std::path::PathBuf::from(dir).join("install-id"));
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let base = std::env::var_os("LOCALAPPDATA")
+            .map(std::path::PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("USERPROFILE")
+                    .map(|home| std::path::PathBuf::from(home).join("AppData").join("Local"))
+            })?;
+        Some(base.join("xbond").join("install-id"))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let home = std::path::PathBuf::from(std::env::var_os("HOME")?);
+        Some(home.join("Library/Application Support/xbond/install-id"))
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        if let Some(xdg) = std::env::var_os("XDG_DATA_HOME") {
+            return Some(std::path::PathBuf::from(xdg).join("xbond/install-id"));
+        }
+        let home = std::path::PathBuf::from(std::env::var_os("HOME")?);
+        Some(home.join(".local/share/xbond/install-id"))
+    }
+}
+
 #[tauri::command]
 pub fn desktop_update_status(state: State<'_, UpdateState>) -> UpdateSnapshot {
     let status = state.inner.lock().unwrap_or_else(|err| err.into_inner());
@@ -131,8 +187,11 @@ async fn check(app: &AppHandle, state: &UpdateState, automatic: bool) -> Result<
         status.update = None;
     }
     let result = async {
-        app.updater_builder()
-            .header("Cache-Control", "no-cache")?
+        let mut builder = app.updater_builder().header("Cache-Control", "no-cache")?;
+        if let Some(beacon) = install_header(app) {
+            builder = builder.header("X-XBond-Install", beacon)?;
+        }
+        builder
             .timeout(Duration::from_secs(30))
             .build()?
             .check()

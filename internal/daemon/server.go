@@ -27,6 +27,7 @@ import (
 	"github.com/openxbond/xbond/internal/platform/paths"
 	"github.com/openxbond/xbond/internal/platform/sysproxy"
 	"github.com/openxbond/xbond/internal/sub"
+	"github.com/openxbond/xbond/internal/telemetry"
 )
 
 type Server struct {
@@ -107,6 +108,9 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	if err := paths.EnsureDirs(); err != nil {
 		return nil, err
 	}
+	// Pre-create the install beacon so update checks (which read the file
+	// directly, without the daemon) count installs that never subscribe.
+	_ = telemetry.InstallID()
 
 	if err := sysproxy.AutoRecoverOnStartup(); err != nil {
 		return nil, err
