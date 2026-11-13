@@ -24,12 +24,13 @@ LangString XBondRequiresWin10 ${XBOND_LANG_FARSI} "XBond به ویندوز ۱۰ 
 ; the desktop app supervises it, and it keeps running after the app is closed.
 ; A daemon left running locks its binary, and the default NSIS SetOverwrite
 ; silently skips locked or same-date files, so an upgrade would report success
-; while leaving the old daemon on disk. Stop it through its LocalAPI and, if
-; it survives that, force-kill it before files are copied or deleted.
+; while leaving the old daemon on disk. `daemon uninstall` (user scope) is the
+; full reclaim: graceful LocalAPI shutdown, autostart registration removed.
+; A force-kill remains the last resort for a daemon that will not exit.
 !macro XBondStopProductDaemon
   !define XBOND_STOP_ID ${__LINE__}
   IfFileExists "$INSTDIR\xbond-daemon.exe" 0 xbond_daemon_stopped_${XBOND_STOP_ID}
-    nsExec::ExecToLog '"$INSTDIR\xbond-daemon.exe" daemon stop'
+    nsExec::ExecToLog '"$INSTDIR\xbond-daemon.exe" daemon uninstall'
     Pop $R9
     Sleep 1000
     nsExec::Exec 'taskkill /IM xbond-daemon.exe /F'
