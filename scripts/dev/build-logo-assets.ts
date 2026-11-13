@@ -20,9 +20,11 @@ export const LOGO_SVG = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://ww
 </svg>
 `;
 
-// Launch-screen glyph (SplashLogo.imageset): the storyboard renders it alone
-// on the system background, so the wings carry the explicit favicon ink
-// per luminosity variant (currentColor cannot resolve in PNG rendering).
+// Launch-screen glyph (SplashLogo.imageset): rendered for the Info.plist
+// UILaunchScreen UIImageName key, which displays the image at its point size
+// (single-scale bitmap), so 240px lands as a centered 240pt mark. The wings
+// carry the explicit favicon ink per luminosity variant (currentColor cannot
+// resolve in PNG rendering).
 export const SPLASH_LOGO_SVG_LIGHT = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="${PATH_ORANGE}" fill="#F38020" />
   <path d="${PATH_RIGHT}" fill="#18181B" />
@@ -34,6 +36,8 @@ export const SPLASH_LOGO_SVG_DARK = `<svg viewBox="0 0 100 100" fill="none" xmln
   <path d="${PATH_RIGHT}" fill="#FFFFFF" />
 </svg>
 `;
+
+const SPLASH_LOGO_SIZE = 240;
 
 export const FAVICON_SVG = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
   <style>
@@ -196,9 +200,9 @@ const IOS_APPICON_CONTENTS_JSON = `{
 }
 `;
 
-// Single-scale universal imageset (the storyboard's imageView fixes the
-// display size); the dark entry follows the system luminosity trait.
-// Formatted as standard JSON (oxfmt), not Xcode's `"key" : value` style.
+// Single-scale universal imageset for the UILaunchScreen UIImageName key;
+// the dark entry follows the system luminosity trait. Formatted as standard
+// JSON (oxfmt), not Xcode's `"key" : value` style.
 const IOS_SPLASH_CONTENTS_JSON = `{
   "images": [
     {
@@ -214,6 +218,49 @@ const IOS_SPLASH_CONTENTS_JSON = `{
       ],
       "filename": "splash-logo-dark.png",
       "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+`;
+
+// Launch-screen background (UILaunchScreen UIColorName key): the app surface
+// token per luminosity variant, hexes kept in sync with tokens.css
+// --background / the theme-color meta (same contract as the Android colors).
+const IOS_SPLASH_COLORSET_JSON = `{
+  "colors": [
+    {
+      "idiom": "universal",
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "red": "0xEF",
+          "green": "0xF1",
+          "blue": "0xF8",
+          "alpha": "1.000"
+        }
+      }
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "idiom": "universal",
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "red": "0x08",
+          "green": "0x0B",
+          "blue": "0x10",
+          "alpha": "1.000"
+        }
+      }
     }
   ],
   "info": {
@@ -383,9 +430,9 @@ export function generateAllLogoAssets(): void {
     fs.rmSync(targetIosPng + ".tmp.png", { force: true });
   }
 
-  // 6. iOS launch-screen glyph (SplashLogo.imageset, referenced by
-  // gen/apple/LaunchScreen.storyboard): transparent-background brand mark,
-  // one PNG per luminosity variant.
+  // 6. iOS launch-screen assets (Info.plist UILaunchScreen keys): the brand
+  // glyph at its point size plus the surface background color, each with a
+  // luminosity dark variant.
   const splashSetDir = path.join(iosAssetsDir, "SplashLogo.imageset");
   fs.mkdirSync(splashSetDir, { recursive: true });
   fs.writeFileSync(
@@ -394,11 +441,17 @@ export function generateAllLogoAssets(): void {
   );
   fs.writeFileSync(
     path.join(splashSetDir, "splash-logo-light.png"),
-    renderPng(SPLASH_LOGO_SVG_LIGHT, 512),
+    renderPng(SPLASH_LOGO_SVG_LIGHT, SPLASH_LOGO_SIZE),
   );
   fs.writeFileSync(
     path.join(splashSetDir, "splash-logo-dark.png"),
-    renderPng(SPLASH_LOGO_SVG_DARK, 512),
+    renderPng(SPLASH_LOGO_SVG_DARK, SPLASH_LOGO_SIZE),
+  );
+  const splashColorDir = path.join(iosAssetsDir, "SplashBackground.colorset");
+  fs.mkdirSync(splashColorDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(splashColorDir, "Contents.json"),
+    IOS_SPLASH_COLORSET_JSON,
   );
   console.log("✓ iOS assets generated");
 
