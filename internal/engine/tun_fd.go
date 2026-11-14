@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
@@ -129,6 +131,50 @@ func (mobilePlatformInterface) UsePlatformNetworkInterfaces() bool { return true
 // empty or fail on real devices, which Waydroid (Android 13) never shows.
 var enumerateSystemInterfaces = net.Interfaces
 
+// The platform network snapshot (Android ConnectivityManager, pushed by the
+// mobile host through SetMobileNetworkInterfacesJSON) and the shared default
+// interface registry behind every mobileInterfaceMonitor instance. When the
+// snapshot is absent — iOS, desktop, or before the first push — enumeration
+// falls back to net.Interfaces.
+var (
+	mobileNetworksJSON     atomic.Pointer[string]
+	mobileDefaultInterface atomic.Pointer[control.Interface]
+	mobileMonitorMu        sync.Mutex
+	mobileMonitorCallbacks list.List[tun.DefaultInterfaceUpdateCallback]
+)
+
+func sameInterface(a, b *control.Interface) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Index == b.Index && a.Name == b.Name
+}
+
+// SetMobileNetworkInterfacesJSON installs a platform network snapshot: a JSON
+// array of {name,index,mtu,addresses,flags,default,type,dns,metered} objects.
+// The payload must parse; an invalid one is rejected so a bad host push can
+// never blank the interface table mid-run. The default-interface monitor
+// fires whenever the stored default changes.
+func SetMobileNetworkInterfacesJSON(payload string) error {
+	def, err := defaultFromMobileNetworksJSON(payload)
+	if err != nil {
+		return err
+	}
+	mobileNetworksJSON.Store(&payload)
+	if old := mobileDefaultInterface.Swap(def); !sameInterface(old, def) {
+		notifyMobileDefaultInterface(def)
+	}
+	return nil
+}
+
+func notifyMobileDefaultInterface(def *control.Interface) {
+	mobileMonitorMu.Lock()
+	defer mobileMonitorMu.Unlock()
+	for it := mobileMonitorCallbacks.Front(); it != nil; it = it.Next() {
+		it.Value(def, 0)
+	}
+}
+
 func (mobilePlatformInterface) NetworkInterfaces() ([]adapter.NetworkInterface, error) {
 	// An empty table must not fail the core: socket binding on Android goes
 	// through AutoDetectInterfaceControl (the platform socket protector), not
@@ -165,31 +211,22 @@ func (mobilePlatformInterface) SendNotification(*adapter.Notification) error { r
 
 func (mobilePlatformInterface) MyInterfaceAddress() []netip.Addr { return nil }
 
-type mobileInterfaceMonitor struct {
-	mu        sync.Mutex
-	callbacks list.List[tun.DefaultInterfaceUpdateCallback]
-}
+type mobileInterfaceMonitor struct{}
 
 func (m *mobileInterfaceMonitor) Start() error {
-	_, def := getMobileNetworkInterfaces()
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for it := m.callbacks.Front(); it != nil; it = it.Next() {
+	def := mobileDefaultInterface.Load()
+	mobileMonitorMu.Lock()
+	defer mobileMonitorMu.Unlock()
+	for it := mobileMonitorCallbacks.Front(); it != nil; it = it.Next() {
 		it.Value(def, 0)
 	}
 	return nil
 }
 
-func (m *mobileInterfaceMonitor) Close() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.callbacks.Init()
-	return nil
-}
+func (m *mobileInterfaceMonitor) Close() error { return nil }
 
 func (m *mobileInterfaceMonitor) DefaultInterface() *control.Interface {
-	_, def := getMobileNetworkInterfaces()
-	return def
+	return mobileDefaultInterface.Load()
 }
 
 func (m *mobileInterfaceMonitor) OverrideAndroidVPN() bool { return false }
@@ -197,15 +234,15 @@ func (m *mobileInterfaceMonitor) OverrideAndroidVPN() bool { return false }
 func (m *mobileInterfaceMonitor) AndroidVPNEnabled() bool { return false }
 
 func (m *mobileInterfaceMonitor) RegisterCallback(callback tun.DefaultInterfaceUpdateCallback) *list.Element[tun.DefaultInterfaceUpdateCallback] {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.callbacks.PushBack(callback)
+	mobileMonitorMu.Lock()
+	defer mobileMonitorMu.Unlock()
+	return mobileMonitorCallbacks.PushBack(callback)
 }
 
 func (m *mobileInterfaceMonitor) UnregisterCallback(element *list.Element[tun.DefaultInterfaceUpdateCallback]) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.callbacks.Remove(element)
+	mobileMonitorMu.Lock()
+	defer mobileMonitorMu.Unlock()
+	mobileMonitorCallbacks.Remove(element)
 }
 
 func (m *mobileInterfaceMonitor) RegisterMyInterface(string) {}
@@ -215,6 +252,13 @@ func (m *mobileInterfaceMonitor) MyInterfaces() []string {
 }
 
 func getMobileNetworkInterfaces() ([]adapter.NetworkInterface, *control.Interface) {
+	if payload := mobileNetworksJSON.Load(); payload != nil {
+		return parseMobileNetworksJSON(*payload)
+	}
+	return enumerateFallbackInterfaces()
+}
+
+func enumerateFallbackInterfaces() ([]adapter.NetworkInterface, *control.Interface) {
 	ifaces, err := enumerateSystemInterfaces()
 	if err != nil {
 		return nil, nil
@@ -294,4 +338,121 @@ func getMobileNetworkInterfaces() ([]adapter.NetworkInterface, *control.Interfac
 		}
 	}
 	return res, defaultIf
+}
+
+// mobileNetworksJSONEntry mirrors the snapshot the mobile host pushes — see
+// XbondPlugin.kt's ConnectivityManager enumerator.
+type mobileNetworksJSONEntry struct {
+	Name      string   `json:"name"`
+	Index     int      `json:"index"`
+	MTU       int      `json:"mtu"`
+	Addresses []string `json:"addresses"`
+	Flags     []string `json:"flags"`
+	Default   bool     `json:"default"`
+	Type      string   `json:"type"`
+	DNS       []string `json:"dns"`
+	Metered   bool     `json:"metered"`
+}
+
+func mobileInterfaceFlags(names []string) net.Flags {
+	var flags net.Flags
+	for _, name := range names {
+		switch strings.ToLower(name) {
+		case "up":
+			flags |= net.FlagUp
+		case "broadcast":
+			flags |= net.FlagBroadcast
+		case "loopback":
+			flags |= net.FlagLoopback
+		case "pointtopoint":
+			flags |= net.FlagPointToPoint
+		case "multicast":
+			flags |= net.FlagMulticast
+		case "running":
+			flags |= net.FlagRunning
+		}
+	}
+	return flags
+}
+
+func mobileInterfaceType(name string) C.InterfaceType {
+	switch strings.ToLower(name) {
+	case "wifi":
+		return C.InterfaceTypeWIFI
+	case "cellular":
+		return C.InterfaceTypeCellular
+	case "ethernet":
+		return C.InterfaceTypeEthernet
+	default:
+		return C.InterfaceTypeOther
+	}
+}
+
+// parseMobileNetworksJSON converts a platform snapshot into sing-box's
+// interface table plus the default interface. Malformed entries are skipped;
+// only a structurally invalid payload is an error, so Set... can reject it
+// without clobbering the previous snapshot.
+func parseMobileNetworksJSON(payload string) ([]adapter.NetworkInterface, *control.Interface) {
+	var entries []mobileNetworksJSONEntry
+	if err := json.Unmarshal([]byte(payload), &entries); err != nil {
+		return nil, nil
+	}
+	var (
+		res       []adapter.NetworkInterface
+		defaultIf *control.Interface
+	)
+	for _, entry := range entries {
+		if entry.Name == "" || entry.Index <= 0 {
+			continue
+		}
+		// The host must exclude its own VPN, but skip tun-named entries here
+		// as defense in depth: a fed-back tun default would loop the tunnel.
+		if strings.HasPrefix(entry.Name, "tun") || strings.HasPrefix(entry.Name, "dummy") {
+			continue
+		}
+		flags := mobileInterfaceFlags(entry.Flags)
+		if flags&net.FlagUp == 0 {
+			continue
+		}
+		var prefixes []netip.Prefix
+		for _, addr := range entry.Addresses {
+			prefix, err := netip.ParsePrefix(addr)
+			if err != nil {
+				continue
+			}
+			prefixes = append(prefixes, netip.PrefixFrom(prefix.Addr().Unmap(), prefix.Bits()))
+		}
+		cIf := control.Interface{
+			Index:     entry.Index,
+			MTU:       entry.MTU,
+			Name:      entry.Name,
+			Flags:     flags,
+			Addresses: prefixes,
+		}
+		netIf := adapter.NetworkInterface{
+			Interface:  cIf,
+			Type:       mobileInterfaceType(entry.Type),
+			DNSServers: entry.DNS,
+			Expensive:  entry.Metered,
+		}
+		res = append(res, netIf)
+		if entry.Default && defaultIf == nil {
+			cp := cIf
+			defaultIf = &cp
+		}
+	}
+	return res, defaultIf
+}
+
+func defaultFromMobileNetworksJSON(payload string) (*control.Interface, error) {
+	var entries []mobileNetworksJSONEntry
+	if err := json.Unmarshal([]byte(payload), &entries); err != nil {
+		return nil, fmt.Errorf("invalid platform network snapshot: %w", err)
+	}
+	for _, entry := range entries {
+		if entry.Default && entry.Name != "" && entry.Index > 0 {
+			return &control.Interface{Index: entry.Index, Name: entry.Name}, nil
+		}
+	}
+	return nil, nil
 }

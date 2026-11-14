@@ -7,7 +7,14 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.activity.result.ActivityResult
 import androidx.core.view.WindowCompat
@@ -19,6 +26,7 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import java.io.File
+import mobile.Mobile
 
 /**
  * The platform surface the shared web UI consumes through the Tauri `xbond`
@@ -70,6 +78,8 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
         }
         activity.startService(vpnIntent)
         activity.bindService(vpnIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+
+        registerNetworksMonitor()
 
         updates?.checkInBackground()
     }
@@ -350,6 +360,132 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
     class AccountCallbackArgs {
         lateinit var code: String
         lateinit var state: String
+    }
+
+    // Android 14+ denies untrusted apps the netlink RTM_GETLINK that Go's
+    // net.Interfaces needs, so the Go core cannot enumerate the interface
+    // table itself; feed it from ConnectivityManager instead, mirroring the
+    // official sing-box Android client. The table enumerates all networks;
+    // the default is tracked by a best-matching callback. Since Android P,
+    // registerDefaultNetworkCallback reports our own VPN once it is up, which
+    // is why the registration below uses request-style callbacks that keep
+    // tracking the real underlying network (see DefaultNetworkListener in
+    // SagerNet/sing-box-for-android).
+    private val networksRequest = NetworkRequest.Builder()
+        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+        .build()
+
+    @Volatile
+    private var lastDefaultNetwork: Network? = null
+
+    private val networksCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            lastDefaultNetwork = network
+            pushNetworksSnapshot()
+        }
+
+        override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) =
+            pushNetworksSnapshot()
+
+        override fun onLinkPropertiesChanged(network: Network, lp: android.net.LinkProperties) =
+            pushNetworksSnapshot()
+
+        override fun onLost(network: Network) {
+            if (lastDefaultNetwork == network) lastDefaultNetwork = null
+            pushNetworksSnapshot()
+        }
+    }
+
+    private var networksMonitorRegistered = false
+
+    private fun registerNetworksMonitor() {
+        if (networksMonitorRegistered) return
+        runCatching {
+            val cm = activity.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+                    cm.registerBestMatchingNetworkCallback(
+                        networksRequest,
+                        networksCallback,
+                        Handler(Looper.getMainLooper()),
+                    )
+
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ->
+                    cm.requestNetwork(networksRequest, networksCallback)
+
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N ->
+                    cm.registerDefaultNetworkCallback(networksCallback)
+
+                else ->
+                    runCatching { cm.requestNetwork(networksRequest, networksCallback) }
+            }
+            networksMonitorRegistered = true
+            pushNetworksSnapshot()
+        }.onFailure { Log.w(TAG, "networks monitor unavailable: ${it.message}") }
+    }
+
+    private fun pushNetworksSnapshot() {
+        runCatching {
+            val cm = activity.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return
+            val entries = mutableListOf<Network>()
+            for (network in cm.allNetworks) {
+                val caps = cm.getNetworkCapabilities(network) ?: continue
+                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue
+                val lp = cm.getLinkProperties(network) ?: continue
+                if (lp.interfaceName == null) continue
+                entries.add(network)
+            }
+            if (entries.isEmpty()) return
+
+            // The best-matching callback tracks the real default even while
+            // our VPN is up (the same reason registerDefaultNetworkCallback
+            // cannot be used). Before the first callback fires, mark the
+            // first candidate so the parallel dialer always has a default.
+            val defaultNetwork: Network = lastDefaultNetwork?.takeIf { entries.contains(it) }
+                ?: entries.first()
+
+            val arr = org.json.JSONArray()
+            for (network in entries) {
+                val caps = cm.getNetworkCapabilities(network) ?: continue
+                val lp = cm.getLinkProperties(network) ?: continue
+                val name = lp.interfaceName ?: continue
+                val jif = runCatching { java.net.NetworkInterface.getByName(name) }.getOrNull()
+
+                val obj = org.json.JSONObject()
+                obj.put("name", name)
+                obj.put("index", jif?.index ?: 0)
+                obj.put("mtu", jif?.mtu ?: lp.mtu)
+                val addrs = org.json.JSONArray()
+                if (jif != null) {
+                    for (ia in jif.interfaceAddresses) addrs.put(ia.address.hostAddress + "/" + ia.networkPrefixLength)
+                } else {
+                    for (la in lp.linkAddresses) addrs.put(la.toString())
+                }
+                obj.put("addresses", addrs)
+                val flags = org.json.JSONArray()
+                for (f in listOf("up", "running", "broadcast", "multicast")) flags.put(f)
+                obj.put("flags", flags)
+                obj.put("default", network == defaultNetwork)
+                obj.put(
+                    "type",
+                    when {
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+                        else -> "other"
+                    },
+                )
+                val dns = org.json.JSONArray()
+                for (server in lp.dnsServers) server.hostAddress?.let { dns.put(it) }
+                obj.put("dns", dns)
+                obj.put("metered", !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
+                arr.put(obj)
+            }
+            Mobile.setPlatformNetworkInterfaces(arr.toString())
+        }.onFailure { Log.w(TAG, "networks snapshot failed: ${it.message}") }
     }
 
     private companion object {
