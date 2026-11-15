@@ -67,7 +67,7 @@ function main() {
   const [command, tag, digest, argument] = process.argv.slice(2);
   if (!command || !tag || !digest)
     throw new Error(
-      "Usage: node scripts/release/release-registry.ts <check|push|verify-public|promote> <vX.Y.Z> <sha256:...> [oci-archive.tar|latest]",
+      "Usage: node scripts/release/release-registry.ts <check|push|verify-public|promote> <vX.Y.Z|vX.Y.Z-rc.N> <sha256:...> [oci-archive.tar|latest]",
     );
   releaseVersion(tag);
 
@@ -102,6 +102,8 @@ function main() {
     login();
     run("skopeo", ["copy", "--all", "--preserve-digests", source, image(tag)]);
   } else if (command === "promote") {
+    if (releaseVersion(tag).prerelease)
+      throw new Error("A release candidate must not be promoted to latest");
     const published = "docker://ghcr.io/openxbond/xbond@" + digest;
     login();
     run("skopeo", [

@@ -354,12 +354,14 @@ class XBondVpnService : VpnService() {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
         }
+        val showDisconnectAction = message == R.string.notification_active
         val notification: Notification = builder
             .setContentTitle("XBond")
             .setContentText(getString(message))
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(R.drawable.ic_stat_xbond)
+            .setCategory(Notification.CATEGORY_SERVICE)
             .apply { if (openIntent != null) setContentIntent(openIntent) }
-            .addAction(disconnectAction)
+            .apply { if (showDisconnectAction) addAction(disconnectAction) }
             .setOngoing(true)
             .build()
 

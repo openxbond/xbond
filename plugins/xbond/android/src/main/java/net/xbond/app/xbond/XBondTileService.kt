@@ -154,6 +154,13 @@ class XBondTileService : TileService() {
         val tile = qsTile ?: return
         val running = isTunnelRunning()
         tile.state = if (running) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+        tile.icon = android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_xbond)
+        tile.label = runCatching {
+            packageManager.getApplicationLabel(applicationInfo).toString()
+        }.getOrDefault("XBond")
+        tile.contentDescription = getString(
+            if (running) R.string.tile_connected else R.string.tile_disconnected,
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = getString(
                 if (running) R.string.tile_connected else R.string.tile_disconnected,

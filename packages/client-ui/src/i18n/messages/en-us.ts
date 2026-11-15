@@ -362,6 +362,9 @@ const EN = {
     paused: "Pause",
     resume: "Resume",
     export: "Export logs",
+    exportTitle: "Export logs",
+    exportSave: "Save to file",
+    exportShare: "Share",
     logLimit: "Latest 1000 entries",
     filterLogs: "Search log messages",
   },
@@ -511,6 +514,9 @@ const EN = {
       runBtn: "Run self-check",
       running: "Checking…",
       exportBugreport: "Export sanitized report",
+      exportTitle: "Export diagnostic report",
+      exportSave: "Save to file",
+      exportShare: "Share",
       emptyPrompt:
         "Run a self-check to verify the core, traffic takeover, DNS resolution and proxy egress.",
       remoteNote:

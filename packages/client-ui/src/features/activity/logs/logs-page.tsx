@@ -20,6 +20,12 @@ import { Header } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -30,7 +36,8 @@ import {
 import { useAction } from "@/hooks/use-action";
 import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
 import { cn } from "@/lib/utils";
-import { saveTextFile } from "@/platform/save-file";
+import { isMobileApp } from "@/platform/host";
+import { saveTextFile, shareTextFile } from "@/platform/save-file";
 import { useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
 import { useConfig } from "@/state/user-preferences";
@@ -124,6 +131,7 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
   const { t: r } = useTranslation("runtime");
   const { t: tc } = useTranslation("common");
   const { run, pending: saving } = useAction();
+  const [exportOpen, setExportOpen] = useState(false);
   const {
     data: { logLevel },
     set,
@@ -244,17 +252,35 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
     reader.clear();
     setLogs([]);
   }
-  function download() {
+  function exportText(method: "save" | "share" = "save") {
     const text = filtered
       .map(
         (log) =>
           `${dayjs(log.time).format("YYYY-MM-DD HH:mm:ss")} [${log.type}] ${log.payload}`,
       )
       .join("\n");
-    void run(
-      () => saveTextFile(text, "xbond-logs.txt", "Text", ["txt"]),
-      false,
-    );
+    setExportOpen(false);
+    const op =
+      method === "share"
+        ? () =>
+            shareTextFile(text, "xbond-logs.txt", "text/plain;charset=utf-8")
+        : () =>
+            saveTextFile(
+              text,
+              "xbond-logs.txt",
+              "Text",
+              ["txt"],
+              "text/plain;charset=utf-8",
+            );
+    void run(op, false);
+  }
+
+  function onExport() {
+    if (isMobileApp()) {
+      setExportOpen(true);
+      return;
+    }
+    exportText("save");
   }
 
   if (!isConnected) {
@@ -339,7 +365,7 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
           variant="outline"
           size="sm"
           disabled={!filtered.length || saving}
-          onClick={download}
+          onClick={onExport}
         >
           {t("export")}
         </Button>
@@ -443,6 +469,29 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
           />
         )}
       </Card>
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("exportTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => exportText("save")}
+            >
+              {t("exportSave")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => exportText("share")}
+            >
+              {t("exportShare")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

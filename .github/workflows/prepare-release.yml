@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Stable Tag or proposed Tag for a rehearsal from main
+        description: Tag (stable vX.Y.Z or candidate vX.Y.Z-rc.N) or proposed Tag for a rehearsal from main
         required: true
         type: string
       mode:

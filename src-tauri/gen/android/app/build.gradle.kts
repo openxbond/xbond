@@ -1,3 +1,4 @@
+import java.util.Base64
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -20,6 +21,47 @@ val tauriProperties = Properties().apply {
 val releaseVersion = providers.environmentVariable("XBOND_VERSION").orNull
 val releaseBuild = providers.environmentVariable("XBOND_BUILD_NUMBER").orNull
 
+fun signingEnv(name: String): String? =
+    providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+        ?: System.getenv(name)?.takeIf { it.isNotBlank() }
+
+val releaseKeystoreProperties = Properties().apply {
+    val propFile = rootProject.file("keystore.properties")
+    if (propFile.exists()) {
+        propFile.inputStream().use { load(it) }
+    }
+}
+
+val releaseStorePassword =
+    releaseKeystoreProperties.getProperty("storePassword") ?: signingEnv("ANDROID_STORE_PASSWORD")
+val releaseKeyAlias =
+    releaseKeystoreProperties.getProperty("keyAlias") ?: signingEnv("ANDROID_KEY_ALIAS")
+val releaseKeyPassword =
+    releaseKeystoreProperties.getProperty("keyPassword")
+        ?: signingEnv("ANDROID_KEY_PASSWORD")
+        ?: releaseStorePassword
+val releaseStoreFileProp =
+    releaseKeystoreProperties.getProperty("storeFile") ?: signingEnv("ANDROID_KEYSTORE")
+val releaseKeystoreBase64 = signingEnv("ANDROID_KEYSTORE_BASE64")
+val hasReleaseSigningCreds =
+    !releaseStorePassword.isNullOrBlank() && !releaseKeyAlias.isNullOrBlank()
+val releaseKeystoreFile: java.io.File? = if (hasReleaseSigningCreds) {
+    val explicit = releaseStoreFileProp?.takeIf { it.isNotBlank() }?.let { rootProject.file(it) }
+    when {
+        explicit != null && explicit.exists() -> explicit
+        !releaseKeystoreBase64.isNullOrBlank() -> {
+            val file = layout.buildDirectory.file("signing/xbond-release.keystore").get().asFile
+            file.parentFile.mkdirs()
+            file.writeBytes(Base64.getDecoder().decode(releaseKeystoreBase64.trim()))
+            file
+        }
+
+        else -> null
+    }
+} else {
+    null
+}
+
 android {
     compileSdk = 37
     namespace = "net.xbond.app"
@@ -31,12 +73,23 @@ android {
         versionCode = releaseBuild?.toInt() ?: tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = releaseVersion ?: tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    signingConfigs {
+        if (releaseKeystoreFile != null) {
+            create("releaseShared") {
+                storeFile = releaseKeystoreFile
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
+            signingConfigs.findByName("releaseShared")?.let { signingConfig = it }
             packaging {
                 jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
                 jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")

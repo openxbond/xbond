@@ -74,7 +74,7 @@ function preflightContext(
 }
 
 function preflight(tag: string, context: "prepare" | "publish" | "store") {
-  const { version, build } = releaseVersion(tag);
+  const { version, build, prerelease } = releaseVersion(tag);
   const ref = `refs/tags/${tag}`;
   const { mode, appleSigning } = releaseSettings(
     process.env.GITHUB_EVENT_NAME,
@@ -99,24 +99,35 @@ function preflight(tag: string, context: "prepare" | "publish" | "store") {
   const list = releases();
   let previous: { tag: string; build: number } | undefined;
   for (const entry of list) {
-    if (entry.draft || entry.prerelease) continue;
+    if (entry.draft) continue;
     let candidate;
     try {
       candidate = releaseVersion(entry.tag_name);
     } catch {
       continue;
     }
-    if (
-      candidate.build > build ||
-      (candidate.build === build && context !== "publish")
-    ) {
+    const sameTag = candidate.tag === tag;
+    if (!candidate.prerelease) {
+      if (
+        candidate.build > build ||
+        (candidate.build === build && !(context === "publish" && sameTag))
+      ) {
+        throw new Error(`Release ${tag} must follow ${candidate.tag}`);
+      }
+      if (
+        candidate.build < build &&
+        (!previous || candidate.build > previous.build)
+      )
+        previous = candidate;
+    } else if (!sameTag && candidate.build >= build) {
+      // Another published prerelease already occupies this or a later build.
       throw new Error(`Release ${tag} must follow ${candidate.tag}`);
     }
-    if (
-      candidate.build < build &&
-      (!previous || candidate.build > previous.build)
-    )
-      previous = candidate;
+  }
+  if (context === "publish" && prerelease) {
+    throw new Error(
+      "Release candidates cannot be promoted as the stable release; publish a stable vX.Y.Z tag instead.",
+    );
   }
   writeOutputs({
     tag,
@@ -125,6 +136,7 @@ function preflight(tag: string, context: "prepare" | "publish" | "store") {
     commit,
     mode,
     apple_signing: String(appleSigning),
+    prerelease: String(prerelease),
   });
   const log = git(
     "log",
@@ -141,6 +153,7 @@ function evidence(tag: string, directory: string) {
   const run = process.env.GITHUB_RUN_ID;
   const digest = process.env.IMAGE_DIGEST ?? "";
   const iosSHA256 = process.env.IOS_SHA256 ?? "";
+  const { prerelease } = releaseVersion(tag);
   // A release may ship without an iOS archive when the distribution
   // credentials are not configured; an Apple-signed rehearsal must not.
   const iosRequired =
@@ -157,7 +170,8 @@ function evidence(tag: string, directory: string) {
     throw new Error("Missing candidate evidence");
   fs.writeFileSync(
     path.join(directory, "release-evidence.json"),
-    JSON.stringify({ tag, commit, run, digest, iosSHA256, mode }) + "\n",
+    JSON.stringify({ tag, commit, run, digest, iosSHA256, mode, prerelease }) +
+      "\n",
   );
 }
 

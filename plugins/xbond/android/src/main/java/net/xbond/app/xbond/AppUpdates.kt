@@ -27,9 +27,10 @@ internal class AppUpdates(private val activity: Activity) {
     private var closed = false
     private var pendingInstall: File? = null
 
-    /** The installed app's versionCode (the release build number contract,
-     * major*10000+minor*100+patch); the plugin library's own BuildConfig
-     * version does not track the app. */
+    /** The installed app's versionCode (the release build number contract:
+     * (major*10000+minor*100+patch)*100+99, so a stable release upgrades past
+     * every rc.N candidate of the same base); the plugin library's own
+     * BuildConfig version does not track the app. */
     private val versionCode: Long
         get() = runCatching {
             @Suppress("DEPRECATION")
@@ -146,7 +147,8 @@ internal class AppUpdates(private val activity: Activity) {
         val build = release.getInt("build")
         val semver = SEMVER.matchEntire(version) ?: error("Invalid release version")
         val parts = semver.groupValues.drop(1).map { it.toInt() }
-        require(parts.all { it <= 99 } && build == parts[0] * 10_000 + parts[1] * 100 + parts[2])
+        val base = parts[0] * 10_000 + parts[1] * 100 + parts[2]
+        require(parts.all { it <= 99 } && build == base * 100 + 99)
         if (build <= versionCode) return null
 
         // 清单带全部 ABI 的 per-ABI 资产；设备首个支持 ABI 必在其中之一

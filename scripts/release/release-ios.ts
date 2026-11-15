@@ -10,6 +10,10 @@ const { version, build } = releaseVersion(tag);
 if (process.platform !== "darwin")
   throw new Error("iOS packaging requires macOS");
 
+// Apple rejects prerelease marketing versions, so an rc.N candidate ships the
+// stable marketing version and separates itself through the build number.
+const marketingVersion = version.replace(/-rc\.[0-9]+$/, "");
+
 const result = spawnSync(
   "bash",
   ["scripts/release/release-ios.sh", "archive", `release/${tag}/ios`],
@@ -17,7 +21,8 @@ const result = spawnSync(
     stdio: "inherit",
     env: {
       ...process.env,
-      XBOND_VERSION: version,
+      XBOND_VERSION: marketingVersion,
+      XBOND_RELEASE_TAG: tag,
       XBOND_BUILD_NUMBER: String(build),
     },
   },

@@ -7,9 +7,18 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.net.Uri
+import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.activity.result.ActivityResult
+import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
@@ -19,6 +28,7 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import java.io.File
+import mobile.Mobile
 
 /**
  * The platform surface the shared web UI consumes through the Tauri `xbond`
@@ -38,6 +48,8 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
 
     private var updates: AppUpdates? = null
     private var vpnBound = false
+    @Volatile
+    private var pendingSaveText: String? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -70,6 +82,8 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
         }
         activity.startService(vpnIntent)
         activity.bindService(vpnIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+
+        registerNetworksMonitor()
 
         updates?.checkInBackground()
     }
@@ -255,6 +269,96 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     /**
+     * Shares text content (logs, bug report) through the system share sheet.
+     * Writes to a cache file and grants read permission via the app
+     * FileProvider (covers the cache path).
+     */
+    @Command
+    fun shareTextFile(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(TextFileArgs::class.java)
+            val dir = File(activity.cacheDir, "exports")
+            dir.mkdirs()
+            val safeName = sanitizeFileName(args.fileName)
+            val file = File(dir, safeName)
+            file.writeText(args.contents, Charsets.UTF_8)
+            val uri = FileProvider.getUriForFile(
+                activity,
+                "${activity.packageName}.fileprovider",
+                file,
+            )
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = args.mimeType.ifBlank { "text/plain" }
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, safeName)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                clipData = android.content.ClipData.newRawUri(safeName, uri)
+            }
+            val chooser = Intent.createChooser(send, null).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            activity.startActivity(chooser)
+            invoke.resolveObject(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "shareTextFile failed: ${e.message}")
+            invoke.reject(e.message ?: "share failed")
+        }
+    }
+
+    /**
+     * Saves text content to a user-chosen location via ACTION_CREATE_DOCUMENT.
+     * The user can pick Downloads, a cloud provider, etc. Resolves true when
+     * written, false when the user cancels.
+     */
+    @Command
+    fun saveTextFile(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(TextFileArgs::class.java)
+            pendingSaveText = args.contents
+            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = args.mimeType.ifBlank { "text/plain" }
+                putExtra(Intent.EXTRA_TITLE, sanitizeFileName(args.fileName))
+            }
+            startActivityForResult(invoke, intent, "saveTextFileResult")
+        } catch (e: Exception) {
+            pendingSaveText = null
+            Log.e(TAG, "saveTextFile failed: ${e.message}")
+            invoke.reject(e.message ?: "save failed")
+        }
+    }
+
+    @ActivityCallback
+    fun saveTextFileResult(invoke: Invoke, result: ActivityResult) {
+        val contents = pendingSaveText
+        pendingSaveText = null
+        if (result.resultCode != Activity.RESULT_OK) {
+            invoke.resolveObject(false)
+            return
+        }
+        val uri: Uri? = result.data?.data
+        if (uri == null || contents == null) {
+            invoke.resolveObject(false)
+            return
+        }
+        Thread {
+            val ok = runCatching {
+                activity.contentResolver.openOutputStream(uri, "wt")?.use { out ->
+                    out.write(contents.toByteArray(Charsets.UTF_8))
+                } ?: error("cannot open output stream")
+                true
+            }.onFailure { Log.e(TAG, "saveTextFile write failed: ${it.message}") }
+                .getOrDefault(false)
+            invoke.resolveObject(ok)
+        }.start()
+    }
+
+    private fun sanitizeFileName(name: String): String {
+        val clean = name.replace(Regex("[\\\\/:*?\"<>|\\x00-\\x1F]"), "_").trim()
+        return if (clean.isEmpty()) "export.txt" else clean
+    }
+
+    /**
      * Delivers an OAuth code/state pair to the in-process LocalAPI (worker
      * thread, short retries): cold-start deep links can arrive before the
      * service and LocalAPI are ready. Same contract as the desktop shell.
@@ -350,6 +454,139 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
     class AccountCallbackArgs {
         lateinit var code: String
         lateinit var state: String
+    }
+
+    @InvokeArg
+    class TextFileArgs {
+        lateinit var contents: String
+        lateinit var fileName: String
+        var mimeType: String = "text/plain"
+    }
+
+    // Android 14+ denies untrusted apps the netlink RTM_GETLINK that Go's
+    // net.Interfaces needs, so the Go core cannot enumerate the interface
+    // table itself; feed it from ConnectivityManager instead, mirroring the
+    // official sing-box Android client. The table enumerates all networks;
+    // the default is tracked by a best-matching callback. Since Android P,
+    // registerDefaultNetworkCallback reports our own VPN once it is up, which
+    // is why the registration below uses request-style callbacks that keep
+    // tracking the real underlying network (see DefaultNetworkListener in
+    // SagerNet/sing-box-for-android).
+    private val networksRequest = NetworkRequest.Builder()
+        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+        .build()
+
+    @Volatile
+    private var lastDefaultNetwork: Network? = null
+
+    private val networksCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            lastDefaultNetwork = network
+            pushNetworksSnapshot()
+        }
+
+        override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) =
+            pushNetworksSnapshot()
+
+        override fun onLinkPropertiesChanged(network: Network, lp: android.net.LinkProperties) =
+            pushNetworksSnapshot()
+
+        override fun onLost(network: Network) {
+            if (lastDefaultNetwork == network) lastDefaultNetwork = null
+            pushNetworksSnapshot()
+        }
+    }
+
+    private var networksMonitorRegistered = false
+
+    private fun registerNetworksMonitor() {
+        if (networksMonitorRegistered) return
+        runCatching {
+            val cm = activity.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+                    cm.registerBestMatchingNetworkCallback(
+                        networksRequest,
+                        networksCallback,
+                        Handler(Looper.getMainLooper()),
+                    )
+
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ->
+                    cm.requestNetwork(networksRequest, networksCallback)
+
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N ->
+                    cm.registerDefaultNetworkCallback(networksCallback)
+
+                else ->
+                    runCatching { cm.requestNetwork(networksRequest, networksCallback) }
+            }
+            networksMonitorRegistered = true
+            pushNetworksSnapshot()
+        }.onFailure { Log.w(TAG, "networks monitor unavailable: ${it.message}") }
+    }
+
+    private fun pushNetworksSnapshot() {
+        runCatching {
+            val cm = activity.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return
+            val entries = mutableListOf<Network>()
+            for (network in cm.allNetworks) {
+                val caps = cm.getNetworkCapabilities(network) ?: continue
+                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue
+                val lp = cm.getLinkProperties(network) ?: continue
+                if (lp.interfaceName == null) continue
+                entries.add(network)
+            }
+            if (entries.isEmpty()) return
+
+            // The best-matching callback tracks the real default even while
+            // our VPN is up (the same reason registerDefaultNetworkCallback
+            // cannot be used). Before the first callback fires, mark the
+            // first candidate so the parallel dialer always has a default.
+            val defaultNetwork: Network = lastDefaultNetwork?.takeIf { entries.contains(it) }
+                ?: entries.first()
+
+            val arr = org.json.JSONArray()
+            for (network in entries) {
+                val caps = cm.getNetworkCapabilities(network) ?: continue
+                val lp = cm.getLinkProperties(network) ?: continue
+                val name = lp.interfaceName ?: continue
+                val jif = runCatching { java.net.NetworkInterface.getByName(name) }.getOrNull()
+
+                val obj = org.json.JSONObject()
+                obj.put("name", name)
+                obj.put("index", jif?.index ?: 0)
+                obj.put("mtu", jif?.mtu ?: lp.mtu)
+                val addrs = org.json.JSONArray()
+                if (jif != null) {
+                    for (ia in jif.interfaceAddresses) addrs.put(ia.address.hostAddress + "/" + ia.networkPrefixLength)
+                } else {
+                    for (la in lp.linkAddresses) addrs.put(la.toString())
+                }
+                obj.put("addresses", addrs)
+                val flags = org.json.JSONArray()
+                for (f in listOf("up", "running", "broadcast", "multicast")) flags.put(f)
+                obj.put("flags", flags)
+                obj.put("default", network == defaultNetwork)
+                obj.put(
+                    "type",
+                    when {
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+                        else -> "other"
+                    },
+                )
+                val dns = org.json.JSONArray()
+                for (server in lp.dnsServers) server.hostAddress?.let { dns.put(it) }
+                obj.put("dns", dns)
+                obj.put("metered", !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED))
+                arr.put(obj)
+            }
+            Mobile.setPlatformNetworkInterfaces(arr.toString())
+        }.onFailure { Log.w(TAG, "networks snapshot failed: ${it.message}") }
     }
 
     private companion object {

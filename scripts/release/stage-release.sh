@@ -5,11 +5,19 @@ tag=$1
 directory="release/$tag/assets"
 (cd "$directory" && sha256sum --strict --check SHA256SUMS)
 jq -e '.mode == "release"' "$directory/release-evidence.json" > /dev/null
-if ! release=$(gh release view "$tag" --json isDraft,assets); then
-  gh release create "$tag" --verify-tag --draft --title "XBond $tag" --notes-file release-notes.md
-  release=$(gh release view "$tag" --json isDraft,assets)
+prerelease=$(jq -r '.prerelease // false' "$directory/release-evidence.json")
+create_flags=(--verify-tag --draft --title "XBond $tag" --notes-file release-notes.md)
+if [[ "$prerelease" == "true" ]]; then
+  create_flags+=(--prerelease)
+fi
+if ! release=$(gh release view "$tag" --json isDraft,isPrerelease,assets); then
+  gh release create "$tag" "${create_flags[@]}"
+  release=$(gh release view "$tag" --json isDraft,isPrerelease,assets)
 fi
 jq -e '.isDraft' <<< "$release" > /dev/null
+if [[ "$prerelease" == "true" ]]; then
+  jq -e '.isPrerelease' <<< "$release" > /dev/null
+fi
 
 # A rerun resumes an interrupted upload without replacing any reviewed bytes.
 temporary=$(mktemp -d)
@@ -33,11 +41,16 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   else
     testflight_step='2. Run **Submit XBond to TestFlight** for this tag, then verify installation through TestFlight.'
   fi
+  if [[ "$prerelease" == "true" ]]; then
+    publish_step='3. This is a release candidate: do not run **Publish XBond release** (stable). After verification, tag the stable `vX.Y.Z` release for the same line.'
+  else
+    publish_step='3. Run **Publish XBond release** for this tag and confirm installation verification. Use the same candidate for later store submissions.'
+  fi
   {
     printf '### %s is ready for installation checks\n\n' "$tag"
     printf '[Release draft](%s)\n\n' "$draft_url"
     printf '1. Verify the installers.\n'
     printf '%s\n' "$testflight_step"
-    printf '3. Run **Publish XBond release** for this tag and confirm installation verification. Use the same candidate for later store submissions.\n'
+    printf '%s\n' "$publish_step"
   } >> "$GITHUB_STEP_SUMMARY"
 fi

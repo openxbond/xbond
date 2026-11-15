@@ -69,3 +69,23 @@ pub async fn deliver_account_callback<R: Runtime>(
 ) -> Result<bool> {
     app.xbond().deliver_account_callback(&code, &state)
 }
+
+#[tauri::command]
+pub async fn save_text_file<R: Runtime>(
+    app: AppHandle<R>,
+    contents: String,
+    file_name: String,
+    mime_type: String,
+) -> Result<bool> {
+    app.xbond().save_text_file(&contents, &file_name, &mime_type)
+}
+
+#[tauri::command]
+pub async fn share_text_file<R: Runtime>(
+    app: AppHandle<R>,
+    contents: String,
+    file_name: String,
+    mime_type: String,
+) -> Result<bool> {
+    app.xbond().share_text_file(&contents, &file_name, &mime_type)
+}

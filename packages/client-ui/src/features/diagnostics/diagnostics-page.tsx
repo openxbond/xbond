@@ -21,7 +21,8 @@ import {
 import { useProxy } from "@/features/proxies/proxy-data";
 import { errorKind, useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
-import { saveTextFile } from "@/platform/save-file";
+import { isMobileApp } from "@/platform/host";
+import { saveTextFile, shareTextFile } from "@/platform/save-file";
 import { useClient } from "@/state/controller-target";
 import { useCapabilities, useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
@@ -158,6 +159,7 @@ export default function Diagnostics() {
   const { general } = useGeneral();
   const { hasLocalAPI, client: localClient } = useLocalAPI();
   const { run, pending } = useAction();
+  const [exportOpen, setExportOpen] = useState(false);
 
   // Site Benchmark State
   const [siteDelays, setSiteDelays] = useState<Record<string, number>>({});
@@ -247,20 +249,36 @@ export default function Diagnostics() {
     }
   }
 
-  async function exportBugReport() {
+  function exportBugReport(method: "save" | "share" = "save") {
     if (!localClient) return;
+    setExportOpen(false);
     void run(async () => {
       const result = await localClient.getBugReport();
-      // Desktop webviews drop `<a download>` blob navigation silently; the
-      // helper routes through the native save dialog there and the download
-      // stays only as the plain-browser fallback.
-      await saveTextFile(
-        JSON.stringify(result, null, 2),
-        "xbond-bugreport.json",
-        "JSON",
-        ["json"],
-      );
+      const contents = JSON.stringify(result, null, 2);
+      if (method === "share") {
+        await shareTextFile(
+          contents,
+          "xbond-bugreport.json",
+          "application/json",
+        );
+      } else {
+        await saveTextFile(
+          contents,
+          "xbond-bugreport.json",
+          "JSON",
+          ["json"],
+          "application/json",
+        );
+      }
     }, false);
+  }
+
+  function onExportBugReport() {
+    if (isMobileApp()) {
+      setExportOpen(true);
+      return;
+    }
+    exportBugReport("save");
   }
 
   return (
@@ -602,7 +620,7 @@ export default function Diagnostics() {
             <Button
               variant="outline"
               disabled={!localClient || pending}
-              onClick={() => void exportBugReport()}
+              onClick={onExportBugReport}
             >
               {t("doctor.exportBugreport")}
             </Button>
@@ -888,6 +906,29 @@ export default function Diagnostics() {
               {tc("ok")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("doctor.exportTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => exportBugReport("save")}
+            >
+              {t("doctor.exportSave")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => exportBugReport("share")}
+            >
+              {t("doctor.exportShare")}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

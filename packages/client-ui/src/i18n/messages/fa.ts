@@ -358,6 +358,9 @@ const FA = {
     paused: "توقف",
     resume: "ادامه",
     export: "برون‌بری لاگ‌ها",
+    exportTitle: "برون‌بری لاگ‌ها",
+    exportSave: "ذخیره در پرونده",
+    exportShare: "هم‌رسانی",
     logLimit: "۱۰۰۰ رکورد آخر",
     filterLogs: "جست‌وجوی پیام لاگ",
   },
@@ -506,6 +509,9 @@ const FA = {
       runBtn: "اجرای خودآزمایی",
       running: "در حال بررسی…",
       exportBugreport: "برون‌بری گزارش بی‌نام‌شده",
+      exportTitle: "برون‌بری گزارش عیب‌یابی",
+      exportSave: "ذخیره در پرونده",
+      exportShare: "هم‌رسانی",
       emptyPrompt:
         "با اجرای خودآزمایی، هسته، هدایت ترافیک، DNS و خروجی پروکسی بررسی می‌شوند.",
       remoteNote:

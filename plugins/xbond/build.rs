@@ -10,6 +10,8 @@ const COMMANDS: &[&str] = &[
     "set_preference",
     "sync_system_bars",
     "deliver_account_callback",
+    "save_text_file",
+    "share_text_file",
 ];
 
 fn main() {

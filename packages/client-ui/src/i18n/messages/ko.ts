@@ -359,6 +359,9 @@ const KO = {
     paused: "일시정지",
     resume: "계속",
     export: "로그 내보내기",
+    exportTitle: "로그 내보내기",
+    exportSave: "파일로 저장",
+    exportShare: "공유",
     logLimit: "최근 1000개",
     filterLogs: "로그 메시지 검색",
   },
@@ -507,6 +510,9 @@ const KO = {
       runBtn: "셀프 점검 실행",
       running: "점검 중…",
       exportBugreport: "비식별 리포트 내보내기",
+      exportTitle: "진단 리포트 내보내기",
+      exportSave: "파일로 저장",
+      exportShare: "공유",
       emptyPrompt:
         "셀프 점검을 실행하면 코어, 트래픽 인계, DNS 해석, 프록시 출구를 확인합니다.",
       remoteNote:

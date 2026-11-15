@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { saveTextFile } from "../src/platform/save-file.ts";
+import { saveTextFile, shareTextFile } from "../src/platform/save-file.ts";
 
 function mockWindow(win: unknown) {
   globalThis.window = win as unknown as Window & typeof globalThis;
@@ -11,7 +11,22 @@ function restoreWindow() {
   Reflect.deleteProperty(globalThis, "window");
 }
 
-test("saveTextFile hands the content to the shell command on desktop", async () => {
+function mockAndroidNavigator() {
+  const realNavigator = globalThis.navigator;
+  Object.defineProperty(globalThis, "navigator", {
+    value: {
+      userAgent: "Mozilla/5.0 (Linux; Android 14; wv) AppleWebKit/537.36",
+    },
+    configurable: true,
+  });
+  return () =>
+    Object.defineProperty(globalThis, "navigator", {
+      value: realNavigator,
+      configurable: true,
+    });
+}
+
+test("saveTextFile hands the content to the desktop shell command", async () => {
   const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = [];
   mockWindow({
     __TAURI_INTERNALS__: {
@@ -21,6 +36,10 @@ test("saveTextFile hands the content to the shell command on desktop", async () 
       },
     },
   });
+  const restoreNav = mockAndroidNavigator();
+  // desktop detection: Tauri runtime but not mobile? isMobileApp true on Android UA,
+  // so simulate desktop by using non-mobile UA.
+  restoreNav();
   try {
     const saved = await saveTextFile("{}", "xbond-bugreport.json", "JSON", [
       "json",
@@ -42,7 +61,7 @@ test("saveTextFile hands the content to the shell command on desktop", async () 
   }
 });
 
-test("saveTextFile rejects inside a mobile Tauri shell instead of doing nothing", async () => {
+test("saveTextFile uses the mobile plugin on Android", async () => {
   const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = [];
   mockWindow({
     __TAURI_INTERNALS__: {
@@ -52,24 +71,58 @@ test("saveTextFile rejects inside a mobile Tauri shell instead of doing nothing"
       },
     },
   });
-  // host.ts reads the global navigator; override it with an Android UA.
-  const realNavigator = globalThis.navigator;
-  Object.defineProperty(globalThis, "navigator", {
-    value: {
-      userAgent: "Mozilla/5.0 (Linux; Android 14; wv) AppleWebKit/537.36",
-    },
-    configurable: true,
-  });
+  const restoreNav = mockAndroidNavigator();
   try {
-    await assert.rejects(() =>
-      saveTextFile("{}", "xbond-bugreport.json", "JSON", ["json"]),
+    const saved = await saveTextFile(
+      "{}",
+      "xbond-bugreport.json",
+      "JSON",
+      ["json"],
+      "application/json",
     );
-    assert.deepEqual(calls, []);
+    assert.equal(saved, true);
+    assert.deepEqual(calls, [
+      {
+        cmd: "plugin:xbond|save_text_file",
+        args: {
+          contents: "{}",
+          fileName: "xbond-bugreport.json",
+          mimeType: "application/json",
+        },
+      },
+    ]);
   } finally {
-    Object.defineProperty(globalThis, "navigator", {
-      value: realNavigator,
-      configurable: true,
-    });
+    restoreNav();
+    restoreWindow();
+  }
+});
+
+test("shareTextFile uses the mobile plugin on Android", async () => {
+  const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = [];
+  mockWindow({
+    __TAURI_INTERNALS__: {
+      invoke: async (cmd: string, args?: Record<string, unknown>) => {
+        calls.push({ cmd, args });
+        return true;
+      },
+    },
+  });
+  const restoreNav = mockAndroidNavigator();
+  try {
+    const shared = await shareTextFile("log", "xbond-logs.txt", "text/plain");
+    assert.equal(shared, true);
+    assert.deepEqual(calls, [
+      {
+        cmd: "plugin:xbond|share_text_file",
+        args: {
+          contents: "log",
+          fileName: "xbond-logs.txt",
+          mimeType: "text/plain",
+        },
+      },
+    ]);
+  } finally {
+    restoreNav();
     restoreWindow();
   }
 });

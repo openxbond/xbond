@@ -177,17 +177,15 @@ export default function App() {
         </main>
       </div>
       <Toaster
-        position={isHome ? "top-right" : "bottom-right"}
-        offset={
-          isHome ? { top: "calc(var(--titlebar-height) + 16px)" } : undefined
-        }
-        mobileOffset={
-          isHome
-            ? {
-                top: "calc(env(safe-area-inset-top) + 8px)",
-              }
-            : undefined
-        }
+        position="top-right"
+        offset={{
+          top: isHome
+            ? "calc(var(--titlebar-height) + 16px)"
+            : "calc(var(--titlebar-height) + 12px)",
+        }}
+        mobileOffset={{
+          top: "calc(env(safe-area-inset-top) + 8px)",
+        }}
       />
       <CommandPalette />
     </div>

@@ -26,7 +26,7 @@ func TestSignedReleaseSelectsOnlyExpectedPlatformAsset(t *testing.T) {
 	}
 	fixture := Release{
 		Version: "0.9.2",
-		Build:   902,
+		Build:   90299,
 		Assets: map[string]Asset{
 			"cli-" + target: {
 				Name: name, URL: releaseRoot + "v0.9.2/" + name, SHA256: strings.Repeat("0", 64),
@@ -66,6 +66,23 @@ func TestSignedReleaseSelectsOnlyExpectedPlatformAsset(t *testing.T) {
 	release.Assets["cli-"+target] = asset
 	if _, err := release.CLI(); err == nil {
 		t.Fatal("unexpected download URL was accepted")
+	}
+}
+
+func TestBuildNumberReservesStableSlotAboveCandidates(t *testing.T) {
+	stable, err := VersionCode("1.0.0")
+	if err != nil || stable != 1000099 {
+		t.Fatalf("VersionCode(1.0.0) = %d, %v", stable, err)
+	}
+	next, err := VersionCode("1.0.1")
+	if err != nil || next <= stable {
+		t.Fatalf("VersionCode(1.0.1) = %d, %v; want > %d", next, err, stable)
+	}
+	// Candidates are not stable feed versions; they must never pass Verify.
+	for _, candidate := range []string{"1.0.0-rc.1", "1.0.0.1"} {
+		if _, err := VersionCode(candidate); err == nil {
+			t.Fatalf("VersionCode(%q) accepted a non-stable version", candidate)
+		}
 	}
 }
 

@@ -54,20 +54,24 @@ type envelope struct {
 	Signature []byte `json:"signature"`
 }
 
+// VersionCode maps a stable version to the shared build number. Candidates
+// take the slots below 99 of their base version, so the stable release
+// (slot 99) upgrades past every rc.N of the same base and still sorts below
+// the next base version.
 func VersionCode(value string) (int, error) {
 	parts := stable.FindStringSubmatch(strings.TrimPrefix(value, "v"))
 	if parts == nil {
 		return 0, fmt.Errorf("invalid stable version %q", value)
 	}
-	var code int
+	var base int
 	for _, part := range parts[1:] {
 		component, _ := strconv.Atoi(part)
-		code = code*100 + component
+		base = base*100 + component
 	}
-	if code == 0 {
+	if base == 0 {
 		return 0, fmt.Errorf("invalid stable version %q", value)
 	}
-	return code, nil
+	return base*100 + 99, nil
 }
 
 func Verify(data []byte, encodedKey string) (Release, error) {

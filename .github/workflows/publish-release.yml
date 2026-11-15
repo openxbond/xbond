@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Prepared stable Tag
+        description: Prepared stable Tag (release candidates cannot be published to the stable channel)
         required: true
         type: string
       install_verified:

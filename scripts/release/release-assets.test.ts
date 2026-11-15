@@ -17,13 +17,26 @@ import {
 const tag = "v0.4.2";
 const stores = ["https://apps.apple.com/us/app/id123"];
 
-test("stable tags produce a monotonic cross-platform build number", () => {
-  assert.equal(releaseVersion(tag).build, 402);
+test("tags produce a monotonic cross-platform build number", () => {
+  assert.equal(releaseVersion(tag).build, 40299);
+  assert.equal(releaseVersion(tag).prerelease, false);
   assert.ok(releaseVersion("v1.0.0").build > releaseVersion("v0.99.99").build);
+  assert.equal(releaseVersion("v1.0.0-rc.1").build, 1000001);
+  assert.equal(releaseVersion("v1.0.0-rc.2").build, 1000002);
+  assert.equal(releaseVersion("v1.0.0").build, 1000099);
+  assert.ok(
+    releaseVersion("v1.0.0").build > releaseVersion("v1.0.0-rc.2").build,
+  );
+  assert.ok(
+    releaseVersion("v1.0.0-rc.1").build > releaseVersion("v0.99.99").build,
+  );
+  assert.equal(releaseVersion("v1.0.0-rc.1").prerelease, true);
   for (const invalid of [
     "0.4.2",
     "v0.0.0",
     "v0.4.2-beta.1",
+    "v0.4.2-rc.0",
+    "v0.4.2-rc.99",
     "v0.4.2+build",
     "v0.04.2",
     "v0.4.2\n",

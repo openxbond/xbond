@@ -1,18 +1,38 @@
-const STABLE_TAG = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+const RELEASE_TAG =
+  /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-rc\.(0|[1-9][0-9]*))?$/;
 
 export function releaseVersion(tag: string) {
-  const match = STABLE_TAG.exec(tag);
+  const match = RELEASE_TAG.exec(tag);
   if (!match || match[0] !== tag)
-    throw new Error("Expected a stable vX.Y.Z tag");
+    throw new Error("Expected a stable vX.Y.Z or prerelease vX.Y.Z-rc.N tag");
 
-  const [major, minor, patch] = match.slice(1).map(Number);
+  const [major, minor, patch, rc] = [
+    match[1],
+    match[2],
+    match[3],
+    match[4],
+  ].map((value, index) =>
+    value === undefined && index === 3 ? undefined : Number(value),
+  ) as [number, number, number, number | undefined];
   // NSIS, Android and Apple share this bounded, monotonically increasing range.
   if (major > 99 || minor > 99 || patch > 99) {
     throw new Error("Release version components must be between 0 and 99");
   }
-  const build = major * 10_000 + minor * 100 + patch;
-  if (build === 0) throw new Error("The release build number must be positive");
-  return { tag, version: tag.slice(1), build };
+  const base = major * 10_000 + minor * 100 + patch;
+  if (base === 0) throw new Error("The release build number must be positive");
+  if (rc !== undefined && (rc < 1 || rc > 98)) {
+    throw new Error("Release candidate numbers must be between 1 and 98");
+  }
+  // A stable release sorts above every RC of the same base version so the
+  // final can upgrade from any candidate; RCs sort by their number.
+  const build = base * 100 + (rc ?? 99);
+  return {
+    tag,
+    version: tag.slice(1),
+    build,
+    prerelease: rc !== undefined,
+    stable: rc === undefined,
+  };
 }
 
 export const releaseTargets = [

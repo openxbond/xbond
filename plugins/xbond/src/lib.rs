@@ -77,6 +77,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::set_preference,
             commands::sync_system_bars,
             commands::deliver_account_callback,
+            commands::save_text_file,
+            commands::share_text_file,
         ])
         .build()
 }

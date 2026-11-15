@@ -214,8 +214,8 @@ export default function AccountPanel() {
 
   return (
     <div className="flex w-full flex-col gap-3 xl:gap-5" aria-busy={busy}>
-      {/* 服務信息頭：上方為配置身份與單行狀態徽章，下方為操作按鈕列（對齊設計稿） */}
-      <section className="flex flex-col gap-2.5 xl:gap-3.5">
+      {/* 头部卡片：身份与操作 */}
+      <div className="flex flex-col gap-2.5 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:gap-3.5 xl:p-5">
         <div className="flex items-start gap-3.5">
           <ResourceIcon
             kind="cloud"
@@ -318,7 +318,7 @@ export default function AccountPanel() {
             )}
           </div>
         )}
-      </section>
+      </div>
 
       {connecting ? (
         <p
@@ -571,7 +571,7 @@ export default function AccountPanel() {
             </div>
           )}
 
-          {/* 配額環是卡片的視覺主角；底部收進到期、套餐及協議資訊。 */}
+          {/* 配额卡片 */}
           <div className="relative overflow-hidden rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5 2xl:p-6">
             <AuroraWave className="top-3 -end-5 h-44 w-[58%] -scale-y-100 opacity-35" />
             <div className="relative z-10 mb-2 flex flex-wrap items-center justify-between gap-2 xl:mb-4">
@@ -684,15 +684,15 @@ export default function AccountPanel() {
             </dl>
           </div>
 
-          {/* Announcements Card：空狀態也保留卡片，交代「沒有公告」這個事實。 */}
-          <div className="flex flex-col gap-3 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5 2xl:p-6">
+          {/* 公告卡片 */}
+          <div className="flex flex-col gap-3 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5">
             <h3 className="text-body font-semibold tracking-tight text-foreground">
               {t("announcements")}
             </h3>
             {account.announcements && account.announcements.length > 0 ? (
               <div className="divide-y divide-border/60">
                 {account.announcements.slice(0, 3).map((item) => (
-                  <article key={item.id} className="py-3 first:pt-1 last:pb-1">
+                  <article key={item.id} className="py-3 first:pt-0 last:pb-0">
                     <h4 className="text-sm font-medium leading-snug text-foreground">
                       {item.title}
                     </h4>
@@ -724,8 +724,8 @@ export default function AccountPanel() {
             )}
           </div>
 
-          {/* Subscription Source & Auto-Update Card */}
-          <div className="flex flex-col gap-3.5 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5 2xl:p-6">
+          {/* 订阅源与更新卡片 */}
+          <div className="flex flex-col gap-3.5 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5">
             <h3 className="text-body font-semibold tracking-tight text-foreground">
               {c("sourceLink")}
             </h3>

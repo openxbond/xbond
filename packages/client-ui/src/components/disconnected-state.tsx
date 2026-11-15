@@ -86,11 +86,11 @@ export function DisconnectedState({
     return (
       <div
         className={cn(
-          "flex min-h-[360px] flex-1 items-center justify-center p-6",
+          "flex min-h-[360px] flex-1 items-center justify-center py-6",
           className,
         )}
       >
-        <Card className="flex max-w-[460px] w-full min-h-[220px] flex-col items-center justify-center rounded-card border border-border/80 bg-card p-8 text-center shadow-elevation-card">
+        <Card className="flex w-full min-h-[220px] flex-col items-center justify-center rounded-card border border-border/80 bg-card p-6 text-center shadow-elevation-card sm:p-8">
           <Spinner className="size-6 text-brand" />
         </Card>
       </div>
@@ -182,11 +182,11 @@ export function DisconnectedState({
   return (
     <div
       className={cn(
-        "flex min-h-[360px] flex-1 items-center justify-center p-6",
+        "flex min-h-[360px] flex-1 items-center justify-center py-6",
         className,
       )}
     >
-      <Card className="flex w-full max-w-[460px] flex-col items-center justify-center rounded-card border border-border bg-card p-8 text-center">
+      <Card className="flex w-full flex-col items-center justify-center rounded-card border border-border bg-card p-6 text-center sm:p-8">
         {daemonConnecting ? (
           // 服务启动中：品牌字形在柔和品牌辉光里呼吸浮动，小 spinner 与
           // 文案同行交代「进行中」；显示/消失完全跟随 daemonState，

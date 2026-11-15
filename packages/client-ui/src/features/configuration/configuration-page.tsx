@@ -521,7 +521,7 @@ export default function Config() {
               </Button>
             </div>
             <fieldset
-              className="bento config-detail-flow min-w-0"
+              className="config-detail-flow min-w-0"
               disabled={
                 daemonBlocked &&
                 (selected === "cloud" ||

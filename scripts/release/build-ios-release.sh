@@ -5,7 +5,9 @@
 #   APPLE_TEAM_ID            Apple Developer team ID
 #   APPLE_APP_PROFILE        installed App Store provisioning profile name
 #   APPLE_TUNNEL_PROFILE     installed PacketTunnel provisioning profile name
-#   XBOND_VERSION / XBOND_BUILD_NUMBER / XBOND_APP_STORE_URL
+#   XBOND_VERSION            numeric marketing version (Apple rejects -rc suffixes)
+#   XBOND_RELEASE_TAG        release tag for the IPA name; defaults to v$XBOND_VERSION
+#   XBOND_BUILD_NUMBER / XBOND_APP_STORE_URL
 #   APPLE_SIGNING_IDENTITY   defaults to "Apple Distribution"
 #
 # Usage: bash scripts/release/build-ios-release.sh <output directory>
@@ -17,12 +19,15 @@ if [[ $# != 1 ]]; then
 fi
 : "${XBOND_VERSION:?Set the release version}"
 : "${XBOND_BUILD_NUMBER:?Set the release build number}"
+: "${XBOND_RELEASE_TAG:=v$XBOND_VERSION}"
 : "${APPLE_TEAM_ID:?Set the Apple Developer team ID}"
 : "${APPLE_APP_PROFILE:?Set the installed app provisioning profile name}"
 : "${APPLE_TUNNEL_PROFILE:?Set the installed tunnel provisioning profile name}"
 export APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-Apple Distribution}"
 [[ "$XBOND_VERSION" =~ ^(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)\.(0|[1-9][0-9]?)$ ]]
-[[ "$XBOND_BUILD_NUMBER" =~ ^[1-9][0-9]{0,5}$ ]]
+# Candidates carry the stable marketing version plus a distinct build number;
+# the shared build number is base*100+slot, so allow more digits than before.
+[[ "$XBOND_BUILD_NUMBER" =~ ^[1-9][0-9]{0,8}$ ]]
 XBOND_APP_STORE_URL="${XBOND_APP_STORE_URL:-}"
 [[ -z "$XBOND_APP_STORE_URL" || ( "$XBOND_APP_STORE_URL" == https://apps.apple.com/* && "$XBOND_APP_STORE_URL" != *[[:space:]]* ) ]]
 sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
@@ -107,4 +112,4 @@ with open(sys.argv[1], "wb") as output:
 PY
 xcodebuild -exportArchive -archivePath "$archive" \
   -exportPath "$work/export" -exportOptionsPlist "$work/ExportOptions.plist"
-mv "$work/export/XBond.ipa" "$out/xbond-ios-v$XBOND_VERSION.ipa"
+mv "$work/export/XBond.ipa" "$out/xbond-ios-$XBOND_RELEASE_TAG.ipa"

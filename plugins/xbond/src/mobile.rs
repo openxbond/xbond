@@ -114,4 +114,44 @@ impl<R: Runtime> Xbond<R> {
             .map_err(Into::into)
             .and_then(|value| serde_json::from_value(value).map_err(Into::into))
     }
+
+    /// Saves text content to a user-chosen location on mobile.
+    pub fn save_text_file(
+        &self,
+        contents: &str,
+        file_name: &str,
+        mime_type: &str,
+    ) -> super::Result<bool> {
+        self.mobile_plugin_handle
+            .run_mobile_plugin(
+                "saveTextFile",
+                serde_json::json!({
+                    "contents": contents,
+                    "fileName": file_name,
+                    "mimeType": mime_type,
+                }),
+            )
+            .map_err(Into::into)
+            .and_then(|value| serde_json::from_value(value).map_err(Into::into))
+    }
+
+    /// Shares text content through the system share sheet on mobile.
+    pub fn share_text_file(
+        &self,
+        contents: &str,
+        file_name: &str,
+        mime_type: &str,
+    ) -> super::Result<bool> {
+        self.mobile_plugin_handle
+            .run_mobile_plugin(
+                "shareTextFile",
+                serde_json::json!({
+                    "contents": contents,
+                    "fileName": file_name,
+                    "mimeType": mime_type,
+                }),
+            )
+            .map_err(Into::into)
+            .and_then(|value| serde_json::from_value(value).map_err(Into::into))
+    }
 }

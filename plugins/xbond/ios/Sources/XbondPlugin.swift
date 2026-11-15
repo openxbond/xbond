@@ -15,6 +15,12 @@ struct AccountCallbackArgs: Decodable {
   let state: String
 }
 
+struct TextFileArgs: Decodable {
+  let contents: String
+  let fileName: String
+  let mimeType: String?
+}
+
 /**
  * The platform surface the shared web UI consumes through the Tauri `xbond`
  * plugin: the loopback LocalAPI endpoint it drives the tunnel through,
@@ -126,6 +132,53 @@ class XbondPlugin: Plugin {
       }
     }
     invoke.resolve()
+  }
+
+  /// Shares text content via the system share sheet.
+  @objc public func shareTextFile(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(TextFileArgs.self)
+    let safe = Self.safeFileName(args.fileName)
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(safe)
+    try args.contents.write(to: url, atomically: true, encoding: .utf8)
+    DispatchQueue.main.async {
+      guard let presenter = Self.topViewController() else {
+        invoke.reject("no presenter")
+        return
+      }
+      let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+      vc.completionWithItemsHandler = { _, completed, _, _ in
+        try? FileManager.default.removeItem(at: url)
+        invoke.resolve(completed)
+      }
+      if let pop = vc.popoverPresentationController {
+        pop.sourceView = presenter.view
+        pop.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 1, height: 1)
+        pop.permittedArrowDirections = []
+      }
+      presenter.present(vc, animated: true)
+    }
+  }
+
+  /// Saves text content by presenting the document picker export flow.
+  @objc public func saveTextFile(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(TextFileArgs.self)
+    let safe = Self.safeFileName(args.fileName)
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(safe)
+    try args.contents.write(to: url, atomically: true, encoding: .utf8)
+    DispatchQueue.main.async {
+      guard let presenter = Self.topViewController() else {
+        invoke.reject("no presenter")
+        return
+      }
+      let picker = UIDocumentPickerViewController(forExporting: [url], asCopy: true)
+      let delegate = ExportPickerDelegate(url: url) { saved in
+        invoke.resolve(saved)
+      }
+      picker.delegate = delegate
+      // Keep delegate alive for the duration of the picker interaction.
+      objc_setAssociatedObject(picker, &ExportPickerDelegate.associatedKey, delegate, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+      presenter.present(picker, animated: true)
+    }
   }
 
   // MARK: - Endpoint resolution
@@ -259,6 +312,47 @@ class XbondPlugin: Plugin {
       blue: CGFloat(rgb & 0xff) / 255,
       alpha: 1
     )
+  }
+
+  private static func safeFileName(_ name: String) -> String {
+    let invalid = CharacterSet(charactersIn: "/\\\\:*?\\\"<>|")
+    let cleaned = name.components(separatedBy: invalid.union(.controlCharacters)).joined(separator: "_").trimmingCharacters(in: .whitespaces)
+    return cleaned.isEmpty ? "export.txt" : cleaned
+  }
+
+  private static func topViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let window = scenes.flatMap { $0.windows }.first(where: { $0.isKeyWindow }) ?? scenes.first?.windows.first
+    var top = window?.rootViewController
+    while let presented = top?.presentedViewController { top = presented }
+    return top
+  }
+}
+
+private final class ExportPickerDelegate: NSObject, UIDocumentPickerDelegate {
+  static var associatedKey: UInt8 = 0
+  private let url: URL
+  private let completion: (Bool) -> Void
+  private var settled = false
+
+  init(url: URL, completion: @escaping (Bool) -> Void) {
+    self.url = url
+    self.completion = completion
+  }
+
+  func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+    finish(false)
+  }
+
+  func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+    finish(!urls.isEmpty)
+  }
+
+  private func finish(_ saved: Bool) {
+    guard !settled else { return }
+    settled = true
+    try? FileManager.default.removeItem(at: url)
+    completion(saved)
   }
 }
 
