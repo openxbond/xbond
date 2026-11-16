@@ -47,7 +47,7 @@ function BaseHeader({
             type="button"
             onClick={onBack}
             aria-label={backLabel}
-            className="hidden max-md:inline-flex size-8 max-md:size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border/80 bg-card text-foreground shadow-2xs transition-colors hover:bg-inset active:scale-95"
+            className="hidden max-md:inline-flex size-8 max-md:size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border/80 bg-card text-foreground shadow-2xs transition-colors hover:bg-inset active:scale-[0.98]"
           >
             <ArrowLeft
               className="size-4 max-md:size-5 rtl:rotate-180"

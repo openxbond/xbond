@@ -96,18 +96,21 @@ func uninstallSystemScope() error {
 	// The caller is the CLI process, never the service's cgroup, so the stop
 	// runs first and the script survives to remove every file — including the
 	// machine binary, which the package does not own and a plain package
-	// removal would otherwise leave behind.
+	// removal would otherwise leave behind. Uninstall is full cleanup: the
+	// machine data directory goes with the registration, no residue kept.
 	script := fmt.Sprintf(`set -e
 if systemctl cat %[1]s >/dev/null 2>&1; then
   systemctl disable --now %[1]s
 fi
 rm -f %[2]s %[3]s %[4]s %[5]s
 rmdir --ignore-fail-on-non-empty %[6]s 2>/dev/null || true
+rm -rf %[7]s
 systemctl daemon-reload
 `, linuxSystemUnitName, shellQuote(linuxSystemUnitPath), shellQuote(linuxSystemExe),
 		shellQuote(filepath.Join(filepath.Dir(linuxSystemExe), machineOwnerFile)),
 		shellQuote(filepath.Join(filepath.Dir(linuxSystemExe), machineOwnerPathFile)),
-		shellQuote(filepath.Dir(linuxSystemExe)))
+		shellQuote(filepath.Dir(linuxSystemExe)),
+		shellQuote(linuxSystemDataDir))
 	return elevateScript(script)
 }
 

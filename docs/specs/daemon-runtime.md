@@ -34,7 +34,7 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 | 操作 | 目标行为 |
 | --- | --- |
 | `daemon install` | 注册后台运行方式并启动，确认就绪后报告成功；`--scope user`（默认）或 `--scope system` |
-| `daemon uninstall` | 停止并移除注册，保留用户配置 |
+| `daemon uninstall` | 停止并移除注册（用户数据保留：升级、重装与 GUI 退出复用此动词） |
 | `daemon start` | 启动已注册的服务，确认 LocalAPI 就绪 |
 | `daemon stop` | 请求优雅退出（LocalAPI shutdown），等待进程退出，再确认系统管理状态；超时如实报告 |
 | `daemon restart` | 完整停止后重新启动并确认就绪 |
@@ -85,7 +85,7 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - 双实例、端口冲突、TUN 已被持有：启动失败，错误指名冲突资源；已知良好状态不被覆盖。
 - 停止超时：报告超时与当前状态；恢复代理失败显示具体错误。
 - 崩溃恢复由系统管理器与 xbond 共同完成：管理器重启进程，xbond 检查自身遗留资源并恢复状态；是否自动重连由用户意图决定，主动断开不被重试循环重新连接。
-- 升级：服务引用稳定安装目录中的可执行文件；CLI、GUI 与后台实例交换版本、实例身份与协议能力；升级=停止到可控状态、替换产物、重启并确认就绪，Windows 处理运行中可执行文件的替换。卸载先清理连接，再移除注册，数据删除是独立行为。
+- 升级：服务引用稳定安装目录中的可执行文件；CLI、GUI 与后台实例交换版本、实例身份与协议能力；升级=停止到可控状态、替换产物、重启并确认就绪，Windows 处理运行中可执行文件的替换。卸载先清理连接，再移除注册；包管理器卸载是全清理——注册、机器二进制与归属文件、机器数据目录、所有 invoking 用户的数据目录一并移除，不留残留。`daemon uninstall` 动词本身只去注册、保留数据（升级、重装与 GUI 退出复用它），全清理由包管理器卸载钩子显式执行。
 - 移动端隧道出站连接必须接入 `protect()` 等机制，避免重新进入 VPN；同名 Go 方法不足以证明整条调用链已连接。
 
 ## 验收条件
@@ -97,7 +97,7 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - AC-5 install：注册并启动后 status 显示运行中；重新登录后服务可用（目标平台验收）。
 - AC-6 stop：退出后发现文件已清理、status 如实反映；系统代理恢复失败时输出错误而非「已停止」。
 - AC-7 restart：完整停止后重新启动，LocalAPI 可查询。
-- AC-8 uninstall：注册移除、daemon 停止，用户配置保留（机器级数据目录一并保留；机器二进制与归属文件移除）。桌面卸载器同时收回两级注册——Windows PREUNINSTALL 经捆绑 CLI 先 `daemon uninstall`（用户级：优雅停止 + autostart 注册移除，防陈旧 Run 值指向已删路径）、再 `daemon uninstall --scope system` 收回机器级注册（未提权时走既有 runas 自唤，拒绝授权即如实保留并在日志记录；服务从未安装则为免提权 no-op）；Linux deb/rpm 以 `preRemoveScript`（`src-tauri/scripts/machine-daemon-preremove.sh`，仅在真移除而非升级时触发）同样收回机器级。macOS 删除应用与 AppImage/手动删除没有卸载钩子面——机器级 daemon 在安装时记录归属二进制路径（`install-owner-path`），启动时与运行中每小时探测归属：路径消失（启动时一次即回收；运行中连续两次）则自回收注册与二进制后退出，注册不会在重启后复活。`daemon uninstall --scope system` 手动路径与自回收一致：移除注册、机器二进制与归属文件。
+- AC-8 uninstall：包管理器卸载是全清理——注册移除、daemon 停止、机器二进制与归属文件、机器数据目录、所有 invoking 用户的数据目录一并移除，无残留。`daemon uninstall` 动词只去注册、保留数据。桌面卸载器同时收回两级注册并清理数据——Windows PREUNINSTALL 经捆绑 CLI 先 `daemon uninstall`（用户级：优雅停止 + autostart 注册移除，防陈旧 Run 值指向已删路径）、再 `daemon uninstall --scope system` 收回机器级注册（未提权时走既有 runas 自唤，拒绝授权如实保留并在日志记录；服务从未安装则为免提权 no-op），NSIS 卸载面（PREUNINSTALL）再删 `%APPDATA%\xbond` 与机器数据目录；Linux deb/rpm 以 `preRemoveScript`（`src-tauri/scripts/machine-daemon-preremove.sh`，仅在真移除而非升级时触发）收回机器级注册并删 `/var/lib/xbond-system` 与各用户数据目录。macOS 删除应用与 AppImage/手动删除没有卸载钩子面——机器级 daemon 在安装时记录归属二进制路径（`install-owner-path`），启动时与运行中每小时探测归属：路径消失（启动时一次即回收；运行中连续两次）则自回收注册、二进制、归属文件与机器数据目录后退出，注册不会在重启后复活。`daemon uninstall --scope system` 手动路径与自回收一致：移除注册、机器二进制、归属文件与机器数据目录。
 - AC-9 scope：`--scope system` 未实现或平台不支持时返回明确「不可用」，不偷换为 user。
 - AC-10 GUI 关窗后，CLI 查询到的连接仍在（与 AC-5 联动，桌面平台验收）。
 - AC-11 移动端：Android `VpnService` 与 iOS `PacketTunnelProvider` 完成原生桥接并跑通真实流量（后续任务）。

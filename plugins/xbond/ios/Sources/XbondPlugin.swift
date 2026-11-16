@@ -10,6 +10,10 @@ struct SyncSystemBarsArgs: Decodable {
   let color: String?
 }
 
+struct HapticArgs: Decodable {
+  let kind: String
+}
+
 struct AccountCallbackArgs: Decodable {
   let code: String
   let state: String
@@ -129,6 +133,25 @@ class XbondPlugin: Plugin {
         if let hex = args.color {
           window.backgroundColor = Self.parseColor(hex)
         }
+      }
+    }
+    invoke.resolve()
+  }
+
+  /// Tactile feedback for key state changes (connection up/down,
+  /// failures): tap→light impact, confirm→success notification,
+  /// error→error notification. Resolves once queued; the web side
+  /// fire-and-forgets and never awaits.
+  @objc public func performHaptic(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(HapticArgs.self)
+    DispatchQueue.main.async {
+      switch args.kind {
+      case "confirm":
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+      case "error":
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+      default:
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
       }
     }
     invoke.resolve()

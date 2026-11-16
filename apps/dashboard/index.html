@@ -3,9 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- user-scalable=no: this is an app surface, not a zoomable document —
+         native shells never zoom their UI, and double-tap/pinch zoom also
+         enables the focused-input auto-zoom on iOS that jumps the page for
+         <16px inputs. System font scaling is a separate channel (WebView
+         textZoom follows the OS fontScale) and stays intact. -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover"
     />
     <meta name="color-scheme" content="light dark" />
     <!-- Hex of --background (styles/tokens.css): the Android shell paints

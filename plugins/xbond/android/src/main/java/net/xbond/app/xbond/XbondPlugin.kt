@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import android.view.HapticFeedbackConstants
 import androidx.activity.result.ActivityResult
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
@@ -170,6 +171,34 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
             Log.e(TAG, "setSplitTunnelConfig failed: ${e.message}")
             invoke.resolveObject(false)
         }
+    }
+
+    /**
+     * Tactile feedback for key state changes (connection up/down, failures).
+     * View-level haptics need no VIBRATE permission — navigator.vibrate is
+     * silenced by Android WebView, so this is the only reliable path. `kind`
+     * maps tap→VIRTUAL_KEY, confirm→CONFIRM, error→REJECT; CONFIRM/REJECT are
+     * API 30+, older devices fall back to VIRTUAL_KEY/LONG_PRESS. Resolves
+     * once queued; the web side fire-and-forgets and never awaits.
+     */
+    @Command
+    fun performHaptic(invoke: Invoke) {
+        val args = invoke.parseArgs(HapticArgs::class.java)
+        val constant = when (args.kind) {
+            "confirm" ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                    HapticFeedbackConstants.CONFIRM
+                else HapticFeedbackConstants.VIRTUAL_KEY
+            "error" ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                    HapticFeedbackConstants.REJECT
+                else HapticFeedbackConstants.LONG_PRESS
+            else -> HapticFeedbackConstants.VIRTUAL_KEY
+        }
+        activity.runOnUiThread {
+            activity.window.decorView.performHapticFeedback(constant)
+        }
+        invoke.resolve()
     }
 
     /**
@@ -442,6 +471,11 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
     class PreferenceSetArgs {
         lateinit var key: String
         lateinit var value: String
+    }
+
+    @InvokeArg
+    class HapticArgs {
+        var kind: String = "tap"
     }
 
     @InvokeArg

@@ -162,6 +162,10 @@ export default function ImportConfig({
                     id="import-url"
                     type="url"
                     required
+                    inputMode="url"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={url}
                     onChange={(e) => setURL(e.target.value)}
                     placeholder="https://"
@@ -202,6 +206,8 @@ export default function ImportConfig({
                   disabled={pending}
                   onChange={(e) => setContent(e.target.value)}
                   spellCheck={false}
+                  autoCapitalize="none"
+                  autoCorrect="off"
                 />
               </Field>
             </TabsContent>

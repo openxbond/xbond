@@ -129,7 +129,8 @@ func watchMachineOwner(binaryDir string) {
 // safe: once the unit definition is gone and daemon-reload has run, a
 // Restart=always service that exits is not restarted (the definition no
 // longer exists), and the ownership record — the file the reclaim fired on —
-// is removed with the rest.
+// is removed with the rest. Uninstall is full cleanup: the machine data
+// directory goes with the registration, no residue kept.
 func reclaimOrphanedRegistration() error {
 	fmt.Fprintln(os.Stderr, "xbond machine service: the installing application is gone; reclaiming the machine registration")
 	installation, err := machinePaths()
@@ -156,6 +157,10 @@ func reclaimOrphanedRegistration() error {
 	// 空目录顺手移除;用户放置过文件的目录则保留。
 	if err := os.Remove(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "xbond machine service: remove %s: %v\n", dir, err)
+	}
+	// 机器数据目录随注册一起回收:全清理,不留残留。
+	if err := os.RemoveAll(installation.DataDir); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
 	if runtime.GOOS == "linux" {
 		if err := exec.Command("systemctl", "daemon-reload").Run(); err != nil {

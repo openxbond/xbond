@@ -72,4 +72,15 @@ LangString XBondRequiresWin10 ${XBOND_LANG_FARSI} "XBond به ویندوز ۱۰ 
 !macro NSIS_HOOK_PREUNINSTALL
   !insertmacro XBondStopProductDaemon
   !insertmacro XBondUninstallMachineDaemon
+  ; Uninstall is full cleanup (no residue kept): the NSIS uninstaller removes
+  ; the program files itself, the machine data directory goes here, and user
+  ; data goes through the sidecar's purge verb so path resolution stays in one
+  ; place. PREINSTALL (upgrade) must not touch any of them — it only stops the
+  ; old daemon through `daemon uninstall`, which keeps user data by design.
+  IfFileExists "$INSTDIR\xbond-daemon.exe" 0 xbond_purge_done
+    nsExec::ExecToLog '"$INSTDIR\xbond-daemon.exe" daemon purge-user-data'
+    Pop $R9
+  xbond_purge_done:
+  RMDir /r "$PROGRAMFILES64\XBond Machine\state"
+  RMDir "$PROGRAMFILES64\XBond Machine"
 !macroend

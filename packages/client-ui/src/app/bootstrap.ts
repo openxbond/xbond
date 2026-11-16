@@ -1,6 +1,7 @@
 import { isClashX, setupJsBridge } from "@/platform/clashx-bridge";
 import { initDesktopShellDom } from "@/platform/desktop-shell";
 import { initUiHost } from "@/platform/host";
+import { initMobileShellDom } from "@/platform/mobile-shell";
 
 import renderApp from "./mount-app";
 
@@ -16,5 +17,6 @@ if (isClashX()) {
   setupJsBridge(() => renderApp());
 } else {
   initDesktopShellDom();
+  initMobileShellDom();
   renderApp();
 }

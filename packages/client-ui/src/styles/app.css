@@ -162,6 +162,10 @@
     background: var(--background);
     overflow: hidden;
     -webkit-text-size-adjust: 100%;
+    /* Press feedback belongs to the UI's own active: states (DESIGN.md 共用
+       狀態), never to the system webview highlight. Inherited property, so
+       one declaration covers the whole tree. */
+    -webkit-tap-highlight-color: transparent;
   }
 
   #root {
@@ -640,21 +644,28 @@
    the compositor instead of re-filtered per frame; disabled for reduced
    motion (DESIGN.md 性能預算). */
 
-/* Desktop shell removes browser residue (Tauri only — the class is added by
-   initDesktopShellDom): no native right-click menu outside inputs, no
-   accidental selection on chrome, no file-drop navigation. Inputs, editable
-   hosts and technical strings stay selectable (DESIGN.md: 網址與技術字串保留
-   完整查看或複製方式). */
-html.desktop-shell {
+/* Native shells remove browser residue from app surfaces. The classes are
+   added before render by initDesktopShellDom / initMobileShellDom.
+   - Desktop: no native right-click menu outside inputs, no file-drop
+     navigation, no accidental selection on chrome.
+   - Mobile: no long-press text-selection handles on labels and readouts;
+     the tap highlight is off globally (html rule above) and whole-page
+     zoom is off via the viewport meta.
+   Inputs, editable hosts and technical strings stay selectable in both
+   (DESIGN.md: 網址與技術字串保留完整查看或複製方式). */
+html:is(.desktop-shell, .mobile-shell) {
   user-select: none;
   -webkit-user-select: none;
 }
 
-html.desktop-shell input,
-html.desktop-shell textarea,
-html.desktop-shell [contenteditable="true"],
-html.desktop-shell code,
-html.desktop-shell pre {
+/* iOS shells: long-press opens nothing — previews belong to explicit copy
+   affordances, not the system callout. */
+html.mobile-shell {
+  -webkit-touch-callout: none;
+}
+
+html:is(.desktop-shell, .mobile-shell)
+  :is(input, textarea, [contenteditable="true"], code, pre) {
   user-select: text;
   -webkit-user-select: text;
 }

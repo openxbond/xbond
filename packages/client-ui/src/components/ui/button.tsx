@@ -5,14 +5,14 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-control text-sm leading-tight font-medium whitespace-nowrap optical-center transition-[background-color,border-color,color] duration-[160ms] ease-[var(--ease-out-expo)] outline-none focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive aria-invalid:ring-destructive/20 motion-reduce:transition-none max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-control text-sm leading-tight font-medium whitespace-nowrap optical-center transition-[background-color,border-color,color,transform] duration-[160ms] ease-[var(--ease-out-expo)] outline-none focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-ring active:scale-[0.98] active:transition-none disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive aria-invalid:ring-destructive/20 motion-reduce:transition-none max-md:min-h-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[0_6px_16px_-10px_oklch(0.2_0.03_265/55%)] hover:bg-primary/90",
+          "bg-primary text-primary-foreground shadow-[0_6px_16px_-10px_oklch(0.2_0.03_265/55%)] hover:bg-primary/90 active:bg-primary/80",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-[0_6px_16px_-10px_oklch(0.57_0.2_25/55%)] hover:bg-destructive/90 focus-visible:ring-destructive/20",
+          "bg-destructive text-destructive-foreground shadow-[0_6px_16px_-10px_oklch(0.57_0.2_25/55%)] hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-destructive/20",
         outline:
           "glass-button text-foreground hover:border-control-border hover:bg-inset active:bg-muted",
         secondary:
@@ -20,11 +20,12 @@ const buttonVariants = cva(
         brand:
           "gradient-brand rounded-full bg-brand-action text-brand-action-foreground shadow-brand-action hover:bg-brand-action-hover hover:bg-none active:bg-brand-text active:bg-none",
         success:
-          "bg-success text-success-foreground shadow-[0_6px_16px_-10px_oklch(0.66_0.14_168/50%)] hover:bg-success/90",
-        warning: "bg-warning text-warning-foreground hover:bg-warning/90",
+          "bg-success text-success-foreground shadow-[0_6px_16px_-10px_oklch(0.66_0.14_168/50%)] hover:bg-success/90 active:bg-success/80",
+        warning:
+          "bg-warning text-warning-foreground hover:bg-warning/90 active:bg-warning/80",
         ghost:
-          "text-muted-foreground hover:bg-white/55 hover:text-foreground dark:hover:bg-white/10",
-        link: "text-brand-text underline-offset-4 hover:underline",
+          "text-muted-foreground hover:bg-white/55 hover:text-foreground dark:hover:bg-white/10 active:bg-white/70 dark:active:bg-white/15",
+        link: "text-brand-text underline-offset-4 hover:underline active:opacity-70",
       },
       size: {
         default: "h-10 px-3.5 py-1.5 xl:h-11 has-[>svg]:px-3",

@@ -47,7 +47,7 @@ func init() {
 	daemonUninstallCmd.Flags().StringVar(&daemonScope, "scope", string(service.ScopeUser), "Installation scope: user or system")
 	daemonStartCmd.Flags().StringVar(&daemonScope, "scope", string(service.ScopeUser), "Installation scope: user or system")
 	daemonStopCmd.Flags().StringVar(&daemonScope, "scope", string(service.ScopeUser), "Installation scope: user or system")
-	daemonCmd.AddCommand(daemonInstallCmd, daemonUninstallCmd, daemonStartCmd, daemonStopCmd, daemonRestartCmd, daemonStatusCmd, systemActionCmd)
+	daemonCmd.AddCommand(daemonInstallCmd, daemonUninstallCmd, daemonPurgeUserDataCmd, daemonStartCmd, daemonStopCmd, daemonRestartCmd, daemonStatusCmd, systemActionCmd)
 	rootCmd.AddCommand(daemonCmd)
 
 	// web
@@ -185,7 +185,11 @@ var daemonInstallCmd = &cobra.Command{
 }
 
 var daemonUninstallCmd = &cobra.Command{
-	Use:   "uninstall",
+	Use: "uninstall",
+	// Uninstall only removes the supervisor registration: upgrades,
+	// reinstalls and GUI quit reuse this verb, so data must survive it. Full
+	// cleanup (data directories included) is the platform uninstall surface's
+	// job — the deb/rpm preRemove script, the NSIS uninstaller hooks.
 	Short: "Stop the daemon and remove its autostart registration, keeping user data",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -197,7 +201,7 @@ var daemonUninstallCmd = &cobra.Command{
 			if err := waitMachineSupervisor(20*time.Second, func(state string) bool { return state == "not installed" }); err != nil {
 				return err
 			}
-			fmt.Println("XBond machine service unregistered; data kept.")
+			fmt.Println("XBond machine service unregistered.")
 			return nil
 		}
 		ctx := context.Background()
@@ -214,7 +218,23 @@ var daemonUninstallCmd = &cobra.Command{
 		if err := waitDaemonExit(5 * time.Second); err != nil {
 			return err
 		}
-		fmt.Println("xbond daemon service unregistered; user data kept.")
+		fmt.Println("xbond daemon service unregistered.")
+		return nil
+	},
+}
+
+var daemonPurgeUserDataCmd = &cobra.Command{
+	// Hidden from normal use: only the platform uninstall surface calls this
+	// after the daemon is stopped and unregistered. Upgrades, reinstalls and
+	// GUI quit must never reach it.
+	Use:    "purge-user-data",
+	Hidden: true,
+	Args:   cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := service.PurgeUserData(); err != nil {
+			return err
+		}
+		fmt.Println("xbond user data removed.")
 		return nil
 	},
 }

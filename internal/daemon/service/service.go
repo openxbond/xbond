@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/openxbond/xbond/internal/platform/paths"
 )
 
 // Scope selects where the registration lives. user registers inside the
@@ -43,6 +45,18 @@ func UninstallScope(scope Scope) error {
 		return uninstallSystemScope()
 	}
 	return Uninstall()
+}
+
+// PurgeUserData removes the invoking user's data directory. It is separate
+// from Uninstall on purpose: upgrades, reinstalls and GUI quit reuse the
+// uninstall verb, so only the platform uninstall surface (deb/rpm preRemove,
+// NSIS uninstaller) calls this — never the upgrade path.
+func PurgeUserData() error {
+	dir := paths.DataDir()
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("remove user data directory %s: %w", dir, err)
+	}
+	return nil
 }
 func Start() error { return startDaemon() }
 func StartScope(scope Scope, exePath string) error {

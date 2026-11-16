@@ -64,6 +64,7 @@ import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
 import { cn } from "@/lib/utils";
 import { hasAndroidBridge, requestVpnConsent } from "@/platform/android-bridge";
 import { isClashX } from "@/platform/clashx-bridge";
+import { performHaptic } from "@/platform/haptic";
 import { isTauriRuntime, useIsMobile } from "@/platform/host";
 import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
 import { useAPIInfo, useClient, identityAtom } from "@/state/controller-target";
@@ -309,7 +310,11 @@ export default function Connect() {
         false,
         { errorToast: false },
       );
-      if (ok || !caught) return;
+      if (ok || !caught) {
+        // 行动壳：连接成功给一次确认震感；桌面/浏览器静默跳过。
+        performHaptic("confirm");
+        return;
+      }
       const resMsg =
         (caught as { response?: { data?: { error?: string } } })?.response?.data
           ?.error ||
@@ -320,9 +325,13 @@ export default function Connect() {
         // 系统授权对话框必须由 activity 侧发起；授权后原样重试一次，
         // 被拒绝则落下错误框，由「重试」重新走授权。
         if (await requestVpnConsent()) connectUp();
-        else setConnectError(error);
+        else {
+          performHaptic("error");
+          setConnectError(error);
+        }
         return;
       }
+      performHaptic("error");
       setConnectError(error);
     })();
   }
@@ -334,6 +343,8 @@ export default function Connect() {
         setPendingConnection("disconnecting");
         try {
           await down();
+          // 行动壳：断开完成同样给一次确认震感。
+          performHaptic("confirm");
         } finally {
           setPendingConnection(null);
         }
@@ -774,7 +785,7 @@ export default function Connect() {
                   {/* 移動端配置藥丸：取代底部/二級卡片重複資訊 */}
                   <Link
                     to="/config"
-                    className="inline-flex max-w-[190px] max-md:min-h-11 items-center gap-1.5 rounded-full border border-border/80 bg-card px-2.5 max-md:px-3.5 py-1 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-inset active:scale-95"
+                    className="inline-flex max-w-[190px] max-md:min-h-11 items-center gap-1.5 rounded-full border border-border/80 bg-card px-2.5 max-md:px-3.5 py-1 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-inset active:scale-[0.98]"
                   >
                     {remote ? (
                       <Monitor

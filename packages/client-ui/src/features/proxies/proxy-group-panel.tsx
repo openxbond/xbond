@@ -538,7 +538,7 @@ export function Group({
                   <button
                     type="button"
                     className={cn(
-                      "size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-card p-0 text-muted-foreground transition-[color,background-color,border-color,transform] duration-150 hover:border-brand/40 hover:bg-brand-soft hover:text-brand-text active:scale-95",
+                      "size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-card p-0 text-muted-foreground transition-[color,background-color,border-color,transform] duration-150 hover:border-brand/40 hover:bg-brand-soft hover:text-brand-text active:scale-[0.98]",
                       isTesting
                         ? "inline-flex animate-pulse text-brand-text opacity-70"
                         : "hidden group-hover:inline-flex focus-visible:inline-flex",
@@ -567,7 +567,7 @@ export function Group({
                 <button
                   type="button"
                   className={cn(
-                    "size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft hover:text-brand-text active:scale-95",
+                    "size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft hover:text-brand-text active:scale-[0.98]",
                     isPinned(name)
                       ? "inline-flex border-warning/50 bg-warning/10 text-warning hover:text-foreground"
                       : isMobile
@@ -604,7 +604,7 @@ export function Group({
                     "whitespace-nowrap select-none shrink-0 transition-all duration-200",
                     canTest &&
                       !isTesting &&
-                      "cursor-pointer active:scale-95 hover:opacity-90",
+                      "cursor-pointer active:scale-[0.98] hover:opacity-90",
                   )}
                   title={canTest ? t("testNodeAria", { name }) : undefined}
                 >
