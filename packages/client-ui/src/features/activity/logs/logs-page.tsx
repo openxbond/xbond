@@ -1,6 +1,13 @@
 import { useMediaQuery } from "@react-hookz/web";
 import dayjs from "dayjs";
-import { ArrowDownToLine, ScrollText } from "lucide-react";
+import {
+  ArrowDownToLine,
+  Download,
+  Eraser,
+  Pause,
+  Play,
+  ScrollText,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -34,7 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAction } from "@/hooks/use-action";
-import { useStreamReader, useStreamState } from "@/hooks/use-core-stream";
+import { useStreamReader } from "@/hooks/use-core-stream";
 import { cn } from "@/lib/utils";
 import { isMobileApp } from "@/platform/host";
 import { saveTextFile, shareTextFile } from "@/platform/save-file";
@@ -128,7 +135,6 @@ function LogRow({
 }
 export default function Logs({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation("logs");
-  const { t: r } = useTranslation("runtime");
   const { t: tc } = useTranslation("common");
   const { run, pending: saving } = useAction();
   const [exportOpen, setExportOpen] = useState(false);
@@ -143,16 +149,10 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
   const compact = (useMediaQuery("(max-width: 767px)") ?? false) === true;
   const level = logLevel || general.logLevel || "info";
   const silent = level === "silent" || general.logLevel === "silent";
-  const {
-    daemonClient: client,
-    config,
-    daemonState,
-    isLocalTarget,
-  } = useLocalAPI();
+  const { daemonClient: client, config, isLocalTarget } = useLocalAPI();
   const reader = useStreamReader<Log>(
     isLocalTarget || silent ? null : `logs?level=${level}`,
   );
-  const streamState = useStreamState(reader);
   const logLevelForDaemon = level === "warning" ? "warn" : level;
   const recent = useSWR(
     isLocalTarget && client && config && !silent
@@ -161,15 +161,6 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
     () => client?.getLogs(logLevelForDaemon, logLimit),
     { refreshInterval: 1000, dedupingInterval: 500 },
   );
-  const state = isLocalTarget
-    ? recent.error
-      ? "reconnecting"
-      : recent.data
-        ? "open"
-        : daemonState === "offline"
-          ? "closed"
-          : "connecting"
-    : streamState;
   const [logs, setLogs] = useState<Log[]>([]);
   const buffer = useRef<Log[]>([]);
   const daemonCursor = useRef<{ client: typeof client; seq: number } | null>(
@@ -283,6 +274,35 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
     exportText("save");
   }
 
+  // 等級選擇只呈現選項本身：窄屏下頁頭右側就是它的位置，
+  // 嵌入「動態」時退回工具列，兩處共用同一份控件。
+  const levelSelect = (
+    <Select
+      value={logLevel || defaultLevel}
+      onValueChange={(next) =>
+        set("logLevel", next === defaultLevel ? "" : next)
+      }
+      disabled={general.logLevel?.toLowerCase() === "silent"}
+    >
+      <SelectTrigger
+        aria-label={t("levelLabel")}
+        size="sm"
+        className="rounded-xl"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {levels.map((level) => (
+            <SelectItem key={level} value={level === "" ? defaultLevel : level}>
+              {level === "silent" ? t("silent") : level || t("levelDefault")}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+
   if (!isConnected) {
     return (
       <div className="page logs-page">
@@ -293,51 +313,13 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
   }
 
   return (
-    <div className="page logs-page">
+    <div className="page logs-page h-full min-h-0 max-md:pb-3.5">
       {/* 嵌入移動端「動態」分頁時由宿主供頁標題。 */}
-      {!embedded && (
-        <Header title={t("title")}>
-          <output className="inline-flex items-center gap-1.5 text-xs leading-5 text-muted-foreground">
-            <span className={cn("status-dot", state === "open" && "online")} />
-            {silent ? t("silent") : r(state)}
-          </output>
-        </Header>
-      )}
-      <div className="page-toolbar items-center gap-2">
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          {t("levelLabel")}
-          <Select
-            value={logLevel || defaultLevel}
-            onValueChange={(next) =>
-              set("logLevel", next === defaultLevel ? "" : next)
-            }
-            disabled={general.logLevel?.toLowerCase() === "silent"}
-          >
-            <SelectTrigger
-              aria-label={t("levelLabel")}
-              size="sm"
-              className="rounded-xl"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {levels.map((level) => (
-                  <SelectItem
-                    key={level}
-                    value={level === "" ? defaultLevel : level}
-                  >
-                    {level === "silent"
-                      ? t("silent")
-                      : level || t("levelDefault")}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </label>
+      {!embedded && <Header title={t("title")}>{levelSelect}</Header>}
+      <div className="page-toolbar flex-nowrap items-center gap-0.5">
+        {embedded && levelSelect}
         <CompactSearch
-          className="min-w-0 flex-1 basis-full sm:basis-auto sm:max-w-md"
+          className="min-w-0 flex-1"
           value={search}
           onValueChange={setSearch}
           placeholder={t("filterLogs")}
@@ -345,35 +327,44 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
           clearLabel={tc("clear")}
         />
         <Button
-          variant="outline"
-          size="sm"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={paused ? t("resume") : t("paused")}
+          title={paused ? t("resume") : t("paused")}
           aria-pressed={paused}
-          className="aria-pressed:bg-inset aria-pressed:text-foreground"
+          className="aria-pressed:bg-inset aria-pressed:text-foreground max-md:max-w-9"
           onClick={togglePause}
         >
-          {paused ? t("resume") : t("paused")}
+          {paused ? (
+            <Play aria-hidden="true" className="size-4" />
+          ) : (
+            <Pause aria-hidden="true" className="size-4" />
+          )}
         </Button>
         <Button
-          variant="outline"
-          size="sm"
+          variant="ghost"
+          size="icon-sm"
           disabled={!filtered.length}
+          aria-label={tc("clear")}
+          title={tc("clear")}
+          className="max-md:max-w-9"
           onClick={clear}
         >
-          {tc("clear")}
+          <Eraser aria-hidden="true" className="size-4" />
         </Button>
         <Button
-          variant="outline"
-          size="sm"
+          variant="ghost"
+          size="icon-sm"
           disabled={!filtered.length || saving}
+          aria-label={t("export")}
+          title={t("export")}
+          className="max-md:max-w-9"
           onClick={onExport}
         >
-          {t("export")}
+          <Download aria-hidden="true" className="size-4" />
         </Button>
-        <span className="ms-auto text-caption text-muted-foreground">
-          {t("logLimit")}
-        </span>
       </div>
-      <Card className="log-table overflow-hidden min-h-80 flex flex-1 flex-col p-0">
+      <Card className="log-table flex min-h-0 flex-1 flex-col overflow-hidden p-0">
         {filtered.length ? (
           <>
             {!compact && (
@@ -399,8 +390,9 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
                 </div>
               </div>
             )}
-            {/* Keep the list spacer out of the viewport's sizing. */}
-            <div className="relative min-h-[320px] flex-1 overflow-hidden">
+            {/* Keep the list spacer out of the viewport's sizing; the floor
+                keeps a visible window when a short viewport squeezes it. */}
+            <div className="relative min-h-[200px] flex-1 overflow-hidden">
               <List
                 listRef={list}
                 rowCount={filtered.length}
@@ -448,7 +440,7 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
           </>
         ) : (
           <EmptyState
-            className="min-h-80 flex-1"
+            className="min-h-[200px] flex-1"
             icon={
               <ScrollText
                 aria-hidden="true"

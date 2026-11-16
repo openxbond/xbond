@@ -14,10 +14,18 @@ type mockPlatform struct {
 	trafficUp   int64
 	trafficDown int64
 	dataDir     string
+	// connectErr overrides the platform's answer to RequestConnect; nil keeps
+	// the failure the API tests expect.
+	connectErr error
 }
 
 func (m *mockPlatform) OpenURL(url string) error { return nil }
-func (m *mockPlatform) RequestConnect() error    { return errors.New("connect not available in tests") }
+func (m *mockPlatform) RequestConnect() error {
+	if m.connectErr != nil {
+		return m.connectErr
+	}
+	return errors.New("connect not available in tests")
+}
 func (m *mockPlatform) RequestDisconnect() error { return nil }
 func (m *mockPlatform) OSVersion() string        { return "" }
 

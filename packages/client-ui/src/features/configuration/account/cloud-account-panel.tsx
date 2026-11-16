@@ -16,7 +16,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AuroraWave } from "@/components/aurora-wave";
-import { CopyButton } from "@/components/copy-button";
+import { CopyIconButton } from "@/components/copy-button";
 import { QuotaRing } from "@/components/quota-ring";
 import { SegmentedControl } from "@/components/segmented-control";
 import { Button } from "@/components/ui/button";
@@ -125,6 +125,8 @@ export default function AccountPanel() {
         : 1;
 
   const quota = subscriptionQuota(cloudProfile ?? null);
+  const sourceURL =
+    cloudProfile?.urlOrFile || account?.subscription?.urlOrFile || "";
   const failure =
     error || account?.updateError || cloudProfile?.lastErrorMessage;
   const isSessionExpiredFailure =
@@ -222,14 +224,17 @@ export default function AccountPanel() {
             className="size-12 shrink-0 rounded-control xl:size-16"
           />
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-title font-semibold xl:text-metric tracking-tight text-foreground">
-              XBond Cloud
-            </h2>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 className="truncate text-title font-semibold xl:text-metric tracking-tight text-foreground">
+                XBond Cloud
+              </h2>
+              {/* 協議類型跟在標題後，縮小為屬性標籤，不再佔一行徽章。 */}
+              <span className="shrink-0 rounded-full bg-muted px-2 py-px text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                 {cloudProfile?.format || "XBond"}
               </span>
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className="max-w-full break-words rounded-full bg-muted px-2.5 py-0.5 text-caption font-medium text-muted-foreground">
                 {signedIn
                   ? account.name || account.email || t("signedIn")
                   : authorizing || phase
@@ -237,22 +242,16 @@ export default function AccountPanel() {
                     : t("signedOut")}
               </span>
               {serviceHealthy && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success-text">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-caption font-semibold text-success-text">
                   <span className="size-1.5 rounded-full bg-success" />
                   {t("serviceHealthy")}
-                </span>
-              )}
-              {current && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-text">
-                  <Check className="size-3" strokeWidth={2.2} />
-                  {c("activeLocal")}
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* 操作按鈕列置於身份區塊下方，保證四枚狀態標籤單行完整呈現 */}
+        {/* 操作按鈕列置於身份區塊下方，暱稱與服務狀態保持單行可讀 */}
         {(signedIn || current) && (
           <div className="flex flex-wrap items-center gap-2.5">
             {signedIn && (
@@ -620,8 +619,8 @@ export default function AccountPanel() {
               </p>
             )}
 
-            {/* 底部信息欄：豎線分隔的三項讀數（到期時間 / 套餐 / 協議類型）。 */}
-            <dl className="relative z-10 mt-3 grid grid-cols-1 gap-x-3 gap-y-3 border-t border-border pt-3 text-sm sm:grid-cols-3 sm:divide-x sm:divide-border xl:mt-4 xl:gap-x-6 xl:pt-4">
+            {/* 底部信息欄：到期時間與套餐並排，細豎線分隔。 */}
+            <dl className="relative z-10 mt-3 grid grid-cols-2 divide-x divide-border border-t border-border pt-3 text-label xl:mt-4 xl:pt-4">
               {(
                 [
                   {
@@ -641,16 +640,6 @@ export default function AccountPanel() {
                       ? account.service.plan.charAt(0).toUpperCase() +
                         account.service.plan.slice(1)
                       : t("noService"),
-                  },
-                  {
-                    Icon: Globe,
-                    label: t("protocol"),
-                    value:
-                      cloudProfile?.format === "clash"
-                        ? "Clash / mihomo"
-                        : cloudProfile?.format === "sing-box"
-                          ? "sing-box"
-                          : "VLESS / Trojan",
                     brand: true,
                   },
                 ] satisfies Array<{
@@ -663,7 +652,7 @@ export default function AccountPanel() {
               ).map(({ Icon, label, value, mono, brand }) => (
                 <div
                   key={label}
-                  className="flex min-w-0 flex-col gap-1 sm:ps-3 sm:first:ps-0 xl:ps-6"
+                  className="flex min-w-0 flex-col gap-1 ps-3 first:ps-0"
                 >
                   <dt className="flex items-center gap-1.5 text-muted-foreground">
                     <Icon aria-hidden="true" className="size-3.5 shrink-0" />
@@ -730,25 +719,14 @@ export default function AccountPanel() {
               {c("sourceLink")}
             </h3>
 
-            {/* URL Display with Copy button */}
-            <div className="flex items-center gap-2 rounded-control border border-border/80 bg-inset px-3 py-2">
+            {/* URL Display with icon-only Copy button */}
+            <div className="flex items-center gap-2 rounded-control border border-border/80 bg-inset py-1 pe-1.5 ps-3">
               <Globe className="size-4 shrink-0 text-muted-foreground" />
               <span className="flex-1 select-all truncate font-mono text-xs text-foreground">
-                {cloudProfile?.urlOrFile ||
-                  account.subscription?.urlOrFile ||
-                  "—"}
+                {sourceURL || "—"}
               </span>
-              {(cloudProfile?.urlOrFile || account.subscription?.urlOrFile) && (
-                <div className="flex shrink-0 items-center">
-                  <CopyButton
-                    value={
-                      cloudProfile?.urlOrFile ||
-                      account.subscription?.urlOrFile ||
-                      ""
-                    }
-                    label={conn("copyLink")}
-                  />
-                </div>
+              {sourceURL && (
+                <CopyIconButton value={sourceURL} label={conn("copyLink")} />
               )}
             </div>
 

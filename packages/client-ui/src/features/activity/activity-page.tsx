@@ -72,7 +72,7 @@ export default function Activity() {
       ? snapshot.connections.length
       : null;
     return (
-      <div className="flex w-full min-w-0 flex-col gap-3 px-4 pt-2 pb-3">
+      <div className="flex h-full min-h-0 w-full flex-col gap-3 px-4 pt-2 pb-3">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-title font-bold tracking-tight text-foreground">
             {sb("activity")}
@@ -103,18 +103,18 @@ export default function Activity() {
           value={activeTab}
           onValueChange={select}
           dir={i18n.dir()}
-          className="flex w-full min-w-0 flex-col gap-3"
+          className="flex min-h-0 w-full flex-col gap-3"
         >
           <TabsList
             variant="line"
             aria-label={sb("activity")}
-            className="w-full"
+            className="w-full shrink-0"
           >
             <TabsTrigger value="connections">{sb("connections")}</TabsTrigger>
             <TabsTrigger value="logs">{sb("logs")}</TabsTrigger>
             <TabsTrigger value="rules">{sb("rules")}</TabsTrigger>
           </TabsList>
-          <div className="flex min-w-0 w-full flex-col [&_[role=tabpanel]]:min-w-0 [&_.page]:px-0 [&_.page]:pt-0">
+          <div className="flex min-h-0 w-full flex-col [&_[role=tabpanel]]:flex [&_[role=tabpanel]]:min-h-0 [&_[role=tabpanel]]:min-w-0 [&_[role=tabpanel]]:flex-col [&_.page]:h-full [&_.page]:min-h-0 [&_.page]:px-0 [&_.page]:pt-0 [&_.log-table]:min-h-0">
             <TabsContent value="connections" className="m-0">
               <Connections mobile />
             </TabsContent>

@@ -264,6 +264,10 @@ const FA = {
     selected: "انتخاب فعلی",
     locate: "یافتن مکان انتخاب فعلی",
     filterNodes: "پالایش گره‌ها",
+    toolLocate: "یافتن",
+    toolTest: "تست",
+    toolSort: "ترتیب",
+    toolFilter: "پالایش",
     sortState: "مرتب‌سازی: {{mode}}",
     sortDefault: "پیش‌فرض",
     sortLatency: "بر اساس تأخیر",
@@ -361,7 +365,6 @@ const FA = {
     exportTitle: "برون‌بری لاگ‌ها",
     exportSave: "ذخیره در پرونده",
     exportShare: "هم‌رسانی",
-    logLimit: "۱۰۰۰ رکورد آخر",
     filterLogs: "جست‌وجوی پیام لاگ",
   },
   rules: {
@@ -627,11 +630,13 @@ const FA = {
     title: "تنظیمات",
     preferences: "ظاهر و زبان",
     generalDesc: "ظاهر رابط و زبان",
+    quickTools: "ابزارها و عیب‌یابی",
+    quickToolsDesc: "اتصال‌ها، قوانین، لاگ‌ها و عیب‌یابی",
     network: "شبکه و درگاه‌ها",
     networkDesc:
       "درگاه پروکسی مرکب، اشتراک‌گذاری شبکه محلی، تغییر گره و متغیرهای پایانه",
-    advanced: "پیشرفته و هسته",
-    advancedDesc: "سطح گزارش هسته، محیط اجرا و میانبرهای عیب‌یابی",
+    coreGroup: "هسته و گزارش‌ها",
+    coreGroupDesc: "سطح گزارش هسته، موتور در حال اجرا و وضعیت کنترل‌کننده",
     aboutDesc: "نسخه کلاینت، وضعیت هسته و جزئیات متن‌باز",
     desktop: {
       groupTitle: "رفتار میزبان دسکتاپ",
@@ -649,19 +654,8 @@ const FA = {
     advancedActions: {
       logLevelDesc: "میزان جزئیات گزارش‌های خروجی موتور اصلی",
       coreRuntime: "محیط اجرای هسته",
-      coreRuntimeDesc: "موتور فعلی، نقطه پایانی کنترل‌کننده و اتصال دیمون",
       manageControllers: "مدیریت کنترل‌کننده‌ها",
-      diagnostics: "عیب‌یابی",
-      diagnosticsDesc: "بررسی اتصال، تحلیل DNS و محیط را اجرا کنید",
-      rules: "قوانین",
-      rulesDesc: "بررسی قوانین مسیریابی و تطابق خط‌مشی",
     },
-    targetAndCore: "هدف کنترل و هسته",
-    targetNotice:
-      "در حال حاضر هسته خارجی را کنترل می‌کنید. گره‌ها و قوانین مستقیماً از مبدأ دور خوانده می‌شوند؛ پروکسی سیستم محلی و TUN روی هسته خارجی اعمال نمی‌شوند.",
-    subscriptionsEntry: "اشتراک‌ها و پیکربندی‌ها",
-    subscriptionsEntryDesc:
-      "مدیریت منابع اشتراک، وارد کردن پیکربندی و بررسی سهمیه.",
     terminalCommand: "فرمان پروکسی ترمینال",
     terminalCommandDesc: "متغیر محیطی پروکسی را در قالب ترمینال شما کپی می‌کند.",
     breakConnections: "قطع اتصال‌ها هنگام تغییر گره",
@@ -942,7 +936,6 @@ const FA = {
     quotaRemaining: "ترافیک باقیمانده",
     quotaTotal: "کل ترافیک",
     quotaUsed: "ترافیک مصرف‌شده",
-    protocol: "پروتکل",
     webModeAccountNote:
       "در حالت داشبورد تحت وب. حساب کاربری XBond Cloud از طریق برنامه دسکتاپ مدیریت می‌شود.",
   },

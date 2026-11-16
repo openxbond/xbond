@@ -266,6 +266,10 @@ const EN = {
     selected: "Current selection",
     locate: "Locate current selection",
     filterNodes: "Filter nodes",
+    toolLocate: "Locate",
+    toolTest: "Test",
+    toolSort: "Sort",
+    toolFilter: "Filter",
     sortState: "Sort: {{mode}}",
     sortDefault: "Default",
     sortLatency: "By latency",
@@ -365,7 +369,6 @@ const EN = {
     exportTitle: "Export logs",
     exportSave: "Save to file",
     exportShare: "Share",
-    logLimit: "Latest 1000 entries",
     filterLogs: "Search log messages",
   },
   rules: {
@@ -634,12 +637,13 @@ const EN = {
     title: "Settings",
     preferences: "Appearance & language",
     generalDesc: "Interface appearance and language",
+    quickTools: "Tools & diagnostics",
+    quickToolsDesc: "Connections, rules, logs, and diagnostics",
     network: "Network & ports",
     networkDesc:
       "Mixed proxy port, local network sharing, node changes, and terminal environment commands",
-    advanced: "Advanced & Core",
-    advancedDesc:
-      "Core log verbosity, runtime environment, and troubleshooting shortcuts",
+    coreGroup: "Core & logs",
+    coreGroupDesc: "Core log verbosity, running engine, and controller state",
     aboutDesc: "Client version, core status, and open-source details",
     desktop: {
       groupTitle: "Desktop Host Behavior",
@@ -657,21 +661,8 @@ const EN = {
       logLevelDesc:
         "Verbosity of logs output by the core engine (Debug recommended for troubleshooting)",
       coreRuntime: "Core Runtime",
-      coreRuntimeDesc:
-        "Current engine, controller endpoint, and daemon connectivity",
       manageControllers: "Manage Controllers",
-      diagnostics: "Diagnostics",
-      diagnosticsDesc:
-        "Run connectivity, DNS resolution, and environment checks",
-      rules: "Rules",
-      rulesDesc: "Inspect routing rules and policy matching",
     },
-    targetAndCore: "Control Target & Engine",
-    targetNotice:
-      "Currently controlling an external core. Nodes and rules are read directly from the remote endpoint; local system proxy and TUN do not apply.",
-    subscriptionsEntry: "Subscriptions & profiles",
-    subscriptionsEntryDesc:
-      "Manage subscription sources, import profiles and check quota.",
     terminalCommand: "Terminal proxy command",
     terminalCommandDesc:
       "Copy the proxy environment variable for your terminal format.",
@@ -952,7 +943,6 @@ const EN = {
     quotaRemaining: "Remaining",
     quotaTotal: "Total quota",
     quotaUsed: "Used quota",
-    protocol: "Protocol",
     webModeAccountNote:
       "Running in pure Web dashboard mode. XBond Cloud account is managed via Desktop app.",
   },

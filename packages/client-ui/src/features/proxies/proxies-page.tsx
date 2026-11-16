@@ -122,7 +122,7 @@ function ProxyGroups() {
                   <span className="shrink-0 text-xs font-medium text-muted-foreground">
                     {t("groups")}:
                   </span>
-                  <span className="truncate text-xs font-semibold text-foreground">
+                  <span className="truncate text-label font-semibold text-foreground">
                     {renderNodeTitle(selected.name)}
                   </span>
                   {selected.type && (
@@ -447,7 +447,7 @@ export default function ProxyPage() {
         <Header title={t("title")}>
           <div className="flex flex-wrap items-center gap-2 max-md:w-full max-md:justify-between">
             {/* 紧凑搜索框 */}
-            <div className="relative flex w-36 sm:w-44 xl:w-52 items-center">
+            <div className="relative flex w-36 min-w-0 items-center sm:w-44 xl:w-52 max-md:flex-1">
               <Search
                 className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground/60"
                 aria-hidden="true"

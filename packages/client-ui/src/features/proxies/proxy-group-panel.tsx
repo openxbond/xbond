@@ -1,6 +1,7 @@
+import { useMediaQuery } from "@react-hookz/web";
 import type { Group as IGroup } from "@xbond/client/request";
 import { strategyPath } from "@xbond/client/workspace";
-import { ArrowUpDown, Crosshair, Pin, Search, Zap } from "lucide-react";
+import { ArrowUpDown, Crosshair, Pin, Search, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -44,6 +45,19 @@ function resolveLeaf(
   return { leafName: name, path: [] };
 }
 
+const LEADING_EMOJI =
+  /^(?:\p{Regional_Indicator}{2}|\p{Extended_Pictographic})\uFE0F?\s*/u;
+
+/** 群組名與葉子節點同為國家/地區時，詳情只留國家之後的區分資訊。 */
+function leafDetailLabel(groupName: string, leafName: string): string {
+  const groupLabel = groupName.replace(LEADING_EMOJI, "").trim();
+  const prefix = leafName.match(LEADING_EMOJI)?.[0] ?? "";
+  const rest = leafName.slice(prefix.length);
+  if (!groupLabel || !rest.startsWith(groupLabel)) return leafName;
+  const tail = rest.slice(groupLabel.length).replace(/^[\s·›-]+/, "");
+  return tail ? `${prefix}${tail}`.trim() : leafName;
+}
+
 export function Group({
   config,
   search = "",
@@ -62,9 +76,13 @@ export function Group({
   } = useNodeSelection();
   const { run, results, progress } = useLatency();
   const { t } = useTranslation("proxies");
-  const { t: connT } = useTranslation("connect");
+  const { t: tc } = useTranslation("common");
   const { isPinned, togglePin } = usePinnedNodes();
   const isMobile = useIsMobile();
+  // 工作台在 lg 以上才把群組標題與工具列並排；更窄時工具列進卡片，
+  // 避免在只有按鈕的一行裡留下大片空白。
+  const wideLayout = useMediaQuery("(min-width: 1024px)") === true;
+  const cardToolbar = !wideLayout;
   const [filterOpen, setFilterOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [sortMode, setSortMode] = useState<"default" | "latency" | "name">(
@@ -75,7 +93,7 @@ export function Group({
 
   useEffect(() => {
     if (filterOpen) filterRef.current?.focus();
-  }, [filterOpen]);
+  }, [cardToolbar, filterOpen]);
 
   const path = strategyPath(config, mapping);
   const delayFor = (name: string) => {
@@ -164,11 +182,14 @@ export function Group({
     );
   }
 
+  function closeFilter() {
+    setFilter("");
+    setFilterOpen(false);
+  }
+
   function toggleFilter() {
-    setFilterOpen((open) => {
-      if (open) setFilter("");
-      return !open;
-    });
+    if (filterOpen) closeFilter();
+    else setFilterOpen(true);
   }
 
   function runGroupTests() {
@@ -197,124 +218,228 @@ export function Group({
     window.setTimeout(() => tile.classList.remove("is-located"), 1400);
   }
 
+  const groupTitle = (
+    <div
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-2",
+        hasGroupSelector && "max-lg:hidden",
+      )}
+    >
+      <h3 className="m-0 min-w-0 text-sm xl:text-base font-bold text-foreground break-words">
+        {config.name}
+      </h3>
+      <Badge
+        variant="secondary"
+        className="shrink-0 text-caption xl:text-xs px-1.5 py-0.2"
+      >
+        {config.type}
+      </Badge>
+      <span className="text-xs text-muted-foreground font-medium shrink-0 whitespace-nowrap">
+        {t("groupMembers", { count: config.all.length })}
+      </span>
+    </div>
+  );
+
+  // 鏈行從下級開始：首枚 chip 是組本身，與面板標題重複。
+  const groupPath =
+    path.length > 1 ? (
+      <div className="min-w-0 max-w-full">
+        <StrategyPath path={path.slice(1)} nowrap={cardToolbar} />
+      </div>
+    ) : null;
+
   const groupDetails = (
     <div className="flex min-w-0 flex-1 flex-col gap-1">
-      <div
-        className={cn(
-          "flex min-w-0 flex-wrap items-center gap-2",
-          hasGroupSelector && "max-lg:hidden",
-        )}
+      {groupTitle}
+      {groupPath}
+    </div>
+  );
+
+  const mobileActionClass =
+    "flex h-11 min-w-0 cursor-pointer items-center justify-center gap-1.5 bg-card px-1 text-caption font-medium text-muted-foreground transition-[color,background-color] duration-150 hover:bg-inset/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/45 focus-visible:ring-inset active:bg-inset disabled:cursor-default disabled:opacity-40";
+
+  // 窄屏：工具列併入節點卡片，與清單共用同一個工作面；搜尋以同一高度
+  // 原地替換整列，只淡入不改變尺寸，避免展開時換行造成的閃動。
+  const mobileToolbar = filterOpen ? (
+    <div className="relative flex h-11 items-center overflow-hidden rounded-control border border-brand/60 bg-card shadow-2xs animate-in fade-in-50 duration-150">
+      <Search
+        className="pointer-events-none absolute left-3 size-4 text-muted-foreground/70"
+        aria-hidden="true"
+      />
+      <input
+        ref={filterRef}
+        type="text"
+        inputMode="search"
+        enterKeyHint="search"
+        className="h-full w-full min-w-0 bg-transparent pr-11 pl-9 text-body text-foreground outline-none placeholder:text-muted-foreground/50"
+        placeholder={t("filterNodes")}
+        aria-label={t("filterNodes")}
+        value={filter}
+        onChange={(event) => setFilter(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") closeFilter();
+        }}
+      />
+      <button
+        type="button"
+        className="absolute top-1/2 right-1 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-inset hover:text-foreground"
+        onClick={closeFilter}
+        aria-label={tc("close")}
       >
-        <h3 className="m-0 min-w-0 text-sm xl:text-base font-bold text-foreground break-words">
-          {config.name}
-        </h3>
-        <Badge
-          variant="secondary"
-          className="shrink-0 text-caption xl:text-xs px-1.5 py-0.2"
-        >
-          {config.type}
-        </Badge>
-        <span className="text-xs text-muted-foreground font-medium shrink-0 whitespace-nowrap">
-          {t("groupMembers", { count: config.all.length })}
+        <X className="size-4" aria-hidden="true" />
+      </button>
+    </div>
+  ) : (
+    <div className="grid grid-cols-4 gap-px overflow-hidden rounded-control bg-border/50 ring-1 ring-border/70 ring-inset">
+      <button
+        type="button"
+        className={mobileActionClass}
+        title={t("locate")}
+        aria-label={t("locate")}
+        disabled={!config.now}
+        onClick={locateSelected}
+      >
+        <Crosshair className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate">{t("toolLocate")}</span>
+      </button>
+      <button
+        type="button"
+        className={mobileActionClass}
+        title={t("groupTest")}
+        aria-label={t("toolTest")}
+        disabled={progress.running || !names.length}
+        onClick={runGroupTests}
+      >
+        <Zap className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate">{t("toolTest")}</span>
+      </button>
+      <button
+        type="button"
+        className={cn(
+          mobileActionClass,
+          sortMode !== "default" && "bg-brand-soft text-brand-text",
+        )}
+        title={t("sortState", { mode: sortLabel })}
+        aria-label={t("sortState", { mode: sortLabel })}
+        onClick={cycleSort}
+      >
+        <ArrowUpDown className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate">
+          {sortMode === "default" ? t("toolSort") : sortLabel}
         </span>
-      </div>
-      {/* 鏈行從下級開始：首枚 chip 是組本身，與面板標題重複 */}
-      {path.length > 1 && (
-        <div className="min-w-0 max-w-full">
-          <StrategyPath path={path.slice(1)} />
-        </div>
-      )}
+      </button>
+      <button
+        type="button"
+        className={mobileActionClass}
+        title={t("filterNodes")}
+        aria-label={t("filterNodes")}
+        aria-expanded={filterOpen}
+        onClick={toggleFilter}
+      >
+        <Search className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate">{t("toolFilter")}</span>
+      </button>
     </div>
   );
 
   return (
     <div className="flex h-full animate-in flex-col gap-3 fade-in-50 slide-in-from-bottom-1 duration-200 lg:p-3.5 xl:p-4.5">
-      {/* Group Header Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 lg:border-b lg:border-border/80 lg:pb-3 max-md:flex-col max-md:items-stretch">
-        <div className="hidden min-w-0 flex-1 lg:block">{groupDetails}</div>
+      {/* 桌面：群組標題與工具列共用同一列；窄屏改由卡片內的
+          工具列承擔（下方渲染），頁首不再出現孤立按鈕。 */}
+      {!cardToolbar && (
+        <div className="flex flex-wrap items-center justify-between gap-2.5 lg:border-b lg:border-border/80 lg:pb-3">
+          <div className="hidden min-w-0 flex-1 lg:block">{groupDetails}</div>
 
-        <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
-          <div
-            className={cn(
-              "overflow-hidden opacity-0 max-w-0 transition-[max-width,opacity] duration-200 ease-expo",
-              filterOpen &&
-                "max-w-[150px] sm:max-w-[180px] max-md:max-w-[196px] opacity-100",
-            )}
-          >
-            <input
-              ref={filterRef}
-              type="text"
-              className="h-7 w-[140px] sm:w-[170px] max-md:h-10 max-md:w-[180px] rounded-lg border border-border/80 bg-inset px-2 text-xs max-md:text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-brand"
-              placeholder={t("filterNodes")}
-              aria-label={t("filterNodes")}
-              value={filter}
-              tabIndex={filterOpen ? 0 : -1}
-              onChange={(event) => setFilter(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  setFilter("");
-                  setFilterOpen(false);
-                }
-              }}
-            />
-          </div>
-
-          <div className="flex items-center gap-0.5 rounded-xl border border-border/80 bg-inset/50 p-0.5 shadow-2xs">
-            <button
-              type="button"
-              className="inline-flex size-6.5 max-md:size-11 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs disabled:opacity-40"
-              title={t("locate")}
-              aria-label={t("locate")}
-              disabled={!config.now}
-              onClick={locateSelected}
-            >
-              <Crosshair className="size-3.5" aria-hidden="true" />
-            </button>
-
-            <button
-              type="button"
-              className="inline-flex size-6.5 max-md:size-11 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs disabled:opacity-40"
-              title={t("groupTest")}
-              aria-label={t("groupTest")}
-              disabled={progress.running || !names.length}
-              onClick={runGroupTests}
-            >
-              <Zap className="size-3.5" aria-hidden="true" />
-            </button>
-
-            <button
-              type="button"
+          <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+            <div
               className={cn(
-                "inline-flex size-6.5 max-md:size-11 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs",
-                sortMode !== "default" &&
-                  "bg-brand-soft text-brand-text font-bold shadow-2xs border border-brand/20",
+                "overflow-hidden opacity-0 max-w-0 transition-[max-width,opacity] duration-200 ease-expo",
+                filterOpen && "max-w-[150px] sm:max-w-[180px] opacity-100",
               )}
-              title={t("sortState", { mode: sortLabel })}
-              aria-label={t("sortState", { mode: sortLabel })}
-              onClick={cycleSort}
             >
-              <ArrowUpDown className="size-3.5" aria-hidden="true" />
-            </button>
+              <input
+                ref={filterRef}
+                type="text"
+                className="h-7 w-[140px] sm:w-[170px] rounded-lg border border-border/80 bg-inset px-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-brand"
+                placeholder={t("filterNodes")}
+                aria-label={t("filterNodes")}
+                value={filter}
+                tabIndex={filterOpen ? 0 : -1}
+                onChange={(event) => setFilter(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setFilter("");
+                    setFilterOpen(false);
+                  }
+                }}
+              />
+            </div>
 
-            <button
-              type="button"
-              className={cn(
-                "inline-flex size-6.5 max-md:size-11 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs",
-                (filterOpen || filter) &&
-                  "bg-brand-soft text-brand-text shadow-2xs border border-brand/20",
-              )}
-              title={t("filterNodes")}
-              aria-label={t("filterNodes")}
-              onClick={toggleFilter}
-            >
-              <Search className="size-3.5" aria-hidden="true" />
-            </button>
+            <div className="flex items-center gap-0.5 rounded-xl border border-border/80 bg-inset/50 p-0.5 shadow-2xs">
+              <button
+                type="button"
+                className="inline-flex size-6.5 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs disabled:opacity-40"
+                title={t("locate")}
+                aria-label={t("locate")}
+                disabled={!config.now}
+                onClick={locateSelected}
+              >
+                <Crosshair className="size-3.5" aria-hidden="true" />
+              </button>
+
+              <button
+                type="button"
+                className="inline-flex size-6.5 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs disabled:opacity-40"
+                title={t("groupTest")}
+                aria-label={t("groupTest")}
+                disabled={progress.running || !names.length}
+                onClick={runGroupTests}
+              >
+                <Zap className="size-3.5" aria-hidden="true" />
+              </button>
+
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex size-6.5 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs",
+                  sortMode !== "default" &&
+                    "bg-brand-soft text-brand-text font-bold shadow-2xs border border-brand/20",
+                )}
+                title={t("sortState", { mode: sortLabel })}
+                aria-label={t("sortState", { mode: sortLabel })}
+                onClick={cycleSort}
+              >
+                <ArrowUpDown className="size-3.5" aria-hidden="true" />
+              </button>
+
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex size-6.5 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs",
+                  (filterOpen || filter) &&
+                    "bg-brand-soft text-brand-text shadow-2xs border border-brand/20",
+                )}
+                title={t("filterNodes")}
+                aria-label={t("filterNodes")}
+                onClick={toggleFilter}
+              >
+                <Search className="size-3.5" aria-hidden="true" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 max-lg:rounded-card max-lg:border max-lg:border-border max-lg:bg-card max-lg:p-3.5 max-lg:shadow-elevation-card">
-        <div className="lg:hidden">{groupDetails}</div>
+        {cardToolbar ? (
+          <>
+            {!hasGroupSelector && groupTitle}
+            {mobileToolbar}
+            {groupPath}
+          </>
+        ) : (
+          <div className="lg:hidden">{groupDetails}</div>
+        )}
 
         {(pending || selectionStatus !== "idle") && (
           <p
@@ -339,9 +464,11 @@ export function Group({
         )}
 
         {/* Multi-column High-Density Matrix of Node Tiles — desktop scrolls
-          inside this grid so the group tools stay pinned above it. */}
+          inside this grid so the group tools stay pinned above it.
+          auto-rows-max：行高跟隨內容；stretch 項目的 auto 行只認 min-height，
+          會把詳情行壓成 42px（桌面端詳情被裁切）。 */}
         <ul
-          className="m-0 grid list-none content-start gap-1.5 xl:gap-2 overflow-y-auto p-1 pr-1.5 grid-cols-1 [min(100%,760px)]:grid-cols-1 2xl:grid-cols-2 md:min-h-0 md:flex-1 [scrollbar-width:thin]"
+          className="m-0 grid auto-rows-max list-none content-start gap-1.5 xl:gap-2 overflow-y-auto p-1 pr-1.5 grid-cols-1 [min(100%,760px)]:grid-cols-1 2xl:grid-cols-2 md:min-h-0 md:flex-1 [scrollbar-width:thin]"
           ref={gridRef}
         >
           {names.map((name) => {
@@ -389,10 +516,13 @@ export function Group({
 
             const leaf = resolveLeaf(name, mapping);
             const isGroup = "all" in (item ?? {});
+            // 窄屏只留最終出口，避免長鏈路擠掉節點名；桌面保留完整鏈路。
+            const detailLabel =
+              leaf.path.length > 1 && !cardToolbar
+                ? leaf.path.join(" › ")
+                : leafDetailLabel(name, leaf.leafName);
             const displayDetail =
-              isGroup && leaf.leafName !== name
-                ? `${connT("via")} ${leaf.path.length > 1 ? leaf.path.join(" › ") : leaf.leafName}`
-                : undefined;
+              isGroup && leaf.leafName !== name ? detailLabel : undefined;
 
             return (
               <StrategyChoice

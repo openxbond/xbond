@@ -287,41 +287,43 @@ export default function Connect() {
   // Android VPN 授权：409 由 LocalAPI 判定后，经插件命令从 activity 侧发起系统
   // 授权对话框（Service 侧 startActivity 拿不到 calling package，系统对话框
   // 会秒退；focus/visibilitychange 抖动推断“用户回来”还会造成重试风暴）。
-  // 授权通过就自动续连一次；被拒绝则停在带「重试」的错误框上。
-  async function runVpnConsentThenConnect() {
-    if (!hasAndroidBridge()) return;
-    const granted = await requestVpnConsent();
-    if (granted) connectUp();
-  }
-
+  // 授权是首次连接的正常一步，不是失败：通过就自动续连一次；被拒绝才停在
+  // 带「重试」的错误框上。
   function connectUp() {
     setConnectError(null);
     void (async () => {
       let caught: unknown = null;
-      const ok = await run(async () => {
-        setPendingConnection("connecting");
-        try {
-          await up();
-        } catch (err) {
-          caught = err;
-          throw err;
-        } finally {
-          setPendingConnection(null);
-        }
-      }, false);
-      if (!ok && caught) {
-        const resMsg =
-          (caught as { response?: { data?: { error?: string } } })?.response
-            ?.data?.error ||
-          (caught as Error)?.message ||
-          String(caught);
-        const error = classifyConnectError(resMsg);
-        setConnectError(error);
-        if (error.kind === "vpn_consent") {
-          // 系统对话框必须由 activity 侧发起；授权成功后续连一次。
-          void runVpnConsentThenConnect();
-        }
+      // 连接失败统一交给下方错误框（按类型给出处理动作），不再叠一条 toast。
+      const ok = await run(
+        async () => {
+          setPendingConnection("connecting");
+          try {
+            await up();
+          } catch (err) {
+            caught = err;
+            throw err;
+          } finally {
+            setPendingConnection(null);
+          }
+        },
+        false,
+        { errorToast: false },
+      );
+      if (ok || !caught) return;
+      const resMsg =
+        (caught as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error ||
+        (caught as Error)?.message ||
+        String(caught);
+      const error = classifyConnectError(resMsg);
+      if (error.kind === "vpn_consent" && hasAndroidBridge()) {
+        // 系统授权对话框必须由 activity 侧发起；授权后原样重试一次，
+        // 被拒绝则落下错误框，由「重试」重新走授权。
+        if (await requestVpnConsent()) connectUp();
+        else setConnectError(error);
+        return;
       }
+      setConnectError(error);
     })();
   }
 

@@ -24,6 +24,11 @@ export function errorKind(
   return "requestFailed";
 }
 
+export interface RunOptions {
+  /** false → the caller renders the failure itself (dialog, inline state). */
+  errorToast?: boolean;
+}
+
 export function useAction(isLocal = false) {
   const { t } = useTranslation("runtime");
   const { t: tc } = useTranslation("common");
@@ -32,7 +37,11 @@ export function useAction(isLocal = false) {
   const run = useCallback(
     // notify: true → generic "saved"; false → caller owns feedback;
     // string → success copy for the verb actually performed.
-    async (work: () => Promise<unknown>, notify: boolean | string = true) => {
+    async (
+      work: () => Promise<unknown>,
+      notify: boolean | string = true,
+      options: RunOptions = {},
+    ) => {
       if (locked.current) return false;
       locked.current = true;
       setPending(true);
@@ -42,7 +51,8 @@ export function useAction(isLocal = false) {
           toast.success(typeof notify === "string" ? notify : tc("saved"));
         return true;
       } catch (error) {
-        toast.error(t(errorKind(error, isLocal)), { duration: 6000 });
+        if (options.errorToast !== false)
+          toast.error(t(errorKind(error, isLocal)), { duration: 6000 });
         return false;
       } finally {
         locked.current = false;

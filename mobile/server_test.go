@@ -3,6 +3,7 @@ package mobile
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -121,6 +122,31 @@ func TestAPIStatusReportsRulePaging(t *testing.T) {
 	}
 	if payload["rulePaging"] != true {
 		t.Errorf("expected rulePaging capability, got %v", payload["rulePaging"])
+	}
+}
+
+// Android's first-connect consent is a protocol step, not a failed request:
+// the platform hands "VPN consent required" back to LocalAPI, and /up must
+// report it as 409 with that message verbatim so the Web UI can drive the
+// system consent dialog and retry. A different status or a swallowed message
+// would leave the first connect with no handling path.
+func TestAPIUpReportsConsentConflictVerbatim(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	svc := NewTunnelService(&mockPlatform{connectErr: errors.New("VPN consent required")}, &mockListener{})
+	if svc.api == nil {
+		t.Fatal("in-process local API server did not start")
+	}
+
+	code, data, _ := apiCall(t, svc.api, http.MethodPost, "/localapi/v0/up", "")
+	if code != http.StatusConflict {
+		t.Fatalf("expected 409 for platform consent, got %d: %s", code, data)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["error"] != "VPN consent required" {
+		t.Errorf("expected the platform message verbatim, got %v", payload["error"])
 	}
 }
 
