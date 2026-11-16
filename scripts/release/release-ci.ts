@@ -1,8 +1,10 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { parseCommits, releaseNotes } from "./notes.ts";
 import { releaseVariableProblems } from "./release-config.ts";
 import { releaseVersion } from "./release-version.ts";
 
@@ -18,8 +20,38 @@ type Release = { tag_name: string; draft: boolean; prerelease: boolean };
 //   run/digest/ios_sha256 for cross-run artifact downloads.
 // - require-artifact <run-id> <name>          fails with a clear message when
 //   a prepare artifact is gone (90-day retention).
+// - publish-candidate <tag>                   flips a verified vX.Y.Z-rc.N
+//   draft to a public pre-release so the beta channel can resolve it; the
+//   stable feeds, Pages and the latest image tag stay untouched.
 
 const repository = process.env.GITHUB_REPOSITORY ?? "openxbond/xbond";
+
+// Artifact families a prepare run can build. `all` keeps the complete matrix
+// for stable candidates; a subset (for example `android,linux`) produces
+// verification artifacts without a draft, which is how a quick candidate
+// check avoids the full matrix.
+export const releasePlatforms = [
+  "core",
+  "desktop",
+  "android",
+  "ios",
+  "image",
+] as const;
+
+export function normalizePlatforms(value: string | undefined): string {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "all") return releasePlatforms.join(",");
+  const requested = trimmed
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  for (const platform of requested)
+    if (!(releasePlatforms as readonly string[]).includes(platform))
+      throw new Error(
+        `Unknown platform "${platform}"; expected ${releasePlatforms.join(", ")} or all`,
+      );
+  return [...new Set(["core", ...requested])].join(",");
+}
 
 export function releaseSettings(
   event: string | undefined,
@@ -137,14 +169,23 @@ function preflight(tag: string, context: "prepare" | "publish" | "store") {
     mode,
     apple_signing: String(appleSigning),
     prerelease: String(prerelease),
+    platforms: normalizePlatforms(process.env.RELEASE_PLATFORMS),
   });
   const log = git(
     "log",
     "--first-parent",
-    "--format=- %s (%h)",
+    "--format=%h%x09%s",
     previous ? `${previous.tag}..${commit}` : commit,
   );
-  fs.writeFileSync("release-notes.md", `# XBond ${version}\n\n${log}\n`);
+  fs.writeFileSync(
+    "release-notes.md",
+    releaseNotes({
+      version,
+      candidate: prerelease,
+      commits: parseCommits(log),
+      previousTag: previous?.tag,
+    }),
+  );
 }
 
 function evidence(tag: string, directory: string) {
@@ -241,6 +282,54 @@ function requireArtifact(runId: string, name: string) {
     );
 }
 
+// Flips a verified candidate draft to a public pre-release. Nothing else
+// moves: the stable feeds, Pages and the latest image tag are untouched, so
+// only an opted-in beta client resolves this release.
+function publishCandidate(tag: string) {
+  const { prerelease } = releaseVersion(tag);
+  if (!prerelease)
+    throw new Error(
+      "publish-candidate publishes vX.Y.Z-rc.N candidates only; stable releases go through Publish XBond release",
+    );
+  const view = JSON.parse(
+    execFileSync(
+      "gh",
+      ["release", "view", tag, "--json", "isDraft,isPrerelease"],
+      { encoding: "utf8" },
+    ),
+  ) as { isDraft: boolean; isPrerelease: boolean };
+  if (!view.isDraft)
+    throw new Error(`${tag} is already published; use a new candidate Tag`);
+  if (!view.isPrerelease)
+    throw new Error(`${tag} is not marked as a pre-release`);
+
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "xbond-candidate-"));
+  try {
+    execFileSync(
+      "gh",
+      [
+        "release",
+        "download",
+        tag,
+        "--pattern",
+        "release-evidence.json",
+        "--dir",
+        directory,
+      ],
+      { stdio: "inherit" },
+    );
+    verifyEvidence(tag, path.join(directory, "release-evidence.json"));
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+  execFileSync("gh", ["release", "edit", tag, "--draft=false"], {
+    stdio: "inherit",
+  });
+  console.log(
+    `Published ${tag} as a public pre-release; the beta channel resolves it.`,
+  );
+}
+
 function main() {
   const [command, first, second] = process.argv.slice(2);
   if (command === "preflight") {
@@ -249,6 +338,7 @@ function main() {
   } else if (command === "assemble") assembleCandidate(first ?? "");
   else if (command === "verify-evidence") verifyEvidence(first, second);
   else if (command === "require-artifact") requireArtifact(first, second);
+  else if (command === "publish-candidate") publishCandidate(first ?? "");
   else throw new Error(`Unknown release CI command: ${command}`);
 }
 

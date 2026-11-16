@@ -23,16 +23,18 @@ import (
 
 func init() {
 	var check, yes bool
+	var channel string
 	cmd := &cobra.Command{
 		Use:   "upgrade",
 		Short: "Check for or install a signed XBond CLI release",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runUpgrade(cmd, check, yes)
+			return runUpgrade(cmd, check, yes, channel)
 		},
 	}
 	cmd.Flags().BoolVar(&check, "check", false, "Check for updates without installing")
 	cmd.Flags().BoolVar(&yes, "yes", false, "Install without asking for confirmation")
+	cmd.Flags().StringVar(&channel, "channel", upgrade.ChannelStable, "Update channel: stable or beta")
 	cmd.MarkFlagsMutuallyExclusive("check", "yes")
 	rootCmd.AddCommand(cmd)
 	daemonCmd.AddCommand(&cobra.Command{
@@ -43,7 +45,10 @@ func init() {
 	})
 }
 
-func runUpgrade(cmd *cobra.Command, check, yes bool) error {
+func runUpgrade(cmd *cobra.Command, check, yes bool, channel string) error {
+	if channel != upgrade.ChannelStable && channel != upgrade.ChannelBeta {
+		return fmt.Errorf("unknown update channel %q; use stable or beta", channel)
+	}
 	if inContainer() {
 		return errors.New("update this container by pulling the desired GHCR image tag and recreating it with the same data volume")
 	}
@@ -61,11 +66,11 @@ func runUpgrade(cmd *cobra.Command, check, yes bool) error {
 		return errors.New("this installation is managed by a package manager; update it with the same package manager")
 	}
 
-	current, err := upgrade.VersionCode(version.Version)
+	current, err := upgrade.InstalledVersionCode(version.Version)
 	if err != nil {
 		return err
 	}
-	release, err := upgrade.Fetch(cmd.Context(), version.ReleasePublicKey)
+	release, err := upgrade.FetchChannel(cmd.Context(), version.ReleasePublicKey, channel)
 	if err != nil {
 		return err
 	}

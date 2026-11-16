@@ -4451,7 +4451,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-xbond"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -5864,7 +5864,7 @@ dependencies = [
 
 [[package]]
 name = "xbond-app"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",

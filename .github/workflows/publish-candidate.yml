@@ -1,0 +1,40 @@
+name: Publish XBond candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Prepared candidate Tag (vX.Y.Z-rc.N)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-candidate
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'openxbond/xbond' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Draft assets require push access; the same environment the draft job uses.
+    environment: release-draft
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/toolchain
+        with:
+          install: "false"
+      # Publishes the verified draft as a public pre-release so the beta
+      # channel can resolve it. Stable feeds, Pages and latest stay untouched.
+      - run: node scripts/release/release-ci.ts publish-candidate "$TAG"

@@ -125,3 +125,93 @@ func TestUpgradeLockRejectsConcurrentWritersAndCanRetry(t *testing.T) {
 	}
 	release()
 }
+
+func TestBuildNumberCoversChannels(t *testing.T) {
+	cases := []struct {
+		version string
+		channel string
+		want    int
+		ok      bool
+	}{
+		{"1.0.0", ChannelStable, 1000099, true},
+		{"1.0.0-rc.1", ChannelStable, 0, false},
+		{"1.0.0-rc.1", ChannelBeta, 1000001, true},
+		{"1.0.0-rc.98", ChannelBeta, 1000098, true},
+		{"1.0.0", ChannelBeta, 1000099, true},
+		{"1.0.0-rc.0", ChannelBeta, 0, false},
+		{"1.0.0-rc.99", ChannelBeta, 0, false},
+		{"1.0.0", "nightly", 0, false},
+	}
+	for _, test := range cases {
+		code, err := BuildNumber(test.version, test.channel)
+		if test.ok && (err != nil || code != test.want) {
+			t.Fatalf("BuildNumber(%q, %q) = %d, %v; want %d", test.version, test.channel, code, err, test.want)
+		}
+		if !test.ok && err == nil {
+			t.Fatalf("BuildNumber(%q, %q) accepted an invalid version", test.version, test.channel)
+		}
+	}
+	if code, err := InstalledVersionCode("1.0.0-rc.2"); err != nil || code != 1000002 {
+		t.Fatalf("InstalledVersionCode(candidate) = %d, %v", code, err)
+	}
+}
+
+func TestLatestCandidatePicksHighestPublicPrerelease(t *testing.T) {
+	index := []byte(`[
+	  {"tag_name":"v1.0.0","draft":false,"prerelease":false},
+	  {"tag_name":"v2.0.0-rc.1","draft":true,"prerelease":true},
+	  {"tag_name":"v1.0.0-rc.1","draft":false,"prerelease":true},
+	  {"tag_name":"v1.0.0-rc.2","draft":false,"prerelease":true},
+	  {"tag_name":"nightly","draft":false,"prerelease":true}
+	]`)
+	tag, err := latestCandidate(index)
+	if err != nil || tag != "v1.0.0-rc.2" {
+		t.Fatalf("latestCandidate = %q, %v", tag, err)
+	}
+	if _, err := latestCandidate([]byte(`[{"tag_name":"v1.0.0","draft":false,"prerelease":false}]`)); err == nil {
+		t.Fatal("a stable-only index produced a candidate")
+	}
+}
+
+func TestCandidateManifestStaysOutOfTheStableChannel(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := base64.StdEncoding.EncodeToString(publicKey)
+	target := runtime.GOOS + "-" + runtime.GOARCH
+	name := "xbond-v1.0.0-rc.1-" + target
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	fixture := Release{
+		Version: "1.0.0-rc.1",
+		Build:   1000001,
+		Assets: map[string]Asset{
+			"cli-" + target: {
+				Name: name, URL: releaseRoot + "v1.0.0-rc.1/" + name, SHA256: strings.Repeat("0", 64),
+			},
+		},
+	}
+	payload, err := json.Marshal(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signed, err := json.Marshal(envelope{Payload: payload, Signature: ed25519.Sign(privateKey, payload)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, err := VerifyChannel(signed, key, ChannelBeta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asset, err := release.CLI(); err != nil || asset.Name != name {
+		t.Fatalf("CLI = %#v, %v", asset, err)
+	}
+	if _, err := Verify(signed, key); err == nil {
+		t.Fatal("the stable channel accepted a candidate manifest")
+	}
+	if _, err := VerifyChannel(signed, key, "nightly"); err == nil {
+		t.Fatal("an unknown channel accepted a manifest")
+	}
+}

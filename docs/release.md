@@ -8,7 +8,9 @@
 - **候選版（RC）**：`vX.Y.Z-rc.N`（`N` 為 1–98）。用於可安裝驗收與試錯，不佔用穩定版號；同一 `X.Y.Z` 基線可連續遞增 `rc.1`、`rc.2`…，最終再發 `vX.Y.Z`。
 - **順序與構建號**：同基線內 `vX.Y.Z-rc.1 < vX.Y.Z-rc.2 < vX.Y.Z`，且均高於上一個已公開的穩定版；構建號為 `(major*10000+minor*100+patch)*100+slot`（穩定版 slot 99，候選 slot 為 `N`），由 `release-version.ts` 單點計算，Go 更新器、Android 應用內更新與 iOS 歸檔都按同一公式校驗。穩定版必須高於上一個已公開穩定版；`rc.N` 不得低於或等於已存在的公開候選構建。
 - **iOS 候選**：Apple 不接受帶 `-rc` 的 marketing version，RC 的 IPA 使用同基線數字版本（如 `1.0.0`）加遞增構建號；IPA 檔名仍用 Tag（`xbond-ios-v1.0.0-rc.1.ipa`），TestFlight 以構建號區分。
+- **桌面候選**：Linux 的 deb/rpm 版本同樣不接受 `-`，桌面 RC 安裝包一律以數字基底版本打包（與 iOS 一致）。因此同基線穩定版發布後，桌面 RC 不會收到自動更新提示，需手動安裝穩定版；Android 依構建號、iOS 依 TestFlight 可正常升級。
 - **不可變**：一個 Tag／版本號對應一條帶證據的候選鏈（commit、run、摘要/簽名）。公開後絕不復用；已產出的候選視為佔用，有問題修復後升 `rc.N` 或升穩定補丁號。
+- **版本來源**：檔案版本只在 `package.json` 維護；`pnpm version:set <x.y.z>` 一次同步其餘來源（Tauri、Cargo、iOS 工程、Android 版本回退、Go 預設與前端回退），`pnpm check:version`（已包含在 `pnpm check`）校驗一致。候選號只存在於 Tag，不寫進檔案版本。
 
 ## 建置入口與產物
 
@@ -21,6 +23,7 @@
 | 編譯桌面程式 | `pnpm build:desktop` | `dist/desktop/` 前端資源及 Cargo release 執行檔 |
 | 本機桌面安裝包 | `pnpm package:desktop` | Tauri 的 `<Cargo target>/local/<Rust triple>/release/bundle/` |
 | Android debug APK | `pnpm package:android [target]` | `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`；帶 target 時包內僅對應 ABI 的庫，輸出路徑不變 |
+| 本機候選預覽 | `pnpm release:preview <tag>` | `release/<tag>/preview/`：web、`dashboard.zip` 與宿主 CLI；先跑版本規則校驗（幾分鐘內暴露版本/裝配錯誤） |
 | Web 與 CLI 發佈候選 | `pnpm release:core <tag>` | `release/<tag>/web/` 及 `release/<tag>/core/` |
 | 桌面發佈候選 | `pnpm release:desktop <tag> <os> <arch>` | `release/<tag>/desktop/<os>-<arch>/` |
 | Android 發佈候選 | `pnpm release:android <tag>` | `release/<tag>/android/`：四個 per-ABI APK 加 universal |
@@ -54,12 +57,14 @@ macOS DMG 由 Finder 寫入背景及圖標佈局。在已登入圖形桌面的 T
 
 ## 建議工作流（最佳實踐）
 
-1. **整合與自測（不佔號）**：`main` 保持可建置且 CI 通過。功能/修復用本地包自測（`pnpm package:android`、`pnpm package:desktop` 等）；驗鏈路與簽名用手動 **Prepare XBond release** 的 `rehearsal` / `rehearsal-with-apple`（僅產出 Actions artifacts，不推正式 Tag）。
-2. **切候選（佔 `rc.N`）**：選 `origin/main` 上 CI 通過的提交，打 `vX.Y.Z-rc.1` 並推送。**Prepare XBond release** 自動執行 preflight → check → core/desktop/android/ios/image → assemble，產出帶 evidence 的草稿（標記為 GitHub pre-release）。從草稿 assets（同一 run）下載安裝驗收。
+1. **整合與自測（不佔號）**：`main` 保持可建置且 CI 通過。功能/修復用本地包自測（`pnpm package:android`、`pnpm package:desktop` 等）；動到版本或打包腳本時先跑 `pnpm release:preview <tag>`；驗鏈路與簽名用手動 **Prepare XBond release** 的 `rehearsal` / `rehearsal-with-apple`（僅產出 Actions artifacts，不推正式 Tag）。
+2. **切候選（佔 `rc.N`）**：選 `origin/main` 上 CI 通過的提交，打 `vX.Y.Z-rc.1` 並推送。**Prepare XBond release** 自動執行 preflight → check → core/desktop/android/ios/image → assemble，產出帶 evidence 的草稿（標記為 GitHub pre-release）。從草稿 assets（同一 run）下載安裝驗收。只驗部分平台時用手動觸發的 `platforms`（如 `android`、`android,image`）：只產 artifacts、不生成草稿；完整候選用預設 `all`。
 3. **迭代**：驗收發現問題則修復合入 `main`，打 `vX.Y.Z-rc.2`… 繼續；不覆用舊 Tag。
 4. **定版公開**：目標候選通過後，打 `vX.Y.Z`（同基線）推送並 Prepare，完成驗收後執行 **Publish XBond release**。穩定版會進入下載頁、穩定更新清單與 `latest` 映像。
 
 RC 產物可用於安裝與 TestFlight 驗收，但**不得**作為穩定自動更新來源；公開穩定版前的試錯消耗 `rc.N`，不消耗新的穩定版號。
+
+發布說明由 `scripts/release/notes.ts` 生成：按 Conventional Commits 分組為新功能／改進／修復／其他／破壞性變更，隱藏 `chore`、`ci`、`docs`、`test`、`style`、`build`，附升級須知與完整比較連結，正文不含 hash。
 
 ## 1. 推 Tag 與 Prepare
 
@@ -130,9 +135,19 @@ RC Tag 不可走此流程（工作流會拒絕）；RC 發佈後保持 pre-relea
 - **演練（不佔號）**：從 `main` 手動執行 **Prepare XBond release**，填擬定版本並選 `rehearsal`。此模式用臨時 macOS 簽名，跳過 iOS 歸檔。Apple 憑據齊備時選 `rehearsal-with-apple`。演練只產生 Actions artifacts。
 - **RC（佔 `rc.N`）**：推 `vX.Y.Z-rc.N` tag 產生可驗收的 pre-release 草稿與同版構建產物；迭代用 `rc.2`、`rc.3`。RC 不發佈穩定清單、不推 `latest`。
 - **穩定版**：推 `vX.Y.Z` tag，驗收後執行 **Publish XBond release**（`install_verified=true`）公開並更新清單/`latest`/Pages。
-- **準備失敗**：重跑原 run 的失敗工作。草稿已收到的檔案會核對後沿用。要改源碼則用更高版本（升 `rc.N` 或升穩定補丁號）。IPA 和 OCI artifacts 最多保留 90 天，送審或公開前保留原始已校驗檔案。
+- **準備失敗**：重跑原 run 的失敗工作。草稿已收到的檔案會核對後沿用。要改源碼則用更高版本（升 `rc.N` 或升穩定補丁號）。**未產出草稿的失敗 run 可直接重跑同一個 Tag**（重跑不會產生第二份草稿，evidence 仍記錄 run id）；一旦草稿已生成或版本已公開，就只能升號。IPA 和 OCI artifacts 最多保留 90 天，送審或公開前保留原始已校驗檔案。
 - **GHCR 或 Pages 失敗**：穩定版發佈失敗可重跑同一 Tag 的公開工作流。GHCR 首推若套件是私有，先在 Package settings 設為公開。同 Tag 已有不同 digest 時先停止並查明原因。 [GHCR 套件可見性](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
 - **已公開版本需要修正**：用更高穩定版本發佈修正。Docker 可改用原 digest 重建，保留 `/data`。
+
+## 預發布（Beta）通道
+
+RC 預設只做草稿，不進穩定更新通道。需要讓測試者自動跟上候選時，再開啟此通道：
+
+- **發布候選**：Prepare 產生草稿後，從 `main` 執行 **Publish XBond candidate**，填該 `vX.Y.Z-rc.N`。工作流會重新校驗 `release-evidence.json`（commit、run、摘要）再把草稿轉為**公開 pre-release**；不改 Pages、不改穩定清單與 `latest`。
+- **CLI 訂閱**：`xbond upgrade --channel beta`（預設 `stable`）。beta 通道以 GitHub API 取**最新公開 pre-release** 的 `release.json`，用同一發佈公鑰驗簽，再按構建號比較；未開啟時完全不受影響。
+- **Android**：目前仍需手動下載 pre-release 的 APK 安裝；設定開關與真機驗證列為後續（通道清單已可被同一簽名驗證）。
+- **桌面**：Tauri 更新器端點是靜態設定，維持只走穩定通道；RC 使用者需手動安裝同基線穩定版。
+- **不可覆蓋**：倉庫啟用了 immutable releases，已公開的候選不能重傳或替換；修正一律發新的 `rc.N`。
 
 ## 商店上架與更新
 

@@ -1,6 +1,6 @@
 {
   "name": "xbond",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "description": "XBond CLI, desktop and mobile clients, and web dashboard.",
   "keywords": [
@@ -33,11 +33,13 @@
     "build:desktop": "tauri build --no-bundle --config src-tauri/tauri.desktop.conf.json --features desktop",
     "package:desktop": "node scripts/dev/package-desktop.ts",
     "package:android": "node --env-file-if-exists=.env scripts/dev/mobile.ts package:android",
-    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
+    "check": "pnpm typecheck && pnpm lint && pnpm check:version && pnpm format:check && pnpm test",
     "check:web": "pnpm check && pnpm build && node scripts/check/check-web-build.ts",
     "check:desktop": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && pnpm build && cargo test --manifest-path src-tauri/Cargo.toml --features desktop && cargo check --manifest-path src-tauri/Cargo.toml --features desktop",
     "check:architecture": "node scripts/check/check-architecture.ts",
     "check:i18n": "node scripts/check/check-i18n.ts",
+    "check:version": "node scripts/dev/version.ts check",
+    "version:set": "node scripts/dev/version.ts set",
     "typecheck": "tsc --noEmit",
     "lint": "pnpm check:architecture && pnpm check:i18n && oxlint --deny-warnings --report-unused-disable-directives",
     "format": "oxfmt",
@@ -61,6 +63,7 @@
     "release:ios": "node --env-file-if-exists=.env scripts/release/release-ios.ts",
     "release:image": "node scripts/release/build-release-image.ts",
     "release:assemble": "node --env-file-if-exists=.env scripts/release/release-ci.ts assemble",
+    "release:preview": "node scripts/release/preview.ts",
     "ui:add": "pnpm dlx shadcn@latest add -c packages/client-ui",
     "hooks:install": "lefthook install"
   },

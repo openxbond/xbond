@@ -23,6 +23,11 @@ import { cliAsset, desktopRelease, releaseVersion } from "./release-version.ts";
 
 const [tag, releaseOS, arch] = process.argv.slice(2);
 const { version } = releaseVersion(tag);
+// Apple and the Linux package formats reject prerelease marketing versions
+// (Tauri's deb/rpm version check allows no '-'), so an rc.N candidate bundles
+// the base version; the Tag and the shared build number carry the candidate
+// identity instead.
+const bundleVersion = version.replace(/-rc\.[0-9]+$/, "");
 const os = releaseOS === "windows" ? "win32" : releaseOS;
 if (
   os !== process.platform ||
@@ -93,7 +98,8 @@ function copyBundle(
   signed: boolean,
 ) {
   const directory = join(bundleDirectory, folder);
-  const versionMarker = folder === "rpm" ? `-${version}-` : `_${version}_`;
+  const versionMarker =
+    folder === "rpm" ? `-${bundleVersion}-` : `_${bundleVersion}_`;
   const names = readdirSync(directory).filter(
     (name) =>
       name.endsWith(suffix) &&
@@ -193,7 +199,7 @@ try {
   buildDesktopBundle({
     target: rustTarget,
     targetDirectory,
-    version,
+    version: bundleVersion,
     prepareSidecar(destination) {
       copyFileSync(
         join(cliDirectory, cliAsset(tag, releaseOS, arch)),

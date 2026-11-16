@@ -14,6 +14,11 @@ on:
         type: choice
         options: [rehearsal, rehearsal-with-apple, release]
         default: rehearsal
+      platforms:
+        description: Artifact families to build (all, or a comma list such as android,linux-desktop)
+        required: false
+        type: string
+        default: all
 
 permissions:
   contents: read
@@ -32,6 +37,7 @@ jobs:
       commit: ${{ steps.version.outputs.commit }}
       mode: ${{ steps.version.outputs.mode }}
       apple_signing: ${{ steps.version.outputs.apple_signing }}
+      platforms: ${{ steps.version.outputs.platforms }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -45,6 +51,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag || github.ref_name }}
           RELEASE_MODE: ${{ inputs.mode }}
+          RELEASE_PLATFORMS: ${{ inputs.platforms }}
           XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
           XBOND_TAURI_PUBLIC_KEY: ${{ vars.XBOND_TAURI_PUBLIC_KEY }}
           ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
@@ -90,6 +97,8 @@ jobs:
 
   desktop:
     needs: [preflight, check, core]
+    # A subset run (for example android only) skips the heavy desktop matrix.
+    if: contains(needs.preflight.outputs.platforms, 'desktop')
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     environment: release-desktop-signing
@@ -155,6 +164,7 @@ jobs:
 
   android:
     needs: [preflight, check]
+    if: contains(needs.preflight.outputs.platforms, 'android')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment: release-android-signing
@@ -204,7 +214,7 @@ jobs:
     needs: [preflight, check]
     # A release skips the archive only when iOS credentials are absent;
     # configured-but-broken credentials must fail the run loudly.
-    if: needs.preflight.outputs.mode == 'release' || needs.preflight.outputs.apple_signing == 'true'
+    if: contains(needs.preflight.outputs.platforms, 'ios') && (needs.preflight.outputs.mode == 'release' || needs.preflight.outputs.apple_signing == 'true')
     runs-on: macos-26
     timeout-minutes: 65
     environment: release-ios-signing
@@ -266,6 +276,7 @@ jobs:
 
   image:
     needs: [preflight, check]
+    if: contains(needs.preflight.outputs.platforms, 'image')
     runs-on: ubuntu-24.04
     timeout-minutes: 70
     outputs:
@@ -296,6 +307,7 @@ jobs:
     needs: [preflight, core, desktop, android, ios, image]
     if: >-
       ${{ !cancelled() && needs.preflight.result == 'success' &&
+      needs.preflight.outputs.platforms == 'core,desktop,android,ios,image' &&
       needs.core.result == 'success' && needs.desktop.result == 'success' && needs.android.result == 'success' &&
       needs.image.result == 'success' &&
       (needs.ios.result == 'success' ||
@@ -342,7 +354,7 @@ jobs:
           if-no-files-found: error
 
   draft:
-    if: needs.preflight.outputs.mode == 'release'
+    if: needs.preflight.outputs.mode == 'release' && needs.preflight.outputs.platforms == 'core,desktop,android,ios,image'
     needs: [preflight, assemble]
     runs-on: ubuntu-24.04
     timeout-minutes: 15

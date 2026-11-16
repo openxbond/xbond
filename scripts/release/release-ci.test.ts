@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { releaseSettings } from "./release-ci.ts";
+import {
+  normalizePlatforms,
+  releasePlatforms,
+  releaseSettings,
+} from "./release-ci.ts";
 
 test("a tag push always prepares a signed release", () => {
   assert.deepEqual(releaseSettings("push", "rehearsal"), {
@@ -25,4 +29,12 @@ test("manual prepare selects signing and promotion mode explicitly", () => {
     () => releaseSettings("workflow_dispatch", ""),
     /Expected release/,
   );
+});
+
+test("platform subsets keep core and reject unknown families", () => {
+  assert.equal(normalizePlatforms(undefined), releasePlatforms.join(","));
+  assert.equal(normalizePlatforms("all"), releasePlatforms.join(","));
+  assert.equal(normalizePlatforms("android"), "core,android");
+  assert.equal(normalizePlatforms("android,image"), "core,android,image");
+  assert.throws(() => normalizePlatforms("nightly"), /Unknown platform/);
 });
