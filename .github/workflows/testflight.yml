@@ -29,7 +29,7 @@ jobs:
       TAG: ${{ inputs.tag }}
       XBOND_RELEASE_PUBLIC_KEY: ${{ vars.XBOND_RELEASE_PUBLIC_KEY }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -46,7 +46,7 @@ jobs:
         env:
           RUN_ID: ${{ steps.candidate.outputs.run }}
         run: node scripts/release/release-ci.ts require-artifact "$RUN_ID" app-store-build
-      - uses: actions/download-artifact@v8.0.2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: app-store-build
           run-id: ${{ steps.candidate.outputs.run }}
@@ -62,7 +62,7 @@ jobs:
           fi
           printf '%s  %s\n' "$IOS_SHA256" "release/$TAG/ios/xbond-ios-$TAG.ipa" | shasum -a 256 -c -
       - name: Upload the verified IPA to TestFlight
-        uses: Apple-Actions/upload-testflight-build@v5.9.0
+        uses: Apple-Actions/upload-testflight-build@665328adbecbc3ad929d3da710696d928b8a7ba9 # v5.9.0
         with:
           app-path: release/${{ inputs.tag }}/ios/xbond-ios-${{ inputs.tag }}.ipa
           app-type: ios
