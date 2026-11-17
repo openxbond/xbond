@@ -357,7 +357,7 @@ export default function AccountPanel() {
           <div className="relative">
             <div className="absolute top-4 right-8 left-8 h-0.5 -translate-y-1/2 bg-inset">
               <div
-                className="h-full w-full origin-left bg-brand transition-transform duration-500 ease-out motion-reduce:transition-none"
+                className="h-full w-full origin-left bg-brand-strong transition-transform duration-500 ease-out motion-reduce:transition-none"
                 style={{
                   transform: `scaleX(${step === 0 ? 0 : step === 1 ? 0.5 : 1})`,
                 }}
@@ -414,7 +414,7 @@ export default function AccountPanel() {
           <div className="flex flex-col gap-3 rounded-xl border border-border/80 bg-inset/60 p-4">
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
-                <LoaderCircle className="size-4 shrink-0 animate-spin text-brand motion-reduce:animate-none" />
+                <LoaderCircle className="size-4 shrink-0 animate-spin text-brand-strong motion-reduce:animate-none" />
                 <span className="truncate">
                   {phase ? phaseText[phase] : common("loading")}
                 </span>
@@ -479,13 +479,13 @@ export default function AccountPanel() {
         <>
           {/* In-Flight Download & Sync Progress Bar */}
           {pendingAction === "sync" && (
-            <div className="flex flex-col rounded-xl border border-brand/30 bg-brand-soft/40 p-4 gap-2.5">
+            <div className="flex flex-col rounded-xl border border-brand/30 bg-card p-4 gap-2.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 font-medium text-foreground">
-                  <RefreshCw className="size-4 animate-spin text-brand" />
+                  <RefreshCw className="size-4 animate-spin text-brand-strong" />
                   {t("syncingProgressTitle")}
                 </span>
-                <span className="font-mono text-xs font-semibold text-brand">
+                <span className="font-mono text-xs font-semibold text-brand-text">
                   {downloadPercent !== null
                     ? `${downloadPercent}%`
                     : fetchProgress.bytes > 0
@@ -697,7 +697,7 @@ export default function AccountPanel() {
               <div className="flex items-center gap-3.5 py-1">
                 <span
                   aria-hidden="true"
-                  className="grid size-10 shrink-0 place-items-center rounded-control bg-brand-soft text-brand-text"
+                  className="grid size-10 shrink-0 place-items-center rounded-control bg-inset text-brand-text"
                 >
                   <Megaphone className="size-5" strokeWidth={1.75} />
                 </span>

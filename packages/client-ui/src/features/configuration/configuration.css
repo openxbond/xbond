@@ -147,14 +147,14 @@
     background: var(--surface-inset);
     border-color: color-mix(in oklab, var(--border) 60%, transparent);
   }
-  /* DESIGN 選擇列：柔桃底＋細橙邊表示已選，不用有色左軌（與代理頁
+  /* DESIGN 選擇列：內嵌面＋細橙邊表示已選，不用大面積桃色填底（與代理頁
      目錄、節點行的選中語言一致）。 */
   .config-resource.is-selected {
-    border-color: color-mix(in oklab, var(--brand) 35%, transparent);
-    background: var(--brand-soft);
+    border-color: color-mix(in oklab, var(--brand) 40%, transparent);
+    background: var(--surface-inset);
     color: var(--foreground);
     box-shadow:
-      0 4px 14px -6px oklch(0.68 0.18 45 / 20%),
+      0 4px 14px -6px oklch(0.68 0.18 45 / 16%),
       0 1px 3px rgba(0, 0, 0, 0.04);
   }
   /* 焦點落在行內按鈕上，行本身不可聚焦：用 :has() 把外框掛回整行。 */
@@ -218,8 +218,10 @@
     padding: 5px 10px;
     font-size: var(--text-caption);
     font-weight: 500;
-    background: var(--brand-soft);
+    background: var(--card);
     color: var(--brand-text);
+    box-shadow: inset 0 0 0 1px
+      color-mix(in oklab, var(--brand) 30%, transparent);
   }
   .config-notice {
     display: grid;
@@ -354,7 +356,7 @@
     background: var(--surface-inset);
   }
   .config-menu-item.is-active {
-    background: var(--brand-soft);
+    background: var(--surface-inset);
     color: var(--brand-text);
     box-shadow: inset 0 0 0 1px
       color-mix(in oklab, var(--brand) 35%, transparent);

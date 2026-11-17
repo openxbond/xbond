@@ -271,7 +271,7 @@ export function Group({
         type="text"
         inputMode="search"
         enterKeyHint="search"
-        className="h-full w-full min-w-0 bg-transparent pr-11 pl-9 text-body text-foreground outline-none placeholder:text-muted-foreground/50"
+        className="h-full w-full min-w-0 bg-transparent pr-11 pl-9 text-body text-foreground outline-none placeholder:text-muted-foreground"
         placeholder={t("filterNodes")}
         aria-label={t("filterNodes")}
         value={filter}
@@ -317,7 +317,8 @@ export function Group({
         type="button"
         className={cn(
           mobileActionClass,
-          sortMode !== "default" && "bg-brand-soft text-brand-text",
+          sortMode !== "default" &&
+            "bg-brand-action text-brand-action-foreground",
         )}
         title={t("sortState", { mode: sortLabel })}
         aria-label={t("sortState", { mode: sortLabel })}
@@ -403,7 +404,7 @@ export function Group({
                 className={cn(
                   "inline-flex size-6.5 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs",
                   sortMode !== "default" &&
-                    "bg-brand-soft text-brand-text font-bold shadow-2xs border border-brand/20",
+                    "border border-brand-action bg-brand-action text-brand-action-foreground shadow-2xs",
                 )}
                 title={t("sortState", { mode: sortLabel })}
                 aria-label={t("sortState", { mode: sortLabel })}
@@ -417,7 +418,7 @@ export function Group({
                 className={cn(
                   "inline-flex size-6.5 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-2xs",
                   (filterOpen || filter) &&
-                    "bg-brand-soft text-brand-text shadow-2xs border border-brand/20",
+                    "border border-brand-action bg-brand-action text-brand-action-foreground shadow-2xs",
                 )}
                 title={t("filterNodes")}
                 aria-label={t("filterNodes")}
@@ -538,7 +539,7 @@ export function Group({
                   <button
                     type="button"
                     className={cn(
-                      "size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-card p-0 text-muted-foreground transition-[color,background-color,border-color,transform] duration-150 hover:border-brand/40 hover:bg-brand-soft hover:text-brand-text active:scale-[0.98]",
+                      "size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-card p-0 text-muted-foreground transition-[color,background-color,border-color,transform] duration-150 hover:border-brand/40 hover:bg-inset hover:text-brand-text active:scale-[0.98]",
                       isTesting
                         ? "inline-flex animate-pulse text-brand-text opacity-70"
                         : "hidden group-hover:inline-flex focus-visible:inline-flex",
@@ -567,7 +568,7 @@ export function Group({
                 <button
                   type="button"
                   className={cn(
-                    "size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft hover:text-brand-text active:scale-[0.98]",
+                    "size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/80 bg-card p-0 text-muted-foreground transition-all duration-150 hover:border-brand/40 hover:bg-inset hover:text-brand-text active:scale-[0.98]",
                     isPinned(name)
                       ? "inline-flex border-warning/50 bg-warning/10 text-warning hover:text-foreground"
                       : isMobile

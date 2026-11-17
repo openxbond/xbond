@@ -175,13 +175,13 @@ export default function Config() {
             <span className="block truncate font-medium leading-snug">
               {title}
             </span>
-            <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground/85">
+            <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="truncate">{subtitle}</span>
               {options?.isActive && (
                 <span
                   title={t("viewing")}
                   aria-label={t("viewing")}
-                  className="inline-flex shrink-0 items-center text-brand"
+                  className="inline-flex shrink-0 items-center text-brand-strong"
                 >
                   <Check className="size-3" strokeWidth={2.4} />
                 </span>
@@ -194,7 +194,7 @@ export default function Config() {
             type="button"
             size="sm"
             variant="ghost"
-            className="h-6.5 shrink-0 px-2 text-footnote font-medium text-brand transition-[color,background-color,opacity] duration-150 hover:text-brand hover:bg-brand-soft border border-brand/20 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
+            className="h-6.5 shrink-0 px-2 text-footnote font-medium text-brand-text transition-[color,background-color,opacity] duration-150 hover:text-brand-text hover:bg-inset border border-brand/20 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
             disabled={activating !== null}
             onClick={(e) => {
               e.stopPropagation();
@@ -283,14 +283,17 @@ export default function Config() {
         className={cn(
           "flex w-full min-h-8.5 items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-foreground cursor-pointer transition-colors duration-120 hover:bg-inset text-start outline-none",
           isActive &&
-            "bg-brand-soft text-brand-text font-semibold ring-1 ring-brand/30",
+            "bg-inset text-brand-text font-semibold ring-1 ring-brand/30",
         )}
         onClick={() => pick(id)}
       >
         <ResourceIcon kind={kind} className="size-5.5 shrink-0 rounded-lg" />
         <span className="min-w-0 flex-1 truncate">{title}</span>
         {isActive && (
-          <Check className="size-3.5 shrink-0 text-brand" strokeWidth={2.4} />
+          <Check
+            className="size-3.5 shrink-0 text-brand-text"
+            strokeWidth={2.4}
+          />
         )}
       </button>
     );
@@ -375,7 +378,7 @@ export default function Config() {
               placeholder={t("search")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="h-8.5 w-full rounded-xl border border-border/70 bg-inset/60 pl-8.5 pr-8 text-xs max-md:h-11 max-md:text-base text-foreground placeholder:text-muted-foreground/50 transition-[border-color,background-color] duration-150 hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none"
+              className="h-8.5 w-full rounded-xl border border-border/70 bg-inset/60 pl-8.5 pr-8 text-xs max-md:h-11 max-md:text-base text-foreground placeholder:text-muted-foreground transition-[border-color,background-color] duration-150 hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none"
             />
             {search && (
               <button

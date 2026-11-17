@@ -104,7 +104,7 @@ const EN = {
     manageController: "Manage this service",
     remoteNote:
       "Manages the connected service only; it does not take over this device's traffic.",
-    goToConsole: "Go to Dashboard",
+    goHome: "Home",
     noConfigTitle: "No Profile Selected",
     noConfigDescription:
       "Please add or activate a subscription profile in Configuration before connecting.",

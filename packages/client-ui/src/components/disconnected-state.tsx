@@ -91,7 +91,7 @@ export function DisconnectedState({
         )}
       >
         <Card className="flex w-full min-h-[220px] flex-col items-center justify-center rounded-card border border-border/80 bg-card p-6 text-center shadow-elevation-card sm:p-8">
-          <Spinner className="size-6 text-brand" />
+          <Spinner className="size-6 text-brand-strong" />
         </Card>
       </div>
     );
@@ -138,7 +138,11 @@ export function DisconnectedState({
       defaultDescription = description ?? tconn("readyToConnect");
       defaultAction = (
         <div className="flex flex-wrap items-center justify-center gap-2.5">
-          <Button disabled={connecting} onClick={() => void handleConnect()}>
+          <Button
+            className="min-w-28"
+            disabled={connecting}
+            onClick={() => void handleConnect()}
+          >
             {connecting ? (
               <Spinner className="mr-1.5 size-4" />
             ) : (
@@ -147,7 +151,7 @@ export function DisconnectedState({
             {connecting ? tc("loading") : tconn("connect")}
           </Button>
           <Button variant="outline" onClick={() => navigate("/")}>
-            {tconn("goToConsole")}
+            {tconn("goHome")}
             <ArrowRight className="ml-1.5 size-4" />
           </Button>
         </div>
@@ -159,7 +163,7 @@ export function DisconnectedState({
     defaultAction = (
       <div className="flex flex-wrap items-center justify-center gap-2.5">
         <Button onClick={() => navigate("/")}>
-          {tconn("goToConsole")}
+          {tconn("goHome")}
           <ArrowRight className="ml-1.5 size-4" />
         </Button>
         <Button
@@ -199,13 +203,13 @@ export function DisconnectedState({
             <XBondIcon className="connect-wait-float relative size-12 text-foreground" />
           </div>
         ) : (
-          <div className="mb-4 grid size-14 place-items-center rounded-lg border border-brand/25 bg-brand/15 text-brand-text">
+          <div className="mb-4 grid size-14 place-items-center rounded-lg border border-brand-action bg-brand-action text-brand-action-foreground">
             {icon ?? <Power className="size-7" />}
           </div>
         )}
         <h3 className="mb-2 flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
           {daemonConnecting ? (
-            <Spinner className="size-3.5 text-brand" />
+            <Spinner className="size-3.5 text-brand-strong" />
           ) : null}
           {title ?? defaultTitle}
         </h3>

@@ -27,7 +27,6 @@ interface SegmentedControlProps<T extends string> {
   className?: string;
   itemClassName?: string;
   orientation?: "horizontal" | "vertical";
-  variant?: "brand" | "default";
   size?: "sm" | "default" | "lg";
 }
 
@@ -40,18 +39,15 @@ export function SegmentedControl<T extends string>({
   className,
   itemClassName,
   orientation = "horizontal",
-  variant = "brand",
   size = "default",
 }: SegmentedControlProps<T>) {
   const id = useId();
   const { i18n } = useTranslation();
 
-  // 選中態兩主題同語義（DESIGN segment-selected：柔桃底、深橙字）：
-  // 淺色此前用近白底+細橙環，底色與軌道同為近白，灰階下辨認度不足。
+  // 選中態直接用品牌橙：實心橙底、白字與同一套陰影，不再用桃色或中性
+  // 白卡。品牌橙是選中與主操作共用的信號。
   const activeStyles =
-    variant === "brand"
-      ? "data-[state=on]:bg-brand-soft data-[state=on]:text-brand-text data-[state=on]:font-semibold dark:data-[state=on]:bg-brand-soft dark:data-[state=on]:text-brand-text"
-      : "data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:font-semibold data-[state=on]:shadow-2xs data-[state=on]:ring-1 data-[state=on]:ring-black/5 dark:data-[state=on]:ring-white/10 dark:data-[state=on]:shadow-black/25";
+    "data-[state=on]:bg-brand-action data-[state=on]:text-brand-action-foreground data-[state=on]:font-semibold data-[state=on]:shadow-2xs data-[state=on]:hover:bg-brand-action data-[state=on]:hover:text-brand-action-foreground";
 
   const sizeTrackStyles =
     size === "sm"

@@ -102,7 +102,7 @@ const KO = {
     noConfigRemote: "구독은 해당 서비스에서 직접 관리합니다.",
     manageController: "이 서비스 관리",
     remoteNote: "연결된 서비스만 관리하며, 이 기기의 트래픽을 인계하지 않아요.",
-    goToConsole: "대시보드로 이동",
+    goHome: "홈",
     noConfigTitle: "프로필 미선택",
     noConfigDescription:
       "프록시 서비스를 사용하려면 먼저 설정에서 구독 프로필을 추가하거나 활성화하세요.",

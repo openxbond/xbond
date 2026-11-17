@@ -46,10 +46,10 @@
   --color-brand-strong: var(--brand-strong);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-text: var(--brand-text);
-  --color-brand-soft: var(--brand-soft);
   --color-brand-action: var(--brand-action);
   --color-brand-action-foreground: var(--brand-action-foreground);
   --color-brand-action-hover: var(--brand-action-hover);
+  --color-brand-action-active: var(--brand-action-active);
   --color-accent-mint: var(--accent-mint);
   --color-accent-mint-text: var(--accent-mint-text);
   --color-accent-mint-soft: var(--accent-mint-soft);

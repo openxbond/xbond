@@ -177,14 +177,14 @@ export function ExternalControllerOnboarding({
                   <button
                     type="button"
                     onClick={() => setURL("http://127.0.0.1:9090")}
-                    className="cursor-pointer rounded-[4px] border border-transparent px-1.5 py-0.5 font-mono text-caption max-md:min-h-11 font-medium text-brand-text transition-colors hover:border-brand/30 hover:bg-brand-soft"
+                    className="cursor-pointer rounded-[4px] border border-transparent px-1.5 py-0.5 font-mono text-caption max-md:min-h-11 font-medium text-brand-text transition-colors hover:border-brand/30 hover:bg-inset"
                   >
                     127.0.0.1:9090
                   </button>
                   <button
                     type="button"
                     onClick={() => setURL("http://localhost:9090")}
-                    className="cursor-pointer rounded-[4px] border border-transparent px-1.5 py-0.5 font-mono text-caption max-md:min-h-11 font-medium text-brand-text transition-colors hover:border-brand/30 hover:bg-brand-soft"
+                    className="cursor-pointer rounded-[4px] border border-transparent px-1.5 py-0.5 font-mono text-caption max-md:min-h-11 font-medium text-brand-text transition-colors hover:border-brand/30 hover:bg-inset"
                   >
                     localhost:9090
                   </button>
@@ -193,7 +193,7 @@ export function ExternalControllerOnboarding({
                       <button
                         type="button"
                         onClick={() => setURL(window.location.origin)}
-                        className="cursor-pointer rounded-[4px] border border-transparent px-1.5 py-0.5 font-mono text-caption max-md:min-h-11 font-medium text-brand-text transition-colors hover:border-brand/30 hover:bg-brand-soft"
+                        className="cursor-pointer rounded-[4px] border border-transparent px-1.5 py-0.5 font-mono text-caption max-md:min-h-11 font-medium text-brand-text transition-colors hover:border-brand/30 hover:bg-inset"
                       >
                         {t("quickFillOrigin")}
                       </button>

@@ -170,9 +170,9 @@ export default function App() {
               "-me-4 xl:-me-6 max-md:me-0",
             // No global mobile top bar anymore: the safe-area inset alone
             // clears the status bar, each tab paints its own context header.
-            // The bottom reserve is the tab bar's own height (56px), so a
+            // The bottom reserve is the tab bar's own height (68px), so a
             // full-height page's padding is the visible gap, not a 12px slack.
-            "max-md:px-0 max-md:pt-[env(safe-area-inset-top)] max-md:pb-[calc(56px+env(safe-area-inset-bottom))] max-md:[&::-webkit-scrollbar]:hidden",
+            "max-md:px-0 max-md:pt-[env(safe-area-inset-top)] max-md:pb-[calc(68px+env(safe-area-inset-bottom))] max-md:[&::-webkit-scrollbar]:hidden",
           )}
         >
           <ControllerPage />

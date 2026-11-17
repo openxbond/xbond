@@ -765,7 +765,7 @@ export default function Connections({ mobile = false }: { mobile?: boolean }) {
           <input
             aria-label={t("filterHost")}
             placeholder={t("filterHost")}
-            className="h-10 min-w-0 flex-1 rounded-xl border border-border/80 bg-inset/60 px-3 text-sm max-md:h-11 max-md:text-base text-foreground placeholder:text-muted-foreground/50 hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none"
+            className="h-10 min-w-0 flex-1 rounded-xl border border-border/80 bg-inset/60 px-3 text-sm max-md:h-11 max-md:text-base text-foreground placeholder:text-muted-foreground hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none"
             value={mobileQuery}
             onChange={(event) => setMobileQuery(event.target.value)}
           />
@@ -782,7 +782,7 @@ export default function Connections({ mobile = false }: { mobile?: boolean }) {
               key={key}
               aria-label={t(filterFields[key])}
               placeholder={t(filterFields[key])}
-              className="h-8 min-w-0 flex-1 basis-32 rounded-xl border border-border/80 bg-inset/60 px-2.5 text-xs text-foreground transition-all duration-150 placeholder:text-muted-foreground/50 hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none"
+              className="h-8 min-w-0 flex-1 basis-32 rounded-xl border border-border/80 bg-inset/60 px-2.5 text-xs text-foreground transition-all duration-150 placeholder:text-muted-foreground hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none"
               value={filters[key]}
               onChange={(event) => setFilters(key, event.target.value)}
             />

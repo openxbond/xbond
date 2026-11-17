@@ -309,7 +309,7 @@ function RuleBrowser({
           role="status"
           className="flex flex-col items-center justify-center gap-3 py-16 text-caption text-muted-foreground"
         >
-          <Spinner className="size-6 text-brand" />
+          <Spinner className="size-6 text-brand-strong" />
           {common("loading")}
         </div>
       )}

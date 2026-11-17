@@ -20,7 +20,7 @@ export const DELAY_PILL_TONES: Record<DelayPillTone, string> = {
   medium: "bg-latency-medium text-latency-medium-text",
   slow: "bg-latency-slow text-latency-slow-text",
   failed: "bg-latency-failed text-latency-failed-text",
-  testing: "animate-pulse bg-brand-soft text-brand-text",
+  testing: "animate-pulse bg-inset text-brand-text",
   untested: "text-muted-foreground",
   builtin: "font-medium text-muted-foreground",
 };

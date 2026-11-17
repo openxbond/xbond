@@ -35,16 +35,19 @@
   --aurora-peach: #ffcdb521;
   --aurora-slate: #cbd8ee45;
 
-  /* Accent family */
+  /* Accent family. The logo orange carries the primary action so the button
+     and the mark read as one brand. `brand-strong` carries small marks that
+     must clear 3:1, `brand-text` carries copy. White labels stay on the
+     primary action only; they measure 2.85:1 on the logo orange. */
   --brand: #f7720d;
   --brand-highlight: #ff914d;
   --brand-strong: oklch(0.63 0.21 38);
   --brand-foreground: oklch(0.18 0.02 40);
   --brand-text: #a84000;
-  --brand-soft: #feebdd;
   --brand-action: #f7720d;
   --brand-action-foreground: #fff;
   --brand-action-hover: #df5e08;
+  --brand-action-active: #a84000;
   --brand-action-shadow: 0 10px 22px -10px oklch(0.68 0.19 45 / 58%);
 
   --accent-mint: oklch(0.7 0.13 172);
@@ -74,7 +77,8 @@
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 
-  /* Controls */
+  /* Controls. Selection controls stay ink so small checks keep contrast;
+     the primary button carries the brand orange on its own. */
   --primary: var(--foreground);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: var(--card);
@@ -108,8 +112,8 @@
   --destructive-text: oklch(0.49 0.18 25);
 
   /* Data visualisation */
-  --chart-1: var(--brand);
-  --upload: #8daad3;
+  --chart-1: var(--brand-strong);
+  --upload: oklch(0.56 0.115 256);
   --chart-2: oklch(0.55 0.02 265);
   --chart-3: oklch(0.68 0.015 265);
   --chart-4: oklch(0.8 0.01 265);
@@ -165,7 +169,6 @@
   --brand-strong: oklch(0.82 0.15 60);
   --brand-foreground: oklch(0.16 0.01 40);
   --brand-text: oklch(0.83 0.13 62);
-  --brand-soft: oklch(0.3 0.06 48);
 
   --accent-mint: oklch(0.76 0.13 172);
   --accent-mint-text: oklch(0.82 0.11 172);
@@ -224,7 +227,8 @@
   --destructive-foreground: oklch(0.16 0.01 260);
   --destructive-text: oklch(0.76 0.16 25);
 
-  --chart-1: var(--brand);
+  --chart-1: var(--brand-strong);
+  --upload: oklch(0.72 0.1 252);
   --chart-2: oklch(0.62 0.015 260);
   --chart-3: oklch(0.46 0.012 260);
   --chart-4: oklch(0.33 0.01 260);

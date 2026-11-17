@@ -162,7 +162,7 @@ function PerAppVpnPanel() {
             className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground/60"
           />
           <input
-            className="h-10 w-full rounded-xl border border-border/80 bg-inset/60 pr-3 pl-8 text-sm text-foreground placeholder:text-muted-foreground/50 hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none"
+            className="h-10 w-full rounded-xl border border-border/80 bg-inset/60 pr-3 pl-8 text-sm text-foreground placeholder:text-muted-foreground hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none"
             value={query}
             placeholder={t("perAppVpn.searchApps")}
             onChange={(event) => setQuery(event.target.value)}
@@ -199,7 +199,7 @@ function PerAppVpnPanel() {
                     className={cn(
                       "flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-3 py-1.5 transition-colors",
                       checked
-                        ? "border-brand/40 bg-brand-soft/50"
+                        ? "border-brand/40 bg-inset/60"
                         : "border-transparent hover:bg-inset/60",
                     )}
                   >

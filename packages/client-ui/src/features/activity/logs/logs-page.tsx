@@ -69,7 +69,7 @@ function LogRow({
         warning: "text-warning-text",
         warn: "text-warning-text",
         error: "text-destructive-text",
-        info: "text-info",
+        info: "text-info-text",
       } as Record<string, string>
     )[log.type] ?? "text-muted-foreground";
   if (compact) {

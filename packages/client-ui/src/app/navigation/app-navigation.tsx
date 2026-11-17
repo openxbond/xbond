@@ -82,7 +82,7 @@ function BreathingDot() {
       className="relative flex size-2 shrink-0 items-center justify-center"
     >
       <span className="absolute size-full rounded-full bg-brand opacity-60 motion-safe:animate-ping" />
-      <span className="relative size-1.5 rounded-full bg-brand shadow-[0_0_6px_var(--brand)]" />
+      <span className="relative size-1.5 rounded-full bg-brand-strong shadow-[0_0_6px_var(--brand)]" />
     </span>
   );
 }
@@ -107,7 +107,10 @@ function SidebarLink({ item }: { item: Route }) {
       >
         <Icon
           aria-hidden
-          className={cn("size-5 shrink-0", active ? "text-brand" : undefined)}
+          className={cn(
+            "size-5 shrink-0",
+            active ? "text-brand-strong" : undefined,
+          )}
           strokeWidth={1.8}
         />
         <span className="min-w-0 flex-1 truncate">{text}</span>
@@ -205,28 +208,25 @@ function MobileTabLink({ item }: { item: Route }) {
         to={to}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex min-h-14 flex-col items-center justify-center gap-0.5 text-label font-medium no-underline",
+          "group flex min-h-[68px] flex-col items-center justify-center gap-1 no-underline transition-[color,transform] duration-[160ms] ease-[var(--ease-out-expo)] focus-visible:outline-none active:scale-[0.98] active:transition-none motion-reduce:transition-none",
           active
-            ? "font-semibold text-brand-text"
-            : "text-sidebar-foreground-muted",
+            ? "font-semibold text-foreground"
+            : "font-medium text-sidebar-foreground-muted",
         )}
       >
         <span
           className={cn(
-            "grid h-7 w-12 place-items-center rounded-full transition-colors motion-reduce:transition-none",
-            active ? "bg-brand-soft" : "border border-transparent",
+            "grid h-8 w-16 place-items-center rounded-full border transition-colors duration-150 group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-ring motion-reduce:transition-none",
+            active
+              ? "border-brand-action bg-brand-action text-brand-action-foreground"
+              : "border-transparent",
           )}
         >
-          <Icon
-            aria-hidden
-            className={cn(
-              "size-[22px]",
-              active ? "text-brand-text" : undefined,
-            )}
-            strokeWidth={1.8}
-          />
+          <Icon aria-hidden className="size-5" strokeWidth={1.8} />
         </span>
-        <span className="max-w-full truncate px-1">{text}</span>
+        <span className="max-w-full truncate px-1 text-caption leading-4">
+          {text}
+        </span>
       </Link>
     </li>
   );
@@ -237,7 +237,7 @@ function MobileTabBar({ routes }: { routes: Route[] }) {
   return (
     <nav
       aria-label={t("home")}
-      className="glass-bar glass-bar-solid fixed inset-x-0 bottom-0 z-50 hidden rounded-none border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] max-md:block"
+      className="glass-bar glass-bar-solid fixed inset-x-0 bottom-0 z-50 hidden rounded-none border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_26px_-10px_#24365440] max-md:block"
     >
       <ul className="m-0 flex list-none items-stretch px-2">
         {routes.map((item) => (

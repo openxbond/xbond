@@ -236,7 +236,7 @@ export function TrafficChart({
                 />
                 <path
                   d={downLine}
-                  className="fill-none stroke-brand [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:2] [vector-effect:non-scaling-stroke]"
+                  className="fill-none stroke-brand-strong [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:2] [vector-effect:non-scaling-stroke]"
                 />
                 {upLine && (
                   <path

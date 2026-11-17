@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAccount } from "@/features/configuration/account/use-cloud-account";
@@ -133,7 +132,7 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
   }
 
   const neutralPill =
-    "border-[var(--glass-border)] bg-inset text-foreground group-hover:border-brand/30 group-hover:bg-brand-soft group-hover:text-brand-text";
+    "border-[var(--glass-border)] bg-inset text-foreground group-hover:border-brand/30 group-hover:bg-card group-hover:text-brand-text";
 
   return (
     <div className={cn("flex w-full min-w-0 flex-col gap-4 py-4", className)}>
@@ -152,7 +151,7 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
 
       {/* Clipboard Sniffer Bar (if candidate detected) */}
       {candidate && (
-        <div className="mx-auto flex w-full max-w-2xl animate-in items-center justify-between gap-3 rounded-card border border-brand/40 bg-brand-soft/50 p-3.5 fade-in-50 slide-in-from-top-2 duration-300">
+        <div className="mx-auto flex w-full max-w-2xl animate-in items-center justify-between gap-3 rounded-card border border-brand/30 bg-card p-3.5 fade-in-50 slide-in-from-top-2 duration-300">
           <div className="flex min-w-0 items-center gap-2.5 pl-1">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-action text-brand-action-foreground">
               <Check className="size-4" aria-hidden="true" />
@@ -184,20 +183,21 @@ export function OnboardingGuide({ className }: OnboardingGuideProps) {
         <PathCard
           onActivate={() => navigate("/config?item=cloud")}
           icon={<Cloud aria-hidden="true" className="size-5" />}
-          tileClassName="bg-brand/15 text-brand-text"
-          pillClassName="border-brand/30 bg-brand-soft text-brand-text"
+          tileClassName="border border-[var(--glass-border)] bg-inset text-brand-text"
+          pillClassName="border-brand-action bg-brand-action text-brand-action-foreground"
           title={t("cloudCardTitle")}
           desc={t("cloudCardDesc")}
           cta={t("login")}
           badge={
-            <Badge
-              variant="secondary"
-              className="border-0 bg-brand-soft text-caption font-medium text-brand-text"
-            >
+            <span className="inline-flex items-center gap-1.5 text-caption font-medium text-brand-text">
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full bg-brand-action"
+              />
               {account?.status === "signed_in"
                 ? acc("signedIn")
                 : t("recommended")}
-            </Badge>
+            </span>
           }
         />
 

@@ -45,7 +45,7 @@ export function StrategyDirectory({
           className={cn(
             "group relative w-full min-w-0 cursor-pointer rounded-xl border p-2 text-start transition-[color,background-color,border-color,box-shadow] duration-150 select-none motion-reduce:transition-none",
             value === item.name
-              ? "border-brand/40 bg-brand-soft shadow-xs"
+              ? "border-brand/40 bg-card shadow-xs"
               : "border-transparent hover:border-border/60 hover:bg-card/70 hover:shadow-2xs",
           )}
           aria-current={value === item.name ? "true" : undefined}
@@ -76,7 +76,7 @@ export function StrategyDirectory({
               >
                 {renderNodeTitle(item.detail || "—")}
               </span>
-              <span className="shrink-0 text-caption font-mono tabular-nums text-muted-foreground/80">
+              <span className="shrink-0 text-caption font-mono tabular-nums text-muted-foreground">
                 {item.count}
               </span>
             </div>
@@ -159,7 +159,7 @@ export function StrategyChoice({
       className={cn(
         "group node-grid-tile relative flex min-h-[42px] w-full list-none items-start gap-2 rounded-xl border bg-card p-1 ps-2.5 pe-2 transition-[color,background-color,border-color,box-shadow] duration-150 select-none shadow-2xs motion-reduce:transition-none",
         selected
-          ? "border-brand/60 bg-brand-soft/40 shadow-xs ring-1 ring-brand/20"
+          ? "border-brand/60 bg-card shadow-xs ring-1 ring-brand/20"
           : disabled
             ? "border-border/50 opacity-60 cursor-not-allowed"
             : "border-border/80 hover:border-brand/40 hover:bg-inset/50 hover:shadow-2xs cursor-pointer",
@@ -178,7 +178,7 @@ export function StrategyChoice({
             className={cn(
               "grid size-3.5 shrink-0 place-items-center rounded-full border-2 transition-[border-color,background-color,box-shadow] duration-150",
               selected
-                ? "border-brand bg-brand text-white shadow-2xs"
+                ? "border-brand-strong bg-brand-strong text-white shadow-2xs"
                 : "border-muted-foreground/40 group-hover:border-brand/60",
             )}
           >

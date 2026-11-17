@@ -391,7 +391,7 @@ export function CommandPalette() {
 
         {/* Search Input Bar */}
         <div className="flex items-center gap-3 border-b border-border/60 bg-white/25 px-4 py-3.5 dark:bg-white/5">
-          <Search className="size-4 shrink-0 text-muted-foreground transition-colors group-focus-within:text-brand" />
+          <Search className="size-4 shrink-0 text-muted-foreground transition-colors group-focus-within:text-brand-strong" />
           <input
             ref={inputRef}
             type="text"
@@ -434,7 +434,7 @@ export function CommandPalette() {
                 return (
                   <React.Fragment key={item.id}>
                     {isFirstInCategory && (
-                      <div className="px-3 pt-3 pb-1 text-caption font-semibold tracking-wider text-muted-foreground/70 uppercase select-none first:pt-1">
+                      <div className="px-3 pt-3 pb-1 text-caption font-semibold tracking-wider text-muted-foreground uppercase select-none first:pt-1">
                         {item.category}
                       </div>
                     )}
@@ -448,7 +448,7 @@ export function CommandPalette() {
                       className={cn(
                         "group relative flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-2 text-left transition-colors",
                         isSelected
-                          ? "bg-brand-soft text-foreground ring-1 ring-brand/25 dark:bg-brand-soft/70"
+                          ? "bg-inset text-foreground ring-1 ring-brand/30"
                           : "text-foreground/90 hover:bg-surface-inset/80 hover:text-foreground",
                       )}
                     >
@@ -467,14 +467,14 @@ export function CommandPalette() {
                           <p className="truncate text-label font-medium leading-tight">
                             {item.title}
                           </p>
-                          <p className="truncate text-caption text-muted-foreground/80 mt-0.5 leading-tight">
+                          <p className="truncate text-caption text-muted-foreground mt-0.5 leading-tight">
                             {item.subtitle}
                           </p>
                         </div>
                       </div>
 
                       {isSelected && (
-                        <div className="flex items-center gap-1 text-caption font-medium text-brand shrink-0 ml-2 animate-in fade-in-50 duration-150">
+                        <div className="flex items-center gap-1 text-caption font-medium text-brand-text shrink-0 ml-2 animate-in fade-in-50 duration-150">
                           <span className="text-caption font-mono opacity-80">
                             {t("footer.select")}
                           </span>
@@ -511,7 +511,7 @@ export function CommandPalette() {
               <span>{t("footer.close")}</span>
             </span>
           </div>
-          <span className="text-caption font-mono text-muted-foreground/60">
+          <span className="text-caption font-mono text-muted-foreground">
             {items.length} {t("categories.nodes")}
           </span>
         </div>

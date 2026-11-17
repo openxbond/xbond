@@ -133,7 +133,7 @@ function ProxyGroups() {
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5 text-footnote text-muted-foreground">
                   {selected.now && (
-                    <span className="hidden sm:inline-block max-w-[140px] truncate text-muted-foreground/80">
+                    <span className="hidden sm:inline-block max-w-[140px] truncate text-muted-foreground">
                       {renderNodeTitle(
                         resolveLeafNode(selected.now) || selected.now,
                       )}
@@ -177,13 +177,13 @@ function ProxyGroups() {
                               </span>
                             )}
                           </div>
-                          <span className="shrink-0 font-mono text-footnote tabular-nums text-muted-foreground/75">
+                          <span className="shrink-0 font-mono text-footnote tabular-nums text-muted-foreground">
                             {t("groupMembers", { count: group.all.length })}
                           </span>
                         </div>
                         {leafNode && (
                           <div className="flex w-full min-w-0 items-center gap-1 text-footnote text-muted-foreground">
-                            <span className="min-w-0 truncate text-muted-foreground/90">
+                            <span className="min-w-0 truncate text-muted-foreground">
                               {renderNodeTitle(leafNode)}
                             </span>
                           </div>
@@ -453,7 +453,7 @@ export default function ProxyPage() {
                 aria-hidden="true"
               />
               <input
-                className="h-8 w-full rounded-xl border border-border/80 bg-inset/60 pr-7 pl-8 text-xs text-ellipsis text-foreground placeholder:text-muted-foreground/50 hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none transition-[border-color,background-color] duration-150 max-md:h-11 max-md:text-base"
+                className="h-8 w-full rounded-xl border border-border/80 bg-inset/60 pr-7 pl-8 text-xs text-ellipsis text-foreground placeholder:text-muted-foreground hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none transition-[border-color,background-color] duration-150 max-md:h-11 max-md:text-base"
                 value={search}
                 placeholder={t("searchPlaceholder")}
                 onChange={(e) => setSearch(e.target.value)}
@@ -563,7 +563,7 @@ export default function ProxyPage() {
           <RequestStatus error={error} retry={update} isLocal={hasLocalAPI} />
           {isLoading && !error && !mapping.size && (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-              <Spinner className="size-6 text-brand" />
+              <Spinner className="size-6 text-brand-strong" />
             </div>
           )}
           {!isLoading && !error && !mapping.size && (

@@ -101,7 +101,7 @@ function TabsTrigger({
         isLine && [
           "rounded-none bg-transparent px-1 pb-2.5 pt-1.5 max-md:min-h-11 text-muted-foreground hover:text-foreground",
           "data-[state=active]:font-semibold data-[state=active]:text-foreground",
-          "after:absolute after:bottom-0 after:inset-x-0 after:h-[2px] after:rounded-full after:bg-brand after:transition-transform after:duration-200 after:ease-out after:scale-x-0 data-[state=active]:after:scale-x-100",
+          "after:absolute after:bottom-0 after:inset-x-0 after:h-[2px] after:rounded-full after:bg-brand-strong after:transition-transform after:duration-200 after:ease-out after:scale-x-0 data-[state=active]:after:scale-x-100",
         ],
         // Pills / Default variant (Brand accent)
         !isLine &&
@@ -112,8 +112,7 @@ function TabsTrigger({
               : size === "lg"
                 ? "min-h-9 px-4 py-1.5 text-sm rounded-xl"
                 : "min-h-7 px-3 py-1 text-xs xl:text-sm max-md:min-h-10 max-md:px-4",
-            "data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:text-brand-text data-[state=active]:shadow-2xs data-[state=active]:shadow-brand/10 data-[state=active]:ring-1 data-[state=active]:ring-brand/35",
-            "dark:data-[state=active]:bg-brand-soft dark:data-[state=active]:text-brand-text dark:data-[state=active]:ring-brand/40",
+            "data-[state=active]:bg-brand-action data-[state=active]:font-semibold data-[state=active]:text-brand-action-foreground data-[state=active]:shadow-2xs data-[state=active]:hover:bg-brand-action data-[state=active]:hover:text-brand-action-foreground",
           ],
         // Solid variant (Clean monochrome card)
         isSolid && [

@@ -77,9 +77,8 @@ function FileField({
         "hover:border-muted-foreground active:bg-inset",
         "has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-3 has-[input:focus-visible]:outline-ring",
         "has-[input:disabled]:pointer-events-none has-[input:disabled]:opacity-50",
-        selected &&
-          "border-brand/40 bg-brand-soft/60 ring-1 ring-brand/35 dark:bg-brand-soft/40",
-        dragging && "border-brand/60 bg-brand-soft/40 ring-1 ring-brand/45",
+        selected && "border-brand/40 bg-card ring-1 ring-brand/35",
+        dragging && "border-brand/60 bg-inset/60 ring-1 ring-brand/45",
         className,
       )}
       onDragOver={(event) => {

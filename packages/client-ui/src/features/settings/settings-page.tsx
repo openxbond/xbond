@@ -439,7 +439,7 @@ export default function Settings() {
                   className="group -mx-1 flex items-center justify-between rounded-xl px-2 py-3 text-start transition-colors hover:bg-row-hover/50 active:bg-row-hover/70"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="grid size-8 place-items-center rounded-lg bg-brand-soft text-brand-text shadow-2xs">
+                    <div className="grid size-8 place-items-center rounded-lg bg-inset text-brand-text shadow-2xs">
                       <Smartphone className="size-4" />
                     </div>
                     <span className="text-sm max-md:text-base font-medium text-foreground">
@@ -700,7 +700,7 @@ export default function Settings() {
                         await refresh();
                       })
                     }
-                    className="inline-flex items-center gap-1 text-xs font-medium text-brand transition-colors hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-brand-text transition-colors hover:underline"
                   >
                     {t("takeover.portFollowSubscription")}
                   </button>
@@ -918,7 +918,7 @@ export default function Settings() {
               <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground">
                 {t("about.openSource")}
               </span>
-              <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-brand transition-colors group-hover:underline">
+              <span className="inline-flex items-center gap-1 font-mono text-xs font-medium text-brand-text transition-colors group-hover:underline">
                 GitHub Repository
                 <ExternalLink className="size-3" />
               </span>

@@ -9,8 +9,6 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-primary-foreground shadow-[0_6px_16px_-10px_oklch(0.2_0.03_265/55%)] hover:bg-primary/90 active:bg-primary/80",
         destructive:
           "bg-destructive text-destructive-foreground shadow-[0_6px_16px_-10px_oklch(0.57_0.2_25/55%)] hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-destructive/20",
         outline:
@@ -18,7 +16,7 @@ const buttonVariants = cva(
         secondary:
           "glass-button text-secondary-foreground hover:border-control-border hover:bg-inset active:bg-muted",
         brand:
-          "gradient-brand rounded-full bg-brand-action text-brand-action-foreground shadow-brand-action hover:bg-brand-action-hover hover:bg-none active:bg-brand-text active:bg-none",
+          "gradient-brand rounded-full bg-brand-action text-brand-action-foreground shadow-brand-action hover:bg-brand-action-hover hover:bg-none active:bg-brand-action-active active:bg-none",
         success:
           "bg-success text-success-foreground shadow-[0_6px_16px_-10px_oklch(0.66_0.14_168/50%)] hover:bg-success/90 active:bg-success/80",
         warning:
@@ -39,7 +37,7 @@ const buttonVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "brand",
       size: "default",
     },
   },
@@ -47,7 +45,7 @@ const buttonVariants = cva(
 
 function Button({
   className,
-  variant = "default",
+  variant = "brand",
   size = "default",
   asChild = false,
   ...props

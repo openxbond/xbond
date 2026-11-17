@@ -99,7 +99,7 @@ const HK = {
     noConfigRemote: "訂閱由該服務直接管理。",
     manageController: "管理這個服務",
     remoteNote: "只管理連接的服務，不接管本機流量。",
-    goToConsole: "前往控制台",
+    goHome: "首頁",
     noConfigTitle: "尚未選擇設定",
     noConfigDescription:
       "請先在設定管理中新增或啟用訂閱／設定檔，即可開始使用代理服務。",

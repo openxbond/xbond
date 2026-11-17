@@ -966,7 +966,7 @@ export default function Connect() {
                     <span className="flex min-w-0 items-center gap-2">
                       <span
                         aria-hidden="true"
-                        className="grid size-7 shrink-0 place-items-center rounded-lg border border-brand/15 bg-brand-soft/85 text-brand shadow-2xs"
+                        className="grid size-7 shrink-0 place-items-center rounded-lg border border-border bg-inset text-brand-text shadow-2xs"
                       >
                         <Layers className="size-4" strokeWidth={1.75} />
                       </span>
@@ -1045,7 +1045,7 @@ export default function Connect() {
                     ) : (
                       <Link
                         to="/config"
-                        className="inline-flex h-8.5 items-center gap-1 rounded-full border border-brand/15 bg-brand-soft/85 px-3 text-sm font-semibold text-brand-text transition-colors hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className="inline-flex h-8.5 items-center gap-1 rounded-full border border-brand/30 bg-card px-3 text-sm font-semibold text-brand-text transition-colors hover:bg-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         {t("manage")}
                         <ChevronRight
@@ -1195,7 +1195,7 @@ export default function Connect() {
                               "h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none",
                               (quotaPercent ?? 0) <= 10
                                 ? "bg-destructive"
-                                : "bg-brand",
+                                : "bg-brand-strong",
                             )}
                             style={{
                               width: `${Math.min(100, Math.max(0, Math.round(quotaPercent ?? 0)))}%`,
@@ -1652,14 +1652,10 @@ export default function Connect() {
                                   <Button
                                     size="sm"
                                     variant={
-                                      isServiceInstalled ? "outline" : "default"
+                                      isServiceInstalled ? "outline" : "brand"
                                     }
                                     disabled={changingService}
-                                    className={cn(
-                                      "h-7 w-full text-xs font-medium cursor-pointer",
-                                      !isServiceInstalled &&
-                                        "bg-brand-action text-brand-action-foreground hover:bg-brand-action-hover",
-                                    )}
+                                    className="h-7 w-full text-xs font-medium cursor-pointer"
                                     onClick={() =>
                                       isServiceInstalled
                                         ? void handleChangeService(false)

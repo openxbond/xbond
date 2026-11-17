@@ -99,7 +99,7 @@ const CN = {
     noConfigRemote: "订阅由该服务直接管理。",
     manageController: "管理这个服务",
     remoteNote: "只管理连接的服务，不接管本机流量。",
-    goToConsole: "前往控制台",
+    goHome: "首页",
     noConfigTitle: "尚未选择配置",
     noConfigDescription:
       "请先在配置管理中添加或激活一个订阅/配置文件，即可开始使用代理服务。",

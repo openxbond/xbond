@@ -55,7 +55,7 @@ export function ResourceIcon({
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center rounded-control p-1.5 text-muted-foreground ${
-        kind === "cloud" ? "bg-brand-soft" : "bg-inset"
+        kind === "cloud" ? "bg-inset text-brand-text" : "bg-inset"
       } ${className}`}
     >
       {kind === "clash" || kind === "sing-box" ? (

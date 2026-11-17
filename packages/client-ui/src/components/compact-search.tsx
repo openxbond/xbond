@@ -30,7 +30,7 @@ export function CompactSearch({
         className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground/60"
       />
       <input
-        className="h-8 w-full rounded-xl border border-border/80 bg-inset/60 pr-7 pl-8 text-xs text-foreground transition-[border-color,background-color] duration-150 placeholder:text-muted-foreground/50 hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none max-md:h-11 max-md:text-base"
+        className="h-8 w-full rounded-xl border border-border/80 bg-inset/60 pr-7 pl-8 text-xs text-foreground transition-[border-color,background-color] duration-150 placeholder:text-muted-foreground hover:border-brand/40 focus:border-brand focus:bg-card focus:outline-none max-md:h-11 max-md:text-base"
         value={value}
         placeholder={placeholder}
         aria-label={ariaLabel}

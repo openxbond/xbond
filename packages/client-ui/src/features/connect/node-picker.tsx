@@ -94,7 +94,8 @@ function NodePickerRow({
       <div
         className={cn(
           "group flex min-h-11 w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-row-hover",
-          selected && "bg-brand-soft font-medium text-brand-text",
+          selected &&
+            "bg-inset font-medium text-brand-text ring-1 ring-brand/30",
           pinned && !selected && "bg-inset/40",
         )}
       >
@@ -131,7 +132,7 @@ function NodePickerRow({
               </span>
             )}
             {isGroup && (
-              <span className="shrink-0 rounded bg-brand-soft/70 px-1.5 py-0.5 text-caption font-medium text-brand-text">
+              <span className="shrink-0 rounded bg-inset px-1.5 py-0.5 text-caption font-medium text-muted-foreground">
                 {itemType}
               </span>
             )}
@@ -387,7 +388,7 @@ export function NodePicker({
                     {pickerGroup && (
                       <div className="flex shrink-0 items-center gap-1.5 text-footnote text-muted-foreground">
                         {pickerGroup.now && (
-                          <span className="hidden sm:inline-block max-w-[140px] truncate text-muted-foreground/80">
+                          <span className="hidden sm:inline-block max-w-[140px] truncate text-muted-foreground">
                             {renderNodeTitle(pickerGroup.now)}
                           </span>
                         )}
@@ -429,13 +430,13 @@ export function NodePicker({
                                 </span>
                               )}
                             </div>
-                            <span className="shrink-0 font-mono text-footnote tabular-nums text-muted-foreground/75">
+                            <span className="shrink-0 font-mono text-footnote tabular-nums text-muted-foreground">
                               {px("groupMembers", { count: item.all.length })}
                             </span>
                           </div>
                           {item.now && (
                             <div className="flex w-full min-w-0 items-center gap-1 text-footnote text-muted-foreground">
-                              <span className="min-w-0 truncate text-muted-foreground/90">
+                              <span className="min-w-0 truncate text-muted-foreground">
                                 {renderNodeTitle(item.now)}
                               </span>
                             </div>
@@ -498,7 +499,7 @@ export function NodePicker({
               className={cn(
                 "h-9 shrink-0 gap-1.5 px-2.5 text-xs",
                 sortMode !== "default" &&
-                  "border-brand bg-brand-soft font-medium text-brand-text",
+                  "border-brand-action bg-brand-action font-medium text-brand-action-foreground",
               )}
               onClick={() => {
                 setSortMode((prev) =>
@@ -534,7 +535,7 @@ export function NodePicker({
           {pickerGroup ? (
             <>
               {pickerGroup.type !== "Selector" && (
-                <div className="shrink-0 rounded-lg bg-brand-soft/40 p-2.5 text-xs text-brand-text">
+                <div className="shrink-0 rounded-lg border border-brand/25 bg-card p-2.5 text-xs text-brand-text">
                   {t("autoSelected")}
                   <b className="font-semibold">{pickerGroup.now}</b>
                 </div>

@@ -515,7 +515,7 @@ export default function SubscriptionDetail({
                       : cfg("kindRemote")}
               </span>
               {isActive && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-text">
+                <span className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-card px-2.5 py-0.5 text-xs font-semibold text-brand-text">
                   <Check className="size-3" strokeWidth={2.2} />
                   {cfg("activeLocal")}
                 </span>
@@ -827,7 +827,7 @@ export default function SubscriptionDetail({
                 </div>
                 <span>{t("sourceEdit")}</span>
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground/80">
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 {t("sourceEditDesc")}
               </p>
             </div>
@@ -858,7 +858,7 @@ export default function SubscriptionDetail({
                 </div>
                 <span>{t("override")}</span>
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground/80">
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 {t("overrideDesc")}
               </p>
             </div>
@@ -889,7 +889,7 @@ export default function SubscriptionDetail({
                 </div>
                 <span>{t("rollback")}</span>
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground/80">
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 {t("rollbackDesc")}
               </p>
             </div>
@@ -1110,7 +1110,7 @@ export default function SubscriptionDetail({
             <Suspense
               fallback={
                 <div className="flex min-h-[420px] items-center justify-center rounded-control border border-[var(--glass-border)] bg-inset/60">
-                  <Spinner className="size-6 text-brand" />
+                  <Spinner className="size-6 text-brand-strong" />
                 </div>
               }
             >

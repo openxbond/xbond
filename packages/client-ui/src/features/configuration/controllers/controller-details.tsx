@@ -204,7 +204,7 @@ export default function ControllerDetail({
                 </span>
               )}
               {viewing && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-text">
+                <span className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-card px-2.5 py-0.5 text-xs font-semibold text-brand-text">
                   <Check className="size-3" strokeWidth={2.2} />
                   {c("activeLocal")}
                 </span>
