@@ -63,11 +63,18 @@ func (c *runtimeController) bootstrap(ctx context.Context, id string) error {
 	return c.applyLocked(ctx, runtimeOptions{SubID: id}, true)
 }
 
+// Auto-connect retry bounds: the first startup attempt races logon —
+// network, ports and the machine service may not be up yet — so failures
+// retry a bounded number of times before leaving the daemon honestly down.
+// Variables so tests can shorten the wait and bound the attempts.
+var (
+	autoConnectAttempts   = 3
+	autoConnectRetryDelay = 10 * time.Second
+)
+
 func (s *Server) runAutostart(ctx context.Context) {
 	if s.subMgr.ActiveID() != "" {
-		if err := s.runtime.Up(ctx, runtimeOptions{}); err != nil && ctx.Err() == nil {
-			s.logAutostartFailure(err)
-		}
+		s.autoConnectActive(ctx)
 		return
 	}
 	if s.subscriptionURL == "" {
@@ -89,8 +96,39 @@ func (s *Server) runAutostart(ctx context.Context) {
 	}
 }
 
+// autoConnectActive restores the active subscription's connection. Each
+// round re-reads the takeover intent: a disconnect recorded while a retry is
+// pending stops the loop instead of fighting the user (daemon-runtime spec:
+// 主动断开不被重试循环重新连接).
+func (s *Server) autoConnectActive(ctx context.Context) {
+	for attempt := 1; ; attempt++ {
+		if lastTakeoverIntentDisconnected() {
+			return
+		}
+		err := s.runtime.Up(ctx, runtimeOptions{})
+		if err == nil || ctx.Err() != nil {
+			return
+		}
+		s.logAutostartFailure(err)
+		if attempt >= autoConnectAttempts {
+			return
+		}
+		timer := time.NewTimer(autoConnectRetryDelay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+	}
+}
+
 func (s *Server) logAutostartFailure(err error) {
-	message := "Container autostart: " + err.Error()
+	label := "Auto-connect"
+	if s.subscriptionURL != "" {
+		label = "Container autostart"
+	}
+	message := label + ": " + err.Error()
 	if s.subscriptionURL != "" {
 		message = strings.ReplaceAll(message, s.subscriptionURL, "[subscription URL]")
 	}

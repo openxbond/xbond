@@ -55,6 +55,7 @@ type Server struct {
 	lifecycle       context.Context
 	cancelLifecycle context.CancelFunc
 	autostart       bool
+	autoConnect     bool
 	container       bool
 	done            chan struct{}
 	// shutdownCh is closed when a LocalAPI client asked the daemon to exit
@@ -125,6 +126,7 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	autoConnect := shouldAutoConnect(systemScope, prefs, subMgr.ActiveID() != "")
 	// Before anything can apply a runtime config: stored sing-box JSON
 	// sources must become the canonical Clash YAML the mihomo core expects.
 	subMgr.MigrateLegacySources()
@@ -150,6 +152,7 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 		trace:           trace,
 		subscriptionURL: subscriptionURL,
 		autostart:       autostart,
+		autoConnect:     autoConnect,
 		container:       os.Getenv("XBOND_DASHBOARD_LISTEN") != "",
 	}
 	s.runtime.fixedDeployment = s.container
@@ -215,7 +218,7 @@ func (s *Server) Token() string {
 }
 
 func (s *Server) Start() error {
-	if s.autostart {
+	if s.autostart || s.autoConnect {
 		go s.runAutostart(s.lifecycle)
 	}
 	go s.runScheduledUpdates()
@@ -415,6 +418,7 @@ func (s *Server) handleUp(w http.ResponseWriter, r *http.Request) {
 		writeRuntimeError(w, err)
 		return
 	}
+	s.recordTakeoverIntent(takeoverIntentConnected)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": s.coreStatus(), "preferences": s.runtime.Preferences()})
 }
 
@@ -424,6 +428,7 @@ func (s *Server) handleDown(w http.ResponseWriter, r *http.Request) {
 		writeRuntimeError(w, err)
 		return
 	}
+	s.recordTakeoverIntent(takeoverIntentDisconnected)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "stopped": stopped})
 }
 
@@ -432,7 +437,18 @@ func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 		writeRuntimeError(w, err)
 		return
 	}
+	s.recordTakeoverIntent(takeoverIntentConnected)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": s.coreStatus(), "preferences": s.runtime.Preferences()})
+}
+
+// recordTakeoverIntent persists the explicit connect/disconnect that just
+// succeeded. The LocalAPI endpoints are the only user-action surface: the
+// shutdown and stop paths tear the runtime down without expressing intent,
+// which is exactly what lets a reboot restore a connection.
+func (s *Server) recordTakeoverIntent(intent takeoverIntent) {
+	if err := recordTakeoverIntent(intent); err != nil {
+		s.engineMgr.RingLog().Append(engine.LogLevelError, "record takeover intent: "+err.Error())
+	}
 }
 
 func (s *Server) handleMode(w http.ResponseWriter, r *http.Request) {

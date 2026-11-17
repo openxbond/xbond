@@ -25,6 +25,9 @@ type testRuntimeCore struct {
 	running     bool
 	config      []byte
 	reloadError error
+	// failReloads makes the next N Reload calls fail — persistent failure
+	// injection for the bounded-retry tests, beside the one-shot reloadError.
+	failReloads int
 	stopError   error
 	onReload    func()
 	// hotRouting makes SetRoutingMode succeed; otherwise it reports failure
@@ -64,6 +67,10 @@ func (c *testRuntimeCore) Reload(config []byte, _ map[string]string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.reloads++
+	if c.failReloads > 0 {
+		c.failReloads--
+		return errors.New("injected reload failure")
+	}
 	if c.reloadError != nil {
 		err := c.reloadError
 		c.reloadError = nil

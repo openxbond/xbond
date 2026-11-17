@@ -27,6 +27,38 @@ func TestPreferencesFailOnCorruptionInsteadOfSilentlyResetting(t *testing.T) {
 	}
 }
 
+// Auto-connect defaults on, files written before the flag keep that default
+// because loads unmarshal over the defaults, and an explicit off must
+// survive the save/load round trip — a silent revert to on would reconnect
+// users who turned the feature off.
+func TestAutoConnectDefaultsOnAndKeepsExplicitOff(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+
+	prefs, err := LoadPreferencesReadOnly()
+	if err != nil || !prefs.AutoConnect {
+		t.Fatalf("auto-connect must default on, got %v (%v)", prefs.AutoConnect, err)
+	}
+
+	// A stored file without the key keeps the default.
+	legacy := []byte(`{"takeoverMode":"sysproxy","routingMode":"rule","mixedPort":10808,"clashPort":19090,"clashSecret":"fixture-secret"}`)
+	if err := os.WriteFile(paths.RuntimeStatePath(), legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	prefs, err = LoadPreferencesReadOnly()
+	if err != nil || !prefs.AutoConnect {
+		t.Fatalf("a file without the key must keep the default on, got %v (%v)", prefs.AutoConnect, err)
+	}
+
+	prefs.AutoConnect = false
+	if err := savePreferences(prefs); err != nil {
+		t.Fatal(err)
+	}
+	prefs, err = LoadPreferencesReadOnly()
+	if err != nil || prefs.AutoConnect {
+		t.Fatalf("an explicit off must survive the round trip, got %v (%v)", prefs.AutoConnect, err)
+	}
+}
+
 // State files written before port following had no portOverride key and
 // their MixedPort was the fixed port; it carries over as an explicit
 // override so an upgrade never moves a working proxy port.

@@ -33,6 +33,14 @@ type RuntimePreferences struct {
 	// resolved so status can show where the running port came from.
 	PortOverride int        `json:"portOverride,omitempty"`
 	PortSource   PortSource `json:"portSource,omitempty"`
+	// AutoConnect establishes the active subscription's connection once the
+	// daemon is ready, unless the last explicit user action was a disconnect
+	// (the takeover intent record). Independent of service autostart: the
+	// supervisor decides whether the daemon runs at logon, this decides
+	// whether a ready daemon connects. Default on; files without the key
+	// keep the default because loads unmarshal over the defaults. No
+	// omitempty: an explicit off must survive the round trip.
+	AutoConnect bool `json:"autoConnect"`
 }
 
 // PortSource is where the effective mixed port of the last apply came from.
@@ -118,6 +126,13 @@ func applyEnvOverrides(prefs *RuntimePreferences) error {
 		}
 		prefs.AllowLan = allowLan
 	}
+	if raw := os.Getenv("XBOND_AUTO_CONNECT"); raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("XBOND_AUTO_CONNECT %q is invalid (want true or false)", raw)
+		}
+		prefs.AutoConnect = v
+	}
 	if raw := os.Getenv("XBOND_MIXED_PORT"); raw != "" {
 		port, err := strconv.Atoi(raw)
 		if err != nil || port < 1 || port > 65535 {
@@ -141,6 +156,7 @@ func DefaultPreferences() RuntimePreferences {
 		LogLevel:     "info",
 		ClashPort:    legacyClashPort,
 		ClashSecret:  engine.GenerateSecret(),
+		AutoConnect:  true,
 	}
 }
 

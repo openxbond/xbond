@@ -87,6 +87,15 @@ func SysproxySnapshotPath() string {
 	return filepath.Join(DataDir(), "sysproxy.snapshot.json")
 }
 
+// TakeoverIntentPath stores the last explicit user connect/disconnect
+// action. Startup auto-connect reads it to tell the three apart: the user
+// connected (restore on boot), the user disconnected (stay down), and the
+// process merely exited or died while connected (restore on boot — quitting
+// and `daemon stop` clean up the runtime without writing this file).
+func TakeoverIntentPath() string {
+	return filepath.Join(DataDir(), "takeover_intent.json")
+}
+
 func AccountSessionPath() string {
 	return filepath.Join(DataDir(), "account.json")
 }

@@ -47,6 +47,11 @@ export interface LocalAPIPreferences {
   portSource?: PortSource;
   /** Canonical core log level; the wire value of the logs page's switch. */
   logLevel?: string;
+  /**
+   * Connect the active subscription when the daemon becomes ready, unless
+   * the last explicit user action was a disconnect. Defaults on.
+   */
+  autoConnect: boolean;
 }
 
 export interface ThreeTierStatus {

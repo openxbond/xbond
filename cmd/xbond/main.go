@@ -45,6 +45,13 @@ var commandLayout = []struct {
 
 func init() {
 	cobra.EnableCommandSorting = false
+	// The Windows logon launch (HKCU Run) is parented by explorer.exe, so
+	// cobra's mousetrap would splash its "command line tool" help text and
+	// os.Exit(1) the daemon five seconds after every logon, before
+	// --background's hideConsoleWindow ever runs: the boot black console,
+	// and a daemon that never starts. Explorer is a legitimate parent here;
+	// double-clicking the CLI falls through to the root help text.
+	cobra.MousetrapHelpText = ""
 	rootCmd.PersistentFlags().StringVar(&globalLang, "lang", "", "Language: zh-HK, zh-CN, en, ko, fa (default auto-detected)")
 	rootCmd.AddGroup(
 		&cobra.Group{ID: "basic", Title: "Basic commands:"},
