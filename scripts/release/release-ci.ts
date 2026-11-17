@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseCommits, releaseNotes } from "./notes.ts";
+import { NOTE_LOCALES, parseCommits, releaseNotes } from "./notes.ts";
 import { releaseVariableProblems } from "./release-config.ts";
 import { releaseVersion } from "./release-version.ts";
 
@@ -73,6 +73,51 @@ function git(...args: string[]) {
   return execFileSync("git", args, { encoding: "utf8" }).trim();
 }
 
+const REQUIRED_NOTE_LOCALES = ["zh-hk", "en-us", "zh-cn", "ko", "fa"] as const;
+
+export function missingNoteLocales(
+  notes: { locale: string }[] | undefined,
+): string[] {
+  return REQUIRED_NOTE_LOCALES.filter(
+    (locale) => !notes?.some((note) => note.locale === locale),
+  );
+}
+
+function releaseNoteFiles(
+  commit: string,
+  version: string,
+): { locale: string; body: string }[] | undefined {
+  const directory = `docs/releases/${version}`;
+  const listing = spawnSync(
+    "git",
+    ["ls-tree", "--name-only", `${commit}:${directory}`],
+    { encoding: "utf8" },
+  );
+  if (listing.status !== 0) return undefined;
+  const notes: { locale: string; body: string }[] = [];
+  for (const file of listing.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)) {
+    if (!file.endsWith(".md")) continue;
+    const locale = file.slice(0, -3);
+    if (!(NOTE_LOCALES as readonly string[]).includes(locale)) {
+      throw new Error(
+        `Unknown release note locale "${locale}"; expected ${NOTE_LOCALES.join(", ")}`,
+      );
+    }
+    const content = spawnSync(
+      "git",
+      ["show", `${commit}:${directory}/${file}`],
+      { encoding: "utf8" },
+    );
+    if (content.status !== 0) continue;
+    const body = content.stdout.trim();
+    if (body) notes.push({ locale, body });
+  }
+  return notes.length ? notes : undefined;
+}
+
 function releases(): Release[] {
   return JSON.parse(
     execFileSync(
@@ -106,7 +151,7 @@ function preflightContext(
 }
 
 function preflight(tag: string, context: "prepare" | "publish" | "store") {
-  const { version, build, prerelease } = releaseVersion(tag);
+  const { version, baseVersion, build, prerelease } = releaseVersion(tag);
   const ref = `refs/tags/${tag}`;
   const { mode, appleSigning } = releaseSettings(
     process.env.GITHUB_EVENT_NAME,
@@ -128,6 +173,33 @@ function preflight(tag: string, context: "prepare" | "publish" | "store") {
   // The stores have independent release schedules. Verify their candidate
   // commit here, then let the store enforce its own version ordering.
   if (context === "store") process.exit(0);
+  const notes = releaseNoteFiles(commit, baseVersion);
+  if (!rehearsalWithoutTag) {
+    const missing = missingNoteLocales(notes);
+    if (missing.length) {
+      throw new Error(
+        `Release notes for ${baseVersion} must include ${missing
+          .map((locale) => `docs/releases/${baseVersion}/${locale}.md`)
+          .join(", ")}`,
+      );
+    }
+    const firstParent = git(
+      "rev-list",
+      "--first-parent",
+      "refs/remotes/origin/main",
+    ).split("\n");
+    if (!firstParent.includes(commit)) {
+      throw new Error(`${tag} must point at a first-parent commit of main`);
+    }
+    const manifest = JSON.parse(git("show", `${commit}:package.json`)) as {
+      version?: string;
+    };
+    if (manifest.version !== baseVersion) {
+      throw new Error(
+        `package.json at ${tag} has version ${manifest.version ?? "missing"}; expected ${baseVersion}`,
+      );
+    }
+  }
   const list = releases();
   let previous: { tag: string; build: number } | undefined;
   for (const entry of list) {
@@ -171,12 +243,14 @@ function preflight(tag: string, context: "prepare" | "publish" | "store") {
     prerelease: String(prerelease),
     platforms: normalizePlatforms(process.env.RELEASE_PLATFORMS),
   });
-  const log = git(
-    "log",
-    "--first-parent",
-    "--format=%h%x09%s",
-    previous ? `${previous.tag}..${commit}` : commit,
-  );
+  const log = notes
+    ? ""
+    : git(
+        "log",
+        "--first-parent",
+        "--format=%h%x09%s",
+        previous ? `${previous.tag}..${commit}` : commit,
+      );
   fs.writeFileSync(
     "release-notes.md",
     releaseNotes({
@@ -184,6 +258,7 @@ function preflight(tag: string, context: "prepare" | "publish" | "store") {
       candidate: prerelease,
       commits: parseCommits(log),
       previousTag: previous?.tag,
+      notes,
     }),
   );
 }

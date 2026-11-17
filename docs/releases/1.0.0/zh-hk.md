@@ -1,0 +1,5 @@
+- 首個 XBond 客戶端正式版，覆蓋 Windows、macOS、Linux、Android、iOS、CLI、Web 與 Docker。
+- 內嵌 mihomo 與 sing-box 雙核心，Clash YAML 與 sing-box JSON 配置可直接運行。
+- 支援第三方訂閱、XBond Cloud 帳號訂閱，以及訂閱版本歷史與回退。
+- 提供系統代理、TUN 與僅端口三種流量接管模式，核心、接管與外部連通狀態分開呈現。
+- 內建診斷、日誌級別切換與五種介面語言。

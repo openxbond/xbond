@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  missingNoteLocales,
   normalizePlatforms,
   releasePlatforms,
   releaseSettings,
@@ -37,4 +38,30 @@ test("platform subsets keep core and reject unknown families", () => {
   assert.equal(normalizePlatforms("android"), "core,android");
   assert.equal(normalizePlatforms("android,image"), "core,android,image");
   assert.throws(() => normalizePlatforms("nightly"), /Unknown platform/);
+});
+
+test("real tags require all five release note locales", () => {
+  assert.deepEqual(missingNoteLocales(undefined), [
+    "zh-hk",
+    "en-us",
+    "zh-cn",
+    "ko",
+    "fa",
+  ]);
+  assert.deepEqual(missingNoteLocales([{ locale: "zh-hk" }]), [
+    "en-us",
+    "zh-cn",
+    "ko",
+    "fa",
+  ]);
+  assert.deepEqual(
+    missingNoteLocales([
+      { locale: "zh-hk" },
+      { locale: "en-us" },
+      { locale: "zh-cn" },
+      { locale: "ko" },
+      { locale: "fa" },
+    ]),
+    [],
+  );
 });

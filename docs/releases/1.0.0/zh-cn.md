@@ -1,0 +1,5 @@
+- 首个 XBond 客户端正式版，覆盖 Windows、macOS、Linux、Android、iOS、CLI、Web 与 Docker。
+- 内置 mihomo 与 sing-box 双核心，Clash YAML 与 sing-box JSON 配置可直接运行。
+- 支持第三方订阅、XBond Cloud 账号订阅，以及订阅版本历史与回退。
+- 提供系统代理、TUN 与仅端口三种流量接管模式，核心、接管与外部连通状态分开呈现。
+- 内置诊断、日志级别切换与五种界面语言。
