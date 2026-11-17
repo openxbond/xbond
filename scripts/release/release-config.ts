@@ -48,6 +48,70 @@ function ghList<T>(args: string[]): T[] {
   return JSON.parse(execFileSync("gh", args, { encoding: "utf8" }));
 }
 
+function ghJson<T>(args: string[]): T {
+  return JSON.parse(execFileSync("gh", args, { encoding: "utf8" })) as T;
+}
+
+type DeploymentPolicy = { name: string; type: string };
+
+// Every environment that guards release secrets or deployments must keep
+// typed deployment policies: tag pushes are rejected by branch-only rules,
+// so the tag pattern needs `type: "tag"` (see docs/release.md).
+export const expectedDeploymentPolicies: Record<string, DeploymentPolicy[]> = {
+  "release-manifest-signing": [
+    { name: "main", type: "branch" },
+    { name: "v*", type: "tag" },
+  ],
+  "release-desktop-signing": [
+    { name: "main", type: "branch" },
+    { name: "v*", type: "tag" },
+  ],
+  "release-android-signing": [
+    { name: "main", type: "branch" },
+    { name: "v*", type: "tag" },
+  ],
+  "release-ios-signing": [
+    { name: "main", type: "branch" },
+    { name: "v*", type: "tag" },
+  ],
+  "release-store-ios": [
+    { name: "main", type: "branch" },
+    { name: "v*", type: "tag" },
+  ],
+  "release-production": [{ name: "main", type: "branch" }],
+  "github-pages": [{ name: "main", type: "branch" }],
+};
+
+export function releasePolicyProblems(
+  live: Readonly<Record<string, DeploymentPolicy[] | undefined>>,
+): string[] {
+  const problems: string[] = [];
+  for (const [environment, expected] of Object.entries(
+    expectedDeploymentPolicies,
+  )) {
+    const actual = live[environment];
+    if (!actual) {
+      problems.push(
+        `Environment "${environment}" is missing or has no typed deployment policies.`,
+      );
+      continue;
+    }
+    const signature = (list: DeploymentPolicy[]) =>
+      list
+        .map((p) => `${p.name}:${p.type}`)
+        .sort()
+        .join(", ");
+    const want = signature(expected);
+    const have = signature(actual);
+    if (want !== have) {
+      problems.push(
+        `Environment "${environment}" deployment policies must be ${want}; found ${have}.`,
+      );
+    }
+  }
+  return problems;
+}
+
 function main() {
   const args = process.argv.slice(2);
   if (args.length > 1 || (args.length === 1 && args[0] !== "--rehearsal")) {
@@ -67,6 +131,20 @@ function main() {
     ]).map(({ name, value }) => [name, value]),
   );
   const problems = releaseVariableProblems(variables, appleSigning);
+  const livePolicies: Record<string, DeploymentPolicy[] | undefined> = {};
+  for (const environment of Object.keys(expectedDeploymentPolicies)) {
+    try {
+      livePolicies[environment] = ghJson<{
+        branch_policies: DeploymentPolicy[];
+      }>([
+        "api",
+        `repos/${repository}/environments/${environment}/deployment-branch-policies`,
+      ]).branch_policies.map(({ name, type }) => ({ name, type }));
+    } catch {
+      livePolicies[environment] = undefined;
+    }
+  }
+  problems.push(...releasePolicyProblems(livePolicies));
   const required: Record<string, string[]> = {
     "release-manifest-signing": ["XBOND_RELEASE_PRIVATE_KEY"],
     "release-desktop-signing": ["TAURI_SIGNING_PRIVATE_KEY"],
