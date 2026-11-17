@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -405,6 +406,19 @@ func applyClashTakeover(raw map[string]any, takeoverMode TakeoverMode) {
 	tun["strict-route"] = true
 	tun["auto-detect-interface"] = true
 	tun["dns-hijack"] = []any{"any:53"}
+	// Keep private ranges on the physical network, mirroring the sing-box
+	// tun route_exclude_address: the client's own control plane (UI to an
+	// external controller on the LAN) must stay reachable with any rule
+	// set — a subscription without LAN rules would otherwise send LAN
+	// traffic to FINAL and out the proxy node, which can never dial back.
+	tun["route-exclude-address"] = []any{
+		"192.168.0.0/16",
+		"172.16.0.0/12",
+		"10.0.0.0/8",
+		"100.64.0.0/10",
+		"fe80::/10",
+		"2409:8000::/20",
+	}
 	raw["tun"] = tun
 	ensureDNSForTun(raw)
 }
@@ -689,4 +703,92 @@ func ensureSingBoxDNSForTun(raw map[string]any) {
 	}
 	route["rules"] = rules
 	raw["route"] = route
+}
+
+// ---------------------------------------------------------------------------
+// Log level
+//
+// The canonical wire level (what preferences store and the UI sends) is
+// debug/info/warn/error/silent. Cores spell it differently: mihomo's YAML and
+// REST use "warning" and "silent"; sing-box has no "silent" — the closest is
+// "fatal", which emits effectively nothing at normal traffic.
+
+// ClashLogLevel maps the canonical level onto mihomo's vocabulary.
+func ClashLogLevel(canonical string) string {
+	switch canonical {
+	case "debug", "info", "error", "silent":
+		return canonical
+	case "warn", "warning":
+		return "warning"
+	default:
+		return "info"
+	}
+}
+
+// SingBoxLogLevel maps the canonical level onto sing-box's vocabulary.
+func SingBoxLogLevel(canonical string) string {
+	switch canonical {
+	case "debug", "info", "error":
+		return canonical
+	case "warn", "warning":
+		return "warn"
+	case "silent":
+		return "fatal"
+	default:
+		return "info"
+	}
+}
+
+// CanonicalLogLevel normalizes a core-reported level back to the wire set
+// (mihomo reports "warning"; both "warn" spellings collapse to canonical).
+func CanonicalLogLevel(reported string) string {
+	switch strings.ToLower(reported) {
+	case "debug", "info", "error", "silent", "fatal":
+		return strings.ToLower(reported)
+	case "warn", "warning":
+		return "warn"
+	default:
+		return "info"
+	}
+}
+
+// IsKnownLogLevel reports whether level is inside the mapping table; unknown
+// values are input errors, not silently coerced to info.
+func IsKnownLogLevel(level string) bool {
+	switch strings.ToLower(level) {
+	case "debug", "info", "warn", "warning", "error", "silent", "fatal":
+		return true
+	}
+	return false
+}
+
+var clashLogLevelRegex = regexp.MustCompile(`(?m)^log-level:\s*.*$`)
+
+// PatchLogLevel rewrites the derived runtime config's log level in place —
+// YAML carries a top-level log-level line (the clash derivation always
+// writes one); sing-box JSON gets a structured rewrite of the log object so
+// unrelated "level" fields are never touched. A config whose format cannot
+// be recognized is returned unchanged.
+func PatchLogLevel(config []byte, canonical string) []byte {
+	if len(config) == 0 {
+		return config
+	}
+	if clashLogLevelRegex.Match(config) {
+		return clashLogLevelRegex.ReplaceAll(config, []byte("log-level: "+ClashLogLevel(canonical)))
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(config, &raw); err != nil {
+		return config
+	}
+	logObj, _ := raw["log"].(map[string]any)
+	if logObj == nil {
+		logObj = make(map[string]any)
+	}
+	logObj["level"] = SingBoxLogLevel(canonical)
+	raw["log"] = logObj
+	patched, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return config
+	}
+	return patched
 }

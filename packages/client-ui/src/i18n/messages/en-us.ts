@@ -352,10 +352,8 @@ const EN = {
     disconnectedNotice:
       "Proxy service is not running. Connect to view core runtime logs, events, and diagnostics in real time.",
     levelLabel: "Log level",
-    levelDefault: "Default",
     empty: "No logs yet. Entries appear here as traffic flows.",
     emptyAction: "Switch to debug level",
-    silent: "Silent",
     follow: "Follow latest",
     newLogs: "{{count}} new logs",
     columns: {
@@ -376,8 +374,6 @@ const EN = {
       "Proxy service is not running. Connect to inspect routing rules and matching policies in real time.",
     disconnectedProvidersNotice:
       "Proxy service is not running. Connect to view and update rule providers.",
-    mixinDisconnectedHint:
-      "Service is not connected. Mixin rules configured here will apply on next connect.",
     updateDaemon: "Update and restart the local XBond service to browse rules.",
     searchPlaceholder: "Domain, type, or outbound",
     reportedMatch: "Connection reported this rule",
@@ -393,7 +389,6 @@ const EN = {
     firstPage: "First page",
     title: "Rules",
     tabActive: "Routing Rules",
-    tabMixin: "Global Mixin",
     providerTitle: "Rule providers",
     providerUpdateTime: "Last updated",
     providerUpdate: "Update provider",
@@ -604,14 +599,37 @@ const EN = {
     sourcePinned: "Edited locally",
     resumeUpdates: "Resume auto-updates",
     resumeUpdatesDone: "Automatic updates resumed.",
-    overrideDns: "DNS override",
-    overridePrepend: "Prepended rules",
-    overrideAppend: "Appended rules",
-    overrideHintClash:
-      "One rule per line (TYPE,PAYLOAD,POLICY). Saved with validation: every referenced node or group is checked, and the override rides along on every update.",
-    overrideHintSingBox:
-      "One sing-box rule JSON object per line. Saved with validation: every referenced outbound is checked, and the override rides along on every update.",
+    overrideHint:
+      "Groups expand in order ahead of the profile's built-in rules. Each entry is a domain, IP or CIDR; the target comes from this profile's own groups.",
+    ruleTargetsUnavailable:
+      "Could not load this profile's targets. Update the profile first; only DIRECT and REJECT are offered for now.",
     overrideSaved: "Override saved and applied",
+    ruleGroupName: "Group {{number}}",
+    ruleGroupEnabled: "Enable group",
+    ruleTarget: "Target",
+    ruleTargetRequired: "Group {{number}} has entries but no target.",
+    ruleInputPlaceholder: "example.com / 1.2.3.4 / 10.0.0.0/8",
+    kind_domain: "Domain",
+    kind_ip: "IP",
+    kind_cidr: "CIDR",
+    addRule: "Add entry",
+    removeRule: "Remove entry",
+    addRuleGroup: "Add group",
+    removeRuleGroup: "Remove group",
+    ruleGroupLimit: "Up to {{count}} entries per group",
+    ruleGroupLimitTotal: "Up to {{count}} groups",
+    dnsNameservers: "Primary DNS",
+    dnsNameserversDesc:
+      "Replaces the profile's resolvers. One IP, hostname or DNS URL per entry.",
+    dnsFallback: "Fallback DNS",
+    dnsFallbackDesc:
+      "Clash's pollution-review list; replaces the source fallback when filled.",
+    dnsUpstreamPlaceholder: "223.5.5.5 or tls://1.1.1.1",
+    addDnsUpstream: "Add upstream",
+    removeDnsUpstream: "Remove upstream",
+    dnsPresetAli: "AliDNS",
+    dnsPresetTencent: "DNSPod",
+    dnsPresetGlobal: "Cloudflare / Google",
     rename: "Rename",
     channelTitle: "Update Channel",
     dangerZone: "Danger Zone",
@@ -620,7 +638,7 @@ const EN = {
       "Inspect local copies, override routing rules, or rollback versions without altering the remote source.",
     sourceEditDesc: "View or edit local YAML / JSON configuration directly.",
     overrideDesc:
-      "Inject prepend / append routing rules and DNS overrides into this profile.",
+      "Add your own routing groups and DNS upstreams to this profile; they ride along on every update.",
     rollbackDesc:
       "Restore the previous working version if recent updates fail.",
     removeDesc:
@@ -636,15 +654,8 @@ const EN = {
   settings: {
     title: "Settings",
     preferences: "Appearance & language",
-    generalDesc: "Interface appearance and language",
     quickTools: "Tools & diagnostics",
-    quickToolsDesc: "Connections, rules, logs, and diagnostics",
     network: "Network & ports",
-    networkDesc:
-      "Mixed proxy port, local network sharing, node changes, and terminal environment commands",
-    coreGroup: "Core & logs",
-    coreGroupDesc: "Core log verbosity, running engine, and controller state",
-    aboutDesc: "Client version, core status, and open-source details",
     desktop: {
       groupTitle: "Desktop Host Behavior",
       hostDesktop: "Desktop",
@@ -657,22 +668,14 @@ const EN = {
       closeToTray: "Minimize to tray on close",
       closeToTrayDesc: "Keep proxy running in background when closing window",
     },
-    advancedActions: {
-      logLevelDesc:
-        "Verbosity of logs output by the core engine (Debug recommended for troubleshooting)",
-      coreRuntime: "Core Runtime",
-      manageControllers: "Manage Controllers",
-    },
     terminalCommand: "Terminal proxy command",
     terminalCommandDesc:
       "Copy the proxy environment variable for your terminal format.",
     breakConnections: "Break connections on node change",
     breakConnectionsDesc:
-      "When the selected node changes, close existing connections through that group so the new node takes effect immediately.",
+      "Drops existing connections so the new node applies immediately.",
     theme: "Theme",
-    themeDesc: "Switch between light, dark and system appearance.",
     language: "Language",
-    languageDesc: "Choose the interface language.",
     system: "System",
     light: "Light",
     dark: "Dark",
@@ -681,16 +684,15 @@ const EN = {
       mixedPort: "Mixed proxy port",
       dockerPortDesc:
         "Docker deployment controls this listener. Change the published port in Docker.",
-      mixedPortDesc: "Local mixed proxy port for standard HTTP / SOCKS traffic",
+      mixedPortDesc: "Shared by HTTP and SOCKS",
       portNoteOverride:
-        "Local port fixed at {{port}}; the subscription's own port is overridden",
-      portNoteSubscription:
-        "Following the subscription's mixed-port; default 7890 when absent",
-      portNoteDefault: "The subscription names no port; using the default 7890",
+        "Pinned locally to {{port}}, overriding the subscription",
+      portNoteSubscription: "Follows the subscription port; default when unset",
+      portNoteDefault: "No port in the subscription; using the default",
       portFollowSubscription: "Follow subscription again",
       portSaveFailed: "Could not save the port. Check the core and retry.",
       allowLan: "Allow LAN connections",
-      allowLanDesc: "Let other devices on the same LAN use this proxy",
+      allowLanDesc: "Other devices on the LAN can use this proxy",
       sysproxyDesc:
         "Use the proxy in browsers and apps that follow system settings.",
       tunDesc: "Use the proxy in apps that ignore system proxy settings, too.",
@@ -701,7 +703,7 @@ const EN = {
       installingService: "Elevating...",
       serviceInstalled: "Privileged service ready",
       serviceInstalledDesc:
-        "System service is active for TUN mode. Uninstall it to remove background system access.",
+        "Uninstall to remove the background system service.",
       installServicePrompt:
         "Elevation requested. Please approve the system UAC prompt to proceed.",
       installServiceSuccess:
@@ -745,8 +747,6 @@ const EN = {
       localApiRunning: "Running",
       localApiDown: "Unreachable",
       localApiNone: "No local service configured",
-      engine: "Engine",
-      controllerAddress: "Controller address",
       daemonRunning: "Daemon running",
       daemonOffline: "Daemon offline",
       daemonConnecting: "Daemon connecting",
@@ -773,7 +773,6 @@ const EN = {
       title: "About",
       appVersion: "App version",
       coreVersion: "Core version",
-      logLevel: "Log level",
       openSource: "Open-source project",
       docs: "Documentation",
     },
@@ -851,6 +850,8 @@ const EN = {
     addedUpdateFailed: "Subscription added, but the first update failed.",
     pastePlaceholder: "Paste a sing-box / Clash configuration",
     chooseFile: "Choose a file",
+    filePickAction: "Tap to choose a file",
+    fileRemove: "Remove selected file",
     import: "Import",
     importing: "Importing…",
     importFailed: "Import failed",

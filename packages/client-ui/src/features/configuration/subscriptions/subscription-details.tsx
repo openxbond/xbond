@@ -1,8 +1,10 @@
+import type { EditorView } from "@codemirror/view";
 import { formatTraffic } from "@xbond/client/helper";
 import {
   isAccountManaged,
   subscriptionQuota,
   subscriptionQuotaStatus,
+  type RuleGroup,
 } from "@xbond/client/localapi";
 import {
   AlertCircle,
@@ -11,18 +13,21 @@ import {
   Clock,
   FileText,
   Globe,
+  LoaderCircle,
   Pencil,
+  Plus,
   RefreshCw,
   RotateCcw,
   SlidersHorizontal,
   Trash2,
+  X,
   Zap,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { CopyButton } from "@/components/copy-button";
+import { CopyIconButton } from "@/components/copy-button";
 import { QuotaRing } from "@/components/quota-ring";
 import { RequestStatus } from "@/components/request-status";
 import { SegmentedControl } from "@/components/segmented-control";
@@ -47,7 +52,15 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
 import { useLocalAPI } from "@/state/local-runtime";
@@ -57,6 +70,94 @@ import { useAccount } from "../account/use-cloud-account";
 import { ResourceIcon } from "../configuration-resource-icon";
 import UpdateFrequency from "./update-frequency-field";
 import { useSubscriptions } from "./use-subscriptions";
+
+/** One-tap DNS upstream presets; keys stay literal for typed i18n lookups. */
+type DnsPresetKey = "dnsPresetAli" | "dnsPresetTencent" | "dnsPresetGlobal";
+
+const dnsPresets: readonly {
+  key: DnsPresetKey;
+  values: readonly string[];
+}[] = [
+  { key: "dnsPresetAli", values: ["223.5.5.5", "223.6.6.6"] },
+  { key: "dnsPresetTencent", values: ["119.29.29.29"] },
+];
+
+const dnsFallbackPresets: readonly {
+  key: DnsPresetKey;
+  values: readonly string[];
+}[] = [{ key: "dnsPresetGlobal", values: ["1.1.1.1", "8.8.8.8"] }];
+
+// 原文编辑器懒加载：CodeMirror 及语言包只进独立分块，首次打开才加载。
+const CodeEditor = lazy(() => import("@/components/code-editor"));
+
+/** One editable DNS upstream list: address rows, an add row and presets. */
+function UpstreamList({
+  values,
+  onChange,
+  presets,
+}: {
+  values: string[];
+  onChange: (values: string[]) => void;
+  presets?: readonly { key: DnsPresetKey; values: readonly string[] }[];
+}) {
+  const { t } = useTranslation("subscriptions");
+  return (
+    <div className="flex flex-col gap-1.5">
+      {values.map((upstream, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <Input
+            className="h-8 min-w-0 flex-1 font-mono text-xs"
+            placeholder={t("dnsUpstreamPlaceholder")}
+            value={upstream}
+            onChange={(event) =>
+              onChange(
+                values.map((value, i) =>
+                  i === index ? event.target.value : value,
+                ),
+              )
+            }
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+            aria-label={t("removeDnsUpstream")}
+            onClick={() => onChange(values.filter((_, i) => i !== index))}
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 w-fit gap-1 text-caption"
+          onClick={() => onChange([...values, ""])}
+        >
+          <Plus className="size-3" />
+          {t("addDnsUpstream")}
+        </Button>
+        {presets?.map((preset) => (
+          <Button
+            key={preset.key}
+            variant="ghost"
+            size="sm"
+            className="h-7 w-fit text-caption text-muted-foreground"
+            onClick={() =>
+              onChange([
+                ...values.filter((value) => value.trim().length > 0),
+                ...preset.values,
+              ])
+            }
+          >
+            + {t(preset.key)}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function SubscriptionDetail({
   selectedId,
@@ -85,52 +186,136 @@ export default function SubscriptionDetail({
   const { run, pending } = useAction();
   const [removeId, setRemoveId] = useState<string | null>(null);
   const removeTrigger = useRef<HTMLButtonElement>(null);
+  // 取回原文/覆盖配置的进行中请求：加载中再点一次入口按钮即取消，
+  // 15s 无响应按超时报错，不让慢网络把入口按钮变成死等。
+  const editorAbort = useRef<AbortController | null>(null);
+  const overrideAbort = useRef<AbortController | null>(null);
+  const loadTimeoutMs = 15000;
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [overrideId, setOverrideId] = useState<string | null>(null);
-  const [overridePrepend, setOverridePrepend] = useState("");
-  const [overrideAppend, setOverrideAppend] = useState("");
-  const [overrideDns, setOverrideDns] = useState("");
+  const [overrideGroups, setOverrideGroups] = useState<RuleGroup[]>([]);
+  const [dnsNameservers, setDnsNameservers] = useState<string[]>([]);
+  const [dnsFallback, setDnsFallback] = useState<string[]>([]);
+  const [overridePolicies, setOverridePolicies] = useState<string[]>([]);
+  const [policiesUnavailable, setPoliciesUnavailable] = useState(false);
+  const [overrideFormat, setOverrideFormat] = useState<
+    "" | "clash" | "sing-box"
+  >("");
   const [overrideError, setOverrideError] = useState("");
   const [proxyChannelId, setProxyChannelId] = useState<string | null>(null);
   const [proxyChannelUrl, setProxyChannelUrl] = useState("");
   const [editorId, setEditorId] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState("");
   const [editorError, setEditorError] = useState("");
+  const [overrideLoading, setOverrideLoading] = useState(false);
+  const [editorLoading, setEditorLoading] = useState(false);
+  // 非受控编辑器的取全文入口：保存时读视图文档，按键不搬运字符串。
+  const editorViewRef = useRef<EditorView | null>(null);
   const [sourceURL, setSourceURL] = useState<string | null>(null);
 
-  function lines(value: string): string[] {
-    return value
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
+  const maxRuleGroups = 10;
+  const maxRulesPerGroup = 50;
+  const maxCustomRules = 100;
+
+  function ruleKind(value: string): "" | "domain" | "ip" | "cidr" {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    if (trimmed.includes("/")) return "cidr";
+    if (trimmed.includes(":") || /^\d{1,3}(\.\d{1,3}){3}$/.test(trimmed))
+      return "ip";
+    return "domain";
   }
 
-  async function openOverride(id: string) {
-    setOverrideId(id);
-    setOverrideError("");
-    setOverridePrepend("");
-    setOverrideAppend("");
-    setOverrideDns("");
-    if (!localClient) return;
-    try {
-      const current = await localClient.getSubOverride(id);
-      setOverridePrepend((current.rulesPrepend ?? []).join("\n"));
-      setOverrideAppend((current.rulesAppend ?? []).join("\n"));
-      setOverrideDns(current.dns ?? "");
-    } catch (error) {
-      setOverrideError(String(error));
+  // 取回内容后才开框：目标可能是远端控制器，慢网络下不能停在空对话框上。
+  function openOverride(id: string) {
+    if (overrideLoading) {
+      overrideAbort.current?.abort();
+      return;
     }
+    const controller = new AbortController();
+    overrideAbort.current = controller;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort(new DOMException("Timed out", "TimeoutError"));
+    }, loadTimeoutMs);
+    setOverrideLoading(true);
+    void run(async () => {
+      if (!localClient) throw new Error("LocalAPI not available");
+      setOverrideError("");
+      setOverrideGroups([]);
+      setDnsNameservers([]);
+      setDnsFallback([]);
+      setOverridePolicies([]);
+      setOverrideFormat(
+        subscriptions.find((item) => item.id === id)?.format === "sing-box"
+          ? "sing-box"
+          : "",
+      );
+      setPoliciesUnavailable(false);
+      try {
+        const [current, available] = await Promise.all([
+          localClient.getSubOverride(id, { signal: controller.signal }),
+          localClient
+            .getSubPolicies(id, { signal: controller.signal })
+            .catch(() => undefined),
+        ]);
+        setOverrideGroups(
+          (current.groups ?? []).map((group) => ({
+            ...group,
+            enabled: group.enabled !== false,
+          })),
+        );
+        setDnsNameservers(current.dns?.nameservers ?? []);
+        setDnsFallback(current.dns?.fallback ?? []);
+        if (available) {
+          setOverridePolicies(available.policies);
+          setOverrideFormat(
+            available.format === "sing-box" ? "sing-box" : "clash",
+          );
+        } else {
+          setPoliciesUnavailable(true);
+        }
+        setOverrideId(id);
+      } catch (error) {
+        if (controller.signal.aborted && !timedOut) return; // 用户取消
+        throw error;
+      } finally {
+        clearTimeout(timer);
+      }
+    }, false).finally(() => setOverrideLoading(false));
   }
 
   async function saveOverride() {
     if (!overrideId || !localClient) return;
     setOverrideError("");
+    for (const [index, group] of overrideGroups.entries()) {
+      const filled = group.rules.some((rule) => rule.trim().length > 0);
+      if (group.enabled && filled && !group.target) {
+        setOverrideError(t("ruleTargetRequired", { number: index + 1 }));
+        return;
+      }
+    }
+    // 备用列表只对 Clash 订阅开放；sing-box 没有这个机制，发出去会被拒。
+    const isClash = overrideFormat === "clash";
+    const nameservers = dnsNameservers
+      .map((upstream) => upstream.trim())
+      .filter(Boolean);
+    const fallback = isClash
+      ? dnsFallback.map((upstream) => upstream.trim()).filter(Boolean)
+      : [];
     try {
       await localClient.setSubOverride(overrideId, {
-        rulesPrepend: lines(overridePrepend),
-        rulesAppend: lines(overrideAppend),
-        dns: overrideDns.trim() || undefined,
+        groups: overrideGroups.map((group, index) => ({
+          ...group,
+          name: group.name.trim() || t("ruleGroupName", { number: index + 1 }),
+          rules: group.rules.map((rule) => rule.trim()).filter(Boolean),
+        })),
+        dns:
+          nameservers.length > 0 || fallback.length > 0
+            ? { nameservers, fallback }
+            : undefined,
       });
       await refresh();
       setOverrideId(null);
@@ -139,6 +324,40 @@ export default function SubscriptionDetail({
       setOverrideError(error instanceof Error ? error.message : String(error));
     }
   }
+
+  function updateGroup(index: number, patch: Partial<RuleGroup>) {
+    setOverrideGroups((groups) =>
+      groups.map((group, i) => (i === index ? { ...group, ...patch } : group)),
+    );
+  }
+
+  function updateGroupRules(
+    index: number,
+    update: (rules: string[]) => string[],
+  ) {
+    setOverrideGroups((groups) =>
+      groups.map((group, i) =>
+        i === index ? { ...group, rules: update(group.rules) } : group,
+      ),
+    );
+  }
+
+  const customRuleTotal = overrideGroups.reduce(
+    (sum, group) => sum + group.rules.filter((rule) => rule.trim()).length,
+    0,
+  );
+  // Built-ins stay offered even before the policy list loads (or when the
+  // profile has no downloaded source yet): they never depend on the source.
+  const targetOptions = Array.from(
+    new Set([
+      ...overridePolicies.filter(
+        (target) => !["DIRECT", "REJECT"].includes(target.toUpperCase()),
+      ),
+      ...overrideGroups.map((group) => group.target).filter(Boolean),
+      "DIRECT",
+      "REJECT",
+    ]),
+  );
 
   function selectChannel(id: string, channel: "direct" | "self" | "proxy") {
     if (channel === "proxy") {
@@ -175,23 +394,46 @@ export default function SubscriptionDetail({
     }, false);
   }
 
-  async function openSourceEditor(id: string) {
-    setEditorId(id);
-    setEditorError("");
-    if (!localClient) return;
-    try {
-      setEditorContent(await localClient.getSubSource(id));
-    } catch (error) {
-      setEditorContent("");
-      setEditorError(error instanceof Error ? error.message : String(error));
+  // 取回原文后才开框：慢网络下不能停在空编辑器上。
+  function openSourceEditor(id: string) {
+    if (editorLoading) {
+      editorAbort.current?.abort();
+      return;
     }
+    const controller = new AbortController();
+    editorAbort.current = controller;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort(new DOMException("Timed out", "TimeoutError"));
+    }, loadTimeoutMs);
+    setEditorLoading(true);
+    void run(async () => {
+      if (!localClient) throw new Error("LocalAPI not available");
+      try {
+        const content = await localClient.getSubSource(id, {
+          signal: controller.signal,
+        });
+        setEditorContent(content);
+        setEditorError("");
+        setEditorId(id);
+      } catch (error) {
+        if (controller.signal.aborted && !timedOut) return; // 用户取消
+        throw error;
+      } finally {
+        clearTimeout(timer);
+      }
+    }, false).finally(() => setEditorLoading(false));
   }
 
   function saveSourceEditor() {
     if (!editorId || !localClient) return;
+    // 编辑器是非受控实例：保存时从视图读全文，避免每次按键搬运整个文档。
+    const content =
+      editorViewRef.current?.state.doc.toString() ?? editorContent;
     void run(async () => {
       try {
-        await localClient.editSubSource(editorId, editorContent);
+        await localClient.editSubSource(editorId, content);
       } catch (error) {
         setEditorError(error instanceof Error ? error.message : String(error));
         throw error;
@@ -476,7 +718,7 @@ export default function SubscriptionDetail({
               </span>
               {sub.urlOrFile && (
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <CopyButton value={sub.urlOrFile} label={c("copyLink")} />
+                  <CopyIconButton value={sub.urlOrFile} label={c("copyLink")} />
                   <Button
                     variant="ghost"
                     size="sm"
@@ -546,10 +788,18 @@ export default function SubscriptionDetail({
               size="sm"
               variant="outline"
               className="gap-1.5"
-              disabled={pending || Boolean(operation)}
+              disabled={Boolean(operation) || (pending && !editorLoading)}
+              title={editorLoading ? tc("cancel") : undefined}
               onClick={() => void openSourceEditor(sub.id)}
             >
-              <FileText className="size-3.5" />
+              {editorLoading ? (
+                <LoaderCircle
+                  className="size-3.5 motion-safe:animate-spin"
+                  aria-hidden="true"
+                />
+              ) : (
+                <FileText className="size-3.5" />
+              )}
               {cfg("editContent")}
             </Button>
           </div>
@@ -585,9 +835,16 @@ export default function SubscriptionDetail({
               variant="outline"
               size="sm"
               className="mt-3.5 w-full bg-card hover:bg-accent text-xs cursor-pointer shadow-2xs"
-              disabled={pending || Boolean(operation)}
+              disabled={Boolean(operation) || (pending && !editorLoading)}
+              title={editorLoading ? tc("cancel") : undefined}
               onClick={() => void openSourceEditor(sub.id)}
             >
+              {editorLoading && (
+                <LoaderCircle
+                  className="size-3.5 motion-safe:animate-spin"
+                  aria-hidden="true"
+                />
+              )}
               {t("sourceEdit")}
             </Button>
           </div>
@@ -609,9 +866,16 @@ export default function SubscriptionDetail({
               variant="outline"
               size="sm"
               className="mt-3.5 w-full bg-card hover:bg-accent text-xs cursor-pointer shadow-2xs"
-              disabled={pending || Boolean(operation)}
+              disabled={Boolean(operation) || (pending && !overrideLoading)}
+              title={overrideLoading ? tc("cancel") : undefined}
               onClick={() => void openOverride(sub.id)}
             >
+              {overrideLoading && (
+                <LoaderCircle
+                  className="size-3.5 motion-safe:animate-spin"
+                  aria-hidden="true"
+                />
+              )}
               {t("override")}
             </Button>
           </div>
@@ -843,12 +1107,22 @@ export default function SubscriptionDetail({
             <p className="text-xs text-muted-foreground">
               {t("sourceEditHint")}
             </p>
-            <Textarea
-              className="flex-1 min-h-[420px] max-h-[60vh] resize-y p-3 font-mono text-xs leading-relaxed"
-              value={editorContent}
-              onChange={(event) => setEditorContent(event.target.value)}
-              spellCheck={false}
-            />
+            <Suspense
+              fallback={
+                <div className="flex min-h-[420px] items-center justify-center rounded-control border border-[var(--glass-border)] bg-inset/60">
+                  <Spinner className="size-6 text-brand" />
+                </div>
+              }
+            >
+              <CodeEditor
+                value={editorContent}
+                onViewReady={(view) => {
+                  editorViewRef.current = view;
+                }}
+                ariaLabel={t("sourceEdit")}
+                className="h-[60vh] min-h-[420px]"
+              />
+            </Suspense>
             {editorError && (
               <p role="alert" className="text-xs text-destructive">
                 {editorError}
@@ -935,58 +1209,221 @@ export default function SubscriptionDetail({
             <DialogTitle>{t("override")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col flex-1 overflow-y-auto gap-4 py-1 pr-1 text-xs">
-            <p className="text-muted-foreground">
-              {t(
-                subscriptions.find((item) => item.id === overrideId)?.format ===
-                  "sing-box"
-                  ? "overrideHintSingBox"
-                  : "overrideHintClash",
-              )}
-            </p>
-            <Field className="gap-1.5">
-              <FieldLabel htmlFor="subscription-override-prepend">
-                {t("overridePrepend")}
-              </FieldLabel>
-              <Textarea
-                id="subscription-override-prepend"
-                className="resize-y p-2.5 font-mono text-xs leading-normal"
-                rows={3}
-                value={overridePrepend}
-                onChange={(event) => setOverridePrepend(event.target.value)}
-                placeholder={"DOMAIN-SUFFIX,corp.example,DIRECT"}
-              />
-            </Field>
-            <Field className="gap-1.5">
-              <FieldLabel htmlFor="subscription-override-append">
-                {t("overrideAppend")}
-              </FieldLabel>
-              <Textarea
-                id="subscription-override-append"
-                className="resize-y p-2.5 font-mono text-xs leading-normal"
-                rows={3}
-                value={overrideAppend}
-                onChange={(event) => setOverrideAppend(event.target.value)}
-                placeholder={"DOMAIN-SUFFIX,ads.example,REJECT"}
-              />
-            </Field>
-            <Field className="gap-1.5">
-              <FieldLabel htmlFor="subscription-override-dns">
-                {t("overrideDns")}
-              </FieldLabel>
-              <Textarea
-                id="subscription-override-dns"
-                className="resize-y p-2.5 font-mono text-xs leading-normal"
-                rows={3}
-                value={overrideDns}
-                onChange={(event) => setOverrideDns(event.target.value)}
-                placeholder={
-                  subscriptions.find((item) => item.id === overrideId)
-                    ?.format === "sing-box"
-                    ? '{\n  "servers": [{ "tag": "dns-local", "address": "8.8.8.8" }]\n}'
-                    : "nameserver:\n  - 8.8.8.8"
+            <p className="text-muted-foreground">{t("overrideHint")}</p>
+
+            {/* 出口清單拿不到時如實說明，不讓「只有 DIRECT」假裝成全部 */}
+            {policiesUnavailable && (
+              <p
+                role="note"
+                className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-caption text-warning-text"
+              >
+                {t("ruleTargetsUnavailable")}
+              </p>
+            )}
+
+            {/* 規則組：同組共用出口、可整組啟停，展開順序即優先順序 */}
+            <div className="flex flex-col gap-2">
+              {overrideGroups.map((group, groupIndex) => {
+                const groupFull = group.rules.length >= maxRulesPerGroup;
+                return (
+                  <div
+                    key={groupIndex}
+                    className={cn(
+                      "flex flex-col gap-2 rounded-xl border border-border/70 bg-inset/40 p-3",
+                      !group.enabled && "opacity-60",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        aria-label={t("ruleGroupName", {
+                          number: groupIndex + 1,
+                        })}
+                        className="h-8 min-w-0 flex-1"
+                        placeholder={t("ruleGroupName", {
+                          number: groupIndex + 1,
+                        })}
+                        value={group.name}
+                        onChange={(event) =>
+                          updateGroup(groupIndex, { name: event.target.value })
+                        }
+                      />
+                      <Select
+                        value={group.target}
+                        onValueChange={(value) =>
+                          updateGroup(groupIndex, { target: value })
+                        }
+                      >
+                        <SelectTrigger
+                          size="sm"
+                          className="h-8 w-40"
+                          aria-label={t("ruleTarget")}
+                        >
+                          <SelectValue placeholder={t("ruleTarget")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {targetOptions.map((target) => (
+                            <SelectItem key={target} value={target}>
+                              {target}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Switch
+                        checked={group.enabled}
+                        aria-label={t("ruleGroupEnabled")}
+                        onCheckedChange={(enabled) =>
+                          updateGroup(groupIndex, { enabled })
+                        }
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-destructive"
+                        aria-label={t("removeRuleGroup")}
+                        onClick={() =>
+                          setOverrideGroups((groups) =>
+                            groups.filter((_, i) => i !== groupIndex),
+                          )
+                        }
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      {group.rules.map((rule, ruleIndex) => {
+                        const kind = ruleKind(rule);
+                        return (
+                          <div
+                            key={ruleIndex}
+                            className="flex items-center gap-2"
+                          >
+                            <Input
+                              className="h-8 min-w-0 flex-1 font-mono text-xs"
+                              placeholder={t("ruleInputPlaceholder")}
+                              value={rule}
+                              onChange={(event) =>
+                                updateGroupRules(groupIndex, (rules) =>
+                                  rules.map((value, i) =>
+                                    i === ruleIndex
+                                      ? event.target.value
+                                      : value,
+                                  ),
+                                )
+                              }
+                            />
+                            <span className="w-14 shrink-0 text-caption text-muted-foreground">
+                              {kind ? t(`kind_${kind}`) : ""}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                              aria-label={t("removeRule")}
+                              onClick={() =>
+                                updateGroupRules(groupIndex, (rules) =>
+                                  rules.filter((_, i) => i !== ruleIndex),
+                                )
+                              }
+                            >
+                              <X className="size-3.5" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 w-fit gap-1 text-caption"
+                        disabled={
+                          groupFull || customRuleTotal >= maxCustomRules
+                        }
+                        title={
+                          groupFull
+                            ? t("ruleGroupLimit", {
+                                count: maxRulesPerGroup,
+                              })
+                            : undefined
+                        }
+                        onClick={() =>
+                          updateGroupRules(groupIndex, (rules) => [
+                            ...rules,
+                            "",
+                          ])
+                        }
+                      >
+                        <Plus className="size-3" />
+                        {t("addRule")}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-fit gap-1"
+                disabled={
+                  overrideGroups.length >= maxRuleGroups ||
+                  customRuleTotal >= maxCustomRules
                 }
+                title={
+                  overrideGroups.length >= maxRuleGroups
+                    ? t("ruleGroupLimitTotal", { count: maxRuleGroups })
+                    : undefined
+                }
+                onClick={() => {
+                  setOverrideGroups((groups) => [
+                    ...groups,
+                    {
+                      name: "",
+                      target: targetOptions[0] ?? "DIRECT",
+                      enabled: true,
+                      rules: [""],
+                    },
+                  ]);
+                }}
+              >
+                <Plus className="size-3.5" />
+                {t("addRuleGroup")}
+              </Button>
+            </div>
+
+            {/* DNS 上游：主列表两核共用；备用是 Clash 的污染复核列表，sing-box 没有 */}
+            <div className="flex flex-col gap-2 rounded-xl border border-border/70 bg-inset/40 p-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-semibold text-foreground">
+                  {t("dnsNameservers")}
+                </span>
+                <span className="text-caption text-muted-foreground">
+                  {t("dnsNameserversDesc")}
+                </span>
+              </div>
+              <UpstreamList
+                values={dnsNameservers}
+                onChange={setDnsNameservers}
+                presets={dnsPresets}
               />
-            </Field>
+            </div>
+
+            {overrideFormat === "clash" && (
+              <div className="flex flex-col gap-2 rounded-xl border border-border/70 bg-inset/40 p-3">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs font-semibold text-foreground">
+                    {t("dnsFallback")}
+                  </span>
+                  <span className="text-caption text-muted-foreground">
+                    {t("dnsFallbackDesc")}
+                  </span>
+                </div>
+                <UpstreamList
+                  values={dnsFallback}
+                  onChange={setDnsFallback}
+                  presets={dnsFallbackPresets}
+                />
+              </div>
+            )}
+
             {overrideError && (
               <p role="alert" className="text-destructive">
                 {overrideError}

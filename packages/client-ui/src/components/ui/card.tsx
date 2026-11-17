@@ -39,7 +39,10 @@ function CardTitle({
     <h2
       data-slot="card-title"
       className={cn(
-        "text-body leading-tight font-semibold tracking-tight",
+        // Cards are groups: below md the header steps back one size (14px
+        // semibold, still foreground — muted would blur into CardDescription)
+        // so 16px row titles outrank it (DESIGN.md 行動端基線).
+        "text-body leading-tight font-semibold tracking-tight max-md:text-sm",
         className,
       )}
       {...props}

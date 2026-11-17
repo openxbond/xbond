@@ -28,10 +28,13 @@ type testRuntimeCore struct {
 	stopError   error
 	onReload    func()
 	// hotRouting makes SetRoutingMode succeed; otherwise it reports failure
-	// so the controller falls back to a full Reload.
+	// so the controller falls back to a full Reload. hotLogging mirrors that
+	// for SetLogLevel (mihomo honors the live switch, sing-box does not).
 	hotRouting bool
+	hotLogging bool
 	reloads    int
 	hotModes   []engine.RoutingMode
+	hotLevels  []string
 }
 
 func (c *testRuntimeCore) IsRunning() bool { c.mu.Lock(); defer c.mu.Unlock(); return c.running }
@@ -43,6 +46,15 @@ func (c *testRuntimeCore) SetRoutingMode(mode engine.RoutingMode, config []byte)
 	}
 	c.hotModes = append(c.hotModes, mode)
 	c.config = append([]byte(nil), config...)
+	return nil
+}
+func (c *testRuntimeCore) SetLogLevel(level string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.hotLogging {
+		return errors.New("hot log level unsupported")
+	}
+	c.hotLevels = append(c.hotLevels, level)
 	return nil
 }
 func (c *testRuntimeCore) Reload(config []byte, _ map[string]string) error {
@@ -151,6 +163,8 @@ func assertRuntimeUnchanged(t *testing.T, f runtimeFixture, prefs RuntimePrefere
 }
 
 func intPtr(v int) *int { return &v }
+
+func strPtr(v string) *string { return &v }
 
 func TestUseStoppedCoreRejectsInvalidConfiguration(t *testing.T) {
 	f := newRuntimeFixture(t)
@@ -519,14 +533,20 @@ func TestRuntimeAppliesOverrideAndConflictKeepsPreviousCore(t *testing.T) {
 
 	// A valid override lands in the derived config on the next apply.
 	if err := f.subs.SetOverride(f.first.ID, &engine.SubscriptionOverride{
-		RulesAppend: []string{"DOMAIN,kept.example.invalid," + f.first.Name},
+		Groups: []engine.RuleGroup{{
+			Name:    "Keep",
+			Target:  f.first.Name,
+			Enabled: true,
+			Rules:   []string{"kept.example.invalid"},
+		}},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.controller.Configure(context.Background(), runtimeOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if config := string(f.core.configuration()); !strings.Contains(config, "DOMAIN,kept.example.invalid,"+f.first.Name) {
+	rendered := "DOMAIN-SUFFIX,kept.example.invalid," + f.first.Name
+	if config := string(f.core.configuration()); !strings.Contains(config, rendered) {
 		t.Fatalf("override did not reach the running config: %s", config)
 	}
 
@@ -607,6 +627,62 @@ func TestPatchRoutingMode(t *testing.T) {
 	patchedSingbox := patchRoutingMode(singbox, engine.RoutingDirect)
 	if !strings.Contains(string(patchedSingbox), `"default_mode": "direct"`) {
 		t.Fatalf("singbox patch failed: %s", string(patchedSingbox))
+	}
+}
+
+func TestLogLevelSwitchesHotWithoutReload(t *testing.T) {
+	f := newRuntimeFixture(t)
+	f.core.hotLogging = true
+	reloadsBefore := f.core.reloads
+	if err := f.controller.Configure(context.Background(), runtimeOptions{LogLevel: strPtr("debug")}); err != nil {
+		t.Fatal(err)
+	}
+	if f.core.reloads != reloadsBefore {
+		t.Fatalf("core reloaded %d times for a log-level-only change", f.core.reloads-reloadsBefore)
+	}
+	if len(f.core.hotLevels) != 1 || f.core.hotLevels[0] != "debug" {
+		t.Fatalf("hot levels = %v", f.core.hotLevels)
+	}
+	if f.controller.Preferences().LogLevel != "debug" {
+		t.Fatal("preferences did not record the new level")
+	}
+	if !bytes.Contains(f.controller.applied, []byte("log-level: debug")) {
+		t.Fatalf("applied config not patched: %s", string(f.controller.applied))
+	}
+	// A second identical apply is a no-op.
+	if err := f.controller.Up(context.Background(), runtimeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if f.core.reloads != reloadsBefore || len(f.core.hotLevels) != 1 {
+		t.Fatal("repeat apply touched the core")
+	}
+}
+
+func TestLogLevelFallsBackToReloadWhenHotSwitchFails(t *testing.T) {
+	f := newRuntimeFixture(t)
+	reloadsBefore := f.core.reloads
+	if err := f.controller.Configure(context.Background(), runtimeOptions{LogLevel: strPtr("warn")}); err != nil {
+		t.Fatal(err)
+	}
+	if f.core.reloads != reloadsBefore+1 {
+		t.Fatalf("expected one fallback reload, got %d", f.core.reloads-reloadsBefore)
+	}
+	if !bytes.Contains(f.core.configuration(), []byte("log-level: warning")) {
+		t.Fatalf("reloaded config missing the mapped level: %s", string(f.core.configuration()))
+	}
+	if f.controller.Preferences().LogLevel != "warn" {
+		t.Fatal("preferences did not record the canonical level")
+	}
+}
+
+func TestLogLevelRejectsUnknownLevel(t *testing.T) {
+	f := newRuntimeFixture(t)
+	before := f.controller.Preferences()
+	if err := f.controller.Configure(context.Background(), runtimeOptions{LogLevel: strPtr("verbose")}); err == nil {
+		t.Fatal("unknown level accepted")
+	}
+	if f.controller.Preferences() != before {
+		t.Fatal("rejected level changed stored preferences")
 	}
 }
 

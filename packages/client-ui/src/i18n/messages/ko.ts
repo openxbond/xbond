@@ -349,10 +349,8 @@ const KO = {
     disconnectedNotice:
       "프록시 서비스가 실행되지 않았습니다. 연결 후 런타임 로그와 진단 정보를 실시간으로 확인할 수 있습니다.",
     levelLabel: "로그 레벨",
-    levelDefault: "기본",
     empty: "아직 로그가 없습니다. 트래픽이 흐르면 여기에 표시됩니다.",
     emptyAction: "Debug 레벨로 전환",
-    silent: "Silent",
     follow: "최신 따라가기",
     newLogs: "새 로그 {{count}}개",
     columns: {
@@ -373,8 +371,6 @@ const KO = {
       "프록시 서비스가 실행되지 않았습니다. 연결 후 라우팅 규칙 목록을 실시간으로 확인할 수 있습니다.",
     disconnectedProvidersNotice:
       "프록시 서비스가 실행되지 않았습니다. 연결 후 규칙 제공자 상태를 확인하고 업데이트할 수 있습니다.",
-    mixinDisconnectedHint:
-      "서비스가 연결되지 않았습니다. 여기서 구성한 분류 규칙은 다음 연결 시 적용됩니다.",
     updateDaemon:
       "규칙을 보려면 로컬 XBond 서비스를 업데이트하고 다시 시작하세요.",
     searchPlaceholder: "도메인, 규칙 유형 또는 아웃바운드",
@@ -390,7 +386,6 @@ const KO = {
     firstPage: "첫 페이지",
     title: "규칙",
     tabActive: "라우팅 규칙",
-    tabMixin: "전역 라우팅 강화",
     providerTitle: "규칙 프로바이더",
     providerUpdateTime: "마지막 업데이트",
     providerUpdate: "프로바이더 업데이트",
@@ -599,14 +594,37 @@ const KO = {
     sourcePinned: "로케에서 편집됨",
     resumeUpdates: "자동 업데이트 재개",
     resumeUpdatesDone: "자동 갱신이 재개되었습니다.",
-    overrideDns: "DNS 재정의",
-    overridePrepend: "앞에 추가하는 규칙",
-    overrideAppend: "뒤에 추가하는 규칙",
-    overrideHintClash:
-      "한 줄에 규칙 하나(TYPE,PAYLOAD,POLICY). 저장 시 검증: 참조된 노드나 그룹을 확인하며, 재정의는 모든 업데이트에 자동 적용됩니다.",
-    overrideHintSingBox:
-      "한 줄에 sing-box 규칙 JSON 객체 하나. 저장 시 검증: 참조된 아웃바운드를 확인하며, 재정의는 모든 업데이트에 자동 적용됩니다.",
+    overrideHint:
+      "규칙 그룹은 구독 기본 규칙보다 먼저 순서대로 적용됩니다. 각 항목에는 도메인, IP 또는 CIDR만 입력하고 출구는 이 프로필의 정책 그룹에서 선택하세요.",
+    ruleTargetsUnavailable:
+      "이 프로필의 출구 목록을 가져올 수 없습니다. 먼저 프로필을 업데이트하세요. 현재는 DIRECT와 REJECT만 제공됩니다.",
     overrideSaved: "재정의가 저장되고 적용되었습니다",
+    ruleGroupName: "규칙 그룹 {{number}}",
+    ruleGroupEnabled: "그룹 사용",
+    ruleTarget: "출구",
+    ruleTargetRequired: "규칙 그룹 {{number}}에 항목이 있지만 출구가 없습니다.",
+    ruleInputPlaceholder: "example.com / 1.2.3.4 / 10.0.0.0/8",
+    kind_domain: "도메인",
+    kind_ip: "IP",
+    kind_cidr: "CIDR",
+    addRule: "항목 추가",
+    removeRule: "항목 삭제",
+    addRuleGroup: "그룹 추가",
+    removeRuleGroup: "그룹 삭제",
+    ruleGroupLimit: "그룹당 최대 {{count}}개 항목",
+    ruleGroupLimitTotal: "최대 {{count}}개 그룹",
+    dnsNameservers: "기본 DNS",
+    dnsNameserversDesc:
+      "이 프로필의 리졸버를 교체합니다. 항목마다 IP, 호스트 이름 또는 DNS 주소 하나를 입력하세요.",
+    dnsFallback: "보조 DNS",
+    dnsFallbackDesc:
+      "Clash의 오염 검증 목록입니다. 입력하면 소스의 fallback을 대체합니다.",
+    dnsUpstreamPlaceholder: "223.5.5.5 또는 tls://1.1.1.1",
+    addDnsUpstream: "업스트림 추가",
+    removeDnsUpstream: "업스트림 삭제",
+    dnsPresetAli: "AliDNS",
+    dnsPresetTencent: "DNSPod",
+    dnsPresetGlobal: "Cloudflare / Google",
     rename: "이름 바꾸기",
     channelTitle: "업데이트 채널",
     dangerZone: "위험 구역",
@@ -614,7 +632,8 @@ const KO = {
     advancedDesc:
       "원격 소스를 변경하지 않고 로컬 복사본을 직접 편집하거나 규칙을 재정의하거나 버전을 롤백합니다.",
     sourceEditDesc: "로컬 YAML / JSON 구성을 직접 보거나 편집합니다.",
-    overrideDesc: "이 프로필에 전치/추가 규칙 및 DNS 재정의를 주입합니다.",
+    overrideDesc:
+      "이 프로필에 사용자 지정 규칙 그룹과 DNS 업스트림을 추가합니다. 모든 업데이트에 함께 적용됩니다.",
     rollbackDesc: "최근 업데이트가 실패한 경우 이전 작업 버전으로 복원합니다.",
     removeDesc:
       "로컬 저장소에서 이 구성을 영구적으로 삭제합니다. 활성 연결이 먼저 닫힙니다.",
@@ -628,15 +647,8 @@ const KO = {
   settings: {
     title: "설정",
     preferences: "화면과 언어",
-    generalDesc: "인터페이스 테마 및 언어",
     quickTools: "진단 및 도구",
-    quickToolsDesc: "연결, 규칙, 로그 및 진단 바로가기",
     network: "네트워크와 포트",
-    networkDesc:
-      "혼합 프록시 포트, 로컬 네트워크 공유, 노드 변경 및 터미널 환경 변수",
-    coreGroup: "코어 및 로그",
-    coreGroupDesc: "코어 로그 레벨, 실행 엔진 및 컨트롤러 상태",
-    aboutDesc: "클라이언트 버전, 코어 상태 및 오픈 소스 세부 정보",
     desktop: {
       groupTitle: "데스크톱 호스트 동작",
       hostDesktop: "데스크톱",
@@ -648,21 +660,12 @@ const KO = {
       closeToTray: "닫을 때 시스템 트레이로 최소화",
       closeToTrayDesc: "창을 닫을 때 프록시를 백그라운드에서 유지합니다",
     },
-    advancedActions: {
-      logLevelDesc:
-        "코어 엔진에서 출력하는 로그의 상세도 (문제 해결 시 Debug 권장)",
-      coreRuntime: "코어 런타임",
-      manageControllers: "컨트롤러 관리",
-    },
     terminalCommand: "터미널 프록시 명령",
     terminalCommandDesc: "터미널 형식에 맞는 프록시 환경 변수를 복사합니다.",
     breakConnections: "노드 변경 시 연결 종료",
-    breakConnectionsDesc:
-      "노드를 전환하면 해당 그룹의 기존 연결을 닫아 새 노드가 즉시 적용되도록 합니다.",
+    breakConnectionsDesc: "기존 연결을 끊어 새 노드가 즉시 적용됩니다.",
     theme: "테마",
-    themeDesc: "라이트, 다크, 시스템 따르기 사이에서 전환합니다.",
     language: "언어",
-    languageDesc: "인터페이스 언어를 선택합니다.",
     system: "시스템",
     light: "라이트",
     dark: "다크",
@@ -671,17 +674,15 @@ const KO = {
       mixedPort: "혼합 프록시 포트",
       dockerPortDesc:
         "Docker 배포에서 수신 포트를 관리합니다. 공개 포트는 배포 명령에서 변경하세요.",
-      mixedPortDesc: "표준 HTTP / SOCKS 트래픽용 로컬 혼합 프록시 포트",
-      portNoteOverride:
-        "로컬 포트가 {{port}}(으)로 고정되어 구독 자체 포트를 덮어씁니다",
-      portNoteSubscription:
-        "구독의 mixed-port를 따르며, 없으면 기본값 7890을 사용합니다",
-      portNoteDefault: "구독에 포트가 지정되지 않아 기본값 7890을 사용합니다",
+      mixedPortDesc: "HTTP와 SOCKS가 공유하는 포트",
+      portNoteOverride: "로컬 {{port}}(으)로 고정, 구독 설정을 덮어씁니다",
+      portNoteSubscription: "구독 포트를 따름, 미지정 시 기본값 사용",
+      portNoteDefault: "구독에 포트가 없어 기본값을 사용합니다",
       portFollowSubscription: "구독 따르기로 복원",
       portSaveFailed:
         "포트를 저장하지 못했습니다. 코어를 확인한 뒤 다시 시도하세요.",
       allowLan: "LAN 연결 허용",
-      allowLanDesc: "같은 LAN의 다른 기기가 이 프록시를 사용하도록 허용",
+      allowLanDesc: "같은 LAN의 다른 기기가 이 프록시를 사용할 수 있습니다",
       sysproxyDesc:
         "브라우저처럼 시스템 설정을 따르는 앱에서 프록시를 사용합니다.",
       tunDesc: "시스템 프록시 설정을 따르지 않는 앱에서도 프록시를 사용합니다.",
@@ -692,7 +693,7 @@ const KO = {
       installingService: "권한 상승 중...",
       serviceInstalled: "시스템 서비스 준비 완료",
       serviceInstalledDesc:
-        "TUN 가상 카드를 위한 시스템 서비스가 활성화되었습니다. 백그라운드 서비스를 제거하려면 제거를 클릭하세요.",
+        "백그라운드 시스템 서비스 제거 시 언인스톨을 클릭하세요.",
       installServicePrompt:
         "권한 상승이 요청되었습니다. 시스템 UAC 창에서 계속을 허용해 주세요.",
       installServiceSuccess:
@@ -736,8 +737,6 @@ const KO = {
       localApiRunning: "실행 중",
       localApiDown: "연결할 수 없음",
       localApiNone: "로컬 서비스 미구성",
-      engine: "엔진",
-      controllerAddress: "컨트롤러 주소",
       daemonRunning: "데몬 실행 중",
       daemonOffline: "데몬 오프라인",
       daemonConnecting: "데몬 연결 중",
@@ -763,7 +762,6 @@ const KO = {
       title: "정보",
       appVersion: "대시보드 버전",
       coreVersion: "mihomo 코어 버전",
-      logLevel: "로그 레벨",
       openSource: "오픈소스 프로젝트",
       docs: "공식 문서",
     },
@@ -840,6 +838,8 @@ const KO = {
     addedUpdateFailed: "구독이 추가되었지만 첫 업데이트가 실패했습니다.",
     pastePlaceholder: "sing-box / Clash 설정을 붙여넣으세요",
     chooseFile: "파일 선택",
+    filePickAction: "탭하여 파일 선택",
+    fileRemove: "선택한 파일 제거",
     import: "가져오기",
     importing: "가져오는 중…",
     importFailed: "가져오기 실패",

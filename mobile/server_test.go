@@ -110,6 +110,45 @@ func TestAPICorsPreflightAndAuth(t *testing.T) {
 	}
 }
 
+// The logs page drives the core log level through this endpoint; with the
+// engine stopped (no active subscription) the level still has to persist so
+// the next start picks it up, and unknown levels must be rejected outright
+// instead of being coerced.
+func TestAPILogLevelEndpoint(t *testing.T) {
+	svc, s := newTestAPIServer(t)
+
+	code, body, _ := apiCall(t, s, http.MethodGet, "/localapi/v0/log-level", "")
+	if code != http.StatusOK {
+		t.Fatalf("expected GET 200, got %d: %s", code, string(body))
+	}
+	if !strings.Contains(string(body), `"logLevel":"info"`) {
+		t.Fatalf("default level not reported: %s", string(body))
+	}
+
+	code, body, _ = apiCall(t, s, http.MethodPost, "/localapi/v0/log-level", `{"level":"debug"}`)
+	if code != http.StatusOK {
+		t.Fatalf("expected POST 200, got %d: %s", code, string(body))
+	}
+	if !strings.Contains(string(body), `"logLevel":"debug"`) {
+		t.Fatalf("new level not reported: %s", string(body))
+	}
+	if svc.runtime.logLevel != "debug" {
+		t.Fatalf("runtime did not persist the level: %q", svc.runtime.logLevel)
+	}
+	code, body, _ = apiCall(t, s, http.MethodGet, "/localapi/v0/log-level", "")
+	if code != http.StatusOK || !strings.Contains(string(body), `"logLevel":"debug"`) {
+		t.Fatalf("level not reported back after the switch: %d %s", code, string(body))
+	}
+	// Unknown levels are input errors, never silently coerced.
+	code, body, _ = apiCall(t, s, http.MethodPost, "/localapi/v0/log-level", `{"level":"verbose"}`)
+	if code != http.StatusBadRequest {
+		t.Fatalf("expected unknown level 400, got %d: %s", code, string(body))
+	}
+	if svc.runtime.logLevel != "debug" {
+		t.Fatalf("rejected level changed the stored level: %q", svc.runtime.logLevel)
+	}
+}
+
 func TestAPIStatusReportsRulePaging(t *testing.T) {
 	_, s := newTestAPIServer(t)
 	code, data, _ := apiCall(t, s, http.MethodGet, "/localapi/v0/status?light=1", "")
@@ -197,9 +236,9 @@ func TestAPIProfilesImportAndList(t *testing.T) {
 	}
 }
 
-// Override and global mixin round-trip through the same endpoints the shared
-// UI already calls against the daemon.
-func TestAPISubOverrideAndGlobalMixinRoundtrip(t *testing.T) {
+// The override round-trips through the same endpoint the shared UI calls
+// against the daemon, and the policy list it offers is the one save accepts.
+func TestAPISubOverrideRoundtripAndPolicies(t *testing.T) {
 	_, s := newTestAPIServer(t)
 
 	// Seed one subscription.
@@ -216,46 +255,69 @@ func TestAPISubOverrideAndGlobalMixinRoundtrip(t *testing.T) {
 	}
 	id := added.Meta.ID
 
+	// The policy list is what the group target dropdown offers.
+	code, data, _ = apiCall(t, s, http.MethodGet, "/localapi/v0/subs/policies?id="+id, "")
+	if code != http.StatusOK {
+		t.Fatalf("expected 200 on policy list, got %d: %s", code, data)
+	}
+	var policies struct {
+		Format   string   `json:"format"`
+		Policies []string `json:"policies"`
+	}
+	if err := json.Unmarshal(data, &policies); err != nil {
+		t.Fatal(err)
+	}
+	if policies.Format != "clash" || len(policies.Policies) == 0 {
+		t.Fatalf("unexpected policy list: %s", data)
+	}
+	joined := strings.Join(policies.Policies, ",")
+	for _, want := range []string{"Proxy", "DIRECT", "REJECT"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("policy list %v misses %q", policies.Policies, want)
+		}
+	}
+
 	// Empty override on GET.
 	code, data, _ = apiCall(t, s, http.MethodGet, "/localapi/v0/subs/override?id="+id, "")
 	if code != http.StatusOK {
 		t.Fatalf("expected 200 on override read, got %d: %s", code, data)
 	}
 
-	// Save a prepend rule; conflicts are rejected by the store, so this must
-	// pass against the stored source.
+	// Save a group plus DNS upstreams; conflicts are rejected by the store,
+	// so the target must come from the listed policies.
 	code, data, _ = apiCall(t, s, http.MethodPut, "/localapi/v0/subs/override",
-		`{"id":"`+id+`","rulesPrepend":["DOMAIN-SUFFIX,example.com,DIRECT"]}`)
+		`{"id":"`+id+`","groups":[{"name":"Corp","target":"Proxy","enabled":true,"rules":["example.com","10.0.0.0/8"]},`+
+			`{"name":"Off","target":"DIRECT","enabled":false,"rules":["off.example"]}],`+
+			`"dns":{"nameservers":["223.5.5.5"]}}`)
 	if code != http.StatusOK {
 		t.Fatalf("expected 200 on override save, got %d: %s", code, data)
 	}
 	code, data, _ = apiCall(t, s, http.MethodGet, "/localapi/v0/subs/override?id="+id, "")
 	var override struct {
-		RulesPrepend []string `json:"rulesPrepend"`
+		Groups []engine.RuleGroup  `json:"groups"`
+		DNS    *engine.DNSOverride `json:"dns"`
 	}
 	if err := json.Unmarshal(data, &override); err != nil {
 		t.Fatal(err)
 	}
-	if len(override.RulesPrepend) != 1 || override.RulesPrepend[0] != "DOMAIN-SUFFIX,example.com,DIRECT" {
-		t.Fatalf("override round-trip lost the rule, got %s", data)
+	if len(override.Groups) != 2 {
+		t.Fatalf("disabled group must survive a save: %s", data)
+	}
+	if override.Groups[0].Target != "Proxy" || len(override.Groups[0].Rules) != 2 {
+		t.Fatalf("override round-trip lost the group: %s", data)
+	}
+	if override.Groups[1].Enabled || override.Groups[1].Name != "Off" {
+		t.Fatalf("disabled group state lost: %s", data)
+	}
+	if override.DNS == nil || len(override.DNS.Nameservers) != 1 || override.DNS.Nameservers[0] != "223.5.5.5" {
+		t.Fatalf("override round-trip lost DNS upstreams: %s", data)
 	}
 
-	// Global mixin: bypass LAN + one DNS override.
-	code, data, _ = apiCall(t, s, http.MethodPut, "/localapi/v0/mixins/global",
-		`{"bypassLan":true,"dns":"fake-ip"}`)
-	if code != http.StatusOK {
-		t.Fatalf("expected 200 on mixin save, got %d: %s", code, data)
-	}
-	code, data, _ = apiCall(t, s, http.MethodGet, "/localapi/v0/mixins/global", "")
-	var mixin struct {
-		BypassLan bool   `json:"bypassLan"`
-		DNS       string `json:"dns"`
-	}
-	if err := json.Unmarshal(data, &mixin); err != nil {
-		t.Fatal(err)
-	}
-	if !mixin.BypassLan || mixin.DNS != "fake-ip" {
-		t.Fatalf("mixin round-trip lost fields, got %s", data)
+	// An unknown target is rejected at save time.
+	code, _, _ = apiCall(t, s, http.MethodPut, "/localapi/v0/subs/override",
+		`{"id":"`+id+`","groups":[{"name":"Bad","target":"ghost","enabled":true,"rules":["example.com"]}]}`)
+	if code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for an unknown target, got %d", code)
 	}
 }
 
@@ -274,9 +336,9 @@ func TestAPIRulesPageAndConnectionsDeleteWithoutEngine(t *testing.T) {
 	}
 }
 
-// The mobile runtime must bake the override and mixin layers into the source
-// before derivation — the daemon parity this file's routes edit on the phone.
-func TestLayeredSourceAppliesOverrideAndMixin(t *testing.T) {
+// The mobile runtime must bake the override layer into the source before
+// derivation — the daemon parity this file's routes edit on the phone.
+func TestLayeredSourceAppliesOverride(t *testing.T) {
 	svc, _ := newTestAPIServer(t)
 	rt := svc.runtime
 
@@ -285,13 +347,8 @@ func TestLayeredSourceAppliesOverrideAndMixin(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := svc.subMgr.SetOverride(meta.ID, &engine.SubscriptionOverride{
-		RulesPrepend: []string{"DOMAIN-SUFFIX,example.com,DIRECT"},
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := svc.subMgr.SetGlobalMixin(&engine.GlobalMixin{
-		BypassLAN: true,
-		DNS:       "enhanced-mode: fake-ip",
+		Groups: []engine.RuleGroup{{Name: "Corp", Target: "Proxy", Enabled: true, Rules: []string{"example.com"}}},
+		DNS:    &engine.DNSOverride{Nameservers: []string{"223.5.5.5"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -304,14 +361,11 @@ func TestLayeredSourceAppliesOverrideAndMixin(t *testing.T) {
 		t.Fatalf("expected active sub %q, got %q", meta.ID, id)
 	}
 	merged := string(source)
-	if !strings.Contains(merged, "DOMAIN-SUFFIX,example.com,DIRECT") {
+	if !strings.Contains(merged, "DOMAIN-SUFFIX,example.com,Proxy") {
 		t.Errorf("override rule missing from layered source:\n%s", merged)
 	}
-	if !strings.Contains(merged, "IP-CIDR,127.0.0.0/8,DIRECT") {
-		t.Errorf("mixin LAN bypass rules missing from layered source:\n%s", merged)
-	}
-	if !strings.Contains(merged, "enhanced-mode: fake-ip") {
-		t.Errorf("mixin DNS missing from layered source:\n%s", merged)
+	if !strings.Contains(merged, "223.5.5.5") {
+		t.Errorf("override DNS upstream missing from layered source:\n%s", merged)
 	}
 }
 

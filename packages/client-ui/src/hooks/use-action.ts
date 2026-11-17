@@ -13,6 +13,10 @@ export function errorKind(
   | "networkLocal"
   | "unsupported"
   | "requestFailed" {
+  // AbortSignal timeout aborts land here as DOMExceptions, before any
+  // axios-specific checks — the caller decides whether to surface them.
+  if (error instanceof DOMException && error.name === "TimeoutError")
+    return "timeout";
   if (isAxiosError(error)) {
     if ([401, 403].includes(error.response?.status ?? 0)) return "unauthorized";
     if (["ECONNABORTED", "ETIMEDOUT"].includes(error.code ?? ""))
@@ -51,8 +55,21 @@ export function useAction(isLocal = false) {
           toast.success(typeof notify === "string" ? notify : tc("saved"));
         return true;
       } catch (error) {
-        if (options.errorToast !== false)
-          toast.error(t(errorKind(error, isLocal)), { duration: 6000 });
+        if (options.errorToast !== false) {
+          // requestFailed is the catch-all: LocalAPI fetch errors carry the
+          // concrete cause ("HTTP 404", the server's error text); surfacing
+          // it separates "endpoint missing in this build" from real server
+          // failures instead of swallowing both behind one sentence.
+          const kind = errorKind(error, isLocal);
+          const description =
+            kind === "requestFailed" && error instanceof Error && error.message
+              ? error.message
+              : undefined;
+          toast.error(t(kind), {
+            duration: 6000,
+            ...(description ? { description } : {}),
+          });
+        }
         return false;
       } finally {
         locked.current = false;

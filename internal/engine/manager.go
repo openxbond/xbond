@@ -459,6 +459,47 @@ func (m *Manager) SetRoutingMode(mode RoutingMode, runtimeConfig []byte) error {
 	return nil
 }
 
+// errLogLevelReloadRequired is returned by SetLogLevel when the running core
+// cannot switch its level in place: the caller must fall back to a Reload
+// with the level patched into the derived config.
+var errLogLevelReloadRequired = errors.New("core requires a reload to switch log level")
+
+// SetLogLevel switches the running core's log level in place. mihomo honors
+// the PATCH live and reports its level faithfully, so the switch is verified
+// by read-back. sing-box never gets that far: its clash API PATCH /configs
+// only handles mode and silently drops log-level, and its GET /configs
+// reports fatal as "error" (a clamp in clashapi's getConfigs) — a read-back
+// would both always report the pre-PATCH level and falsely confirm a
+// silent→error switch while the core stays silent. Callers fall back to a
+// full Reload with the new level in the derived config (the only path
+// sing-box supports).
+func (m *Manager) SetLogLevel(level string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.running || m.core == nil {
+		return errors.New("core is not running")
+	}
+	if m.core.kind() == FormatSingBox {
+		return errLogLevelReloadRequired
+	}
+	if m.client == nil {
+		return errors.New("core client is not available")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := m.client.SetLogLevel(ctx, level); err != nil {
+		return err
+	}
+	applied, err := m.client.GetLogLevel(ctx)
+	if err != nil {
+		return err
+	}
+	if applied != CanonicalLogLevel(level) {
+		return fmt.Errorf("core kept log level %q instead of %q", applied, CanonicalLogLevel(level))
+	}
+	return nil
+}
+
 func (m *Manager) restoreSelectionsLocked(selections map[string]string) error {
 	if len(selections) == 0 {
 		return nil

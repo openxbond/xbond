@@ -285,6 +285,13 @@ func TestDeriveRuntimeConfig(t *testing.T) {
 	if tunMap["auto-route"] != true || tunMap["strict-route"] != true || tunMap["stack"] != "mixed" {
 		t.Errorf("unexpected tun options: %v", tunMap)
 	}
+	// Private ranges must stay on the physical network (mirroring the
+	// sing-box route_exclude_address): the client's own control plane —
+	// the UI reaching a LAN external controller — cannot ride the tunnel.
+	excluded, _ := tunMap["route-exclude-address"].([]any)
+	if len(excluded) == 0 {
+		t.Errorf("expected tun route-exclude-address for private ranges, got %v", tunMap)
+	}
 	dns, _ := rawTun["dns"].(map[string]any)
 	if dns == nil || dns["enable"] != true {
 		t.Errorf("expected dns enabled in tun mode, got %v", rawTun["dns"])
@@ -604,15 +611,21 @@ func TestDeriveSingBoxTunDNSInjection(t *testing.T) {
 
 // A mobile derivation (no mixed listener, platform-owned TUN fd) starts
 // cleanly: the readiness probe must skip the listener check instead of
-// probing the construction-default port forever. The fake fd means the TUN
-// itself cannot carry traffic — core lifecycle is what's under test here.
+// probing the construction-default port forever. The pipe fd stands in for
+// the platform descriptor — a core start that cannot even duplicate it is a
+// hard failure (a dead handover must not come up pretending to run), but a
+// dupable non-TUN fd just means the core runs while its TUN listener fails
+// asynchronously, which is the lifecycle under test here.
 func TestManagerMobileStartSkipsListenerProbe(t *testing.T) {
 	isolateCoreHome(t)
 	secret := GenerateSecret()
 	clashPort := getFreePort(t)
 
+	platformFD, closer := openPlatformDescriptorForTest(t)
+	defer closer()
+
 	mgr := NewManager(100)
-	derived, err := DeriveMobileRuntimeConfig(sampleValidConfig(), 4242, RoutingRule, clashPort, secret)
+	derived, err := DeriveMobileRuntimeConfig(sampleValidConfig(), platformFD, RoutingRule, clashPort, secret)
 	if err != nil {
 		t.Fatal(err)
 	}

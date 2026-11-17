@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"net"
+	"os"
 	"testing"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -10,9 +11,26 @@ import (
 	"github.com/sagernet/sing/common/control"
 )
 
+// openPlatformDescriptorForTest returns a real open descriptor number standing
+// in for the platform VPN fd, plus a closer. os.Pipe works everywhere the
+// cores do; the descriptor is not a TUN, which only matters to cores that
+// actually adopt it.
+func openPlatformDescriptorForTest(t *testing.T) (int32, func()) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	return int32(r.Fd()), func() {
+		_ = r.Close()
+		_ = w.Close()
+	}
+}
+
 // The mobile platform interface is the fd carrier for the sing-box mobile
-// core: the platform handover must be adopted by fd-less inbound configs,
-// ignored when nothing is registered (desktop) and never override an explicit fd.
+// core: the handover is active only with a registered fd, never overrides an
+// explicit fd and adopts nothing when idle. The descriptor handover itself is
+// platform specific (tun_fd_other.go, tun_fd_ios.go, tun_fd_windows.go).
 func TestMobileTunFDHook(t *testing.T) {
 	var platform mobilePlatformInterface
 
@@ -20,10 +38,10 @@ func TestMobileTunFDHook(t *testing.T) {
 	if !platform.UsePlatformInterface() {
 		t.Fatal("expected platform interface active when mobile tun fd is registered")
 	}
-	var adopted tun.Options
-	applyMobileTunOptions(&adopted)
-	if adopted.FileDescriptor != 43 {
-		t.Fatalf("did not adopt the registered fd: %d", adopted.FileDescriptor)
+	owned := tun.Options{FileDescriptor: 7}
+	applyMobileTunOptions(&owned)
+	if owned.FileDescriptor != 7 {
+		t.Fatalf("overrode an explicit fd: %d", owned.FileDescriptor)
 	}
 
 	SetMobileTunFD(0)
@@ -35,14 +53,6 @@ func TestMobileTunFDHook(t *testing.T) {
 	if idle.FileDescriptor != 0 {
 		t.Fatalf("adopted fd with none registered: %d", idle.FileDescriptor)
 	}
-
-	SetMobileTunFD(99)
-	owned := tun.Options{FileDescriptor: 7}
-	applyMobileTunOptions(&owned)
-	if owned.FileDescriptor != 7 {
-		t.Fatalf("overrode an explicit fd: %d", owned.FileDescriptor)
-	}
-	SetMobileTunFD(0)
 }
 
 func TestMobilePlatformInterface(t *testing.T) {

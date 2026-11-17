@@ -2,6 +2,7 @@ package sysproxy
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -100,5 +101,22 @@ func TestSplitJoinHostPort(t *testing.T) {
 	}
 	if got := joinHostPort("", "8080"); got != "" {
 		t.Fatalf("empty host must stay empty: %q", got)
+	}
+}
+
+// The takeover must always apply a bypass list: with it empty, the client's
+// own control-plane traffic (UI to a LAN external controller) enters the
+// core and a subscription without LAN rules rides it out the proxy node.
+func TestDefaultBypassKeepsPrivateRangesDirect(t *testing.T) {
+	bypass := DefaultBypass()
+	if bypass == "" {
+		t.Fatal("DefaultBypass must not be empty")
+	}
+	// CIDR platforms cover 172.16/12 as one range; wildcard platforms
+	// spell out 172.16.*-172.31.*. "172.16." matches both spellings.
+	for _, want := range []string{"localhost", "127.", "10.", "192.168.", "172.16."} {
+		if !strings.Contains(bypass, want) {
+			t.Fatalf("DefaultBypass missing %q: %q", want, bypass)
+		}
 	}
 }

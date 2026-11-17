@@ -94,10 +94,15 @@
 
   /* Type scale (DESIGN.md typography roles). Custom names carry font-size
      only, so authored line-heights stay intact. Default Tailwind steps snap
-     onto the ramp: xs==caption, sm==label, base==body. */
-  --text-caption: 0.75rem;
-  --text-label: 0.875rem;
+     onto the ramp: xs==caption, sm==label, base==body. `caption` and
+     `label` are runtime variables (declared below, referenced by the
+     utilities) because the mobile media ramp below redefines them —
+     @theme inline would bake the literal value into every utility and
+     variant, and the ramp would never reach them. `footnote` stays
+     12px at every width — badges, key hints and mono side-values keep
+     their precision while caption grows on mobile. */
   --text-body: 1rem;
+  --text-footnote: 0.75rem;
   --text-subtitle: 0.9375rem;
   --text-title: 1.375rem;
   --text-headline: 2.125rem;
@@ -141,6 +146,25 @@
   --shadow-elevation-card: var(--elevation-card);
   --shadow-elevation-raised: var(--elevation-raised);
   --shadow-window-frame: var(--window-frame);
+}
+
+/* Caption and label live as runtime variables so a future per-surface ramp
+   can redefine them without touching every utility variant. The global
+   mobile lift that used this hook was reverted: a blanket token shift
+   carried mixed roles (row titles, helper copy, callouts) and fought
+   authored leading-* values across every page at once. Mobile body sizes
+   move per-surface instead (DESIGN.md 行動端基線). */
+:root {
+  --text-caption: 0.75rem;
+  --text-label: 0.875rem;
+}
+
+@utility text-caption {
+  font-size: var(--text-caption);
+}
+
+@utility text-label {
+  font-size: var(--text-label);
 }
 
 /* Trim half-leading so single-line labels center on glyph ink instead of

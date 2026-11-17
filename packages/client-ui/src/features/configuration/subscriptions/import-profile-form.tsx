@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FileField } from "@/components/ui/file-field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -182,13 +183,15 @@ export default function ImportConfig({
             <TabsContent value="file">
               <Field className="gap-2" data-disabled={pending}>
                 <FieldLabel htmlFor="import-file">{t("chooseFile")}</FieldLabel>
-                <Input
+                <FileField
                   id="import-file"
-                  type="file"
                   accept=".json,.yaml,.yml,.conf,.txt"
                   required
                   disabled={pending}
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  value={file}
+                  onChange={setFile}
+                  labelAction={t("filePickAction")}
+                  removeLabel={t("fileRemove")}
                 />
               </Field>
             </TabsContent>
@@ -217,19 +220,15 @@ export default function ImportConfig({
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <div>
-            <Button
-              type="submit"
-              variant="brand"
-              disabled={pending || !valid || !hasDaemon}
-            >
-              {pending && <Spinner data-icon="inline-start" />}
-              {pending ? t("importing") : t("import")}
-            </Button>
-          </div>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {c("configReady")}
-          </p>
+          <Button
+            type="submit"
+            variant="brand"
+            className="w-full max-md:min-h-12"
+            disabled={pending || !valid || !hasDaemon}
+          >
+            {pending && <Spinner data-icon="inline-start" />}
+            {pending ? t("importing") : t("import")}
+          </Button>
         </FieldGroup>
       </form>
     </div>

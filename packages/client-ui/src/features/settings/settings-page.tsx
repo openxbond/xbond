@@ -6,33 +6,27 @@ import {
   Check,
   ChevronRight,
   Copy,
-  Cpu,
   ExternalLink,
   FlaskConical,
   Monitor,
+  Moon,
   Network,
   ScrollText,
   Shuffle,
-  Sliders,
   Smartphone,
+  Sliders,
+  Sun,
   Terminal,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Header } from "@/components/page-header";
 import { SegmentedControl } from "@/components/segmented-control";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -140,17 +134,11 @@ function SettingRow({
 interface SettingsSectionProps {
   icon: React.ReactNode;
   title: string;
-  description?: string;
   children: React.ReactNode;
 }
 
-/** 設定分組外殼：圖示、標題、一句說明，再接下方的設定列。 */
-function SettingsSection({
-  icon,
-  title,
-  description,
-  children,
-}: SettingsSectionProps) {
+/** 設定分組外殼：圖示與標題一行，再接下方的設定列。 */
+function SettingsSection({ icon, title, children }: SettingsSectionProps) {
   return (
     <Card className="flex flex-col p-4 sm:p-6">
       <CardHeader className="flex items-center gap-3 pb-4">
@@ -159,9 +147,6 @@ function SettingsSection({
         </div>
         <div className="flex min-w-0 flex-col">
           <CardTitle>{title}</CardTitle>
-          {description && (
-            <CardDescription className="text-xs">{description}</CardDescription>
-          )}
         </div>
       </CardHeader>
       <Separator className="mb-5" />
@@ -178,7 +163,6 @@ export default function Settings() {
   const { t: tc } = useTranslation("common");
   const { t: sb } = useTranslation("sidebar");
   const { t: cfg } = useTranslation("configuration");
-  const navigate = useNavigate();
 
   const controller = useAPIInfo();
   const caps = useCapabilities();
@@ -376,9 +360,6 @@ export default function Settings() {
                   <CardTitle className="text-sm font-semibold">
                     {t("quickTools")}
                   </CardTitle>
-                  <CardDescription className="text-xs">
-                    {t("quickToolsDesc")}
-                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -392,7 +373,7 @@ export default function Settings() {
                   <div className="grid size-8 place-items-center rounded-lg bg-inset text-foreground shadow-2xs">
                     <Network className="size-4" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-sm max-md:text-base font-medium text-foreground">
                     {sb("connections")}
                   </span>
                 </div>
@@ -414,7 +395,7 @@ export default function Settings() {
                   <div className="grid size-8 place-items-center rounded-lg bg-inset text-foreground shadow-2xs">
                     <Shuffle className="size-4" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-sm max-md:text-base font-medium text-foreground">
                     {sb("rules")}
                   </span>
                 </div>
@@ -429,7 +410,7 @@ export default function Settings() {
                   <div className="grid size-8 place-items-center rounded-lg bg-inset text-foreground shadow-2xs">
                     <ScrollText className="size-4" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-sm max-md:text-base font-medium text-foreground">
                     {sb("logs")}
                   </span>
                 </div>
@@ -444,7 +425,7 @@ export default function Settings() {
                   <div className="grid size-8 place-items-center rounded-lg bg-inset text-foreground shadow-2xs">
                     <FlaskConical className="size-4" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-sm max-md:text-base font-medium text-foreground">
                     {sb("diagnostics")}
                   </span>
                 </div>
@@ -461,7 +442,7 @@ export default function Settings() {
                     <div className="grid size-8 place-items-center rounded-lg bg-brand-soft text-brand-text shadow-2xs">
                       <Smartphone className="size-4" />
                     </div>
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-sm max-md:text-base font-medium text-foreground">
                       {cfg("perAppVpn.title")}
                     </span>
                   </div>
@@ -488,30 +469,36 @@ export default function Settings() {
             />
           }
           title={t("preferences")}
-          description={t("generalDesc")}
         >
-          {/* Theme */}
-          <SettingRow
-            title={t("theme")}
-            description={t("themeDesc")}
-            stacked={isMobile}
-          >
+          {/* Theme: icon-only segmented, one row at every width — the labels
+              stay as accessible names, the row never stacks. */}
+          <SettingRow title={t("theme")}>
             <SegmentedControl<ThemePreference>
               ariaLabel={t("theme")}
               value={theme ?? "system"}
               options={[
-                { value: "system", label: t("system") },
-                { value: "light", label: t("light") },
-                { value: "dark", label: t("dark") },
+                {
+                  value: "system",
+                  label: t("system"),
+                  icon: <Monitor className="size-4" />,
+                },
+                {
+                  value: "light",
+                  label: t("light"),
+                  icon: <Sun className="size-4" />,
+                },
+                {
+                  value: "dark",
+                  label: t("dark"),
+                  icon: <Moon className="size-4" />,
+                },
               ]}
               onChange={setTheme}
-              className={isMobile ? "w-full" : undefined}
-              itemClassName={isMobile ? "flex-1" : undefined}
             />
           </SettingRow>
 
           {/* Language */}
-          <SettingRow title={t("language")} description={t("languageDesc")}>
+          <SettingRow title={t("language")}>
             <Select value={lang} onValueChange={(val) => setLang(val as Lang)}>
               <SelectTrigger
                 className="h-9 min-w-[140px] rounded-control border-border-strong bg-inset text-body text-foreground transition-colors hover:border-brand/40 focus:border-brand focus:ring-2 focus:ring-brand/20"
@@ -596,7 +583,6 @@ export default function Settings() {
             />
           }
           title={t("network")}
-          description={t("networkDesc")}
         >
           {/* Mixed Port */}
           <div className="-mx-3 flex flex-col gap-2.5 rounded-xl p-3 transition-colors duration-150 hover:bg-row-hover/50">
@@ -607,22 +593,24 @@ export default function Settings() {
                     {t("takeover.mixedPort")}
                   </strong>
                   {/* 埠註記（訂閱來源／本機覆蓋）是 daemon 語義，純 Web 沒有
-                        LocalAPI status；端口現值由輸入框 placeholder 如實展示。 */}
+                        LocalAPI status；端口現值由輸入框 placeholder 如實展示。
+                        狀態是長句說明，不占用 Badge 膠囊（那是短標記的容器）:
+                        輕量行內文字配語義圓點，視覺重量始終低於行標題。 */}
                   {status ? (
                     status.preferences.portOverride ? (
-                      <Badge variant="brand">
-                        <span className="size-1.5 rounded-full bg-brand" />
+                      <span className="inline-flex items-center gap-1.5 text-footnote text-muted-foreground">
+                        <span className="size-1.5 shrink-0 rounded-full bg-brand" />
                         {t("takeover.portNoteOverride", {
                           port: status.preferences.portOverride,
                         })}
-                      </Badge>
+                      </span>
                     ) : (
-                      <Badge variant="secondary">
-                        <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                      <span className="inline-flex items-center gap-1.5 text-footnote text-muted-foreground">
+                        <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
                         {status.preferences.portSource === "subscription"
                           ? t("takeover.portNoteSubscription")
                           : t("takeover.portNoteDefault")}
-                      </Badge>
+                      </span>
                     )
                   ) : null}
                 </div>
@@ -639,7 +627,7 @@ export default function Settings() {
                 className="w-auto gap-2"
               >
                 <Input
-                  className="w-28 font-mono"
+                  className="w-28 max-md:w-24 font-mono"
                   aria-invalid={Boolean(portValidation)}
                   aria-describedby={
                     portValidation ? "mixed-port-error" : undefined
@@ -673,7 +661,7 @@ export default function Settings() {
                     (!hasLocalAPI && !caps.editPorts)
                   }
                   onClick={() => void savePort()}
-                  className="h-9 font-medium"
+                  className="h-9 max-md:h-11 max-md:px-4 max-md:text-sm font-medium"
                 >
                   {tc("confirm")}
                 </Button>
@@ -835,85 +823,6 @@ export default function Settings() {
           )}
         </SettingsSection>
 
-        {/* Section 4: 核心與日誌 */}
-        <SettingsSection
-          icon={
-            <Cpu
-              className="size-4.5 text-muted-foreground"
-              aria-hidden="true"
-            />
-          }
-          title={t("coreGroup")}
-          description={t("coreGroupDesc")}
-        >
-          {/* Log Level */}
-          <SettingRow
-            title={t("about.logLevel")}
-            description={t("advancedActions.logLevelDesc")}
-            stacked={isMobile}
-          >
-            <SegmentedControl
-              ariaLabel={t("about.logLevel")}
-              value={general.logLevel || "info"}
-              disabled={pending}
-              options={[
-                { value: "debug", label: "Debug" },
-                { value: "info", label: "Info" },
-                { value: "warn", label: "Warn" },
-                { value: "error", label: "Error" },
-                { value: "silent", label: "Silent" },
-              ]}
-              onChange={(level) =>
-                void run(async () => {
-                  if (!client) throw new Error("LocalAPI not available");
-                  await client.updateConfig({ "log-level": level });
-                  await update();
-                })
-              }
-              className={isMobile ? "w-full" : undefined}
-              itemClassName={isMobile ? "flex-1" : undefined}
-            />
-          </SettingRow>
-
-          {/* Core Runtime Overview */}
-          <SettingRow
-            title={t("advancedActions.coreRuntime")}
-            description={
-              <span className="flex flex-col gap-0.5">
-                <span className="inline-flex items-center gap-1.5">
-                  <span>{t("core.engine")}</span>
-                  <strong className="font-medium text-foreground">
-                    {clientInfo.type}
-                  </strong>
-                </span>
-                <span className="inline-flex min-w-0 items-center gap-1.5">
-                  <span className="shrink-0">
-                    {t("core.controllerAddress")}
-                  </span>
-                  <code className="truncate font-mono text-label text-foreground">
-                    {controller.hostname || "127.0.0.1"}
-                    {controller.port ? `:${controller.port}` : ""}
-                  </code>
-                </span>
-              </span>
-            }
-            stacked={isMobile}
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/config")}
-              className={cn(
-                "gap-1.5 font-medium",
-                isMobile && "w-full justify-between",
-              )}
-            >
-              <span>{t("advancedActions.manageControllers")}</span>
-              <ChevronRight className="size-3.5 text-muted-foreground" />
-            </Button>
-          </SettingRow>
-        </SettingsSection>
-
         {/* Section 5: 關於 (About System Sheet) */}
         <Card className="flex flex-col p-4 sm:p-6">
           <CardHeader className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-center sm:justify-between">
@@ -921,21 +830,13 @@ export default function Settings() {
               <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-inset p-2.5 shadow-xs">
                 <XBondIcon className="size-7" />
               </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <CardTitle>
-                    XBond{" "}
-                    {isDesktop
-                      ? t("desktop.hostDesktop")
-                      : t("desktop.hostClient")}
-                  </CardTitle>
-                  <span className="rounded-md border border-border bg-inset px-1.5 py-0.5 font-mono text-label font-semibold text-foreground">
-                    v{DASHBOARD_VERSION}
-                  </span>
-                </div>
-                <CardDescription className="text-xs">
-                  {t("aboutDesc")}
-                </CardDescription>
+              <div className="flex items-center gap-2">
+                <CardTitle>
+                  XBond{" "}
+                  {isDesktop
+                    ? t("desktop.hostDesktop")
+                    : t("desktop.hostClient")}
+                </CardTitle>
               </div>
             </div>
 

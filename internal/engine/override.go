@@ -9,31 +9,289 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Custom routing limits mirror the Cloud prefs contract: at most 10 groups,
+// 50 entries per group and 100 entries in total. One text box per entry —
+// domain, IP or CIDR — normalized by ParseCustomRule, so the UI and the
+// daemon never disagree about what a line means.
+const (
+	MaxRuleGroups     = 10
+	MaxRulesPerGroup  = 50
+	MaxCustomRulesSum = 100
+	maxDNSUpstreams   = 8
+)
+
+// RuleGroup is one user-defined routing group: entries share one target and
+// one on/off switch. Groups expand in order ahead of the subscription's own
+// rules; first match wins.
+type RuleGroup struct {
+	Name    string   `json:"name"`
+	Target  string   `json:"target"`
+	Enabled bool     `json:"enabled"`
+	Rules   []string `json:"rules"`
+}
+
+// DNSOverride replaces the default resolution path with explicit upstream
+// lists. Nameservers carry the primary resolvers; fallback (Clash only) is the
+// pollution-review list consulted when a nameserver answer looks poisoned —
+// a genuinely different mechanism, so it gets its own list. sing-box has no
+// fallback concept and rejects one at save time.
+type DNSOverride struct {
+	Nameservers []string `json:"nameservers,omitempty"`
+	Fallback    []string `json:"fallback,omitempty"`
+}
+
 // SubscriptionOverride is the structured local override spliced on top of a
-// subscription source before derivation (client-rethink §四: 来源原文 → 本地
-// 覆盖 → 宿主派生 → 校验后运行配置). The downloaded source is never
-// rewritten; the override is a separate layer that survives updates. DNS is
-// the raw override text, parsed with the core native to the source format
-// (Clash YAML mapping, sing-box JSON object).
+// subscription source before derivation. The downloaded source is never
+// rewritten; the override is a separate layer that survives updates.
 type SubscriptionOverride struct {
-	RulesPrepend []string `json:"rulesPrepend,omitempty"`
-	RulesAppend  []string `json:"rulesAppend,omitempty"`
-	DNS          string   `json:"dns,omitempty"`
+	Groups []RuleGroup  `json:"groups,omitempty"`
+	DNS    *DNSOverride `json:"dns,omitempty"`
 }
 
-// IsZero reports whether the override changes nothing.
+// IsZero reports whether the override carries nothing worth storing: a group
+// with entries counts even while disabled, so turning a group off keeps it
+// editable instead of deleting it on save.
 func (o *SubscriptionOverride) IsZero() bool {
-	return o == nil || (len(o.RulesPrepend) == 0 && len(o.RulesAppend) == 0 && strings.TrimSpace(o.DNS) == "")
+	if o == nil {
+		return true
+	}
+	for _, group := range o.Groups {
+		for _, rule := range group.Rules {
+			if strings.TrimSpace(rule) != "" {
+				return false
+			}
+		}
+	}
+	if o.DNS != nil {
+		for _, upstream := range append(o.DNS.Nameservers, o.DNS.Fallback...) {
+			if strings.TrimSpace(upstream) != "" {
+				return false
+			}
+		}
+	}
+	return true
 }
 
-// ApplyOverride splices the override's rules and DNS section into the source
-// document with the core native to the source format, then verifies every
-// referenced policy exists. A rule pointing at a node or group the upstream
-// removed is a conflict: it fails loudly instead of silently retargeting
-// (client-rethink §四.3). Source content is left to the core's own
-// validation gate.
+// Normalize returns the canonical form of the override: blank lines dropped,
+// entries normalized, empty groups removed, disabled groups kept as-is so the
+// switch survives a save, DNS upstreams trimmed, validated and deduplicated.
+// Invalid content fails with the group and entry named.
+func (o *SubscriptionOverride) Normalize() (*SubscriptionOverride, error) {
+	if o == nil {
+		return &SubscriptionOverride{}, nil
+	}
+	if len(o.Groups) > MaxRuleGroups {
+		return nil, fmt.Errorf("override holds %d rule groups, at most %d allowed", len(o.Groups), MaxRuleGroups)
+	}
+	normalized := &SubscriptionOverride{}
+	total := 0
+	for index, group := range o.Groups {
+		name := strings.TrimSpace(group.Name)
+		if name == "" {
+			name = fmt.Sprintf("Group %d", index+1)
+		}
+		entries := make([]string, 0, len(group.Rules))
+		for _, raw := range group.Rules {
+			if strings.TrimSpace(raw) == "" {
+				continue
+			}
+			value, ok := normalizeCustomRule(raw)
+			if !ok {
+				return nil, fmt.Errorf("rule group %q: %q is not a domain, IP address or CIDR", name, strings.TrimSpace(raw))
+			}
+			entries = append(entries, value)
+		}
+		if len(entries) == 0 {
+			continue
+		}
+		if len(entries) > MaxRulesPerGroup {
+			return nil, fmt.Errorf("rule group %q holds %d entries, at most %d allowed", name, len(entries), MaxRulesPerGroup)
+		}
+		target := strings.TrimSpace(group.Target)
+		if group.Enabled && target == "" {
+			return nil, fmt.Errorf("rule group %q has entries but no target", name)
+		}
+		total += len(entries)
+		normalized.Groups = append(normalized.Groups, RuleGroup{
+			Name:    name,
+			Target:  target,
+			Enabled: group.Enabled,
+			Rules:   entries,
+		})
+	}
+	if total > MaxCustomRulesSum {
+		return nil, fmt.Errorf("override holds %d custom entries, at most %d allowed", total, MaxCustomRulesSum)
+	}
+	if o.DNS != nil {
+		nameservers, err := normalizeDNSUpstreams(o.DNS.Nameservers, "nameserver")
+		if err != nil {
+			return nil, err
+		}
+		fallback, err := normalizeDNSUpstreams(o.DNS.Fallback, "fallback")
+		if err != nil {
+			return nil, err
+		}
+		// A fallback entry identical to a nameserver would be queried twice
+		// for the same answer; drop the duplicate instead of storing it.
+		primary := make(map[string]bool, len(nameservers))
+		for _, upstream := range nameservers {
+			primary[upstream] = true
+		}
+		fallback = slices.DeleteFunc(fallback, func(upstream string) bool {
+			return primary[upstream]
+		})
+		if len(fallback) > 0 && len(nameservers) == 0 {
+			return nil, fmt.Errorf("fallback DNS upstreams need at least one nameserver")
+		}
+		if len(nameservers) > 0 || len(fallback) > 0 {
+			normalized.DNS = &DNSOverride{Nameservers: nameservers, Fallback: fallback}
+		}
+	}
+	return normalized, nil
+}
+
+func normalizeDNSUpstreams(raw []string, list string) ([]string, error) {
+	upstreams := make([]string, 0, len(raw))
+	seen := map[string]bool{}
+	for _, entry := range raw {
+		value := strings.TrimSpace(entry)
+		if value == "" {
+			continue
+		}
+		if !validateDNSUpstream(value) {
+			return nil, fmt.Errorf("DNS %s upstream %q is not a usable address (IP, hostname or dns:// URL)", list, value)
+		}
+		if seen[value] {
+			continue
+		}
+		seen[value] = true
+		upstreams = append(upstreams, value)
+	}
+	if len(upstreams) > maxDNSUpstreams {
+		return nil, fmt.Errorf("DNS %s holds %d upstreams, at most %d allowed", list, len(upstreams), maxDNSUpstreams)
+	}
+	return upstreams, nil
+}
+
+// ListPolicies reports the routing targets a custom rule may point at for one
+// source document: the subscription's own policy groups (falling back to
+// individual nodes when it ships none) plus the built-in DIRECT and REJECT.
+// The UI offers exactly this list, so a saved target always validates.
+func ListPolicies(source []byte) (CoreFormat, []string, error) {
+	format, err := DetectFormat(source)
+	if err != nil {
+		return "", nil, err
+	}
+	switch format {
+	case FormatClash:
+		raw, err := decodeYAMLMap(source)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to parse source config: %w", err)
+		}
+		policies := namesOf(raw, "proxy-groups")
+		if len(policies) == 0 {
+			policies = namesOf(raw, "proxies")
+		}
+		return format, withBuiltins(policies), nil
+	case FormatSingBox:
+		var raw map[string]any
+		if err := json.Unmarshal(source, &raw); err != nil {
+			return "", nil, fmt.Errorf("failed to parse source config: %w", err)
+		}
+		var groups, all []string
+		if items, _ := raw["outbounds"].([]any); len(items) > 0 {
+			for _, item := range items {
+				entry, ok := item.(map[string]any)
+				if !ok {
+					continue
+				}
+				tag, _ := entry["tag"].(string)
+				if tag == "" {
+					continue
+				}
+				all = append(all, tag)
+				switch entry["type"] {
+				case "selector", "urltest":
+					groups = append(groups, tag)
+				}
+			}
+		}
+		if len(groups) == 0 {
+			groups = all
+		}
+		return format, withBuiltins(groups), nil
+	default:
+		return "", nil, fmt.Errorf("unsupported core format %q", format)
+	}
+}
+
+// namesOf lists the non-empty name fields of one YAML list key.
+func namesOf(raw map[string]any, key string) []string {
+	var names []string
+	seen := map[string]bool{}
+	items, _ := raw[key].([]any)
+	for _, item := range items {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		name, _ := entry["name"].(string)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		names = append(names, name)
+	}
+	return names
+}
+
+// withBuiltins appends DIRECT and REJECT once, skipping a same-named source
+// entry: the renderer maps those targets to the core's native action, so one
+// spelling is enough.
+func withBuiltins(policies []string) []string {
+	seen := map[string]bool{}
+	for _, name := range policies {
+		seen[strings.ToUpper(name)] = true
+	}
+	for _, name := range []string{"DIRECT", "REJECT"} {
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		policies = append(policies, name)
+	}
+	return policies
+}
+
+// applies reports whether the override changes the document at all: some
+// enabled group with entries, or DNS upstreams. A disabled-only override is
+// stored (the switch survives) but leaves the source untouched.
+func (o *SubscriptionOverride) applies() bool {
+	if o == nil {
+		return false
+	}
+	for _, group := range o.Groups {
+		if group.Enabled && len(group.Rules) > 0 {
+			return true
+		}
+	}
+	return o.DNS != nil && (len(o.DNS.Nameservers) > 0 || len(o.DNS.Fallback) > 0)
+}
+
+// ApplyOverride splices the override's rule groups and DNS upstreams into the
+// source document with the core native to the source format, then verifies
+// every referenced target exists. A group pointing at a node or group the
+// upstream removed is a conflict: it fails loudly instead of silently
+// retargeting. Source content is left to the core's own validation gate.
 func ApplyOverride(source []byte, override *SubscriptionOverride) ([]byte, error) {
 	if override.IsZero() {
+		return source, nil
+	}
+	normalized, err := override.Normalize()
+	if err != nil {
+		return nil, err
+	}
+	if !normalized.applies() {
 		return source, nil
 	}
 	format, err := DetectFormat(source)
@@ -42,9 +300,9 @@ func ApplyOverride(source []byte, override *SubscriptionOverride) ([]byte, error
 	}
 	switch format {
 	case FormatClash:
-		return applyClashOverride(source, override)
+		return applyClashOverride(source, normalized)
 	case FormatSingBox:
-		return applySingBoxOverride(source, override)
+		return applySingBoxOverride(source, normalized)
 	default:
 		return nil, fmt.Errorf("unsupported core format %q", format)
 	}
@@ -56,22 +314,18 @@ func applyClashOverride(source []byte, override *SubscriptionOverride) ([]byte, 
 		return nil, fmt.Errorf("failed to parse source config: %w", err)
 	}
 	policies := clashPolicies(raw)
-	if err := checkClashRuleTargets(override, policies); err != nil {
+	rendered, err := renderClashRules(override, policies)
+	if err != nil {
 		return nil, err
 	}
 	existingRules, _ := raw["rules"].([]any)
-	rules := make([]any, 0, len(override.RulesPrepend)+len(existingRules)+len(override.RulesAppend))
-	for _, rule := range override.RulesPrepend {
+	rules := make([]any, 0, len(rendered)+len(existingRules))
+	for _, rule := range rendered {
 		rules = append(rules, rule)
 	}
 	rules = append(rules, existingRules...)
-	for _, rule := range override.RulesAppend {
-		rules = append(rules, rule)
-	}
 	raw["rules"] = rules
-	if err := applyClashDNSOverride(raw, override); err != nil {
-		return nil, err
-	}
+	applyClashDNSUpstreams(raw, override.DNS)
 	derived, err := yaml.Marshal(raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal overridden config: %w", err)
@@ -79,45 +333,70 @@ func applyClashOverride(source []byte, override *SubscriptionOverride) ([]byte, 
 	return derived, nil
 }
 
-func applyClashDNSText(raw map[string]any, dnsText string) error {
-	if strings.TrimSpace(dnsText) == "" {
-		return nil
-	}
-	var dns map[string]any
-	if err := yaml.Unmarshal([]byte(dnsText), &dns); err != nil {
-		return fmt.Errorf("override DNS is malformed: expected a YAML mapping: %w", err)
-	}
-	if len(dns) == 0 {
-		return nil
-	}
-	source, _ := raw["dns"].(map[string]any)
-	if source == nil {
-		source = make(map[string]any)
-	}
-	raw["dns"] = deepMergeMaps(source, dns)
-	return nil
-}
-
-// applyClashDNSOverride deep-merges the override's DNS mapping (Clash YAML)
-// into the source's dns section: nested maps merge recursively, scalars and
-// lists replace wholesale.
-func applyClashDNSOverride(raw map[string]any, override *SubscriptionOverride) error {
-	return applyClashDNSText(raw, override.DNS)
-}
-
-// deepMergeMaps merges the override mapping into base: nested maps merge
-// recursively, scalars and lists replace.
-func deepMergeMaps(base, override map[string]any) map[string]any {
-	for key, value := range override {
-		if baseMap, ok := base[key].(map[string]any); ok {
-			if overrideMap, ok := value.(map[string]any); ok {
-				base[key] = deepMergeMaps(baseMap, overrideMap)
-				continue
+// renderClashRules expands every enabled group in order: domain entries ride
+// DOMAIN-SUFFIX, IP and CIDR entries ride IP-CIDR/IP-CIDR6 with no-resolve,
+// matching the sing-box ip_cidr semantics (literal destination only, no
+// pre-resolution).
+func renderClashRules(override *SubscriptionOverride, policies map[string]bool) ([]string, error) {
+	var rendered []string
+	for _, group := range override.Groups {
+		if !group.Enabled {
+			continue
+		}
+		if _, ok := policies[group.Target]; !ok {
+			return nil, fmt.Errorf("rule group %q references missing policy %q", group.Name, group.Target)
+		}
+		for _, value := range group.Rules {
+			parsed, ok := ParseCustomRule(value)
+			if !ok {
+				return nil, fmt.Errorf("rule group %q: %q is not a domain, IP address or CIDR", group.Name, value)
+			}
+			switch parsed.Kind {
+			case "domain":
+				rendered = append(rendered, "DOMAIN-SUFFIX,"+parsed.Value+","+group.Target)
+			case "ip", "cidr":
+				keyword := "IP-CIDR"
+				if parsed.IPv6 {
+					keyword = "IP-CIDR6"
+				}
+				rendered = append(rendered, keyword+","+parsed.CIDR+","+group.Target+",no-resolve")
+			default:
+				return nil, fmt.Errorf("rule group %q: %q is not a domain, IP address or CIDR", group.Name, value)
 			}
 		}
-		base[key] = value
 	}
-	return base
+	return rendered, nil
+}
+
+// applyClashDNSUpstreams points the source's resolution at the override
+// lists: nameserver is replaced wholesale; a non-empty fallback replaces the
+// source's list, and an empty one removes it — the override owns DNS once
+// present, so a stale source fallback cannot second-guess the new
+// nameservers. Writing fallback is safe for the validation gate:
+// suppressFallbackGeoIP keeps it parseable without an MMDB download.
+func applyClashDNSUpstreams(raw map[string]any, dns *DNSOverride) {
+	if dns == nil || len(dns.Nameservers) == 0 {
+		return
+	}
+	section, _ := raw["dns"].(map[string]any)
+	if section == nil {
+		section = make(map[string]any)
+	}
+	servers := make([]any, 0, len(dns.Nameservers))
+	for _, upstream := range dns.Nameservers {
+		servers = append(servers, upstream)
+	}
+	section["nameserver"] = servers
+	if len(dns.Fallback) > 0 {
+		fallback := make([]any, 0, len(dns.Fallback))
+		for _, upstream := range dns.Fallback {
+			fallback = append(fallback, upstream)
+		}
+		section["fallback"] = fallback
+	} else {
+		delete(section, "fallback")
+	}
+	raw["dns"] = section
 }
 
 // reservedPolicyNames are built into the cores and can never be a
@@ -151,44 +430,6 @@ func clashPolicies(raw map[string]any) map[string]bool {
 	return policies
 }
 
-// clashRulePolicy extracts a rule's target policy: the second field for
-// MATCH, the last for logic rules (AND/OR/NOT — payloads contain commas),
-// the third for everything else.
-func clashRulePolicy(rule string) (string, bool) {
-	fields := strings.Split(strings.TrimSpace(rule), ",")
-	if len(fields) == 0 {
-		return "", false
-	}
-	switch strings.ToUpper(strings.TrimSpace(fields[0])) {
-	case "MATCH":
-		if len(fields) >= 2 {
-			return strings.TrimSpace(fields[1]), true
-		}
-	case "AND", "OR", "NOT":
-		if len(fields) >= 3 {
-			return strings.TrimSpace(fields[len(fields)-1]), true
-		}
-	default:
-		if len(fields) >= 3 {
-			return strings.TrimSpace(fields[2]), true
-		}
-	}
-	return "", false
-}
-
-func checkClashRuleTargets(override *SubscriptionOverride, policies map[string]bool) error {
-	for _, rule := range append(append([]string{}, override.RulesPrepend...), override.RulesAppend...) {
-		policy, ok := clashRulePolicy(rule)
-		if !ok {
-			return fmt.Errorf("override rule %q is malformed: expected TYPE,PAYLOAD,POLICY", rule)
-		}
-		if !policies[policy] {
-			return fmt.Errorf("override rule %q references missing policy %q", rule, policy)
-		}
-	}
-	return nil
-}
-
 func applySingBoxOverride(source []byte, override *SubscriptionOverride) ([]byte, error) {
 	var raw map[string]any
 	if err := json.Unmarshal(source, &raw); err != nil {
@@ -206,11 +447,7 @@ func applySingBoxOverride(source []byte, override *SubscriptionOverride) ([]byte
 			}
 		}
 	}
-	prepend, err := singBoxOverrideRules(override.RulesPrepend, outboundTags)
-	if err != nil {
-		return nil, err
-	}
-	appendRules, err := singBoxOverrideRules(override.RulesAppend, outboundTags)
+	prepend, err := renderSingBoxRules(override, outboundTags)
 	if err != nil {
 		return nil, err
 	}
@@ -220,15 +457,15 @@ func applySingBoxOverride(source []byte, override *SubscriptionOverride) ([]byte
 		route = make(map[string]any)
 	}
 	existingRules, _ := route["rules"].([]any)
-	rules := make([]any, 0, len(prepend)+len(existingRules)+len(appendRules))
+	rules := make([]any, 0, len(prepend)+len(existingRules))
 	rules = append(rules, prepend...)
 	rules = append(rules, existingRules...)
-	rules = append(rules, appendRules...)
 	route["rules"] = rules
 	raw["route"] = route
-	if err := applySingBoxDNSOverride(raw, override, outboundTags); err != nil {
-		return nil, err
+	if override.DNS != nil && len(override.DNS.Fallback) > 0 {
+		return nil, fmt.Errorf("fallback DNS upstreams apply only to Clash subscriptions")
 	}
+	applySingBoxDNSUpstreams(raw, override.DNS)
 
 	derived, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {
@@ -237,84 +474,81 @@ func applySingBoxOverride(source []byte, override *SubscriptionOverride) ([]byte
 	return derived, nil
 }
 
-func applySingBoxDNSText(raw map[string]any, dnsText string, outboundTags map[string]bool) error {
-	if strings.TrimSpace(dnsText) == "" {
-		return nil
-	}
-	var dns map[string]any
-	if err := json.Unmarshal([]byte(dnsText), &dns); err != nil {
-		return fmt.Errorf("override DNS is malformed: expected a JSON object: %w", err)
-	}
-	if len(dns) == 0 {
-		return nil
-	}
-	source, _ := raw["dns"].(map[string]any)
-	if source == nil {
-		source = make(map[string]any)
-	}
-	merged := deepMergeMaps(source, dns)
-	if err := checkSingBoxDNSReferences(merged, outboundTags); err != nil {
-		return err
-	}
-	raw["dns"] = merged
-	return nil
-}
-
-// applySingBoxDNSOverride deep-merges the override's DNS object (JSON) into
-// the source's dns section, then checks the references DNS makes: a server's
-// detour must name an existing outbound, and a DNS rule's server must name
-// an existing DNS server tag.
-func applySingBoxDNSOverride(raw map[string]any, override *SubscriptionOverride, outboundTags map[string]bool) error {
-	return applySingBoxDNSText(raw, override.DNS, outboundTags)
-}
-
-func checkSingBoxDNSReferences(dns map[string]any, outboundTags map[string]bool) error {
-	serverTags := map[string]bool{}
-	if servers, _ := dns["servers"].([]any); servers != nil {
-		for _, item := range servers {
-			server, ok := item.(map[string]any)
+// renderSingBoxRules expands every enabled group in order. DIRECT and REJECT
+// ride the native actions so they never depend on a subscription shipping a
+// matching outbound; every other target must name an existing outbound.
+func renderSingBoxRules(override *SubscriptionOverride, outboundTags map[string]bool) ([]any, error) {
+	var rendered []any
+	for _, group := range override.Groups {
+		if !group.Enabled {
+			continue
+		}
+		action := ""
+		switch strings.ToUpper(group.Target) {
+		case "DIRECT":
+			action = "direct"
+		case "REJECT":
+			action = "reject"
+		default:
+			if !outboundTags[group.Target] {
+				return nil, fmt.Errorf("rule group %q references missing outbound %q", group.Name, group.Target)
+			}
+		}
+		for _, value := range group.Rules {
+			parsed, ok := ParseCustomRule(value)
 			if !ok {
-				continue
+				return nil, fmt.Errorf("rule group %q: %q is not a domain, IP address or CIDR", group.Name, value)
 			}
-			tag, _ := server["tag"].(string)
-			if tag != "" {
-				serverTags[tag] = true
+			rule := map[string]any{}
+			switch parsed.Kind {
+			case "domain":
+				rule["domain_suffix"] = []any{parsed.Value}
+			case "ip", "cidr":
+				rule["ip_cidr"] = []any{parsed.CIDR}
+			default:
+				return nil, fmt.Errorf("rule group %q: %q is not a domain, IP address or CIDR", group.Name, value)
 			}
-			if detour, _ := server["detour"].(string); detour != "" && !outboundTags[detour] {
-				return fmt.Errorf("override DNS server %q references missing outbound %q", tag, detour)
+			if action != "" {
+				rule["action"] = action
+			} else {
+				rule["outbound"] = group.Target
 			}
+			rendered = append(rendered, rule)
 		}
 	}
-	if rules, _ := dns["rules"].([]any); rules != nil {
-		for _, item := range rules {
-			rule, ok := item.(map[string]any)
-			if !ok {
-				continue
-			}
-			if server, _ := rule["server"].(string); server != "" && !serverTags[server] {
-				return fmt.Errorf("override DNS rule references missing server %q", server)
-			}
-		}
-	}
-	return nil
+	return rendered, nil
 }
 
-// singBoxOverrideRules parses each override line as a JSON rule object and
-// checks its outbound reference, if any, against the source's outbounds.
-func singBoxOverrideRules(lines []string, outboundTags map[string]bool) ([]any, error) {
-	if len(lines) == 0 {
-		return nil, nil
+// applySingBoxDNSUpstreams appends the override nameservers as dns-custom-N
+// servers and points final at the first one. Existing servers and rules stay
+// untouched, so per-domain routing from the source keeps resolving.
+func applySingBoxDNSUpstreams(raw map[string]any, dns *DNSOverride) {
+	if dns == nil || len(dns.Nameservers) == 0 {
+		return
 	}
-	rules := make([]any, 0, len(lines))
-	for _, line := range lines {
-		var rule map[string]any
-		if err := json.Unmarshal([]byte(line), &rule); err != nil {
-			return nil, fmt.Errorf("override rule %q is malformed: expected a JSON object per line", line)
-		}
-		if outbound, _ := rule["outbound"].(string); outbound != "" && !outboundTags[outbound] {
-			return nil, fmt.Errorf("override rule %q references missing outbound %q", line, outbound)
-		}
-		rules = append(rules, rule)
+	section, _ := raw["dns"].(map[string]any)
+	if section == nil {
+		section = make(map[string]any)
 	}
-	return rules, nil
+	servers, _ := section["servers"].([]any)
+	kept := make([]any, 0, len(servers))
+	for _, item := range servers {
+		server, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if tag, _ := server["tag"].(string); strings.HasPrefix(tag, "dns-custom-") {
+			continue
+		}
+		kept = append(kept, item)
+	}
+	for index, upstream := range dns.Nameservers {
+		kept = append(kept, map[string]any{
+			"tag":     fmt.Sprintf("dns-custom-%d", index),
+			"address": upstream,
+		})
+	}
+	section["servers"] = kept
+	section["final"] = "dns-custom-0"
+	raw["dns"] = section
 }

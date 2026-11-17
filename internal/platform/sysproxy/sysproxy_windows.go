@@ -4,6 +4,7 @@ package sysproxy
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/sys/windows/registry"
@@ -41,6 +42,20 @@ func Get() (Snapshot, error) {
 	}, nil
 }
 
+// DefaultBypass is the exception list applied on takeover. ProxyOverride
+// matches by wildcard, not CIDR, so the 172.16/12 range has to be spelled
+// out per second octet; <local> keeps dotless hostnames off the proxy. The
+// client's own control plane — the UI reaching an external controller on
+// the LAN — must stay reachable with any rule set.
+func DefaultBypass() string {
+	entries := []string{"localhost", "127.*", "<local>"}
+	for second := 16; second <= 31; second++ {
+		entries = append(entries, fmt.Sprintf("172.%d.*", second))
+	}
+	entries = append(entries, "10.*", "192.168.*")
+	return strings.Join(entries, ";")
+}
+
 func Set(server string, bypass string) error {
 	current, err := Get()
 	if err != nil {
@@ -50,7 +65,7 @@ func Set(server string, bypass string) error {
 		return err
 	}
 	if bypass == "" {
-		bypass = "localhost;127.*;10.*;172.16.*;192.168.*;<local>"
+		bypass = DefaultBypass()
 	}
 	return Restore(Snapshot{Enabled: true, Server: server, Bypass: bypass})
 }

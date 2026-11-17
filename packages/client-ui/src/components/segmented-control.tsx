@@ -10,6 +10,9 @@ import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 interface SegmentedOption<T extends string> {
   value: T;
   label: ReactNode;
+  /** Icon-only item: the label stays as the accessible name and is not
+   * rendered visually (theme/appearance toggles and the like). */
+  icon?: ReactNode;
   disabled?: boolean;
   disabledReason?: string;
   description?: string;
@@ -62,7 +65,9 @@ export function SegmentedControl<T extends string>({
       ? "min-h-[24px] px-2 py-0.5 text-xs max-md:min-h-10 max-md:px-3.5 rounded-md"
       : size === "lg"
         ? "min-h-9 px-4 py-1.5 text-sm rounded-xl"
-        : "min-h-7 px-3 py-1 text-xs xl:text-[13px] max-md:min-h-10 max-md:px-4 rounded-lg";
+        : // M3 label large: control text holds 14px at every width (the old
+          // 12→13 desktop bump was an off-ramp pixel value).
+          "min-h-7 px-3 py-1 text-sm max-md:min-h-10 max-md:px-4 rounded-lg";
 
   return (
     <ToggleGroup
@@ -96,6 +101,11 @@ export function SegmentedControl<T extends string>({
             disabled={option.disabled && !reasonId}
             aria-disabled={reasonId ? true : undefined}
             aria-describedby={reasonId}
+            aria-label={
+              option.icon && typeof option.label === "string"
+                ? option.label
+                : undefined
+            }
             title={option.disabledReason}
             className={cn(
               segmentedItem,
@@ -105,7 +115,7 @@ export function SegmentedControl<T extends string>({
               itemClassName,
             )}
           >
-            {option.label}
+            {option.icon ?? option.label}
             {reasonId && (
               <span id={reasonId} className="sr-only">
                 {option.disabledReason}

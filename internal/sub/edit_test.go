@@ -63,7 +63,7 @@ func TestEditSourceGatesPinAndVersioning(t *testing.T) {
 	if _, err := manager.EditSource(meta.ID, []byte(edited)); err != nil {
 		t.Fatal(err) // same content is fine; pin intent preserved
 	}
-	if err := os.WriteFile(paths.SubOverridePath(meta.ID), []byte(`{"rulesAppend":["DOMAIN,x.example.invalid,missing-group"]}`), 0o600); err != nil {
+	if err := os.WriteFile(paths.SubOverridePath(meta.ID), []byte(`{"groups":[{"name":"Bad","target":"missing-group","enabled":true,"rules":["x.example.invalid"]}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := manager.EditSource(meta.ID, []byte(edited)); err == nil {

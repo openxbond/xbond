@@ -22,9 +22,11 @@ export const LOGO_SVG = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://ww
 
 // Launch-screen glyph (SplashLogo.imageset): rendered for the Info.plist
 // UILaunchScreen UIImageName key, which displays the image at its point size
-// (single-scale bitmap), so 240px lands as a centered 240pt mark. The wings
-// carry the explicit favicon ink per luminosity variant (currentColor cannot
-// resolve in PNG rendering).
+// (single-scale bitmap), so the canvas lands as a centered 120pt mark — the
+// 72/100-unit glyph (~87pt, about a fifth of an iPhone width) matches the
+// Android splash glyph size (both variants of xbond_splash_icon*). The
+// wings carry the explicit favicon ink per luminosity variant (currentColor
+// cannot resolve in PNG rendering).
 export const SPLASH_LOGO_SVG_LIGHT = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="${PATH_ORANGE}" fill="#F38020" />
   <path d="${PATH_RIGHT}" fill="#18181B" />
@@ -37,7 +39,9 @@ export const SPLASH_LOGO_SVG_DARK = `<svg viewBox="0 0 100 100" fill="none" xmln
 </svg>
 `;
 
-const SPLASH_LOGO_SIZE = 240;
+// 120pt launch mark; the glyphs are 72/100 viewport units, so the visible
+// logo is ~87pt (see the comment block above for the sizing rationale).
+const SPLASH_LOGO_SIZE = 120;
 
 export const FAVICON_SVG = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
   <style>

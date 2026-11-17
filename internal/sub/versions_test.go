@@ -79,27 +79,25 @@ func TestVersionsSnapshotPruneAndRollback(t *testing.T) {
 	// A saved override that conflicts with the restored version blocks the
 	// rollback and keeps the current state.
 	if err := manager.SetOverride(meta.ID, &engine.SubscriptionOverride{
-		RulesAppend: []string{"DOMAIN,x.example.invalid,ghost"},
+		Groups: []engine.RuleGroup{{Name: "Ghost", Target: "ghost", Enabled: true, Rules: []string{"x.example.invalid"}}},
 	}); err == nil {
 		t.Fatal("conflicting override was saved")
 	}
-	// The override references a policy that only v1/v2/v3 all contain — use
-	// a genuinely conflicting one by referencing a node the versions lack.
-	if err := manager.SetOverride(meta.ID, &engine.SubscriptionOverride{
-		RulesAppend: []string{"DOMAIN,x.example.invalid,only-in-v4"},
-	}); err == nil {
-		// A missing policy is rejected at save time, so craft the conflict by
-		// writing the override file directly.
-		if err := os.WriteFile(paths.SubOverridePath(meta.ID), []byte(`{"rulesAppend":["DOMAIN,x.example.invalid,only-in-v4"]}`), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := manager.Rollback(meta.ID); err == nil {
-			t.Fatal("rollback conflicting with the override succeeded")
-		}
-		source, _ := os.ReadFile(paths.SubSourcePath(meta.ID))
-		if !strings.Contains(string(source), "# v3") {
-			t.Fatal("failed rollback changed the source")
-		}
+	// A missing target is rejected at save time, so craft the conflict by
+	// writing the override file directly: every version lacks "only-in-v4".
+	if err := os.WriteFile(paths.SubOverridePath(meta.ID), []byte(`{"groups":[{"name":"Later","target":"only-in-v4","enabled":true,"rules":["x.example.invalid"]}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Rollback(meta.ID); err == nil {
+		t.Fatal("rollback conflicting with the override succeeded")
+	}
+	source, _ = os.ReadFile(paths.SubSourcePath(meta.ID))
+	if !strings.Contains(string(source), "# v3") {
+		t.Fatal("failed rollback changed the source")
+	}
+	// Drop the crafted conflict so the pruning updates below can apply.
+	if err := os.Remove(paths.SubOverridePath(meta.ID)); err != nil {
+		t.Fatal(err)
 	}
 
 	// Pruning: versions never exceed versionLimit.

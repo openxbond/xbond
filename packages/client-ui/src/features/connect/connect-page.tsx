@@ -1177,7 +1177,7 @@ export default function Connect() {
                       <div className="flex shrink-0 items-center gap-2.5">
                         <span className="font-semibold tabular-nums text-foreground text-xs">
                           {formatDisplayTraffic(quota.remaining)}
-                          <span className="text-[11px] font-normal text-muted-foreground">
+                          <span className="text-footnote font-normal text-muted-foreground">
                             {" "}
                             / {formatDisplayTraffic(sub.total)}
                           </span>

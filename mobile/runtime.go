@@ -25,6 +25,12 @@ type mobileRuntime struct {
 	routing engine.RoutingMode
 	tunFd   int32
 
+	// logLevel is the canonical core level (debug/info/warn/error/silent);
+	// mobile applies it through the derived config — sing-box has no live
+	// switch, and the mobile derivation never went through a level-aware
+	// path before this field existed.
+	logLevel string
+
 	clashPort   int
 	clashSecret string
 	appliedSub  string
@@ -54,9 +60,10 @@ func newMobileRuntime(svc *TunnelService, routing engine.RoutingMode) *mobileRun
 		routing = engine.RoutingRule
 	}
 	return &mobileRuntime{
-		svc:     svc,
-		subs:    svc.subMgr,
-		routing: routing,
+		svc:      svc,
+		subs:     svc.subMgr,
+		routing:  routing,
+		logLevel: "info",
 	}
 }
 
@@ -77,6 +84,7 @@ func (c *mobileRuntime) preferences() map[string]any {
 	return map[string]any{
 		"takeoverMode": string(engine.ModeTun),
 		"routingMode":  string(c.routing),
+		"logLevel":     c.logLevel,
 		"mixedPort":    0,
 		"allowLan":     false,
 		"clashPort":    port,
@@ -86,8 +94,8 @@ func (c *mobileRuntime) preferences() map[string]any {
 
 // activeSource returns the active subscription's downloaded source, fetching
 // it first when the file is missing (fresh import, wiped data dir). The
-// subscription override and global mixin ride on top, the same layer order
-// the daemon applies before derivation.
+// subscription override rides on top, the same layer the daemon applies
+// before derivation.
 func (c *mobileRuntime) activeSource() (string, []byte, error) {
 	id := c.subs.ActiveID()
 	if id == "" {
@@ -110,31 +118,27 @@ func (c *mobileRuntime) activeSource() (string, []byte, error) {
 	return id, source, nil
 }
 
-// layeredSource merges the subscription's structured override and the global
-// mixin into the source. A conflicting layer fails before the core is
-// touched, keeping the previous runtime intact (daemon parity).
+// layeredSource merges the subscription's structured override into the
+// source. A conflicting override fails before the core is touched, keeping
+// the previous runtime intact (daemon parity).
 func (c *mobileRuntime) layeredSource(id string, source []byte) ([]byte, error) {
 	override, err := c.subs.Override(id)
 	if err != nil {
 		return nil, fmt.Errorf("read local override: %w", err)
 	}
-	mixin, err := c.subs.GlobalMixin()
-	if err != nil {
-		return nil, fmt.Errorf("read global mixin: %w", err)
-	}
-	if override.IsZero() && mixin.IsZero() {
+	if override.IsZero() {
 		return source, nil
 	}
-	merged, err := engine.ApplyLayers(source, override, mixin)
+	merged, err := engine.ApplyOverride(source, override)
 	if err != nil {
-		return nil, fmt.Errorf("apply layers: %w", err)
+		return nil, fmt.Errorf("apply override: %w", err)
 	}
 	return merged, nil
 }
 
 // reapplyIfRunning hot-reloads the core over the held TUN fd when override,
-// mixin, source or rollback content changed while the tunnel runs — the VPN
-// icon never blinks because the platform interface stays up.
+// source or rollback content changed while the tunnel runs — the VPN icon
+// never blinks because the platform interface stays up.
 func (c *mobileRuntime) reapplyIfRunning() error {
 	if !c.engine().IsRunning() {
 		return nil
@@ -165,6 +169,7 @@ func (c *mobileRuntime) apply(tunFd int32) error {
 	if err != nil {
 		return fmt.Errorf("failed to derive mobile runtime config: %w", err)
 	}
+	derived = engine.PatchLogLevel(derived, c.logLevel)
 
 	engine.SetMobileTunFD(tunFd)
 	mgr := c.engine()
@@ -203,9 +208,50 @@ func (c *mobileRuntime) setRouting(routing engine.RoutingMode) error {
 	if err != nil {
 		return fmt.Errorf("failed to derive mobile runtime config: %w", err)
 	}
+	derived = engine.PatchLogLevel(derived, c.logLevel)
 	if err := c.engine().Reload(derived, nil); err != nil {
 		return err
 	}
+	c.clashPort = port
+	c.clashSecret = secret
+	c.appliedSub = id
+	return nil
+}
+
+// setLogLevel switches the core log level. mihomo cores take the live PATCH;
+// sing-box cannot switch in place (its clash API drops the level PATCH), so
+// the manager reports reload-required and this falls back to a reload over
+// the held TUN fd with the level patched into the derived config — the VPN
+// interface itself never blinks.
+func (c *mobileRuntime) setLogLevel(level string) error {
+	if !engine.IsKnownLogLevel(level) {
+		return fmt.Errorf("unknown log level %q", level)
+	}
+	canonical := engine.CanonicalLogLevel(level)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.engine().IsRunning() {
+		c.logLevel = canonical
+		return nil
+	}
+	if err := c.engine().SetLogLevel(canonical); err == nil {
+		c.logLevel = canonical
+		return nil
+	}
+	id, source, err := c.activeSource()
+	if err != nil {
+		return err
+	}
+	port, secret := c.baseEndpoint()
+	derived, err := engine.DeriveMobileRuntimeConfig(source, c.tunFd, c.routing, port, secret)
+	if err != nil {
+		return fmt.Errorf("failed to derive mobile runtime config: %w", err)
+	}
+	derived = engine.PatchLogLevel(derived, canonical)
+	if err := c.engine().Reload(derived, nil); err != nil {
+		return err
+	}
+	c.logLevel = canonical
 	c.clashPort = port
 	c.clashSecret = secret
 	c.appliedSub = id

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { AuroraWave } from "@/components/aurora-wave";
@@ -39,15 +39,8 @@ export default function Config() {
   const { t: accountT } = useTranslation("account");
   const { t: common } = useTranslation("common");
   const { t: runtimeT } = useTranslation("runtime");
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const explicit = params.get("item");
-
-  useEffect(() => {
-    if (explicit === "mixin") {
-      navigate("/rules?tab=mixin", { replace: true });
-    }
-  }, [explicit, navigate]);
 
   const [search, setSearch] = useState("");
   const target = useAPIInfo();
@@ -201,7 +194,7 @@ export default function Config() {
             type="button"
             size="sm"
             variant="ghost"
-            className="h-6.5 shrink-0 px-2 text-[11px] font-medium text-brand transition-[color,background-color,opacity] duration-150 hover:text-brand hover:bg-brand-soft border border-brand/20 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
+            className="h-6.5 shrink-0 px-2 text-footnote font-medium text-brand transition-[color,background-color,opacity] duration-150 hover:text-brand hover:bg-brand-soft border border-brand/20 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
             disabled={activating !== null}
             onClick={(e) => {
               e.stopPropagation();

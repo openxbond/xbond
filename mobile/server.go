@@ -75,6 +75,7 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 	mux.HandleFunc("/localapi/v0/down", auth(s.handleDown))
 	mux.HandleFunc("/localapi/v0/restart", auth(s.handleRestart))
 	mux.HandleFunc("/localapi/v0/mode", auth(s.handleMode))
+	mux.HandleFunc("/localapi/v0/log-level", auth(s.handleLogLevel))
 	mux.HandleFunc("/localapi/v0/login", auth(s.handleLogin))
 	mux.HandleFunc("/localapi/v0/logout", auth(s.handleLogout))
 	mux.HandleFunc("/localapi/v0/account", auth(s.handleAccountStatus))
@@ -87,13 +88,13 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 	mux.HandleFunc("/localapi/v0/subs/use", auth(s.handleSubUse))
 	mux.HandleFunc("/localapi/v0/subs/update", auth(s.handleSubUpdate))
 	mux.HandleFunc("/localapi/v0/subs/override", auth(s.handleSubOverride))
+	mux.HandleFunc("/localapi/v0/subs/policies", auth(s.handleSubPolicies))
 	mux.HandleFunc("/localapi/v0/subs/versions", auth(s.handleSubVersions))
 	mux.HandleFunc("/localapi/v0/subs/rollback", auth(s.handleSubRollback))
 	mux.HandleFunc("/localapi/v0/subs/source", auth(s.handleSubSource))
 	mux.HandleFunc("/localapi/v0/subs/url", auth(s.handleSubURL))
 	mux.HandleFunc("/localapi/v0/subs/unpin", auth(s.handleSubUnpin))
 	mux.HandleFunc("/localapi/v0/subs/progress", auth(s.handleSubsProgress))
-	mux.HandleFunc("/localapi/v0/mixins/global", auth(s.handleGlobalMixin))
 	mux.HandleFunc("/localapi/v0/profiles", auth(s.handleProfiles))
 	mux.HandleFunc("/localapi/v0/nodes", auth(s.handleNodes))
 	mux.HandleFunc("/localapi/v0/nodes/select", auth(s.handleNodeSelect))
@@ -226,6 +227,35 @@ func (s *apiServer) handleMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "preferences": s.svc.runtime.preferences()})
+}
+
+// handleLogLevel switches the core log level; the runtime hot-patches mihomo
+// and falls back to a TUN-preserving reload for sing-box.
+func (s *apiServer) handleLogLevel(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		writeJSON(w, http.StatusOK, map[string]any{"logLevel": s.svc.runtime.logLevel})
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "POST only")
+		return
+	}
+	var req struct {
+		Level string `json:"level"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if req.Level == "" {
+		writeError(w, http.StatusBadRequest, "missing level")
+		return
+	}
+	if err := s.svc.runtime.setLogLevel(req.Level); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logLevel": s.svc.runtime.logLevel})
 }
 
 func (s *apiServer) writeStatusOK(w http.ResponseWriter) {
@@ -593,10 +623,9 @@ func (s *apiServer) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, override)
 	case http.MethodPut, http.MethodPost:
 		var request struct {
-			ID           string   `json:"id"`
-			RulesPrepend []string `json:"rulesPrepend"`
-			RulesAppend  []string `json:"rulesAppend"`
-			DNS          string   `json:"dns"`
+			ID     string              `json:"id"`
+			Groups []engine.RuleGroup  `json:"groups"`
+			DNS    *engine.DNSOverride `json:"dns"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&request); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid override request")
@@ -607,9 +636,8 @@ func (s *apiServer) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		override := &engine.SubscriptionOverride{
-			RulesPrepend: request.RulesPrepend,
-			RulesAppend:  request.RulesAppend,
-			DNS:          request.DNS,
+			Groups: request.Groups,
+			DNS:    request.DNS,
 		}
 		if err := s.svc.subMgr.SetOverride(request.ID, override); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -627,40 +655,35 @@ func (s *apiServer) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGlobalMixin reads (GET) or updates (PUT/POST) the system-wide mixin
-// rules and DNS; a running tunnel hot-reloads immediately.
-func (s *apiServer) handleGlobalMixin(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		mixin, err := s.svc.subMgr.GlobalMixin()
-		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		if mixin == nil {
-			mixin = &engine.GlobalMixin{}
-		}
-		writeJSON(w, http.StatusOK, mixin)
-	case http.MethodPut, http.MethodPost:
-		var mixin engine.GlobalMixin
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&mixin); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid global mixin request")
-			return
-		}
-		if err := s.svc.subMgr.SetGlobalMixin(&mixin); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		if s.svc.subMgr.ActiveID() != "" {
-			if err := s.svc.runtime.reapplyIfRunning(); err != nil {
-				writeError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "mixin": mixin})
-	default:
+// handleSubPolicies lists the routing targets one subscription offers for
+// custom rule groups: its own nodes/groups (or outbounds) plus DIRECT and
+// REJECT. The UI offers exactly this list, so a saved target always passes
+// the save-time check.
+func (s *apiServer) handleSubPolicies(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
 	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing subscription id")
+		return
+	}
+	if _, err := s.svc.subMgr.Get(id); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	source, err := os.ReadFile(paths.SubSourcePath(id))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "no downloaded source; update the subscription first")
+		return
+	}
+	format, policies, err := engine.ListPolicies(source)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": id, "format": string(format), "policies": policies})
 }
 
 // handleProfiles mirrors the daemon's unified profile endpoint: listing and

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static splash icon for the core-splashscreen compatibility layer
+     (API < 31, base values/themes.xml): below Android 12 the library paints
+     windowSplashScreenAnimatedIcon into the plain window background layer at
+     the drawable's intrinsic size — no foreground-scale inflation to
+     compensate for — so the glyph canvas is sized 96dp directly. The 72/100
+     viewport-unit glyph lands at the same ~69dp mark as the v31 variant
+     (72% of 96dp), keeping the splash size identical across the two
+     mechanisms. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="#F38020"
+        android:pathData="M14,14H35.5L58,50L35.5,86H14L36.5,50L14,14Z" />
+    <path
+        android:fillColor="@color/xbond_ink"
+        android:pathData="M64.5,14H86L65.25,47.2L54.5,30Z M54.5,70L65.25,52.8L86,86H64.5Z" />
+</vector>

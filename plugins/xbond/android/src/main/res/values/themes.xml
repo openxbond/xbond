@@ -10,10 +10,18 @@
     <!-- Cold-start splash (androidx core-splashscreen): brand glyph on the
          page surface, held by MainActivity until the web UI reports the
          daemon connection settled (startup_complete) or its watchdog fires.
-         postSplashScreenTheme hands back the regular app theme. -->
+         postSplashScreenTheme hands back the regular app theme.
+
+         Icon resource: on API < 31 the compatibility layer paints the icon
+         into the window background at its intrinsic size, so the base
+         theme points at the 96dp static vector (xbond_splash_icon_compat);
+         values-v31/themes.xml overrides the icon with the breathing AVD
+         (xbond_splash_icon), whose glyph is pre-scaled for the ~2.62x
+         adaptive-foreground inflation of the system starting window. Both
+         render the same ~69dp glyph — about a fifth of the screen width. -->
     <style name="Theme.XBond.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/xbond_surface</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/xbond_splash_icon</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/xbond_splash_icon_compat</item>
         <item name="postSplashScreenTheme">@style/Theme.XBond</item>
     </style>
 </resources>

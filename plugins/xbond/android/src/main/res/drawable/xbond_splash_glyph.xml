@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Brand glyph for the API 31+ system splash (referenced by the
+     xbond_splash_icon AVD). On Android 12+ the starting window draws a
+     non-adaptive windowSplashScreenAnimatedIcon at the adaptive-foreground
+     scale — the 108dp intrinsic canvas renders ~2.62x, ~283dp on phones —
+     so the glyph group is pre-scaled down (0.34) to land at a ~69dp mark,
+     roughly a fifth of the screen width. Canonical geometry mirrors
+     components/xbond-icon.tsx / scripts/dev/build-logo-assets.ts: orange
+     forward chevron plus wings in ink (night-variant white). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <group
+        android:name="mark"
+        android:scaleX="0.34"
+        android:scaleY="0.34"
+        android:pivotX="50"
+        android:pivotY="50">
+        <path
+            android:fillColor="#F38020"
+            android:pathData="M14,14H35.5L58,50L35.5,86H14L36.5,50L14,14Z" />
+        <path
+            android:fillColor="@color/xbond_ink"
+            android:pathData="M64.5,14H86L65.25,47.2L54.5,30Z M54.5,70L65.25,52.8L86,86H64.5Z" />
+    </group>
+</vector>

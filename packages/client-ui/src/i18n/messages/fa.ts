@@ -348,10 +348,8 @@ const FA = {
     disconnectedNotice:
       "سرویس پروکسی در حال اجرا نیست. برای مشاهده لاگ‌ها متصل شوید.",
     levelLabel: "سطح لاگ",
-    levelDefault: "پیش‌فرض",
     empty: "هنوز لاگی نیست. با عبور ترافیک، رکوردها اینجا ظاهر می‌شوند.",
     emptyAction: "تغییر به سطح Debug",
-    silent: "Silent",
     follow: "دنبال‌کردن آخرین رکوردها",
     newLogs: "{{count}} رکورد جدید",
     columns: {
@@ -372,8 +370,6 @@ const FA = {
       "سرویس پروکسی در حال اجرا نیست. برای مشاهده قوانین مسیریابی متصل شوید.",
     disconnectedProvidersNotice:
       "سرویس پروکسی در حال اجرا نیست. برای مشاهده ارائه‌دهندگان قوانین متصل شوید.",
-    mixinDisconnectedHint:
-      "سرویس متصل نیست. قوانین تنظیم شده در اتصال بعدی اعمال خواهند شد.",
     updateDaemon:
       "برای دیدن قواعد، سرویس محلی XBond را به‌روزرسانی و دوباره راه‌اندازی کنید.",
     searchPlaceholder: "دامنه، نوع قاعده یا مسیر خروجی",
@@ -389,7 +385,6 @@ const FA = {
     firstPage: "صفحهٔ اول",
     title: "قوانین",
     tabActive: "قوانین مسیریابی",
-    tabMixin: "تقویت سراسری",
     providerTitle: "فراهم‌کننده‌های قاعده",
     providerUpdateTime: "آخرین به‌روزرسانی",
     providerUpdate: "به‌روزرسانی فراهم‌کننده",
@@ -598,14 +593,37 @@ const FA = {
     sourcePinned: "به‌صورت محلی ویرایش شده",
     resumeUpdates: "ازسرگیری به‌روزرسانی خودکار",
     resumeUpdatesDone: "به‌روزرسانی خودکار ازسر گرفته شد.",
-    overrideDns: "بازنویسی DNS",
-    overridePrepend: "قوانین پیش از",
-    overrideAppend: "قوانین پس از",
-    overrideHintClash:
-      "هر خط یک قانون (TYPE,PAYLOAD,POLICY). هنگام ذخیره اعتبارسنجی می‌شود: هر گره یا گروه ارجاع‌شده بررسی می‌شود و بازنویسی با هر به‌روزرسانی خودکار اعمال می‌گردد.",
-    overrideHintSingBox:
-      "هر خط یک شیء JSON قانون sing-box. هنگام ذخیره اعتبارسنجی می‌شود: هر خروجی ارجاع‌شده بررسی می‌شود و بازنویسی با هر به‌روزرسانی خودکار اعمال می‌گردد.",
+    overrideHint:
+      "گروه‌های قوانین به ترتیب پیش از قوانین داخلی نمایه اعمال می‌شوند. هر ورودی فقط دامنه، IP یا CIDR است؛ خروجی از گروه‌های همان نمایه انتخاب می‌شود.",
+    ruleTargetsUnavailable:
+      "فهرست خروجی‌های این نمایه دریافت نشد. ابتدا نمایه را به‌روزرسانی کنید؛ فعلاً فقط DIRECT و REJECT ارائه می‌شود.",
     overrideSaved: "بازنویسی ذخیره و اعمال شد",
+    ruleGroupName: "گروه {{number}}",
+    ruleGroupEnabled: "فعال‌سازی گروه",
+    ruleTarget: "خروجی",
+    ruleTargetRequired: "گروه {{number}} ورودی دارد اما خروجی انتخاب نشده است.",
+    ruleInputPlaceholder: "example.com / 1.2.3.4 / 10.0.0.0/8",
+    kind_domain: "دامنه",
+    kind_ip: "IP",
+    kind_cidr: "CIDR",
+    addRule: "افزودن ورودی",
+    removeRule: "حذف ورودی",
+    addRuleGroup: "افزودن گروه",
+    removeRuleGroup: "حذف گروه",
+    ruleGroupLimit: "حداکثر {{count}} ورودی در هر گروه",
+    ruleGroupLimitTotal: "حداکثر {{count}} گروه",
+    dnsNameservers: "DNS اصلی",
+    dnsNameserversDesc:
+      "جایگزین resolverهای این نمایه می‌شود. در هر ورودی یک IP، نام میزبان یا نشانی DNS بنویسید.",
+    dnsFallback: "DNS پشتیبان",
+    dnsFallbackDesc:
+      "فهرست بررسی آلودگی Clash؛ در صورت پر کردن، fallback منبع را جایگزین می‌کند.",
+    dnsUpstreamPlaceholder: "223.5.5.5 یا tls://1.1.1.1",
+    addDnsUpstream: "افزودن بالادست",
+    removeDnsUpstream: "حذف بالادست",
+    dnsPresetAli: "AliDNS",
+    dnsPresetTencent: "DNSPod",
+    dnsPresetGlobal: "Cloudflare / Google",
     rename: "تغییر نام",
     channelTitle: "کانال به‌روزرسانی",
     dangerZone: "منطقه خطر",
@@ -614,7 +632,8 @@ const FA = {
       "نسخه‌های محلی را ویرایش کنید، قوانین را بازنویسی کنید یا بدون تغییر منبع، نسخه را برگردانید.",
     sourceEditDesc:
       "پیکربندی محلی YAML / JSON را مستقیماً مشاهده یا ویرایش کنید.",
-    overrideDesc: "قوانین پیشوند/پسوند و لغو DNS را به این نمایه تزریق کنید.",
+    overrideDesc:
+      "گروه‌های قانون و بالادست‌های DNS سفارشی را به این نمایه اضافه کنید؛ با هر به‌روزرسانی همراه می‌شوند.",
     rollbackDesc:
       "در صورت خرابی به‌روزرسانی‌ها، نسخه کارآمد قبلی را بازیابی کنید.",
     removeDesc:
@@ -629,15 +648,8 @@ const FA = {
   settings: {
     title: "تنظیمات",
     preferences: "ظاهر و زبان",
-    generalDesc: "ظاهر رابط و زبان",
     quickTools: "ابزارها و عیب‌یابی",
-    quickToolsDesc: "اتصال‌ها، قوانین، لاگ‌ها و عیب‌یابی",
     network: "شبکه و درگاه‌ها",
-    networkDesc:
-      "درگاه پروکسی مرکب، اشتراک‌گذاری شبکه محلی، تغییر گره و متغیرهای پایانه",
-    coreGroup: "هسته و گزارش‌ها",
-    coreGroupDesc: "سطح گزارش هسته، موتور در حال اجرا و وضعیت کنترل‌کننده",
-    aboutDesc: "نسخه کلاینت، وضعیت هسته و جزئیات متن‌باز",
     desktop: {
       groupTitle: "رفتار میزبان دسکتاپ",
       hostDesktop: "دسکتاپ",
@@ -651,20 +663,13 @@ const FA = {
       closeToTrayDesc:
         "هنگام بستن پنجره، پراکسی را در پس‌زمینه در حال اجرا نگه دارید",
     },
-    advancedActions: {
-      logLevelDesc: "میزان جزئیات گزارش‌های خروجی موتور اصلی",
-      coreRuntime: "محیط اجرای هسته",
-      manageControllers: "مدیریت کنترل‌کننده‌ها",
-    },
     terminalCommand: "فرمان پروکسی ترمینال",
     terminalCommandDesc: "متغیر محیطی پروکسی را در قالب ترمینال شما کپی می‌کند.",
     breakConnections: "قطع اتصال‌ها هنگام تغییر گره",
     breakConnectionsDesc:
-      "با تغییر گره، اتصال‌های موجود از آن گروه بسته می‌شوند تا گره جدید فوراً اعمال شود.",
+      "اتصال‌های قدیمی قطع می‌شود تا گره جدید فوراً اعمال شود.",
     theme: "پوسته",
-    themeDesc: "جابه‌جایی بین روشن، تاریک و هم‌رنگ سیستم.",
     language: "زبان",
-    languageDesc: "زبان رابط را انتخاب کنید.",
     system: "سیستم",
     light: "روشن",
     dark: "تاریک",
@@ -673,19 +678,16 @@ const FA = {
       mixedPort: "درگاه پروکسی مرکب",
       dockerPortDesc:
         "استقرار Docker این شنونده را مدیریت می‌کند. پورت منتشرشده را در فرمان استقرار تغییر دهید.",
-      mixedPortDesc:
-        "درگاه محلی پروکسی مرکب برای ترافیک استاندارد HTTP / SOCKS",
-      portNoteOverride:
-        "درگاه محلی روی {{port}} ثابت شده و درگاه خود اشتراک نادیده گرفته می‌شود",
-      portNoteSubscription:
-        "از mixed-port خود اشتراک پیروی می‌کند؛ در نبود آن پیش‌فرض 7890",
-      portNoteDefault: "اشتراک درگاهی مشخص نکرده؛ از پیش‌فرض 7890 استفاده می‌شود",
+      mixedPortDesc: "بین HTTP و SOCKS مشترک است",
+      portNoteOverride: "محلیاً روی {{port}} ثابت؛ اولویت بر تنظیم اشتراک",
+      portNoteSubscription: "درگاه اشتراک دنبال می‌شود؛ در نبود آن پیش‌فرض",
+      portNoteDefault: "اشتراک درگاهی تعیین نکرده؛ پیش‌فرض استفاده می‌شود",
       portFollowSubscription: "بازگشت به پیروی از اشتراک",
       portSaveFailed:
         "ذخیره درگاه ناموفق بود. هسته را بررسی و دوباره تلاش کنید.",
       allowLan: "اجازه اتصال LAN",
       allowLanDesc:
-        "به دستگاه‌های دیگر در همان LAN اجازه استفاده از این پروکسی را بدهید",
+        "دستگاه‌های دیگر در شبکه محلی می‌توانند از این پروکسی استفاده کنند",
       sysproxyDesc:
         "مرورگر و برنامه‌هایی که از تنظیمات سیستم پیروی می‌کنند از پروکسی استفاده می‌کنند.",
       tunDesc:
@@ -696,8 +698,7 @@ const FA = {
       installService: "ارتقای دسترسی و نصب سرویس",
       installingService: "در حال ارتقای دسترسی...",
       serviceInstalled: "سرویس ممتاز آماده است",
-      serviceInstalledDesc:
-        "سرویس ویژه سیستم برای کارت شبکه مجازی فعال است. در صورت تمایل می‌توانید آن را حذف کنید.",
+      serviceInstalledDesc: "برای حذف سرویس پس‌زمینه سیستم، حذف نصب را بزنید.",
       installServicePrompt:
         "درخواست ارتقای دسترسی ارسال شد. لطفاً پیام UAC ویندوز را تأیید کنید.",
       installServiceSuccess:
@@ -741,8 +742,6 @@ const FA = {
       localApiRunning: "در حال اجرا",
       localApiDown: "در دسترس نیست",
       localApiNone: "سرویس محلی پیکربندی نشده است",
-      engine: "موتور",
-      controllerAddress: "نشانی کنترل‌کننده",
       daemonRunning: "دیمون در حال اجرا",
       daemonOffline: "دیمون آفلاین",
       daemonConnecting: "در حال اتصال به دیمون",
@@ -769,7 +768,6 @@ const FA = {
       title: "درباره",
       appVersion: "نسخه داشبورد",
       coreVersion: "نسخه هسته mihomo",
-      logLevel: "سطح لاگ",
       openSource: "پروژه متن‌باز",
       docs: "مستندات رسمی",
     },
@@ -846,6 +844,8 @@ const FA = {
     addedUpdateFailed: "اشتراک اضافه شد اما نخستین به‌روزرسانی ناموفق بود.",
     pastePlaceholder: "پیکربندی sing-box / Clash را بچسبانید",
     chooseFile: "انتخاب فایل",
+    filePickAction: "برای انتخاب فایل بزنید",
+    fileRemove: "حذف فایل انتخاب‌شده",
     import: "وارد کردن",
     importing: "در حال وارد کردن…",
     importFailed: "وارد کردن ناموفق بود",

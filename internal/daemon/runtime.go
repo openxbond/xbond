@@ -24,6 +24,7 @@ type runtimeEngine interface {
 	IsRunning() bool
 	Reload([]byte, map[string]string) error
 	SetRoutingMode(engine.RoutingMode, []byte) error
+	SetLogLevel(string) error
 	Stop() error
 }
 
@@ -42,6 +43,8 @@ type runtimeOptions struct {
 	Port     *int   `json:"port"`
 	AllowLan *bool  `json:"allowLan"`
 	SubID    string `json:"subId"`
+	// LogLevel is tri-state like Port: nil leaves the level unchanged.
+	LogLevel *string `json:"logLevel"`
 }
 
 // defaultMixedPort applies when neither the subscription nor an explicit
@@ -123,6 +126,13 @@ func validatePreferences(prefs RuntimePreferences) error {
 	case engine.RoutingRule, engine.RoutingGlobal, engine.RoutingDirect:
 	default:
 		return errors.New("invalid routing mode")
+	}
+	// Empty is the pre-LogLevel preference file; validation and applies
+	// normalize it to info rather than rejecting the stored state.
+	switch prefs.LogLevel {
+	case "", "debug", "info", "warn", "error", "silent":
+	default:
+		return errors.New("invalid log level")
 	}
 	if prefs.MixedPort < 1 || prefs.MixedPort > 65535 || prefs.ClashPort < 1 || prefs.ClashPort > 65535 {
 		return errors.New("listener ports must be between 1 and 65535")
@@ -234,7 +244,7 @@ func (c *runtimeController) ReassertSystemProxy() error {
 		owned := before
 		c.originalProxy = &owned
 	}
-	if err := c.proxySet(fmt.Sprintf("127.0.0.1:%d", prefs.MixedPort), ""); err != nil {
+	if err := c.proxySet(fmt.Sprintf("127.0.0.1:%d", prefs.MixedPort), sysproxy.DefaultBypass()); err != nil {
 		return fmt.Errorf("apply system proxy: %w", err)
 	}
 	return nil
@@ -459,6 +469,12 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 	if options.AllowLan != nil {
 		next.AllowLan = *options.AllowLan
 	}
+	if options.LogLevel != nil {
+		if !engine.IsKnownLogLevel(*options.LogLevel) {
+			return &runtimeInputError{fmt.Errorf("unknown log level %q", *options.LogLevel)}
+		}
+		next.LogLevel = engine.CanonicalLogLevel(*options.LogLevel)
+	}
 	if c.fixedDeployment && (next.SystemProxy != previousPrefs.SystemProxy ||
 		next.Tun != previousPrefs.Tun || next.PortOverride != previousPrefs.PortOverride ||
 		next.AllowLan != previousPrefs.AllowLan) {
@@ -487,14 +503,10 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		if err != nil {
 			return fmt.Errorf("read local override: %w", err)
 		}
-		mixin, err := c.subs.GlobalMixin()
-		if err != nil {
-			return fmt.Errorf("read global mixin: %w", err)
-		}
-		if (!override.IsZero()) || (!mixin.IsZero()) {
-			source, err = engine.ApplyLayers(source, override, mixin)
+		if !override.IsZero() {
+			source, err = engine.ApplyOverride(source, override)
 			if err != nil {
-				return &runtimeInputError{fmt.Errorf("apply layers: %w", err)}
+				return &runtimeInputError{fmt.Errorf("apply override: %w", err)}
 			}
 		}
 		if err := engine.Validate(source); err != nil {
@@ -540,6 +552,38 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 				return nil
 			}
 		}
+		// A log-level-only change follows the same hot-then-reload ladder:
+		// mihomo switches live; sing-box cannot switch in place (its clash
+		// API drops the level PATCH, and its GET read-back clamps fatal to
+		// "error", which would falsely confirm a silent switch), so
+		// SetLogLevel reports reload-required and the change falls through
+		// to the full reload below — the only path sing-box supports (its
+		// level lives in the derived config).
+		levelOnly := c.engine.IsRunning() && !c.delegatedActive() &&
+			c.appliedSubID == targetID &&
+			next.TakeoverMode == previousPrefs.TakeoverMode &&
+			next.SystemProxy == previousPrefs.SystemProxy &&
+			next.Tun == previousPrefs.Tun &&
+			next.PortOverride == previousPrefs.PortOverride &&
+			next.AllowLan == previousPrefs.AllowLan &&
+			next.RoutingMode == previousPrefs.RoutingMode &&
+			next.LogLevel != previousPrefs.LogLevel
+		if levelOnly {
+			if err := c.engine.SetLogLevel(next.LogLevel); err == nil {
+				nextRuntime := engine.PatchLogLevel(c.applied, next.LogLevel)
+				c.applied = append([]byte(nil), nextRuntime...)
+				c.stateMu.Lock()
+				c.prefs = next
+				c.stateMu.Unlock()
+				if len(nextRuntime) > 0 {
+					_ = c.write(paths.SubRuntimePath(targetID), nextRuntime, 0o600)
+				}
+				if err := c.write(paths.RuntimeStatePath(), prefsJSON, 0o600); err != nil {
+					return fmt.Errorf("save runtime preferences: %w", err)
+				}
+				return nil
+			}
+		}
 		if selected == nil {
 			var err error
 			selected, err = c.subs.Get(targetID)
@@ -564,14 +608,10 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		if err != nil {
 			return fmt.Errorf("read local override: %w", err)
 		}
-		mixin, err := c.subs.GlobalMixin()
-		if err != nil {
-			return fmt.Errorf("read global mixin: %w", err)
-		}
-		if (!override.IsZero()) || (!mixin.IsZero()) {
-			source, err = engine.ApplyLayers(source, override, mixin)
+		if !override.IsZero() {
+			source, err = engine.ApplyOverride(source, override)
 			if err != nil {
-				return &runtimeInputError{fmt.Errorf("apply layers: %w", err)}
+				return &runtimeInputError{fmt.Errorf("apply override: %w", err)}
 			}
 		}
 		// The effective port follows the source unless the user fixed it
@@ -608,6 +648,9 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 		if err != nil {
 			return fmt.Errorf("derive runtime configuration: %w", err)
 		}
+		// The derivation pins info; the preference level rewrites it in the
+		// derived config before validation and apply.
+		runtimeJSON = engine.PatchLogLevel(runtimeJSON, next.LogLevel)
 		if err := engine.Validate(runtimeJSON); err != nil {
 			return fmt.Errorf("validate runtime configuration: %w", err)
 		}
@@ -781,7 +824,7 @@ func (c *runtimeController) applyLocked(ctx context.Context, options runtimeOpti
 				snapshot := beforeProxy
 				originalProxy = &snapshot
 			}
-			if err := c.proxySet(fmt.Sprintf("127.0.0.1:%d", next.MixedPort), ""); err != nil {
+			if err := c.proxySet(fmt.Sprintf("127.0.0.1:%d", next.MixedPort), sysproxy.DefaultBypass()); err != nil {
 				return rollback(fmt.Errorf("apply system proxy: %w", err))
 			}
 			if err := c.saveProxySnapshot(*originalProxy); err != nil {

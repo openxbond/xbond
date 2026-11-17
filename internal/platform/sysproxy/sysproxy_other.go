@@ -11,6 +11,13 @@ func Get() (Snapshot, error) {
 	return Snapshot{Enabled: false, Timestamp: time.Now().Unix()}, nil
 }
 
+// DefaultBypass keeps the takeover contract complete on platforms without
+// system proxy support: the runtime applies takeover through Set, which
+// rejects here anyway.
+func DefaultBypass() string {
+	return ""
+}
+
 func Set(server string, bypass string) error {
 	return fmt.Errorf("system proxy is unsupported on this platform")
 }

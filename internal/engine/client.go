@@ -166,3 +166,22 @@ func (c *ClashClient) GetMode(ctx context.Context) (RoutingMode, error) {
 	}
 	return RoutingMode(strings.ToLower(result.Mode)), nil
 }
+
+// SetLogLevel asks the core to switch its log level live. mihomo honors the
+// PATCH; sing-box's clash API accepts it and silently does nothing, which is
+// why callers must read the level back (GetLogLevel) instead of trusting 204.
+func (c *ClashClient) SetLogLevel(ctx context.Context, canonical string) error {
+	payload := map[string]string{"log-level": ClashLogLevel(canonical)}
+	return c.request(ctx, http.MethodPatch, "/configs", payload, nil)
+}
+
+// GetLogLevel reads the level the running core actually reports.
+func (c *ClashClient) GetLogLevel(ctx context.Context) (string, error) {
+	var result struct {
+		LogLevel string `json:"log-level"`
+	}
+	if err := c.request(ctx, http.MethodGet, "/configs", nil, &result); err != nil {
+		return "", err
+	}
+	return CanonicalLogLevel(result.LogLevel), nil
+}

@@ -67,13 +67,24 @@ class XBondTileService : TileService() {
     /** Runs the LocalAPI call off the main thread (TileService callbacks run
      * on main; NetworkOnMainThreadException otherwise), making sure the
      * in-process server exists, then refreshes the tile from the real core
-     * state afterwards — never from the call's promise. */
+     * state afterwards — never from the call's promise.
+     *
+     * The refresh runs updateTileState() directly instead of relying on
+     * requestListeningState alone: while the shade stays open the service is
+     * still bound and listening, and some ROMs treat a refresh request for an
+     * already-listening tile as a no-op, so onStartListening never fires and
+     * the tile keeps its stale look until the shade is cycled. The explicit
+     * update works because qsTile stays valid while bound and updateTile is
+     * a plain binder call. requestListeningState remains as the fallback for
+     * a shade closed mid-flight (qsTile gone: the early return leaves it to
+     * the next visibility-driven onStartListening). */
     private fun driveAsync(path: String) {
         Thread {
             val endpoint = ensureLocalAPIEndpoint()
             if (endpoint != null) {
                 postLocalAPI(endpoint, path)
             }
+            runCatching { updateTileState() }
             requestListeningState()
         }.start()
     }
@@ -153,8 +164,9 @@ class XBondTileService : TileService() {
     private fun updateTileState() {
         val tile = qsTile ?: return
         val running = isTunnelRunning()
+        Log.i(TAG, "tile -> ${if (running) "connected" else "disconnected"}")
         tile.state = if (running) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-        tile.icon = android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_xbond)
+        tile.icon = android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_qs_xbond)
         tile.label = runCatching {
             packageManager.getApplicationLabel(applicationInfo).toString()
         }.getOrDefault("XBond")

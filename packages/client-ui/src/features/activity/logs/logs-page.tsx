@@ -45,21 +45,17 @@ import { useStreamReader } from "@/hooks/use-core-stream";
 import { cn } from "@/lib/utils";
 import { isMobileApp } from "@/platform/host";
 import { saveTextFile, shareTextFile } from "@/platform/save-file";
+import { useClient } from "@/state/controller-target";
 import { useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
-import { useConfig } from "@/state/user-preferences";
 
 import type { Log } from "./log-entry";
 
-const levels = ["", "debug", "info", "warning", "error", "silent"];
 const logLimit = 1000;
 // Header cells and rows share these widths so columns stay aligned. Narrow
 // viewports drop the date part: a 180px column starves the message column.
 const wideTimeColumnWidth = 180;
 const levelColumnWidth = 75;
-// Radix Select items reject empty strings, so the level "" (Default) is
-// carried by this sentinel and parsed back on change.
-const defaultLevel = "__default__";
 function LogRow({
   index,
   style,
@@ -138,27 +134,54 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
   const { t: tc } = useTranslation("common");
   const { run, pending: saving } = useAction();
   const [exportOpen, setExportOpen] = useState(false);
-  const {
-    data: { logLevel },
-    set,
-  } = useConfig();
-  const { general } = useGeneral();
+  const { general, update: updateGeneral } = useGeneral();
   const { isConnected } = useIsServiceConnected();
   // Below the compact breakpoint the log table drops the date part of the
   // timestamp so the message column keeps usable width.
   const compact = (useMediaQuery("(max-width: 767px)") ?? false) === true;
-  const level = logLevel || general.logLevel || "info";
-  const silent = level === "silent" || general.logLevel === "silent";
-  const { daemonClient: client, config, isLocalTarget } = useLocalAPI();
+  // 日志等级单一入口：核心输出等级直接驱动拉取（无本地筛选层）——改等级即改流。
+  // 规范化核心上报的等级（mihomo 用 "warning"，下拉值域是 warn）：与
+  // engine.CanonicalLogLevel 保持同一张映射表。
+  const canonicalLevel = (reported: string | undefined) => {
+    switch ((reported ?? "").toLowerCase()) {
+      case "debug":
+      case "info":
+      case "warn":
+      case "error":
+      case "silent":
+      case "fatal":
+        return reported!.toLowerCase();
+      case "warning":
+        return "warn";
+      default:
+        return "info";
+    }
+  };
+  const {
+    daemonClient: client,
+    config,
+    isLocalTarget,
+    status,
+    refresh,
+  } = useLocalAPI();
+  // 等级事实的来源跟着会话走：本机 daemon 会话读 daemon 偏好——sing-box
+  // 的核心 GET /configs 会把 fatal（silent）钳成 error 上报，读核心会把
+  // 静音显示成 Error；远程控制器会话只有核心 /configs 可读。
+  const level = canonicalLevel(
+    isLocalTarget && status ? status.preferences?.logLevel : general.logLevel,
+  );
+  const silent = level === "silent" || level === "fatal";
+  // 等级写回双通道：本机 daemon 会话走 LocalAPI（daemon 端对 mihomo 热切、
+  // sing-box 回退重载）；远程控制器会话直接 PATCH 核心的 /configs。
+  const coreClient = useClient();
   const reader = useStreamReader<Log>(
     isLocalTarget || silent ? null : `logs?level=${level}`,
   );
-  const logLevelForDaemon = level === "warning" ? "warn" : level;
   const recent = useSWR(
     isLocalTarget && client && config && !silent
-      ? ["/localapi/v0/logs", config.endpoint, config.token, logLevelForDaemon]
+      ? ["/localapi/v0/logs", config.endpoint, config.token, level]
       : null,
-    () => client?.getLogs(logLevelForDaemon, logLimit),
+    () => client?.getLogs(level, logLimit),
     { refreshInterval: 1000, dedupingInterval: 500 },
   );
   const [logs, setLogs] = useState<Log[]>([]);
@@ -274,15 +297,31 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
     exportText("save");
   }
 
-  // 等級選擇只呈現選項本身：窄屏下頁頭右側就是它的位置，
-  // 嵌入「動態」時退回工具列，兩處共用同一份控件。
+  // 单一日志等级入口：本机 daemon 会话走 LocalAPI（热切或重载由 daemon
+  // 按引擎自适）；远程控制器会话直接 PATCH 核心。写回后刷新各自的事实
+  // 来源，下拉与空态引导共用。
+  function setCoreLevel(next: string) {
+    void run(async () => {
+      if (client) {
+        await client.setLogLevel(next);
+        await refresh();
+      } else {
+        if (!coreClient) throw new Error("Core client not available");
+        await coreClient.updateConfig({ "log-level": next });
+        await updateGeneral();
+      }
+    });
+  }
+
+  // 日志等级单一入口：核心输出等级，写回后流跟随。窄屏下页头右侧就是
+  // 它的位置，嵌入「动态」时退回工具列，两处共用同一份控件。本机无
+  // LocalAPI 且无远程控制器的会话才禁用；silent 不锁控件——用户需要能把
+  // 等级调回来。
   const levelSelect = (
     <Select
-      value={logLevel || defaultLevel}
-      onValueChange={(next) =>
-        set("logLevel", next === defaultLevel ? "" : next)
-      }
-      disabled={general.logLevel?.toLowerCase() === "silent"}
+      value={level}
+      disabled={saving || (!client && !coreClient)}
+      onValueChange={setCoreLevel}
     >
       <SelectTrigger
         aria-label={t("levelLabel")}
@@ -293,9 +332,9 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          {levels.map((level) => (
-            <SelectItem key={level} value={level === "" ? defaultLevel : level}>
-              {level === "silent" ? t("silent") : level || t("levelDefault")}
+          {["debug", "info", "warn", "error", "silent"].map((level) => (
+            <SelectItem key={level} value={level} className="capitalize">
+              {level.charAt(0).toUpperCase() + level.slice(1)}
             </SelectItem>
           ))}
         </SelectGroup>
@@ -452,7 +491,8 @@ export default function Logs({ embedded = false }: { embedded?: boolean }) {
               !search && (
                 <button
                   className="empty-state-action"
-                  onClick={() => set("logLevel", "debug")}
+                  disabled={!client && !coreClient}
+                  onClick={() => setCoreLevel("debug")}
                 >
                   {t("emptyAction")}
                 </button>

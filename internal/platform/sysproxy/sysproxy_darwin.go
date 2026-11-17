@@ -96,6 +96,22 @@ func Get() (Snapshot, error) {
 	}, nil
 }
 
+// DefaultBypass is the exception list applied on takeover. networksetup
+// matches exceptions by wildcard, not CIDR, so the 172.16/12 range has to
+// be spelled out per second octet. Loopback and the private ranges keep the
+// client's own control plane — the UI reaching an external controller on
+// the LAN — reachable with any rule set: an empty list sends LAN addresses
+// through the core, where a subscription without LAN rules rides them out
+// the proxy node, which can never dial back.
+func DefaultBypass() string {
+	entries := []string{"localhost", "127.0.0.1", "*.local"}
+	for second := 16; second <= 31; second++ {
+		entries = append(entries, fmt.Sprintf("172.%d.*", second))
+	}
+	entries = append(entries, "10.*", "192.168.*")
+	return strings.Join(entries, ";")
+}
+
 func Set(server string, bypass string) error {
 	current, err := Get()
 	if err != nil {

@@ -147,7 +147,7 @@ function PerAppVpnPanel() {
           { value: "allow", label: t("perAppVpn.modeAllow") },
         ]}
       />
-      <p className="pt-1.5 text-[11px] text-muted-foreground">
+      <p className="pt-1.5 text-footnote text-muted-foreground">
         {mode === "disallow"
           ? t("perAppVpn.modeDisallowDesc")
           : mode === "allow"
@@ -232,7 +232,7 @@ function PerAppVpnPanel() {
         )}
       </div>
 
-      <p className="shrink-0 pt-2 text-center text-[11px] text-muted-foreground">
+      <p className="shrink-0 pt-2 text-center text-footnote text-muted-foreground">
         {modeSummary}
       </p>
     </>

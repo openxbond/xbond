@@ -14,7 +14,6 @@ import {
 import { EmptyState } from "@/components/empty-state";
 import { Header } from "@/components/page-header";
 import { RequestStatus } from "@/components/request-status";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -22,10 +21,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCapabilities } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
 
-import GlobalMixinPanel from "./global-mixin-panel";
 import { useRule, useRuleProviders } from "./rule-data";
 import { Provider } from "./rule-provider-row";
-import { useGlobalMixin } from "./use-global-mixin";
 
 const pageSize = 50;
 
@@ -402,18 +399,9 @@ export default function Rules({ embedded = false }: { embedded?: boolean }) {
   const { t, i18n } = useTranslation("rules");
   const local = useLocalAPI();
   const { isConnected } = useIsServiceConnected();
-  const { mixin } = useGlobalMixin();
   const [params, setParams] = useSearchParams();
   const selected = params.get("tab");
-  const tab =
-    selected === "providers" || (selected === "mixin" && local.isLocalTarget)
-      ? selected
-      : "rules";
-  const mixinCount =
-    (mixin.bypassLan ? 1 : 0) +
-    (mixin.rulesPrepend?.length ?? 0) +
-    (mixin.rulesAppend?.length ?? 0) +
-    (mixin.dns ? 1 : 0);
+  const tab = selected === "providers" ? selected : "rules";
 
   return (
     <Tabs
@@ -433,12 +421,6 @@ export default function Rules({ embedded = false }: { embedded?: boolean }) {
       <TabsList size="sm" aria-label={t("title")} className="self-start">
         <TabsTrigger value="rules">{t("tabActive")}</TabsTrigger>
         <TabsTrigger value="providers">{t("providerTitle")}</TabsTrigger>
-        {local.isLocalTarget && (
-          <TabsTrigger value="mixin">
-            {t("tabMixin")}
-            {mixinCount > 0 && <Badge variant="secondary">{mixinCount}</Badge>}
-          </TabsTrigger>
-        )}
       </TabsList>
       <TabsContent value="rules" className="flex flex-col gap-3">
         <RuleBrowser local={local} isConnected={isConnected} />
@@ -446,11 +428,6 @@ export default function Rules({ embedded = false }: { embedded?: boolean }) {
       <TabsContent value="providers">
         <RuleProviders isConnected={isConnected} />
       </TabsContent>
-      {local.isLocalTarget && (
-        <TabsContent value="mixin">
-          <GlobalMixinPanel isConnected={isConnected} />
-        </TabsContent>
-      )}
     </Tabs>
   );
 }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Half of the 3.4s desktop float cycle per pass (connect-wait-float in
+     styles/app.css), reversing to loop the full 0 → -4px → 0 rhythm. -1.5
+     viewport units is ~4.3dp of travel for the ~69dp splash mark. Vector
+     group translation is expressed in viewport units and applied after the
+     group's own scale, hence the fractional value. -->
+<objectAnimator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:propertyName="translateY"
+    android:valueFrom="0"
+    android:valueTo="-1.5"
+    android:duration="1700"
+    android:repeatMode="reverse"
+    android:repeatCount="infinite"
+    android:interpolator="@android:interpolator/accelerate_decelerate" />

@@ -236,3 +236,39 @@ func TestWebBlocksPathTraversal(t *testing.T) {
 		}
 	}
 }
+
+// An unregistered /localapi path must answer JSON 404 instead of the SPA
+// fallback: the HTML 200 made the web UI parse "<!doctype" as a JSON response
+// and crash with a syntax error instead of reporting "not supported in this
+// build" (app/daemon version skew, stale daemon binaries included).
+func TestUnknownLocalAPIPathIsNotSwallowedBySPA(t *testing.T) {
+	tempDir := t.TempDir()
+	webDir := filepath.Join(tempDir, "dist")
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(webDir, "index.html"), []byte("<!DOCTYPE html><html><head><title>XBond</title></head></html>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{webDir: webDir}
+
+	recorder := httptest.NewRecorder()
+	server.handleWeb(recorder, httptest.NewRequest(http.MethodPost, "/localapi/v0/not-in-this-build", nil))
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for an unregistered localapi path, got %d: %s", recorder.Code, recorder.Body)
+	}
+	if ct := recorder.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Fatalf("expected a JSON error body, got content type %q", ct)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, "unknown localapi endpoint") {
+		t.Fatalf("expected the json error message, got: %s", body)
+	}
+
+	// UI routes keep the SPA fallback.
+	recorder = httptest.NewRecorder()
+	server.handleWeb(recorder, httptest.NewRequest(http.MethodGet, "/logs", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "<!DOCTYPE") {
+		t.Fatalf("SPA fallback broke for ui routes: %d %s", recorder.Code, recorder.Body)
+	}
+}

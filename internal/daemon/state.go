@@ -22,6 +22,12 @@ type RuntimePreferences struct {
 	AllowLan     bool                `json:"allowLan"`
 	ClashPort    int                 `json:"clashPort"`
 	ClashSecret  string              `json:"clashSecret"`
+	// LogLevel is the canonical level the daemon asks the core to log at
+	// (debug/info/warn/error/silent). The per-format mapping lives in
+	// engine.ClashLogLevel / engine.SingBoxLogLevel; sing-box cannot switch
+	// at runtime, so a change there applies through the derived config on
+	// the next reload.
+	LogLevel string `json:"logLevel,omitempty"`
 	// PortOverride is an explicit local fixed port; zero follows the active
 	// subscription's own port. PortSource records how MixedPort was last
 	// resolved so status can show where the running port came from.
@@ -132,6 +138,7 @@ func DefaultPreferences() RuntimePreferences {
 		RoutingMode:  engine.RoutingRule,
 		MixedPort:    defaultMixedPort,
 		AllowLan:     false,
+		LogLevel:     "info",
 		ClashPort:    legacyClashPort,
 		ClashSecret:  engine.GenerateSecret(),
 	}

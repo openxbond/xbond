@@ -45,6 +45,8 @@ export interface LocalAPIPreferences {
   /** 0 = follow the subscription's own port. */
   portOverride: number;
   portSource?: PortSource;
+  /** Canonical core log level; the wire value of the logs page's switch. */
+  logLevel?: string;
 }
 
 export interface ThreeTierStatus {
@@ -79,11 +81,20 @@ export function subscriptionLang(lang: Lang): SubscriptionLang {
 
 export type ProfileKind = "remote" | "local" | "inline" | "cloud";
 
-export interface GlobalMixin {
-  bypassLan?: boolean;
-  rulesPrepend?: string[];
-  rulesAppend?: string[];
-  dns?: string;
+/** One user-defined routing group: entries share one target and one switch.
+ * Groups expand in order ahead of the subscription's own rules. */
+export interface RuleGroup {
+  name: string;
+  target: string;
+  enabled: boolean;
+  rules: string[];
+}
+
+/** DNS upstream override: primary resolvers plus an optional Clash-only
+ * pollution-review list. sing-box subscriptions reject a fallback list. */
+export interface DNSOverride {
+  nameservers?: string[];
+  fallback?: string[];
 }
 
 export interface SubscriptionMeta {
@@ -308,12 +319,18 @@ export interface AccountStatus {
 }
 
 /** Structured local override: the layer between the downloaded source and
- * derivation. The source bytes are never rewritten. `dns` is the raw
- * override text, parsed with the core native to the subscription format. */
+ * derivation. The source bytes are never rewritten. Rule entries are plain
+ * domains, IPs or CIDRs; the daemon renders them in the core-native shape. */
 export interface SubscriptionOverride {
-  rulesPrepend?: string[];
-  rulesAppend?: string[];
-  dns?: string;
+  groups?: RuleGroup[];
+  dns?: DNSOverride;
+}
+
+/** Routing targets one subscription offers for custom rule groups. */
+export interface SubscriptionPolicies {
+  id: string;
+  format: CoreFormat;
+  policies: string[];
 }
 
 export interface SubscriptionFetchProgress {
@@ -458,6 +475,21 @@ export class LocalAPIClient {
     });
   }
 
+  /**
+   * Switch the core log level. The daemon hot-patches mihomo cores live;
+   * sing-box cores only take the level through the derived config, so the
+   * daemon falls back to a reload — callers refresh state after this
+   * resolves rather than assuming an instant switch.
+   */
+  async setLogLevel(
+    level: string,
+  ): Promise<{ ok: boolean; logLevel?: string }> {
+    return this.request("/localapi/v0/log-level", {
+      method: "POST",
+      body: JSON.stringify({ level }),
+    });
+  }
+
   /** Re-assert our listener address into the host proxy settings after an
    * external change; the running core is not touched. */
   async reassertSystemProxy(): Promise<{
@@ -562,9 +594,10 @@ export class LocalAPIClient {
   }
 
   /** Reads the subscription's current source for the raw editor. */
-  async getSubSource(id: string): Promise<string> {
+  async getSubSource(id: string, options: RequestInit = {}): Promise<string> {
     const data = await this.request<{ content: string }>(
       `/localapi/v0/subs/source?id=${encodeURIComponent(id)}`,
+      options,
     );
     return data.content;
   }
@@ -752,9 +785,13 @@ export class LocalAPIClient {
   }
 
   /** Structured local override spliced onto the source before derivation. */
-  async getSubOverride(id: string): Promise<SubscriptionOverride> {
+  async getSubOverride(
+    id: string,
+    options: RequestInit = {},
+  ): Promise<SubscriptionOverride> {
     return this.request(
       `/localapi/v0/subs/override?id=${encodeURIComponent(id)}`,
+      options,
     );
   }
 
@@ -768,17 +805,15 @@ export class LocalAPIClient {
     });
   }
 
-  async getGlobalMixin(): Promise<GlobalMixin> {
-    return this.request("/localapi/v0/mixins/global");
-  }
-
-  async setGlobalMixin(
-    mixin: GlobalMixin,
-  ): Promise<{ ok: boolean; mixin?: GlobalMixin }> {
-    return this.request("/localapi/v0/mixins/global", {
-      method: "PUT",
-      body: JSON.stringify(mixin),
-    });
+  /** Routing targets one subscription offers for rule groups. */
+  async getSubPolicies(
+    id: string,
+    options: RequestInit = {},
+  ): Promise<SubscriptionPolicies> {
+    return this.request(
+      `/localapi/v0/subs/policies?id=${encodeURIComponent(id)}`,
+      options,
+    );
   }
 
   async runDoctor(): Promise<unknown> {

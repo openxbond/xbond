@@ -131,7 +131,7 @@ function ProxyGroups() {
                     </span>
                   )}
                 </div>
-                <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="flex shrink-0 items-center gap-1.5 text-footnote text-muted-foreground">
                   {selected.now && (
                     <span className="hidden sm:inline-block max-w-[140px] truncate text-muted-foreground/80">
                       {renderNodeTitle(
@@ -177,12 +177,12 @@ function ProxyGroups() {
                               </span>
                             )}
                           </div>
-                          <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground/75">
+                          <span className="shrink-0 font-mono text-footnote tabular-nums text-muted-foreground/75">
                             {t("groupMembers", { count: group.all.length })}
                           </span>
                         </div>
                         {leafNode && (
-                          <div className="flex w-full min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+                          <div className="flex w-full min-w-0 items-center gap-1 text-footnote text-muted-foreground">
                             <span className="min-w-0 truncate text-muted-foreground/90">
                               {renderNodeTitle(leafNode)}
                             </span>

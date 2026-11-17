@@ -134,8 +134,12 @@ export default defineConfig((env) => ({
       // is harmless. https://rolldown.rs/in-depth/directives
       checks: { moduleLevelDirective: false },
       output: {
-        // keep the vendor bundle split for long-term caching
+        // keep the vendor bundle split for long-term caching. CodeMirror is
+        // excluded: it rides the dynamic import of the raw-source editor, so
+        // first paint does not pay for an editor most sessions never open.
         manualChunks(id) {
+          if (/@codemirror|@lezer|crelt|style-mod|w3c-keyname/.test(id))
+            return undefined;
           if (id.includes("node_modules")) return "vendor";
         },
       },

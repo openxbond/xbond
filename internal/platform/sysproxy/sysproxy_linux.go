@@ -41,6 +41,24 @@ func Get() (Snapshot, error) {
 	return snap, nil
 }
 
+// DefaultBypass is the exception list applied on takeover: loopback, the
+// private ranges (CIDR is what GNOME ignore-hosts understands) and .local
+// hostnames. The client's own control plane — the UI reaching an external
+// controller on the LAN — must stay reachable with any rule set; an empty
+// list sends LAN addresses through the core, where a subscription without
+// LAN rules rides them out the proxy node, which can never dial back.
+func DefaultBypass() string {
+	return strings.Join([]string{
+		"localhost",
+		"127.0.0.0/8",
+		"::1",
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+		"*.local",
+	}, ";")
+}
+
 func Set(server string, bypass string) error {
 	current, err := Get()
 	if err != nil {

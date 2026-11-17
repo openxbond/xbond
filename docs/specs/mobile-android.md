@@ -37,13 +37,13 @@
 
 ### 進程內 LocalAPI 與移動運行時
 
-應用進程內嵌守護進程同契約的 LocalAPI（`mobile/server.go`，僅回環、token 鑑權，token 落 `localapi.token`、端口落 `localapi.addr`；**靜態資產服務已移除**——UI 由 Tauri 資產供給，LocalAPI 純數據面）。CORS `*` 保留（`tauri android dev` 的 Vite 頁面跨域直連模擬器內 LocalAPI）。路由契約與守護進程對齊（profiles/subs/override/mixin/source/versions/rules/page/connections/`POST /account/callback` 全部可用）。移動運行時（`mobile/runtime.go`）在派生前合併分流層，override/mixin/源編輯與回滾在隧道運行時熱重載——平台 fd 保持有效，系統 VPN 圖標不閃爍。
+應用進程內嵌守護進程同契約的 LocalAPI（`mobile/server.go`，僅回環、token 鑑權，token 落 `localapi.token`、端口落 `localapi.addr`；**靜態資產服務已移除**——UI 由 Tauri 資產供給，LocalAPI 純數據面）。CORS `*` 保留（`tauri android dev` 的 Vite 頁面跨域直連模擬器內 LocalAPI）。路由契約與守護進程對齊（profiles/subs/override/policies/source/versions/rules/page/connections/`POST /account/callback` 全部可用）。移動運行時（`mobile/runtime.go`）在派生前合併自訂覆蓋層，override/源編輯與回滾在隧道運行時熱重載——平台 fd 保持有效，系統 VPN 圖標不閃爍。
 
 **OAuth scheme 登錄**（與桌面同契約）：登入請求帶 `callbackScheme: "xbond"`，瀏覽器完成授權後 302 到 `xbond://callback?code&state`，OS 深鏈跳回 App；deep-link 插件以 `deep-link://new-url` 事件交給前端，前端調 `deliver_account_callback`（短重試 8×500ms，覆蓋 LocalAPI 未就緒窗口）後派發 `xbond-account-updated`——深鏈 query 是憑據，日誌只記 scheme/host。
 
 ### 啟動畫面（splash hand-off）
 
-冷啟動由 `Theme.XBond.Starting` 供給品牌 splash：`androidx.core:core-splashscreen` 把品牌字形（`xbond_splash_icon`）畫在頁面表面色上，`MainActivity` 以 `setKeepOnScreenCondition { !StartupSplash.settled }` 保持畫面，`postSplashScreenTheme` 收場後換回 `Theme.XBond`。Web UI 的啟動收尾（`packages/client-ui/src/app/startup-handoff.ts`）在 daemon 連接落定（ready 或首個失敗判定）或 8s cap 後調 `plugin:xbond|startup_complete`，Kotlin 置位 `StartupSplash.settled` 釋放畫面；Activity 另有 10s 看門狗兜 webview 起不來的死局。主題、顏色與 splash 圖標資源都在插件庫 res（gen 之外，再生成免疫）。iOS 的啟動畫面走 Info.plist 的 `UILaunchScreen` 鍵（`SplashBackground` 色與 `SplashLogo` 圖，均出自 asset catalog 並帶明暗變體），由系統在應用首幀自動收掉、無法延長——daemon 等待交由應用內連接動畫（`disconnected-state.tsx` 的 connecting 態）表達。
+冷啟動由 `Theme.XBond.Starting` 供給品牌 splash：`androidx.core:core-splashscreen` 把品牌字形畫在頁面表面色上，`MainActivity` 以 `setKeepOnScreenCondition { !StartupSplash.settled }` 保持畫面，`postSplashScreenTheme` 收場後換回 `Theme.XBond`。字形按「約 69dp、屏寬五分之一」的統一規格落地，兩套機制各自補償：API 31+ 的系統啟動窗把非 adaptive 圖標按 adaptive-foreground 尺度放大（實測 ~2.62 倍）並播放 `AnimatedVectorDrawable`，故 `values-v31/themes.xml` 引 `xbond_splash_icon`（AVD，字形預縮 0.34；`translateY` 呼吸浮動與桌面 splash 窗、應用內 connecting 態共用 3.4s 浮動語言，循環起點即完整字形——未播音的宿主無殘缺幀）；API < 31 的 core-splashscreen 兼容層按 drawable 固有尺寸渲染 window 背景，基礎主題改引 `xbond_splash_icon_compat`（96dp 畫布，72/100 視口單位的字形直接呈現同等大小）。Web UI 的啟動收尾（`packages/client-ui/src/app/startup-handoff.ts`）在 daemon 連接落定（ready 或首個失敗判定）或 8s cap 後調 `plugin:xbond|startup_complete`，Kotlin 置位 `StartupSplash.settled` 釋放畫面；Activity 另有 10s 看門狗兜 webview 起不來的死局。主題、顏色與 splash 圖標資源都在插件庫 res（gen 之外，再生成免疫）。iOS 的啟動畫面走 Info.plist 的 `UILaunchScreen` 鍵（`SplashBackground` 色與 `SplashLogo` 圖，均出自 asset catalog 並帶明暗變體；120pt 單尺寸 PNG、字形 ~88pt，與 Android 端屏寬比例對齊），由系統在應用首幀自動收掉、無法延長——daemon 等待交由應用內連接動畫（`disconnected-state.tsx` 的 connecting 態）表達。
 
 ### 分流與重載
 

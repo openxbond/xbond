@@ -319,6 +319,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/down", s.authMiddleware(s.handleDown))
 	mux.HandleFunc("/localapi/v0/restart", s.authMiddleware(s.handleRestart))
 	mux.HandleFunc("/localapi/v0/mode", s.authMiddleware(s.handleMode))
+	mux.HandleFunc("/localapi/v0/log-level", s.authMiddleware(s.handleLogLevel))
 	mux.HandleFunc("/localapi/v0/sysproxy/reassert", s.authMiddleware(s.handleSysproxyReassert))
 	mux.HandleFunc("/localapi/v0/sysproxy/release", s.authMiddleware(s.handleSysproxyRelease))
 
@@ -335,13 +336,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/subs/use", s.authMiddleware(s.handleSubUse))
 	mux.HandleFunc("/localapi/v0/subs/update", s.authMiddleware(s.handleSubUpdate))
 	mux.HandleFunc("/localapi/v0/subs/override", s.authMiddleware(s.handleSubOverride))
+	mux.HandleFunc("/localapi/v0/subs/policies", s.authMiddleware(s.handleSubPolicies))
 	mux.HandleFunc("/localapi/v0/subs/versions", s.authMiddleware(s.handleSubVersions))
 	mux.HandleFunc("/localapi/v0/subs/rollback", s.authMiddleware(s.handleSubRollback))
 	mux.HandleFunc("/localapi/v0/subs/source", s.authMiddleware(s.handleSubSource))
 	mux.HandleFunc("/localapi/v0/subs/url", s.authMiddleware(s.handleSubURL))
 	mux.HandleFunc("/localapi/v0/subs/unpin", s.authMiddleware(s.handleSubUnpin))
 	mux.HandleFunc("/localapi/v0/subs/progress", s.authMiddleware(s.handleSubsProgress))
-	mux.HandleFunc("/localapi/v0/mixins/global", s.authMiddleware(s.handleGlobalMixin))
 	mux.HandleFunc("/localapi/v0/profiles", s.authMiddleware(s.handleProfiles))
 
 	mux.HandleFunc("/localapi/v0/nodes", s.authMiddleware(s.handleNodes))
@@ -448,6 +449,40 @@ func (s *Server) handleMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "preferences": s.runtime.Preferences()})
+}
+
+// handleLogLevel switches the core log level. mihomo cores switch live;
+// sing-box cores cannot (their clash API drops the level PATCH), so the
+// runtime falls back to applying it through the derived config on a reload.
+func (s *Server) handleLogLevel(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		writeJSON(w, http.StatusOK, map[string]any{"logLevel": s.runtime.Preferences().LogLevel})
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "POST only")
+		return
+	}
+	var body struct {
+		Level string `json:"level"`
+	}
+	if !decodeRuntimeRequest(w, r, &body) {
+		return
+	}
+	if body.Level == "" {
+		writeError(w, http.StatusBadRequest, "missing level")
+		return
+	}
+	if !engine.IsKnownLogLevel(body.Level) {
+		writeError(w, http.StatusBadRequest, "unknown log level")
+		return
+	}
+	level := engine.CanonicalLogLevel(body.Level)
+	if err := s.runtime.Configure(r.Context(), runtimeOptions{LogLevel: &level}); err != nil {
+		writeRuntimeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "logLevel": s.runtime.Preferences().LogLevel})
 }
 
 // handleSysproxyReassert rewrites our listener address into the host proxy
@@ -826,10 +861,9 @@ func (s *Server) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, override)
 	case http.MethodPut, http.MethodPost:
 		var request struct {
-			ID           string   `json:"id"`
-			RulesPrepend []string `json:"rulesPrepend"`
-			RulesAppend  []string `json:"rulesAppend"`
-			DNS          string   `json:"dns"`
+			ID     string              `json:"id"`
+			Groups []engine.RuleGroup  `json:"groups"`
+			DNS    *engine.DNSOverride `json:"dns"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&request); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid override request")
@@ -840,9 +874,8 @@ func (s *Server) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		override := &engine.SubscriptionOverride{
-			RulesPrepend: request.RulesPrepend,
-			RulesAppend:  request.RulesAppend,
-			DNS:          request.DNS,
+			Groups: request.Groups,
+			DNS:    request.DNS,
 		}
 		if err := s.subMgr.SetOverride(request.ID, override); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -860,39 +893,35 @@ func (s *Server) handleSubOverride(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGlobalMixin reads (GET) or updates (PUT/POST) system-wide mixin rules and DNS.
-func (s *Server) handleGlobalMixin(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		mixin, err := s.subMgr.GlobalMixin()
-		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		if mixin == nil {
-			mixin = &engine.GlobalMixin{}
-		}
-		writeJSON(w, http.StatusOK, mixin)
-	case http.MethodPut, http.MethodPost:
-		var mixin engine.GlobalMixin
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&mixin); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid global mixin request")
-			return
-		}
-		if err := s.subMgr.SetGlobalMixin(&mixin); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		if s.subMgr.ActiveID() != "" && s.engineMgr.IsRunning() {
-			if err := s.runtime.Configure(r.Context(), runtimeOptions{}); err != nil {
-				writeError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "mixin": mixin})
-	default:
+// handleSubPolicies lists the routing targets one subscription offers for
+// custom rule groups: its own nodes/groups (or outbounds) plus DIRECT and
+// REJECT. The UI offers exactly this list, so a saved target always passes
+// the save-time check.
+func (s *Server) handleSubPolicies(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
 	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing subscription id")
+		return
+	}
+	if _, err := s.subMgr.Get(id); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	source, err := os.ReadFile(paths.SubSourcePath(id))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "no downloaded source; update the subscription first")
+		return
+	}
+	format, policies, err := engine.ListPolicies(source)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": id, "format": string(format), "policies": policies})
 }
 
 // handleProfiles provides a unified RESTful endpoint for profile listing and adding.
@@ -1389,6 +1418,14 @@ func (s *Server) handleServiceChange(w http.ResponseWriter, r *http.Request, cha
 }
 
 func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
+	// API-miss contract: an unregistered /localapi path is a version skew or
+	// a client bug — answer JSON 404 so the UI reports "not supported in
+	// this build" instead of parsing the SPA fallback as a JSON response
+	// (the HTML 200 crashed res.json() with a syntax error).
+	if strings.HasPrefix(r.URL.Path, "/localapi/") {
+		writeError(w, http.StatusNotFound, "unknown localapi endpoint")
+		return
+	}
 
 	filePath := filepath.Join(s.webDir, filepath.Clean(r.URL.Path))
 	// web 目錄歸界：本機任何進程都能連這個 loopback 端口，/../.. 之類的路徑

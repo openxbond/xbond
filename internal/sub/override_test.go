@@ -40,8 +40,9 @@ func importOverrideFixture(t *testing.T, manager *Manager, name, source string) 
 	return meta.ID
 }
 
-// Override storage round-trips, rejects conflicts at save time against the
-// stored source, and a zero override removes the file.
+// Override storage round-trips the normalized groups and DNS upstreams,
+// rejects an unknown target at save time against the stored source, and a
+// zero override removes the file.
 func TestOverrideStorageRoundtripAndSaveTimeConflict(t *testing.T) {
 	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	manager, err := NewManager()
@@ -55,20 +56,38 @@ func TestOverrideStorageRoundtripAndSaveTimeConflict(t *testing.T) {
 	}
 
 	good := &engine.SubscriptionOverride{
-		RulesPrepend: []string{"DOMAIN,blocked.example.invalid,REJECT"},
-		RulesAppend:  []string{"DOMAIN,x.example.invalid,edge"},
+		Groups: []engine.RuleGroup{
+			{Name: "Block", Target: "REJECT", Enabled: true, Rules: []string{"blocked.example.invalid"}},
+			{Name: "ToEdge", Target: "edge", Enabled: true, Rules: []string{"x.example.invalid"}},
+			{Name: "Off", Target: "DIRECT", Enabled: false, Rules: []string{"ignored.example.invalid"}},
+		},
+		DNS: &engine.DNSOverride{Nameservers: []string{" 223.5.5.5 ", "1.1.1.1"}, Fallback: []string{"8.8.8.8"}},
 	}
 	if err := manager.SetOverride(id, good); err != nil {
 		t.Fatalf("valid override rejected at save time: %v", err)
 	}
 	loaded, err := manager.Override(id)
-	if err != nil || loaded == nil || len(loaded.RulesPrepend) != 1 || len(loaded.RulesAppend) != 1 {
+	if err != nil || loaded == nil {
 		t.Fatalf("override round-trip failed: %+v (%v)", loaded, err)
 	}
+	if len(loaded.Groups) != 3 {
+		t.Fatalf("disabled group must survive a save (the switch stays editable): %+v", loaded.Groups)
+	}
+	if loaded.Groups[0].Name != "Block" || loaded.Groups[0].Target != "REJECT" {
+		t.Fatalf("first group mismatch: %+v", loaded.Groups[0])
+	}
+	if loaded.Groups[2].Enabled || loaded.Groups[2].Name != "Off" {
+		t.Fatalf("disabled group state lost: %+v", loaded.Groups[2])
+	}
+	if loaded.DNS == nil || len(loaded.DNS.Nameservers) != 2 || loaded.DNS.Nameservers[0] != "223.5.5.5" || len(loaded.DNS.Fallback) != 1 {
+		t.Fatalf("DNS upstreams not normalized: %+v", loaded.DNS)
+	}
 
-	conflicting := &engine.SubscriptionOverride{RulesAppend: []string{"DOMAIN,x.example.invalid,ghost"}}
+	conflicting := &engine.SubscriptionOverride{
+		Groups: []engine.RuleGroup{{Name: "Ghost", Target: "ghost", Enabled: true, Rules: []string{"x.example.invalid"}}},
+	}
 	if err := manager.SetOverride(id, conflicting); err == nil {
-		t.Fatal("override referencing a missing policy was saved")
+		t.Fatal("override referencing a missing target was saved")
 	}
 	if _, err := os.Stat(paths.SubOverridePath(id)); err != nil {
 		t.Fatalf("rejected save removed the stored override: %v", err)
@@ -88,9 +107,9 @@ func TestOverrideStorageRoundtripAndSaveTimeConflict(t *testing.T) {
 	}
 }
 
-// When an upstream update removes a policy the override references, the
-// update fails loudly and the last known-good source, hash and meta stay
-// untouched (client-rethink §四.3: no silent retargeting).
+// When an upstream update removes the target a group references, the update
+// fails loudly and the last known-good source, hash and meta stay untouched
+// (client-rethink §四.3: no silent retargeting).
 func TestUpdateFailsWhenOverrideConflictsWithNewUpstream(t *testing.T) {
 	t.Setenv("XBOND_DATA_DIR", t.TempDir())
 	manager, err := NewManager()
@@ -100,7 +119,7 @@ func TestUpdateFailsWhenOverrideConflictsWithNewUpstream(t *testing.T) {
 	id := importOverrideFixture(t, manager, "conflict_sub", overrideTestSource)
 
 	if err := manager.SetOverride(id, &engine.SubscriptionOverride{
-		RulesAppend: []string{"DOMAIN,kept.example.invalid,edge"},
+		Groups: []engine.RuleGroup{{Name: "Keep", Target: "edge", Enabled: true, Rules: []string{"kept.example.invalid"}}},
 	}); err != nil {
 		t.Fatalf("override rejected against stored source: %v", err)
 	}

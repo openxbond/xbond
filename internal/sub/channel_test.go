@@ -51,7 +51,7 @@ func TestSetUpdateChannelValidatesAndPersists(t *testing.T) {
 	// The override of the update channel is independent from the local
 	// override layer; both persist side by side.
 	if err := manager.SetOverride(id, &engine.SubscriptionOverride{
-		RulesAppend: []string{"DOMAIN,x.example.invalid,edge"},
+		Groups: []engine.RuleGroup{{Name: "Local", Target: "edge", Enabled: true, Rules: []string{"x.example.invalid"}}},
 	}); err != nil {
 		t.Fatal(err)
 	}

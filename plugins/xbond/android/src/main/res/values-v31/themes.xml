@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 31+ variant of Theme.XBond.Starting (the base definition lives
+         in values/themes.xml and must stay in sync): the system starting
+         window both inflates a non-adaptive splash icon to the
+         adaptive-foreground scale and plays AnimatedVectorDrawable icons,
+         so point the theme at the breathing AVD whose glyph is pre-scaled
+         for the inflation. Below 31 the base theme keeps the
+         intrinsic-sized static vector (xbond_splash_icon_compat) that the
+         core-splashscreen compatibility layer renders at its true size.
+         Both variants show a ~69dp glyph on the page surface. -->
+    <style name="Theme.XBond.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/xbond_surface</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/xbond_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.XBond</item>
+    </style>
+</resources>
