@@ -12,7 +12,7 @@
 
 </div>
 
-[繁體中文](README.md) | [English](README.en.md) | [简体中文](README.zh-CN.md) | 조선어 | [فارسی](README.fa.md)
+[English](README.md) | [繁體中文](README.zh-HK.md) | [简体中文](README.zh-CN.md) | 조선어 | [فارسی](README.fa.md)
 
 XBond는 프록시에 필요한 전 과정을 한 번에 처리합니다. 연결 설정을 가져오고, 연결을 켜고, 라우팅 전략을 고르고, 네트워크에서 벌어지는 일을 지켜볼 수 있습니다. [mihomo](https://github.com/MetaCubeX/mihomo)와 [sing-box](https://github.com/SagerNet/sing-box) 코어가 내장되어 있어 Clash YAML과 sing-box JSON 설정을 그대로 실행할 수 있고, XBond 계정이 없어도 서드파티 구독은 모든 기능을 제한 없이 쓸 수 있습니다.
 
@@ -133,4 +133,4 @@ XBond는 [GNU Affero General Public License v3](LICENSE)로 배포됩니다. 내
 
 ---
 
-이 파일은 [README.md](README.md)(번체 중국어, 기준 버전)의 번역본입니다. 내용을 바꿀 때는 기준 파일을 먼저 업데이트해 주세요.
+이 파일은 [README.md](README.md)(영어, 기준 버전)의 번역본입니다. 내용을 바꿀 때는 기준 파일을 먼저 업데이트해 주세요.

@@ -1,6 +1,6 @@
 # 驗證矩陣
 
-命令以根 `package.json` 為準。本文件定義應執行甚麼；CI 覆蓋其中的 web 與 Go 門禁（見「自動化現況」），不代表所有平台與能力已自動驗證。
+命令以根 `package.json` 為準。本文件定義應執行甚麼；CI 覆蓋其中的 web、Go 與提交政策門禁（見「自動化現況」），不代表所有平台與能力已自動驗證。
 
 ## 選最窄的有效證據
 
@@ -40,4 +40,4 @@
 
 ## 自動化現況
 
-`.github/workflows/` 在 push 與 PR 複用本地同一批命令：`ci.yml` 的 `web` job 跑 `pnpm check:web`，`go` job 跑 `pnpm cli:check` 及 Windows 目標的 `pnpm cli:vet`；`desktop-check.yml` 僅在 `src-tauri/`、`plugins/` 等路徑變更時跑 `pnpm check:desktop` （Linux、macOS、Windows 三個 runner）。發佈候選重用 `ci.yml` 的 Web 與 Go 檢查，再執行原生建置。pre-commit（lefthook，`pnpm hooks:install` 自選安裝）對提交中的檔案跑同樣的 oxfmt 與 oxlint 檢查。檢查成為合併門禁須在 GitHub 儲存庫設定中設為 required checks；runner 工具鏈或平台依賴缺失造成的失敗先與基線核對，不能以本地綠燈掩蓋。
+`.github/workflows/` 在 push 與 PR 複用本地同一批命令：`ci.yml` 的 `policy` job 在 PR 跑 `scripts/check/check-git-policy.ts pr`（提交標題、type／scope、英文描述、base／head 分支關係、PR 作者必須是 `xbond-automation[bot]`）及 `commits`（拒絕 hydrz 作者／committer）；`web` job 跑 `pnpm check:web`，`go` job 跑 `pnpm cli:check` 及 Windows 目標的 `pnpm cli:vet`。CI 在 `main` 的 push 與 PR 觸發。`desktop-check.yml` 僅在 `src-tauri/`、`plugins/` 等路徑變更時跑 `pnpm check:desktop`（Linux、macOS、Windows 三個 runner）。發佈候選重用 `ci.yml` 的 Web 與 Go 檢查，再執行原生建置。lefthook（`pnpm hooks:install` 自選安裝）的 pre-commit 對提交中的檔案跑 oxfmt 與 oxlint，commit-msg 跑同一套提交訊息規則。檢查成為合併門禁須在 GitHub 儲存庫 ruleset 設為 required checks（`Policy`、`Web`、`Go`）；runner 工具鏈或平台依賴缺失造成的失敗先與基線核對，不能以本地綠燈掩蓋。

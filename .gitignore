@@ -75,3 +75,5 @@ plugins/xbond/android/.gradle/
 
 temp/
 .temp/
+
+.envrc

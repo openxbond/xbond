@@ -30,7 +30,8 @@
 - daemon 生命週期（契約見 [daemon-runtime 規格](docs/specs/daemon-runtime.md)）：`xbond daemon install`（`--scope user` 默認；`--scope system` 經原生提權安裝機器級特權隧道宿主——Windows SCM／macOS LaunchDaemon，UAC／osascript 拒絕即如實報告）把受監督的 daemon 註冊到平台 supervisor，`daemon stop` 經 LocalAPI shutdown 端點優雅退出並等待確認。CLI 不 spawn daemon、不隱式註冊：未安裝且未運行時報錯並給出指引。TUN 接管分層委託：普通權限的用戶會話 daemon 把 TUN 下發給機器級服務執行，能力門驗證「本進程提升或委託通道可達」，註冊狀態不算數。同一資料目錄由實例鎖保證單一 daemon。`xbond run --config <file>` 前台運行獨立核心，與 daemon 的接管資源互斥、衝突即報錯，不觸碰 daemon 發現文件與狀態。
 - 桌面：`pnpm dev:desktop` 會自動起 Vite（127.0.0.1:1420）。`pnpm check:desktop` 檢查 Rust 格式及編譯，`pnpm build:desktop` 編譯本機桌面執行檔。
 - 移動端：`pnpm dev:android`／`pnpm dev:ios` 啟動 Tauri 開發流程，`pnpm android:install` 將獨立 debug APK 安裝至裝置。原生工具鏈、Go 綁定及裝置驗證見[開發環境](docs/dev-env.md)。
-- 格式：`pnpm exec oxfmt --check <本次檔案>`；`git diff --check`。可選 `pnpm hooks:install` 安裝 lefthook pre-commit，對提交中的檔案跑同樣的 oxfmt 與 oxlint 檢查。
+- 格式：`pnpm exec oxfmt --check <本次檔案>`；`git diff --check`。可選 `pnpm hooks:install` 安裝 lefthook，pre-commit 跑 oxfmt 與 oxlint，commit-msg 跑提交訊息政策檢查。
+- 門禁：PR 到 `main` 必須通過 CI 的 `Policy`、`Web`、`Go`；`Policy` 檢查 conventional 標題、允許的 type／scope、英文描述及 base／head 分支關係。發佈 preflight 另檢查 Tag 是否在 `main` first-parent，以及各語言更新說明是否齊全。
 - 封裝、發佈及 CI 變更以 [建置入口與產物](docs/release.md#建置入口與產物) 為準。把可本機執行的建置與驗收放進倉庫命令，CI 準備環境並呼叫同一入口。
 - 按 [驗證矩陣](docs/agents/verification.md) 選最窄檢查；只報實際執行結果。沒有在目標平台驗證的能力，保留待驗證狀態。
 
@@ -43,7 +44,7 @@
 - 不覆寫已有未提交改動，不整倉格式化，不把未完成介面或模擬資料當作已交付能力。
 - 訂閱、控制器憑證、LocalAPI token 及診斷原始資料不進提交、日誌或截圖。
 - 啟停本機服務、改系統代理／TUN 或執行真實網絡測試前說明影響；使用獲授權的測試環境並還原設定。
-- 一般不切分支，直接提交到 `main`；只有明確要求（如修特定 bug、開發新功能）才新建分支，命名按 conventional 提交前綴（`feat/`、`fix/` 等）。本機建置／封裝可執行；合併、公開發佈、轉交產物與變更遠端資源須有本次任務或既有授權。
+- 遠端 GitHub 操作（PR、review、merge、workflow dispatch、release）以 `xbond-automation[bot]` 身份執行，不以個人帳號操作；`Policy` 會拒絕其他 PR 作者及帶 hydrz 作者／committer 的提交。分支、提交與版本按 [分支與版本政策](docs/specs/branch-and-release-policy.md)：`main` 是唯一長期分支，功能與修復從 `main` 開短命分支，經 PR squash 合入；`chore(release): X.Y.Z` 發布提交即里程碑邊界。提交與 PR 標題用 conventional 前綴加英文描述；版本採嚴格 SemVer，只支援最新穩定版，Tag 只從 `main` 建立。本機建置／封裝可執行；合併、公開發佈、轉交產物與變更遠端資源須有本次任務或既有授權。
 
 ## 產品與介面
 
@@ -73,4 +74,4 @@
 
 `AGENTS.md` 是跨工具的規則入口；工具專屬 adapter 不作第二份事實來源。工作流與指令維護在本文及指向的文件，避免複製整份第三方 skill。
 
-文件採繁體中文，技術名稱保留原名。Markdown 段落不硬換行（`proseWrap: "never"`）；import 排序交給 Oxfmt。長期行為用 [規格格式](docs/specs/spec-format.md)，進度與證據用 [任務記錄](docs/tasks/README.md)。規則變更須檢查入口、連結、命令與完成條件是否一致。
+文件採繁體中文，技術名稱保留原名。主 `README.md` 用英文；`README.<locale>.md` 是翻譯，內容變更先改英文基準。Markdown 段落不硬換行（`proseWrap: "never"`）；import 排序交給 Oxfmt。長期行為用 [規格格式](docs/specs/spec-format.md)，進度與證據用 [任務記錄](docs/tasks/README.md)。規則變更須檢查入口、連結、命令與完成條件是否一致。

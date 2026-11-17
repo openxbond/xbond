@@ -43,6 +43,16 @@ export function parseCommits(log: string): ReleaseCommit[] {
   return commits;
 }
 
+export const NOTE_LOCALES = ["zh-hk", "en-us", "zh-cn", "ko", "fa"] as const;
+
+const NOTE_LABELS: Record<string, string> = {
+  "zh-hk": "繁體中文（香港）",
+  "en-us": "English",
+  "zh-cn": "简体中文",
+  ko: "한국어",
+  fa: "فارسی",
+};
+
 function section(title: string, subjects: string[]): string {
   if (subjects.length === 0) return "";
   return `## ${title}\n\n${subjects.map((subject) => `- ${subject}`).join("\n")}\n`;
@@ -54,8 +64,19 @@ export function releaseNotes(options: {
   commits: ReleaseCommit[];
   previousTag?: string;
   compareRepository?: string;
+  notes?: { locale: string; body: string }[];
 }): string {
   const repositoryUrl = options.compareRepository ?? repository;
+  const order = new Map<string, number>(
+    NOTE_LOCALES.map((locale, index) => [locale, index] as const),
+  );
+  const notes = [...(options.notes ?? [])]
+    .filter((note) => note.body.trim())
+    .sort(
+      (left, right) =>
+        (order.get(left.locale) ?? NOTE_LOCALES.length) -
+        (order.get(right.locale) ?? NOTE_LOCALES.length),
+    );
   const visible = options.commits.filter(
     (commit) => commit.breaking || !HIDDEN.has(commit.type),
   );
@@ -91,19 +112,30 @@ export function releaseNotes(options: {
         "Android requires the same signing key for in-place updates; desktop, CLI and Android can check for updates in-app.",
       ];
 
-  const body = [
-    features.length ? section("新功能 / Features", features) : "",
-    improvements.length ? section("改進 / Improvements", improvements) : "",
-    fixes.length ? section("修復 / Fixes", fixes) : "",
-    other.length ? section("其他變更 / Other changes", other) : "",
-    breaking.length ? section("破壞性變更 / Breaking changes", breaking) : "",
-    visible.length === 0
-      ? "## 變更 / Changes\n\n- 本版以內部改進與穩定性修復為主。 / This release focuses on internal improvements and stability fixes.\n"
-      : "",
-    section("升級須知 / Upgrade notes", upgradeNotes),
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const localized = notes.map(
+    (note) =>
+      `## ${NOTE_LABELS[note.locale] ?? note.locale}\n\n${note.body.trim()}\n`,
+  );
+
+  const body = localized.length
+    ? [...localized, section("升級須知 / Upgrade notes", upgradeNotes)]
+        .filter(Boolean)
+        .join("\n")
+    : [
+        features.length ? section("新功能 / Features", features) : "",
+        improvements.length ? section("改進 / Improvements", improvements) : "",
+        fixes.length ? section("修復 / Fixes", fixes) : "",
+        other.length ? section("其他變更 / Other changes", other) : "",
+        breaking.length
+          ? section("破壞性變更 / Breaking changes", breaking)
+          : "",
+        visible.length === 0
+          ? "## 變更 / Changes\n\n- 本版以內部改進與穩定性修復為主。 / This release focuses on internal improvements and stability fixes.\n"
+          : "",
+        section("升級須知 / Upgrade notes", upgradeNotes),
+      ]
+        .filter(Boolean)
+        .join("\n");
 
   const compare =
     options.previousTag &&

@@ -2,6 +2,8 @@
 
 發佈分兩條線：**候選（RC）反覆驗收** 與 **穩定版公開**。一次候選用一個 `vX.Y.Z-rc.N`；驗收通過後再用同基線的 `vX.Y.Z` 公開。候選不會進入穩定更新清單、不會推 `latest` 容器標籤。iOS 首發透過 TestFlight 安裝，App Store 可之後上架。
 
+分支與版本規則見[分支、提交與版本政策](specs/branch-and-release-policy.md)：功能與修復經 PR squash 直接進入 `main`；`chore(release): X.Y.Z` 發布提交即里程碑邊界；Tag 只從 `main` 首父提交建立。每個版本的用戶更新說明按語言放在 `docs/releases/<version>/<locale>.md`，發佈流程直接讀取整個目錄。
+
 ## 版本與 Tag
 
 - **穩定版**：`vX.Y.Z`，三段各 0–99、無前置零，整體大於零。作為公開與穩定自動更新的唯一來源。
@@ -10,6 +12,8 @@
 - **iOS 候選**：Apple 不接受帶 `-rc` 的 marketing version，RC 的 IPA 使用同基線數字版本（如 `1.0.0`）加遞增構建號；IPA 檔名仍用 Tag（`xbond-ios-v1.0.0-rc.1.ipa`），TestFlight 以構建號區分。
 - **桌面候選**：Linux 的 deb/rpm 版本同樣不接受 `-`，桌面 RC 安裝包一律以數字基底版本打包（與 iOS 一致）。因此同基線穩定版發布後，桌面 RC 不會收到自動更新提示，需手動安裝穩定版；Android 依構建號、iOS 依 TestFlight 可正常升級。
 - **不可變**：一個 Tag／版本號對應一條帶證據的候選鏈（commit、run、摘要/簽名）。公開後絕不復用；已產出的候選視為佔用，有問題修復後升 `rc.N` 或升穩定補丁號。
+- **Tag 來源**：只從 `main` 的首父提交建立，該提交必須是已驗收的里程碑合併或 release blocker 修復；分支與合流規則見[分支與版本政策](specs/branch-and-release-policy.md)。
+- **更新說明**：每個版本一個 `docs/releases/<x.y.z>/` 目錄，按 locale 分檔；`zh-hk.md`、`en-us.md`、`zh-cn.md`、`ko.md`、`fa.md` 五個檔案都必要。RC 與穩定版共用同一份基線說明；真實 Tag 缺少任何一個語言時 preflight 失敗，演練才回退到 conventional 提交彙總。
 - **版本來源**：檔案版本只在 `package.json` 維護；`pnpm version:set <x.y.z>` 一次同步其餘來源（Tauri、Cargo、iOS 工程、Android 版本回退、Go 預設與前端回退），`pnpm check:version`（已包含在 `pnpm check`）校驗一致。候選號只存在於 Tag，不寫進檔案版本。
 
 ## 建置入口與產物
@@ -57,18 +61,19 @@ macOS DMG 由 Finder 寫入背景及圖標佈局。在已登入圖形桌面的 T
 
 ## 建議工作流（最佳實踐）
 
-1. **整合與自測（不佔號）**：`main` 保持可建置且 CI 通過。功能/修復用本地包自測（`pnpm package:android`、`pnpm package:desktop` 等）；動到版本或打包腳本時先跑 `pnpm release:preview <tag>`；驗鏈路與簽名用手動 **Prepare XBond release** 的 `rehearsal` / `rehearsal-with-apple`（僅產出 Actions artifacts，不推正式 Tag）。
-2. **切候選（佔 `rc.N`）**：選 `origin/main` 上 CI 通過的提交，打 `vX.Y.Z-rc.1` 並推送。**Prepare XBond release** 自動執行 preflight → check → core/desktop/android/ios/image → assemble，產出帶 evidence 的草稿（標記為 GitHub pre-release）。從草稿 assets（同一 run）下載安裝驗收。只驗部分平台時用手動觸發的 `platforms`（如 `android`、`android,image`）：只產 artifacts、不生成草稿；完整候選用預設 `all`。
-3. **迭代**：驗收發現問題則修復合入 `main`，打 `vX.Y.Z-rc.2`… 繼續；不覆用舊 Tag。
-4. **定版公開**：目標候選通過後，打 `vX.Y.Z`（同基線）推送並 Prepare，完成驗收後執行 **Publish XBond release**。穩定版會進入下載頁、穩定更新清單與 `latest` 映像。
+1. **整合與自測（不佔號）**：`main` 保持可建置且 CI 通過；功能與修復從 `main` 開短命分支，經 PR squash 合入。用本地包自測（`pnpm package:android`、`pnpm package:desktop` 等）；動到版本或打包腳本時先跑 `pnpm release:preview <tag>`；驗證鏈路與簽名用手動 **Prepare XBond release** 的 `rehearsal` / `rehearsal-with-apple`（僅產出 Actions artifacts，不推正式 Tag）。
+2. **定版準備（不佔號）**：從 `main` 開 `chore/release-X.Y.Z`，完成 `pnpm version:set X.Y.Z`、`docs/releases/X.Y.Z/<locale>.md` 各語言更新說明及 `pnpm check`，PR 以標題 `chore(release): X.Y.Z` squash 合入 `main`；`main` 首父提交即本次里程碑邊界。
+3. **切候選（佔 `rc.N`）**：在該發布提交（或候選迭代修復後的 `main` 末端提交）打 `vX.Y.Z-rc.1` 並推送。**Prepare XBond release** 自動執行 preflight → check → core/desktop/android/ios/image → assemble，產出帶 evidence 的草稿（標記為 GitHub pre-release）。從草稿 assets（同一 run）下載安裝驗收。只驗部分平台時用手動觸發的 `platforms`（如 `android`、`android,image`）：只產 artifacts、不生成草稿；完整候選用預設 `all`。
+4. **迭代**：驗收發現問題則修復經 PR squash 帶回 `main`，之後直接在 `main` 末端升 `rc.N` 重切候選；更新說明同步補在同一份 `docs/releases/X.Y.Z/`，不覆用舊 Tag。
+5. **定版公開**：目標候選通過後，打 `vX.Y.Z`（同基線）推送並 Prepare，完成驗收後執行 **Publish XBond release**。穩定版會進入下載頁、穩定更新清單與 `latest` 映像。
 
 RC 產物可用於安裝與 TestFlight 驗收，但**不得**作為穩定自動更新來源；公開穩定版前的試錯消耗 `rc.N`，不消耗新的穩定版號。
 
-發布說明由 `scripts/release/notes.ts` 生成：按 Conventional Commits 分組為新功能／改進／修復／其他／破壞性變更，隱藏 `chore`、`ci`、`docs`、`test`、`style`、`build`，附升級須知與完整比較連結，正文不含 hash。
+發布說明優先讀取 `docs/releases/<version>/` 下的各語言檔案，按 `zh-hk`、`en-us`、`zh-cn`、`ko`、`fa` 順序分段；真實 Tag 缺少任何一個語言時 preflight 失敗。演練或檔案缺失時才由 `scripts/release/notes.ts` 按 Conventional Commits 彙總，隱藏 `chore`、`ci`、`docs`、`test`、`style`、`build`，附升級須知與完整比較連結，正文不含 hash。更新說明面向用戶，寫新增能力、行為改進、修復與升級須知，不列提交清單。
 
 ## 1. 推 Tag 與 Prepare
 
-選擇遠端 `main` 上已通過 CI 的提交。
+選擇遠端 `main` 上已驗收的發布提交或其後的候選迭代／release blocker 修復提交；版本、`docs/releases/<version>/` 與 Tag 必須一致。
 
 ```powershell
 $ReleaseTag = 'v1.0.0-rc.1' # 或穩定版 'v1.0.0'

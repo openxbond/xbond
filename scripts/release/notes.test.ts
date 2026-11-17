@@ -121,6 +121,29 @@ test("notes group by user impact and hide internal churn", () => {
     assert.ok(!notes.includes(hidden), `notes leaked ${hidden}`);
 });
 
+test("localized release notes replace the commit summary", () => {
+  const notes = releaseNotes({
+    version: "1.1.0",
+    candidate: false,
+    commits: parseCommits(log),
+    previousTag: "v1.0.0",
+    notes: [
+      { locale: "en-us", body: "- Rebuild the connect page" },
+      { locale: "zh-hk", body: "- 重構連線頁\n- 新增日誌級別切換" },
+    ],
+  });
+  assert.match(
+    notes,
+    /^# XBond 1\.1\.0\n\n## 繁體中文（香港）\n\n- 重構連線頁\n- 新增日誌級別切換\n\n## English\n\n- Rebuild the connect page\n/,
+  );
+  assert.match(notes, /## 升級須知 \/ Upgrade notes/);
+  assert.doesNotMatch(notes, /add save and share export for logs/);
+  assert.match(
+    notes,
+    /https:\/\/github\.com\/openxbond\/xbond\/compare\/v1\.0\.0\.\.\.v1\.1\.0/,
+  );
+});
+
 test("candidate notes keep the candidate out of the stable channel", () => {
   const notes = releaseNotes({
     version: "1.0.0-rc.1",

@@ -12,7 +12,7 @@
 
 </div>
 
-[繁體中文](README.md) | [English](README.en.md) | [简体中文](README.zh-CN.md) | [조선어](README.ko.md) | فارسی
+[English](README.md) | [繁體中文](README.zh-HK.md) | [简体中文](README.zh-CN.md) | [조선어](README.ko.md) | فارسی
 
 <div dir="rtl">
 
@@ -131,6 +131,6 @@ XBond تحت [پروانه GNU Affero General Public License v3](LICENSE) منت
 
 ---
 
-این فایل ترجمهٔ [README.md](README.md) (نسخهٔ مبنا) است؛ برای تغییر محتوا، ابتدا نسخهٔ مبنا را به‌روز کنید.
+این فایل ترجمهٔ [README.md](README.md) (نسخهٔ انگلیسی مبنا) است؛ برای تغییر محتوا، ابتدا نسخهٔ مبنا را به‌روز کنید.
 
 </div>

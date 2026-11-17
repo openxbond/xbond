@@ -12,3 +12,7 @@ pre-commit:
       run: pnpm exec oxlint --deny-warnings {staged_files}
     whitespace:
       run: git diff --check --cached
+commit-msg:
+  commands:
+    policy:
+      run: node scripts/check/check-git-policy.ts message {1}

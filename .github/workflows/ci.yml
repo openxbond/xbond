@@ -22,6 +22,29 @@ permissions:
   contents: read
 
 jobs:
+  policy:
+    name: "Policy"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/toolchain
+        with:
+          install: "false"
+      # Keep the required Policy context green on push and reusable-workflow
+      # runs; the pull_request payload is what carries the actual gate.
+      - run: node scripts/check/check-git-policy.ts pr
+      - name: Check commit identities
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          node scripts/check/check-git-policy.ts commits "origin/$BASE_REF..HEAD"
+
   web:
     name: "Web"
     runs-on: ubuntu-latest

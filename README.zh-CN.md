@@ -12,7 +12,7 @@
 
 </div>
 
-[繁體中文](README.md) | [English](README.en.md) | 简体中文 | [조선어](README.ko.md) | [فارسی](README.fa.md)
+[English](README.md) | [繁體中文](README.zh-HK.md) | 简体中文 | [조선어](README.ko.md) | [فارسی](README.fa.md)
 
 XBond 帮你导入连接配置、建立连接、选择代理策略，并查看网络活动。核心内嵌 [mihomo](https://github.com/MetaCubeX/mihomo) 与 [sing-box](https://github.com/SagerNet/sing-box)，Clash YAML 与 sing-box JSON 两类配置都能直接运行；没有 XBond 账号也可以完整使用第三方订阅。
 
@@ -133,4 +133,4 @@ XBond 以 [GNU Affero General Public License v3](LICENSE) 发布。内嵌的 mih
 
 ---
 
-本文件是 [README.md](README.md)（繁体中文，基准版本）的翻译；内容变更请先更新基准文件。
+本文件是 [README.md](README.md)（英文，基准版本）的翻译；内容变更请先更新基准文件。

@@ -31,6 +31,8 @@ test("tags produce a monotonic cross-platform build number", () => {
     releaseVersion("v1.0.0-rc.1").build > releaseVersion("v0.99.99").build,
   );
   assert.equal(releaseVersion("v1.0.0-rc.1").prerelease, true);
+  assert.equal(releaseVersion("v1.0.0-rc.2").baseVersion, "1.0.0");
+  assert.equal(releaseVersion("v1.2.3").baseVersion, "1.2.3");
   for (const invalid of [
     "0.4.2",
     "v0.0.0",

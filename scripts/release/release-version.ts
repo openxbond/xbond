@@ -29,6 +29,7 @@ export function releaseVersion(tag: string) {
   return {
     tag,
     version: tag.slice(1),
+    baseVersion: `${major}.${minor}.${patch}`,
     build,
     prerelease: rc !== undefined,
     stable: rc === undefined,
