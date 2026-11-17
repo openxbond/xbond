@@ -126,7 +126,7 @@ RC Tag 不可走此流程（工作流會拒絕）；RC 發佈後保持 pre-relea
 | `release-ios-signing` | Apple Developer 組織帳號。為 `net.xbond.app` 和 `net.xbond.app.PacketTunnel` 建立 App Store Connect 發行用 profiles，配置 Network Extension 及 App Group `group.net.xbond.app`。Secrets `IOS_DISTRIBUTION_P12`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE` 用 Base64，另設 `IOS_DISTRIBUTION_PASSWORD`。 |
 | `release-store-ios` | Secret `ASC_KEY`（App Store Connect P8 原文），Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。 |
 
-維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、啟用不可變 Release、限制 `v*` Tag 的建立及變更；`release-production` 只保留部署分支策略（`main`），不以個人帳號做環境審核人。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，僅允許 `main` 分支與 `v*` Tag。
+維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、啟用不可變 Release、限制 `v*` Tag 的建立及變更；`release-production` 只保留部署分支策略（`main`），不以個人帳號做環境審核人。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，允許 `main` 分支與 `v*` Tag。策略必須標明類型：分支規則 `type: branch`、Tag 規則 `type: tag`——未標明類型的規則一律視為分支規則，tag 部署會被環境保護拒絕。環境清單與策略的期望狀態以 `pnpm release:check` 為準，漂移即報錯。
 
 ### 建立或輪換簽名材料
 

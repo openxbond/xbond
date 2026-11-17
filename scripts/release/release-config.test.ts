@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { releaseVariableProblems } from "./release-config.ts";
+import {
+  releasePolicyProblems,
+  releaseVariableProblems,
+} from "./release-config.ts";
 
 const updaterPublicKey = Buffer.concat([
   Buffer.from("Ed"),
@@ -38,4 +41,46 @@ test("release preflight rejects double-encoded updater keys and colon-separated 
   assert.equal(problems.length, 2);
   assert.match(problems[0], /XBOND_TAURI_PUBLIC_KEY/);
   assert.match(problems[1], /ANDROID_SIGNER_SHA256/);
+});
+
+test("deployment policies must be typed: tag pushes are rejected by branch-only rules", () => {
+  const signing = [
+    { name: "main", type: "branch" },
+    { name: "v*", type: "tag" },
+  ];
+  const live = {
+    "release-manifest-signing": signing,
+    "release-desktop-signing": signing,
+    "release-android-signing": signing,
+    "release-ios-signing": signing,
+    "release-store-ios": signing,
+    "release-production": [{ name: "main", type: "branch" }],
+    "github-pages": [{ name: "main", type: "branch" }],
+  };
+  assert.deepEqual(releasePolicyProblems(live), []);
+  const branchOnly = {
+    ...live,
+    "release-ios-signing": [{ name: "main", type: "branch" }],
+  };
+  assert.match(
+    releasePolicyProblems(branchOnly).join("\n"),
+    /release-ios-signing.*main:branch, v\*:tag/,
+  );
+  const untypedTag = {
+    ...live,
+    "release-android-signing": [
+      { name: "main", type: "branch" },
+      { name: "v*", type: "branch" },
+    ],
+  };
+  assert.match(
+    releasePolicyProblems(untypedTag).join("\n"),
+    /release-android-signing/,
+  );
+  const missing: Partial<typeof live> = { ...live };
+  delete missing["release-manifest-signing"];
+  assert.match(
+    releasePolicyProblems(missing).join("\n"),
+    /missing or has no typed deployment policies/,
+  );
 });
