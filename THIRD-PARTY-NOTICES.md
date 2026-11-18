@@ -81,6 +81,12 @@ XBond 本身以 [GNU AGPL-3.0](LICENSE) 發佈。代理核心 mihomo 與 sing-bo
 | sonner | 2.0.8 | MIT | <https://github.com/emilkowalski/sonner> |
 | @tauri-apps/api | 2.12.4 | MIT OR Apache-2.0 | <https://github.com/tauri-apps/tauri> |
 
+## 隨前端分發的字型
+
+| 組件 | 版本 | 許可證 | 上游 |
+| --- | --- | --- | --- |
+| Noto Color Emoji（`client-ui` Windows emoji 字型） | 2.055 | OFL-1.1 | <https://github.com/googlefonts/noto-emoji>、<https://github.com/google/fonts/tree/main/ofl/notocoloremoji> |
+
 ## 開發與建置工具（npm devDependencies）
 
 | 組件 | 版本 | 許可證 | 上游 |
