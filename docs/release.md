@@ -126,7 +126,7 @@ RC Tag 不可走此流程（工作流會拒絕）；RC 發佈後保持 pre-relea
 | `release-ios-signing` | Apple Developer 組織帳號。為 `net.xbond.app` 和 `net.xbond.app.PacketTunnel` 建立 App Store Connect 發行用 profiles，配置 Network Extension 及 App Group `group.net.xbond.app`。Secrets `IOS_DISTRIBUTION_P12`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE` 用 Base64，另設 `IOS_DISTRIBUTION_PASSWORD`。 |
 | `release-store-ios` | Secret `ASC_KEY`（App Store Connect P8 原文），Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。 |
 
-維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、關閉不可變 Release、限制 `v*` Tag 的建立及變更；`release-production` 只保留部署分支策略（`main`），不以個人帳號做環境審核人。不可變 Release 開啟時，GitHub 會永久保留曾用於 release 的 tag 名——`v1.0.0` 即因此在刪除 release 後無法重建（GH013 報 creations restricted，管理面不可見、無 bypass），只能棄用該版本號；防重複使用由 `protect-release-tags` ruleset 與「公開後絕不復用」政策承擔，不需要這個功能。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，允許 `main` 分支與 `v*` Tag。策略必須標明類型：分支規則 `type: branch`、Tag 規則 `type: tag`——未標明類型的規則一律視為分支規則，tag 部署會被環境保護拒絕。環境清單與策略的期望狀態以 `pnpm release:check` 為準，漂移即報錯。
+維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、關閉不可變 Release、限制 `v*` Tag 的建立及變更；`release-production` 只保留部署分支策略（`main`），不以個人帳號做環境審核人。不可變 Release 開啟時，GitHub 會永久保留曾用於 release 的 tag 名——`v1.0.0` 即因此在刪除 release 後無法重建（GH013 報 creations restricted，管理面不可見、無 bypass），只能棄用該版本號；防重複使用由 `protect-release-tags` ruleset 與「公開後絕不復用」政策承擔，不需要這個功能。ghcr.io 的 `xbond` container package 若已存在（非本工作流首推自動建包），須在其 Package settings 的 Manage Actions access 把 `openxbond/xbond` 加入並選 Write，否則發佈工作流推鏡像被拒 `write_package`。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，允許 `main` 分支與 `v*` Tag。策略必須標明類型：分支規則 `type: branch`、Tag 規則 `type: tag`——未標明類型的規則一律視為分支規則，tag 部署會被環境保護拒絕。環境清單與策略的期望狀態以 `pnpm release:check` 為準，漂移即報錯。
 
 ### 建立或輪換簽名材料
 
@@ -141,7 +141,7 @@ RC Tag 不可走此流程（工作流會拒絕）；RC 發佈後保持 pre-relea
 - **RC（佔 `rc.N`）**：推 `vX.Y.Z-rc.N` tag 產生可驗收的 pre-release 草稿與同版構建產物；迭代用 `rc.2`、`rc.3`。RC 不發佈穩定清單、不推 `latest`。
 - **穩定版**：推 `vX.Y.Z` tag，驗收後執行 **Publish XBond release**（`install_verified=true`）公開並更新清單/`latest`/Pages。
 - **準備失敗**：重跑原 run 的失敗工作。草稿已收到的檔案會核對後沿用。要改源碼則用更高版本（升 `rc.N` 或升穩定補丁號）。**未產出草稿的失敗 run 可直接重跑同一個 Tag**（重跑不會產生第二份草稿，evidence 仍記錄 run id）；一旦草稿已生成或版本已公開，就只能升號。IPA 和 OCI artifacts 最多保留 90 天，送審或公開前保留原始已校驗檔案。
-- **GHCR 或 Pages 失敗**：穩定版發佈失敗可重跑同一 Tag 的公開工作流。GHCR 首推若套件是私有，先在 Package settings 設為公開。同 Tag 已有不同 digest 時先停止並查明原因。 [GHCR 套件可見性](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
+- **GHCR 或 Pages 失敗**：穩定版發佈失敗可重跑同一 Tag 的公開工作流。GHCR 首推若套件是私有，先在 Package settings 設為公開；若推鏡像報 `write_package` 被拒，在 Package settings 的 Manage Actions access 把 `openxbond/xbond` 加入並選 Write，再重跑原 run。同 Tag 已有不同 digest 時先停止並查明原因。 [GHCR 套件可見性](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
 - **已公開版本需要修正**：用更高穩定版本發佈修正。Docker 可改用原 digest 重建，保留 `/data`。
 
 ## 預發布（Beta）通道
