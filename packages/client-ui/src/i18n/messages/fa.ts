@@ -86,7 +86,7 @@ const FA = {
     portConflictTitle: "تداخل پورت",
     portConflictDesc: "پورت پیش‌فرض توسط برنامه دیگری اشغال شده است.",
     switchPortAndRetry: "تغییر به پورت 7891 و تلاش مجدد",
-    tunDeniedTitle: "مجوز TUN مورد نیاز است",
+    tunDeniedTitle: "TUN در دسترس نیست",
     tunDeniedDesc:
       "فعال‌سازی حالت TUN نیازمند مجوز مدیریت یا نصب سرویس پس‌زمینه است.",
     vpnConsentTitle: "نیاز به مجوز VPN",
@@ -722,7 +722,7 @@ const FA = {
         wintun_missing:
           "wintun.dll کنار دیمون یا در System32 پیدا نشد؛ با قرار دادن آن TUN فعال می‌شود.",
         service_unreachable:
-          "سرویس ممتاز نصب شده اما پاسخ نمی‌دهد — طبق راهنما دوباره نصب کنید یا خدمات سیستم را بررسی کنید.",
+          "سرویس ممتاز نصب شده اما هنوز پاسخ نمی‌دهد — ممکن است در حال راه‌اندازی باشد؛ کمی بعد دوباره تلاش کنید یا وضعیت سرویس سیستمی را بررسی کنید.",
       },
       tunPrivilegeNotice:
         "هدایت TUN به دسترسی مدیر نیاز دارد (ویندوز: اجرا به‌عنوان Administrator؛ macOS/Linux: root/sudo).",

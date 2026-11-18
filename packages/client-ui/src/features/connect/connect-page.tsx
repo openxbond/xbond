@@ -1785,7 +1785,11 @@ export default function Connect() {
               {connectError?.kind === "port_conflict"
                 ? t("portConflictDesc")
                 : connectError?.kind === "tun_denied"
-                  ? t("tunDeniedDesc")
+                  ? status?.capabilities?.tunReasonCode
+                    ? st(
+                        `takeover.tunUnavailable.${status.capabilities.tunReasonCode}` as const,
+                      )
+                    : t("tunDeniedDesc")
                   : connectError?.kind === "vpn_consent"
                     ? t("vpnConsentDesc")
                     : connectError?.message}

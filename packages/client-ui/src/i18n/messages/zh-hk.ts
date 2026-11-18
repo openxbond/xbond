@@ -85,7 +85,7 @@ const HK = {
     portConflictTitle: "連接埠衝突",
     portConflictDesc: "預設連接埠已被佔用，無法啟動核心監聽。",
     switchPortAndRetry: "切換為連接埠 7891 並重試",
-    tunDeniedTitle: "TUN 虛擬網卡權限不足",
+    tunDeniedTitle: "TUN 虛擬網卡無法使用",
     tunDeniedDesc: "啟用虛擬網卡需要系統管理員權限或安裝後台服務。",
     vpnConsentTitle: "需要 VPN 授權",
     vpnConsentDesc: "請在系統彈窗中允許 VPN 連線，授權後連線會自動繼續。",
@@ -693,7 +693,7 @@ const HK = {
         wintun_missing:
           "未在守護行程旁或 System32 找到 wintun.dll；放置後即可啟用 TUN。",
         service_unreachable:
-          "特權服務已安裝但無回應——按提示重新安裝，或檢查系統服務狀態。",
+          "特權服務已安裝但尚未回應——可能仍在啟動，請稍候重試；持續無回應時檢查系統服務狀態。",
       },
       tunPrivilegeNotice:
         "TUN 接管需要系統管理員權限：Windows 以系統管理員身份執行，macOS/Linux 需要 root/sudo。",

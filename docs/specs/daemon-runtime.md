@@ -79,10 +79,11 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 - 能力门如实反映执行路径：`capabilities.delegated` 标明接管将跑在机器会话；服务已安装但不可达时报 `service_unreachable`（本地化原因），而不是把注册状态当成 TUN 能力。
 - 调解循环（非连接建立者）：吸收本 daemon 重启后已在运行的委托（adopt）、服务重启后从已下发的配置重推（re-apply）、意图翻转时停掉远端；从不凭存量意图新建连接——连接始终是显式动作。
 - 一次安装终身无感：服务经原生提权一次性安装（SCM 崩溃自动重启／LaunchDaemon KeepAlive），之后开关 TUN、改路由、重启 daemon 全程不再需要管理员权限，GUI 永远以普通权限运行。
+- 机器服务的 SCM 启动类型必须是「自动」而非「延迟自动」：登录 daemon 在开机后立即恢复 TUN 连接，延迟服务会让委托管道在最初几分钟缺失，能力门如实报 `service_unreachable`，自动恢复与手动连接都会失败。
 
 ## 边界与失败
 
-- 权限不足（任务创建被策略拒绝、无 TUN 权限、无管理员）：明确报错并给出可用路径；不静默降级，不伪造成功。已落地：`tunCapability` 在应用前检测 TUN 真实可用性——Windows 校验提升令牌（`IsUserAnAdmin`）或委托通道可达性再加 wintun.dll 可寻性，unix 校验 root（euid 0）或委托通道；不可用时 TUN 模式在触碰任何状态前以输入错误失败，核心与偏好保持原状，核心吞错导致的「静默 mixed-only」不再发生。能力经 `/status` 的 `capabilities`（`tun`、`tunReasonCode`、`tunReason`、`delegated`）上报，设置页禁用 TUN 选项并显示本地化原因。分层特权委托已实现（Windows 实机待验、macOS 仅有编译与单元测试证据）。
+- 权限不足（任务创建被策略拒绝、无 TUN 权限、无管理员）：明确报错并给出可用路径；不静默降级，不伪造成功。已落地：`tunCapability` 在应用前检测 TUN 真实可用性——Windows 校验提升令牌（`IsUserAnAdmin`）或委托通道可达性再加 wintun.dll 可寻性，unix 校验 root（euid 0）或委托通道；不可用时 TUN 模式在触碰任何状态前以输入错误失败，核心与偏好保持原状，核心吞错导致的「静默 mixed-only」不再发生。能力经 `/status` 的 `capabilities`（`tun`、`tunReasonCode`、`tunReason`、`delegated`）上报，设置页禁用 TUN 选项并显示本地化原因。分层特权委托已实现（Windows 10 虚拟机已验证安装、重启自启与委托 TUN 连通，物理机与 Windows 11 待复验；macOS 仅有编译与单元测试证据）。
 - 双实例、端口冲突、TUN 已被持有：启动失败，错误指名冲突资源；已知良好状态不被覆盖。
 - 停止超时：报告超时与当前状态；恢复代理失败显示具体错误。
 - 崩溃恢复由系统管理器与 xbond 共同完成：管理器重启进程，xbond 检查自身遗留资源并恢复状态；是否自动重连由接管意图记录决定，主动断开不被重试循环重新连接。
@@ -108,7 +109,7 @@ XBond 桌面侧只有一个 Go 可执行文件：`xbond run` 前台运行代理�
 
 ## 已知限制
 
-- 已实现：单二进制的 `daemon` 子命令与用户级注册（systemd --user／LaunchAgent／HKCU Run）、LocalAPI 优雅 shutdown、Windows Run key 安装全周期实测（登录自启曾因 cobra mousetrap 把 explorer 拉起视为双击、打印提示后退出而失效，已禁用该机制修复；修复后的登录恢复场景待 Windows 实机复验）；自动连接（偏好默认开启、`XBOND_AUTO_CONNECT` 关闭、接管意图记录区分显式断开与进程退出；行为有单元测试证据，登录自启场景待实机复验）；分层特权委托（SCM 服务/LaunchDaemon + 特权传输 + 委托运行时，Windows 服务安装流程待实机复验、macOS 仅有编译与单元测试证据）；GUI 启动契约统一（`daemon start`／`daemon install`，无裸 spawn）；系统代理漂移检测与处置（Linux 实机验证；macOS/Windows 共用判定代码，仅单元测试证据）。
+- 已实现：单二进制的 `daemon` 子命令与用户级注册（systemd --user／LaunchAgent／HKCU Run）、LocalAPI 优雅 shutdown、Windows Run key 安装全周期实测（登录自启曾因 cobra mousetrap 把 explorer 拉起视为双击、打印提示后退出而失效，已禁用该机制修复；修复后的登录恢复场景待 Windows 实机复验）；自动连接（偏好默认开启、`XBOND_AUTO_CONNECT` 关闭、接管意图记录区分显式断开与进程退出；行为有单元测试证据，登录自启场景待实机复验）；分层特权委托（SCM 服务/LaunchDaemon + 特权传输 + 委托运行时，Windows 10 虚拟机已验证安装、重启自启与委托 TUN 连通，物理机与 Windows 11 待复验；macOS 仅有编译与单元测试证据）；GUI 启动契约统一（`daemon start`／`daemon install`，无裸 spawn）；系统代理漂移检测与处置（Linux 实机验证；macOS/Windows 共用判定代码，仅单元测试证据）。
 - 已承诺未实作：`run` 命令；实例锁；stop 的退出等待确认；Windows 用户会话的原生 Task Scheduler API 注册（现为 HKCU Run，无进程监督，升级路径为 COM 注册并显式处理策略拒绝）；macOS `SMAppService`；自动连接的用户设置界面（现经环境变量与状态文件设置）；doctor 对委托态的引擎读取仍查本地实例；移动端原生桥接（Android `TunnelService` 占位、iOS 扩展未接 Go 核心、mobile 三层状态直接映射 running 需修正）。
 - 刻意不支持：run 与 daemon 静默共享同机接管资源；scope 之间偷换冒充成功；凭运行残留（核心恰好在跑）推断意图自动建立连接——启动恢复只依据显式记录的接管意图；委托重连不自动。
 - 委托残留风险：mihomo 核心吞 TUN 启动错误，机器会话内「配置请求 TUN」与「适配器真的起来了」在运行时层面仍不可完全区分——能力门把已知失败路径（非提升、wintun 缺失、服务不可达）全部拦在触碰状态之前，残余风险与本地提升路径一致，记为已知限制。

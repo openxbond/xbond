@@ -17,12 +17,15 @@ import (
 	"github.com/openxbond/xbond/internal/upgrade"
 )
 
-// The machine-scoped daemon is a real Windows service (LocalSystem, delayed
-// autostart): TUN takeover needs an elevated session that survives logout,
-// and the user-session daemon deliberately stays un-elevated so system
-// proxy ownership keeps working. The UI reaches the service daemon through
-// its loopback LocalAPI (remote management), so the split is invisible to
-// the web UI.
+// The machine-scoped daemon is a real Windows service (LocalSystem, automatic
+// start): TUN takeover needs an elevated session that survives logout, and
+// the user-session daemon deliberately stays un-elevated so system proxy
+// ownership keeps working. The UI reaches the service daemon through its
+// loopback LocalAPI (remote management), so the split is invisible to the web
+// UI. The start must not be delayed: the logon daemon restores a TUN
+// connection right away, and a delayed service leaves the delegation pipe
+// missing for the first minutes after boot — the gate then reports
+// service_unreachable and connect fails for no user-visible reason.
 const (
 	systemServiceName    = "XBondSystemService"
 	systemServiceDisplay = "XBond Daemon (system)"
@@ -111,6 +114,17 @@ func installSystem(exePath string) error {
 		if !fixed {
 			return errors.New("the existing machine service uses a different executable; remove its registration before installing this version")
 		}
+		// A reinstall against an existing registration is also the upgrade
+		// path for its SCM config: converge delayed auto-start to immediate
+		// auto-start, otherwise the boot window that broke TUN survives
+		// every reinstall.
+		if cfg.StartType != mgr.StartAutomatic || cfg.DelayedAutoStart {
+			cfg.StartType = mgr.StartAutomatic
+			cfg.DelayedAutoStart = false
+			if err := existing.UpdateConfig(cfg); err != nil {
+				return fmt.Errorf("failed to fix the machine service start type: %w", err)
+			}
+		}
 		status, err := existing.Query()
 		if err != nil {
 			return err
@@ -147,10 +161,9 @@ func installSystem(exePath string) error {
 		systemServiceName,
 		binary,
 		mgr.Config{
-			DisplayName:      systemServiceDisplay,
-			Description:      "XBond daemon in the machine session: TUN takeover that survives logout. Managed by the per-user xbond CLI.",
-			StartType:        mgr.StartAutomatic,
-			DelayedAutoStart: true,
+			DisplayName: systemServiceDisplay,
+			Description: "XBond daemon in the machine session: TUN takeover that survives logout. Managed by the per-user xbond CLI.",
+			StartType:   mgr.StartAutomatic,
 		},
 		// Arguments ride binPath: a fixed loopback listen, the machine data
 		// dir (the LocalSystem profile has none), and service-run selecting

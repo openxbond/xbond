@@ -86,7 +86,7 @@ const KO = {
     portConflictTitle: "포트 충돌",
     portConflictDesc: "기본 포트가 다른 프로그램에서 이미 사용 중입니다.",
     switchPortAndRetry: "7891 포트로 전환 후 재시도",
-    tunDeniedTitle: "TUN 권한 필요",
+    tunDeniedTitle: "TUN 사용 불가",
     tunDeniedDesc:
       "TUN 가상 네트워크 어댑터는 관리자 권한 또는 백그라운드 서비스 설치가 필요합니다.",
     vpnConsentTitle: "VPN 권한 필요",
@@ -717,7 +717,7 @@ const KO = {
         wintun_missing:
           "데몬 옆 또는 System32에서 wintun.dll을 찾을 수 없습니다; 배치하면 TUN을 사용할 수 있습니다.",
         service_unreachable:
-          "특권 서비스가 설치되었지만 응답하지 않습니다 — 안내에 따라 다시 설치하거나 시스템 서비스를 확인하세요.",
+          "특권 서비스가 설치되었지만 아직 응답하지 않습니다 — 시작 중일 수 있으니 잠시 후 다시 시도하고, 계속 응답이 없으면 시스템 서비스 상태를 확인하세요.",
       },
       tunPrivilegeNotice:
         "TUN 인계에는 관리자 권한이 필요합니다 (Windows는 관리자 권한으로 실행, macOS/Linux는 root/sudo).",
