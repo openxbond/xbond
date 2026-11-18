@@ -48,11 +48,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="xbond" />
-
-
-
-
-
+                
+                
+                
+                
+                
             </intent-filter>
             <intent-filter >
                 <action android:name="android.intent.action.VIEW" />
@@ -61,11 +61,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="clash" />
-
-
-
-
-
+                
+                
+                
+                
+                
             </intent-filter>
             <intent-filter >
                 <action android:name="android.intent.action.VIEW" />
@@ -74,11 +74,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="sing-box" />
-
-
-
-
-
+                
+                
+                
+                
+                
             </intent-filter>
             <!-- DEEP LINK PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
         </activity>

@@ -1,0 +1,4 @@
+# tauri-plugin-deep-link rewrites its manifest block on every Android build
+# with whitespace-only lines; commit the generated output as-is so the tree
+# stays clean and the blank-at-eol pre-commit check does not flag it.
+src-tauri/gen/android/app/src/main/AndroidManifest.xml whitespace=-blank-at-eol
