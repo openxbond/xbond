@@ -39,6 +39,14 @@ import mobile.TunnelService
 class XBondVpnService : VpnService() {
 
     private var vpnInterface: ParcelFileDescriptor? = null
+    /** The duplicate of [vpnInterface] handed to the Go TunnelService. Only
+     * its internal per-start copy reaches the core; this number stays the
+     * platform's, so it must be closed here. A leaked reference keeps the
+     * system VPN interface (and its network agent) alive after /down while
+     * the Go side already reports idle — "disconnected" with the key icon
+     * still in the status bar. */
+    private var coreTunFd: Int = -1
+    private val coreTunFdLock = Any()
     private var tunnel: TunnelService? = null
     private var lastConfig: String = ""
     private var lastDisallowed: Array<String> = emptyArray()
@@ -160,6 +168,7 @@ class XBondVpnService : VpnService() {
         // tunnel down first instead of double-establishing (the core would
         // reject the second start and the catch would tear down everything).
         runCatching { tunnel?.stop() }
+        closeCoreTunFd()
         vpnInterface?.close()
         vpnInterface = null
         try {
@@ -172,24 +181,52 @@ class XBondVpnService : VpnService() {
             }
 
             vpnInterface = pfd
-            // Hand the core a dup of the descriptor: sing-tun closes the fd
-            // it adopts when the core stops, while the platform side keeps
-            // the original — closing vpnInterface destroys the interface on
-            // every teardown path without ever double-closing (fdsan aborts
-            // the process on a same-fd double close).
-            val coreFd = ParcelFileDescriptor.dup(pfd.fileDescriptor).detachFd()
-            Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core dup=$coreFd)")
+            // Hand the core a dup of the descriptor, keeping the original
+            // ours: closing vpnInterface destroys the interface on every
+            // teardown path without ever double-closing (fdsan aborts the
+            // process on a same-fd double close). The hand-off copy is ours
+            // to close too — the core only closes its own internal dup.
+            val coreFd = handOffTunDescriptor(pfd)
+            Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core fd=$coreFd)")
 
             tunnel?.start(lastConfig, coreFd)
             goForeground(R.string.notification_active)
-            Log.i(TAG, "Core started over core dup fd=$coreFd")
+            Log.i(TAG, "Core started over core fd=$coreFd")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting VPN tunnel: ${e.message}", e)
             tunnel?.stop()
+            closeCoreTunFd()
             vpnInterface?.close()
             vpnInterface = null
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+        }
+    }
+
+    /** Duplicates [pfd] for the core, replacing any previous hand-off. The
+     * platform owns the copy: [closeCoreTunFd] releases it after the core
+     * has stopped. */
+    private fun handOffTunDescriptor(pfd: ParcelFileDescriptor): Int {
+        closeCoreTunFd()
+        val fd = ParcelFileDescriptor.dup(pfd.fileDescriptor).detachFd()
+        synchronized(coreTunFdLock) { coreTunFd = fd }
+        return fd
+    }
+
+    /** Drops the platform's hand-off copy. Call only after the core stopped
+     * (its own dup is closed by then); together with [vpnInterface] this is
+     * the last reference keeping the system VPN interface alive. The
+     * read-and-clear is atomic so a stop racing another teardown path cannot
+     * close the same number twice (fdsan aborts the process). */
+    private fun closeCoreTunFd() {
+        val fd = synchronized(coreTunFdLock) {
+            val current = coreTunFd
+            coreTunFd = -1
+            current
+        }
+        if (fd >= 0) {
+            runCatching { ParcelFileDescriptor.adoptFd(fd).close() }
+                .onFailure { Log.w(TAG, "Hand-off fd $fd close failed: ${it.message}") }
         }
     }
 
@@ -269,9 +306,10 @@ class XBondVpnService : VpnService() {
                     return
                 }
                 runCatching { tunnel?.stop() }
+                closeCoreTunFd()
                 vpnInterface?.close()
                 vpnInterface = newPfd
-                val coreFd = ParcelFileDescriptor.dup(newPfd.fileDescriptor).detachFd()
+                val coreFd = handOffTunDescriptor(newPfd)
                 tunnel?.startActive(coreFd)
                 goForeground(R.string.notification_active)
                 Log.i(TAG, "Split-tunnel reload rebuilt the interface (fd=${newPfd.fd})")
@@ -293,11 +331,12 @@ class XBondVpnService : VpnService() {
     private fun stopTunnelResources() {
         try {
             // Order matters: stop the core first (it reads from the fd),
-            // then close the descriptor.
+            // then drop the hand-off copy, then the interface descriptor.
             tunnel?.stop()
         } catch (e: Exception) {
             Log.e(TAG, "Core stop failed: ${e.message}", e)
         }
+        closeCoreTunFd()
         try {
             vpnInterface?.close()
             vpnInterface = null
@@ -396,6 +435,7 @@ class XBondVpnService : VpnService() {
         try {
             tunnel?.stop()
         } finally {
+            closeCoreTunFd()
             vpnInterface?.close()
             vpnInterface = null
             active = null
@@ -476,6 +516,7 @@ class XBondVpnService : VpnService() {
             // 先按 startTunnel 的換序拆掉舊隧道與接口，避免覆寫 vpnInterface
             // 時把舊 fd 和舊接口整個漏掉。
             runCatching { tunnel?.stop() }
+            closeCoreTunFd()
             vpnInterface?.close()
             vpnInterface = null
 
@@ -485,13 +526,22 @@ class XBondVpnService : VpnService() {
             vpnInterface = pfd
             // Ownership split (see startTunnel): the core gets a dup it may
             // close; the original stays ours and its close destroys the
-            // interface on every teardown path.
-            val coreFd = ParcelFileDescriptor.dup(pfd.fileDescriptor).detachFd()
-            Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core dup=$coreFd)")
+            // interface on every teardown path. The hand-off copy is closed
+            // by closeCoreTunFd on the same paths.
+            val coreFd = handOffTunDescriptor(pfd)
+            Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core fd=$coreFd)")
 
-            tunnel?.startActive(coreFd)
+            try {
+                tunnel?.startActive(coreFd)
+            } catch (e: Exception) {
+                // A failed start must not leave an interface with no core
+                // behind: the UI would report disconnected while the system
+                // VPN (and its routes) stayed up.
+                stopTunnelResources()
+                throw e
+            }
             goForeground(R.string.notification_active)
-            Log.i(TAG, "Core started over core dup fd=$coreFd")
+            Log.i(TAG, "Core started over core fd=$coreFd")
         }
 
         // LocalAPI /down: the tunnel and interface go away; the service

@@ -31,7 +31,7 @@
 ### fd 交接與生命週期
 
 1. **prepare**：UI 啟動前經 `XBondVpnService.prepare(context)` 取得授權意圖（非空 = 先請求權限）；服務不自行繞過。
-2. **啟動**：LocalAPI `/up` → PlatformBridge `requestConnect()` 同步建立 VPN（需要同意時拋錯、LocalAPI 答 409、系統對話框浮在應用上）→ 構建 TUN（`172.19.0.1/30`、`198.18.0.1/30`、`fdfe:dcba:9876::1/126`、DNS `172.19.0.2`、默認路由、MTU 1500）→ `establish()` → 前台通知常駐（`systemExempted`）→ fd 以 `dup().detachFd()` 交給 `TunnelService.startActive(fd)`——核心讀寫 dup，平台保留原件，任何一側不雙關閉。
+2. **啟動**：LocalAPI `/up` → PlatformBridge `requestConnect()` 同步建立 VPN（需要同意時拋錯、LocalAPI 答 409、系統對話框浮在應用上）→ 構建 TUN（`172.19.0.1/30`、`198.18.0.1/30`、`fdfe:dcba:9876::1/126`、DNS `172.19.0.2`、默認路由、MTU 1500）→ `establish()` → 前台通知常駐（`systemExempted`）→ fd 以 `dup().detachFd()` 交給 `TunnelService.startActive(fd)`——核心每次 start 再 dup 自己的一份並在停止時關閉，平台保留原件並在拆除時關閉交出的那份，任何一側不雙關閉。漏關交出的 dup 會令系統 VPN 介面在 `/down` 後仍然存在（介面壽命跟隨最後一個 fd）。
 3. **粘性恢復**：`START_STICKY`；進程被殼後系統以空 intent 重啟時只拉回服務與 LocalAPI（UI 或磁貼再經 `/up` 重建隧道）。`onRevoke`（撤權或他方 VPN 接管）清空配置並完整拆除。
 4. **停止**：`/down` → `requestDisconnect()` 先 `TunnelService.Stop()` 再關接口、移除通知；服務本身存活（UI 存續期間 LocalAPI 保持可用）；`ACTION_STOP` 與 `onRevoke` 完整收縮。
 
