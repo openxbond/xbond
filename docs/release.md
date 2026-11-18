@@ -126,7 +126,7 @@ RC Tag 不可走此流程（工作流會拒絕）；RC 發佈後保持 pre-relea
 | `release-ios-signing` | Apple Developer 組織帳號。為 `net.xbond.app` 和 `net.xbond.app.PacketTunnel` 建立 App Store Connect 發行用 profiles，配置 Network Extension 及 App Group `group.net.xbond.app`。Secrets `IOS_DISTRIBUTION_P12`、`IOS_APP_PROFILE`、`IOS_TUNNEL_PROFILE` 用 Base64，另設 `IOS_DISTRIBUTION_PASSWORD`。 |
 | `release-store-ios` | Secret `ASC_KEY`（App Store Connect P8 原文），Variables `ASC_KEY_ID`、`ASC_ISSUER_ID`。 |
 
-維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、啟用不可變 Release、限制 `v*` Tag 的建立及變更；`release-production` 只保留部署分支策略（`main`），不以個人帳號做環境審核人。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，允許 `main` 分支與 `v*` Tag。策略必須標明類型：分支規則 `type: branch`、Tag 規則 `type: tag`——未標明類型的規則一律視為分支規則，tag 部署會被環境保護拒絕。環境清單與策略的期望狀態以 `pnpm release:check` 為準，漂移即報錯。
+維護 GitHub 設定時，確認 Pages 使用 GitHub Actions、關閉不可變 Release、限制 `v*` Tag 的建立及變更；`release-production` 只保留部署分支策略（`main`），不以個人帳號做環境審核人。不可變 Release 開啟時，GitHub 會永久保留曾用於 release 的 tag 名——`v1.0.0` 即因此在刪除 release 後無法重建（GH013 報 creations restricted，管理面不可見、無 bypass），只能棄用該版本號；防重複使用由 `protect-release-tags` ruleset 與「公開後絕不復用」政策承擔，不需要這個功能。放憑據的簽名與商店環境（`release-*-signing`、`release-store-ios`）須配置部署策略，允許 `main` 分支與 `v*` Tag。策略必須標明類型：分支規則 `type: branch`、Tag 規則 `type: tag`——未標明類型的規則一律視為分支規則，tag 部署會被環境保護拒絕。環境清單與策略的期望狀態以 `pnpm release:check` 為準，漂移即報錯。
 
 ### 建立或輪換簽名材料
 
@@ -152,7 +152,7 @@ RC 預設只做草稿，不進穩定更新通道。需要讓測試者自動跟�
 - **CLI 訂閱**：`xbond upgrade --channel beta`（預設 `stable`）。beta 通道以 GitHub API 取**最新公開 pre-release** 的 `release.json`，用同一發佈公鑰驗簽，再按構建號比較；未開啟時完全不受影響。
 - **Android**：目前仍需手動下載 pre-release 的 APK 安裝；設定開關與真機驗證列為後續（通道清單已可被同一簽名驗證）。
 - **桌面**：Tauri 更新器端點是靜態設定，維持只走穩定通道；RC 使用者需手動安裝同基線穩定版。
-- **不可覆蓋**：倉庫啟用了 immutable releases，已公開的候選不能重傳或替換；修正一律發新的 `rc.N`。
+- **不可覆蓋**：已公開的候選不能重傳或替換；修正一律發新的 `rc.N`。immutable releases 開啟期間發佈的 rc 在服務端仍不可變，該功能現已關閉（見[首次設定](#首次設定)），不再為新 release 產生永久佔名。
 
 ## 商店上架與更新
 
