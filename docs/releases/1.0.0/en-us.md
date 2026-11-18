@@ -3,3 +3,4 @@
 - Third-party subscriptions, XBond Cloud account subscriptions, and subscription version history with rollback.
 - System proxy, TUN and port-only takeover modes, with core, takeover and external connectivity reported separately.
 - Built-in diagnostics, log-level switching and five interface languages.
+- Fixed the Android VPN interface lingering after disconnect, which left the status bar icon showing.
