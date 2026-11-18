@@ -87,7 +87,7 @@ const EN = {
     portConflictDesc:
       "The default port is already in use by another application.",
     switchPortAndRetry: "Switch to port 7891 and retry",
-    tunDeniedTitle: "TUN Privilege Required",
+    tunDeniedTitle: "TUN Unavailable",
     tunDeniedDesc:
       "TUN virtual network adapter requires administrator privileges or installing the background helper service.",
     vpnConsentTitle: "VPN authorization required",
@@ -727,7 +727,7 @@ const EN = {
         wintun_missing:
           "wintun.dll was not found next to the daemon or in System32; place it there to enable TUN.",
         service_unreachable:
-          "The privileged service is installed but not responding — reinstall it from the prompt, or check the system services.",
+          "The privileged service is installed but not responding yet — it may still be starting; retry in a moment, or check the system service state.",
       },
       tunPrivilegeNotice:
         "TUN takeover requires administrator privileges (run as Administrator on Windows, root/sudo on macOS/Linux).",

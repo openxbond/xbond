@@ -85,7 +85,7 @@ const CN = {
     portConflictTitle: "本地端口冲突",
     portConflictDesc: "默认端口已被其他应用占用，无法启动核心监听。",
     switchPortAndRetry: "切换为端口 7891 并重试",
-    tunDeniedTitle: "TUN 虚拟网卡权限不足",
+    tunDeniedTitle: "TUN 虚拟网卡不可用",
     tunDeniedDesc: "启用虚拟网卡需要系统管理员权限或安装后台服务。",
     vpnConsentTitle: "需要 VPN 授权",
     vpnConsentDesc: "请在系统弹窗中允许 VPN 连接，授权后连接会自动继续。",
@@ -693,7 +693,7 @@ const CN = {
         wintun_missing:
           "未在守护进程旁或 System32 找到 wintun.dll；放置后即可启用 TUN。",
         service_unreachable:
-          "特权服务已安装但无响应——按提示重新安装，或检查系统服务状态。",
+          "特权服务已安装但尚未响应——可能仍在启动，请稍候重试；持续无响应时检查系统服务状态。",
       },
       tunPrivilegeNotice:
         "TUN 接管需要管理员权限：Windows 以管理员身份运行，macOS/Linux 需要 root/sudo。",
