@@ -62,6 +62,12 @@ export default defineConfig((env) => ({
         workbox: {
           sourcemap: false,
           navigateFallbackDenylist: [/\/download(?:\/|$)/],
+          // The emoji face is Windows-only and 2 MB; precaching it would make
+          // every macOS, iOS and Android visitor download it without ever
+          // using it. `unicode-range` in styles/emoji-font.css already makes
+          // the browser fetch it on first emoji, and the hashed file stays in
+          // the HTTP cache afterwards.
+          globIgnores: ["**/*.woff2"],
         },
         manifest: {
           icons: [

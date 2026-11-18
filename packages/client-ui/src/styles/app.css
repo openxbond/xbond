@@ -10,6 +10,7 @@
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
 @import "./tokens.css";
+@import "./emoji-font.css";
 @import "../features/configuration/configuration.css";
 
 /* Shared UI and its Vite entry. */
