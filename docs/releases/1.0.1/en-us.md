@@ -1,0 +1,6 @@
+- First XBond client release across Windows, macOS, Linux, Android, iOS, CLI, web and Docker.
+- Embedded mihomo and sing-box cores run Clash YAML and sing-box JSON configurations as-is.
+- Third-party subscriptions, XBond Cloud account subscriptions, and subscription version history with rollback.
+- System proxy, TUN and port-only takeover modes, with core, takeover and external connectivity reported separately.
+- Built-in diagnostics, log-level switching and five interface languages, with a bundled color emoji font on Windows.
+- Fixed the Android VPN interface lingering after disconnect, and the delayed Windows machine service that broke TUN takeover right after boot.

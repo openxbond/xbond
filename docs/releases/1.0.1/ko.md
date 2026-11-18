@@ -1,0 +1,6 @@
+- Windows, macOS, Linux, Android, iOS, CLI, 웹, Docker를 지원하는 첫 XBond 클라이언트 정식 릴리스입니다.
+- mihomo와 sing-box 코어를 내장해 Clash YAML 및 sing-box JSON 설정을 그대로 실행합니다.
+- 서드파티 구독, XBond Cloud 계정 구독, 구독 버전 기록 및 롤백을 지원합니다.
+- 시스템 프록시, TUN, 포트 전용의 세 가지 트래픽 인계 모드를 제공하며 코어, 인계, 외부 연결 상태를 구분해 표시합니다.
+- 진단 도구, 로그 수준 전환, 다섯 가지 인터페이스 언어를 기본 제공하며 Windows에서는 컬러 이모지 글꼴을 내장합니다.
+- 연결 해제 후 Android VPN 인터페이스가 남아 있던 문제와 Windows 부팅 직후 머신 수준 서비스 지연으로 TUN 인계가 실패하던 문제를 수정했습니다.
