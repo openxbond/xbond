@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -33,9 +35,8 @@ const (
 
 var (
 	shell32           = windows.NewLazySystemDLL("shell32.dll")
-	shell32RunAs      = shell32.NewProc("ShellExecuteW")
-	shell32IsAdmin    = windows.NewLazySystemDLL("shell32.dll")
-	procIsUserAnAdmin = shell32IsAdmin.NewProc("IsUserAnAdmin")
+	procShellExecute  = shell32.NewProc("ShellExecuteExW")
+	procIsUserAnAdmin = shell32.NewProc("IsUserAnAdmin")
 )
 
 func isElevated() (bool, error) {
@@ -50,40 +51,117 @@ func isElevated() (bool, error) {
 	}
 }
 
+type shellExecuteInfo struct {
+	size       uint32
+	mask       uint32
+	window     windows.Handle
+	verb       *uint16
+	file       *uint16
+	parameters *uint16
+	directory  *uint16
+	show       int32
+	instance   windows.Handle
+	idList     uintptr
+	class      *uint16
+	classKey   windows.Handle
+	hotkey     uint32
+	icon       windows.Handle
+	process    windows.Handle
+}
+
+var errElevationDeclined = errors.New("elevation was declined")
+
+// runElevatedWindowsCommand launches executable with UAC elevation and waits
+// for the elevated child process to exit, returning its exit code.
+func runElevatedWindowsCommand(executable string, args []string) (uint32, error) {
+	verb, err := windows.UTF16PtrFromString("runas")
+	if err != nil {
+		return 0, err
+	}
+	file, err := windows.UTF16PtrFromString(executable)
+	if err != nil {
+		return 0, err
+	}
+	parameters, err := windows.UTF16PtrFromString(windows.ComposeCommandLine(args))
+	if err != nil {
+		return 0, err
+	}
+	info := shellExecuteInfo{
+		size:       uint32(unsafe.Sizeof(shellExecuteInfo{})),
+		mask:       0x00000040 | 0x00000100 | 0x00000400, // NOCLOSEPROCESS, NOASYNC, FLAG_NO_UI
+		verb:       verb,
+		file:       file,
+		parameters: parameters,
+		show:       0, // SW_HIDE
+	}
+	runtime.LockOSThread()
+	ole := windows.NewLazySystemDLL("ole32.dll")
+	initialise := ole.NewProc("CoInitializeEx")
+	uninitialise := ole.NewProc("CoUninitialize")
+	result, _, _ := initialise.Call(0, 0x2|0x4) // APARTMENTTHREADED | DISABLE_OLE1DDE
+	if result != 0 && result != 1 {
+		runtime.UnlockOSThread()
+		return 0, fmt.Errorf("initialize COM for elevation: %#x", result)
+	}
+	success, _, launchErr := procShellExecute.Call(uintptr(unsafe.Pointer(&info)))
+	uninitialise.Call()
+	runtime.UnlockOSThread()
+	if success == 0 {
+		if errors.Is(launchErr, windows.ERROR_CANCELLED) {
+			return 0, errElevationDeclined
+		}
+		return 0, fmt.Errorf("launch elevated helper: %w", launchErr)
+	}
+	if info.process == 0 {
+		return 0, errors.New("elevated helper returned no process handle")
+	}
+	defer windows.CloseHandle(info.process)
+	event, err := windows.WaitForSingleObject(info.process, windows.INFINITE)
+	if err != nil {
+		return 0, fmt.Errorf("wait for elevated helper: %w", err)
+	}
+	if event != windows.WAIT_OBJECT_0 {
+		return 0, fmt.Errorf("unexpected wait status for elevated helper: %d", event)
+	}
+	var code uint32
+	if err := windows.GetExitCodeProcess(info.process, &code); err != nil {
+		return 0, err
+	}
+	return code, nil
+}
+
 // elevateForSystemAction re-launches the executable elevated with the given
-// action verb (UAC prompt); the elevated copy continues the action and this
-// process exits. Errors surface only if the launch itself fails — a declined
-// UAC prompt reports "canceled" through the exit path.
-func elevateForSystemAction(exePath, action string) error {
+// action verb (UAC prompt) and waits for the helper's completion and exit status.
+func elevateForSystemAction(_ string, action string) error {
 	exe, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to resolve the executable: %w", err)
 	}
-	verb, err := windows.UTF16PtrFromString("runas")
+	args := []string{"daemon", "system-action", action}
+	var errFile string
+	if f, err := os.CreateTemp("", "xbond-system-action-*.err"); err == nil {
+		errFile = f.Name()
+		_ = f.Close()
+		defer os.Remove(errFile)
+		args = append(args, errFile)
+	}
+	code, err := runElevatedWindowsCommand(exe, args)
 	if err != nil {
+		if errors.Is(err, errElevationDeclined) {
+			return errors.New("elevation was declined; nothing changed")
+		}
 		return err
 	}
-	file, err := windows.UTF16PtrFromString(exe)
-	if err != nil {
-		return err
+	if code != 0 {
+		if errFile != "" {
+			if raw, readErr := os.ReadFile(errFile); readErr == nil {
+				if msg := strings.TrimSpace(string(raw)); msg != "" {
+					return errors.New(msg)
+				}
+			}
+		}
+		return fmt.Errorf("elevated system action %q failed (exit %d)", action, code)
 	}
-	params, err := windows.UTF16PtrFromString("daemon system-action " + action)
-	if err != nil {
-		return err
-	}
-	r1, _, _ := shell32RunAs.Call(
-		0,
-		uintptr(unsafe.Pointer(verb)),
-		uintptr(unsafe.Pointer(file)),
-		uintptr(unsafe.Pointer(params)),
-		0,
-		0,
-		0, // SW_HIDE (silent elevation in background)
-	)
-	if r1 <= 32 {
-		return fmt.Errorf("elevation was declined or failed (ShellExecute %d); nothing changed", r1)
-	}
-	fmt.Println("Elevated helper launched; approve the UAC prompt to continue.")
 	return nil
 }
 
