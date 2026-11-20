@@ -181,7 +181,10 @@ func (mobilePlatformInterface) NetworkInterfaces() ([]adapter.NetworkInterface, 
 	// the interface table, and the subscription validation gate only builds
 	// the instance before closing it. Failing here surfaced to users as
 	// "initialize platform interface: file does not exist" on real devices.
-	ifaces, _ := getMobileNetworkInterfaces()
+	ifaces, def := getMobileNetworkInterfaces()
+	if mobileNetworksJSON.Load() == nil {
+		mobileDefaultInterface.Store(def)
+	}
 	return ifaces, nil
 }
 
@@ -416,7 +419,7 @@ func parseMobileNetworksJSON(payload string) ([]adapter.NetworkInterface, *contr
 		}
 		var prefixes []netip.Prefix
 		for _, addr := range entry.Addresses {
-			prefix, err := netip.ParsePrefix(addr)
+			prefix, err := parseMobilePrefix(addr)
 			if err != nil {
 				continue
 			}
@@ -442,6 +445,16 @@ func parseMobileNetworksJSON(payload string) ([]adapter.NetworkInterface, *contr
 		}
 	}
 	return res, defaultIf
+}
+
+func parseMobilePrefix(raw string) (netip.Prefix, error) {
+	// Strip IPv6 zone IDs (e.g. "fe80::1%wlan0/64") emitted by Inet6Address.getHostAddress().
+	if pct := strings.IndexByte(raw, '%'); pct >= 0 {
+		if slash := strings.IndexByte(raw[pct:], '/'); slash >= 0 {
+			raw = raw[:pct] + raw[pct+slash:]
+		}
+	}
+	return netip.ParsePrefix(raw)
 }
 
 func defaultFromMobileNetworksJSON(payload string) (*control.Interface, error) {

@@ -12,6 +12,7 @@ const COMMANDS: &[&str] = &[
     "deliver_account_callback",
     "save_text_file",
     "share_text_file",
+    "perform_haptic",
 ];
 
 fn main() {

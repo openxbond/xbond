@@ -51,4 +51,26 @@ impl<R: tauri::Runtime> Xbond<R> {
     pub fn deliver_account_callback(&self, _code: &str, _state: &str) -> super::Result<bool> {
         Err(Error::UnsupportedPlatform)
     }
+
+    pub fn save_text_file(
+        &self,
+        _contents: &str,
+        _file_name: &str,
+        _mime_type: &str,
+    ) -> super::Result<bool> {
+        Err(Error::UnsupportedPlatform)
+    }
+
+    pub fn share_text_file(
+        &self,
+        _contents: &str,
+        _file_name: &str,
+        _mime_type: &str,
+    ) -> super::Result<bool> {
+        Err(Error::UnsupportedPlatform)
+    }
+
+    pub fn perform_haptic(&self, _kind: &str) -> super::Result<()> {
+        Err(Error::UnsupportedPlatform)
+    }
 }

@@ -47,7 +47,9 @@ class XBondVpnService : VpnService() {
      * still in the status bar. */
     private var coreTunFd: Int = -1
     private val coreTunFdLock = Any()
+    private val tunnelLock = Any()
     private var tunnel: TunnelService? = null
+    private var networkMonitor: AndroidNetworkMonitor? = null
     private var lastConfig: String = ""
     private var lastDisallowed: Array<String> = emptyArray()
     private var lastAllowed: Array<String> = emptyArray()
@@ -112,9 +114,21 @@ class XBondVpnService : VpnService() {
         val token = t.localAPIToken()
         if (port > 0 && token.isNotEmpty()) {
             runCatching {
-                File(filesDir, "localapi.addr").writeText("127.0.0.1:$port")
-                File(filesDir, "localapi.token").writeText(token)
+                // Token first, addr second, each written atomically via temp+rename so
+                // concurrent cold-start getLocalAPIConfig() reads never pair a new port
+                // with a truncated or previous-process token.
+                writeAtomicText(File(filesDir, "localapi.token"), token)
+                writeAtomicText(File(filesDir, "localapi.addr"), "127.0.0.1:$port")
             }
+        }
+    }
+
+    private fun writeAtomicText(target: File, content: String) {
+        val tmp = File(target.parentFile, "${target.name}.tmp.${android.os.Process.myPid()}")
+        tmp.writeText(content)
+        if (!tmp.renameTo(target)) {
+            target.writeText(content)
+            tmp.delete()
         }
     }
 
@@ -122,6 +136,7 @@ class XBondVpnService : VpnService() {
         super.onCreate()
         active = this
         tunnel = TunnelService(PlatformBridgeImpl(), LogListener())
+        networkMonitor = AndroidNetworkMonitor(this).also { it.start() }
         ensureDiscoveryFiles()
     }
 
@@ -159,47 +174,49 @@ class XBondVpnService : VpnService() {
     }
 
     private fun startTunnel() {
-        if (lastConfig.isEmpty()) {
-            Log.e(TAG, "START without configuration; ignoring")
-            stopSelf()
-            return
-        }
-        // Re-START with new content is a config swap: tear the previous
-        // tunnel down first instead of double-establishing (the core would
-        // reject the second start and the catch would tear down everything).
-        runCatching { tunnel?.stop() }
-        closeCoreTunFd()
-        vpnInterface?.close()
-        vpnInterface = null
-        try {
-            goForeground(R.string.notification_establishing)
-
-            val pfd = buildVpnInterface() ?: run {
-                Log.e(TAG, "Failed to establish VPN interface (not prepared?)")
-                goForeground(R.string.notification_needs_permission)
+        synchronized(tunnelLock) {
+            if (lastConfig.isEmpty()) {
+                Log.e(TAG, "START without configuration; ignoring")
+                stopSelf()
                 return
             }
-
-            vpnInterface = pfd
-            // Hand the core a dup of the descriptor, keeping the original
-            // ours: closing vpnInterface destroys the interface on every
-            // teardown path without ever double-closing (fdsan aborts the
-            // process on a same-fd double close). The hand-off copy is ours
-            // to close too — the core only closes its own internal dup.
-            val coreFd = handOffTunDescriptor(pfd)
-            Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core fd=$coreFd)")
-
-            tunnel?.start(lastConfig, coreFd)
-            goForeground(R.string.notification_active)
-            Log.i(TAG, "Core started over core fd=$coreFd")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error starting VPN tunnel: ${e.message}", e)
-            tunnel?.stop()
+            // Re-START with new content is a config swap: tear the previous
+            // tunnel down first instead of double-establishing (the core would
+            // reject the second start and the catch would tear down everything).
+            runCatching { tunnel?.stop() }
             closeCoreTunFd()
             vpnInterface?.close()
             vpnInterface = null
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            try {
+                goForeground(R.string.notification_establishing)
+
+                val pfd = buildVpnInterface() ?: run {
+                    Log.e(TAG, "Failed to establish VPN interface (not prepared?)")
+                    goForeground(R.string.notification_needs_permission)
+                    return
+                }
+
+                vpnInterface = pfd
+                // Hand the core a dup of the descriptor, keeping the original
+                // ours: closing vpnInterface destroys the interface on every
+                // teardown path without ever double-closing (fdsan aborts the
+                // process on a same-fd double close). The hand-off copy is ours
+                // to close too — the core only closes its own internal dup.
+                val coreFd = handOffTunDescriptor(pfd)
+                Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core fd=$coreFd)")
+
+                tunnel?.start(lastConfig, coreFd)
+                goForeground(R.string.notification_active)
+                Log.i(TAG, "Core started over core fd=$coreFd")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting VPN tunnel: ${e.message}", e)
+                tunnel?.stop()
+                closeCoreTunFd()
+                vpnInterface?.close()
+                vpnInterface = null
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
         }
     }
 
@@ -260,8 +277,14 @@ class XBondVpnService : VpnService() {
      */
     private fun applySplitTunnel(builder: Builder) {
         if (lastAllowed.isNotEmpty()) {
+            var added = 0
             for (pkg in lastAllowed) {
-                if (pkg != packageName) runCatching { builder.addAllowedApplication(pkg) }
+                if (pkg != packageName && runCatching { builder.addAllowedApplication(pkg) }.isSuccess) {
+                    added++
+                }
+            }
+            if (added == 0) {
+                runCatching { builder.addDisallowedApplication(packageName) }
             }
             return
         }
@@ -273,11 +296,18 @@ class XBondVpnService : VpnService() {
         val (mode, packages) = SplitTunnelPrefs.read(this)
         when (mode) {
             SplitTunnelPrefs.MODE_ALLOW -> {
-                if (packages.isEmpty()) return
                 // Android VpnService.Builder: addAllowedApplication and addDisallowedApplication are mutually exclusive.
                 // In allowlist mode, anything not added is automatically excluded, including packageName itself.
+                // If no allowed package resolves (empty list or uninstalled packages), fall back to excluding self so
+                // XBond's own outbound sockets never loop into the TUN interface.
+                var added = 0
                 for (pkg in packages) {
-                    if (pkg != packageName) runCatching { builder.addAllowedApplication(pkg) }
+                    if (pkg != packageName && runCatching { builder.addAllowedApplication(pkg) }.isSuccess) {
+                        added++
+                    }
+                }
+                if (added == 0) {
+                    runCatching { builder.addDisallowedApplication(packageName) }
                 }
             }
             SplitTunnelPrefs.MODE_DISALLOW -> {
@@ -297,7 +327,7 @@ class XBondVpnService : VpnService() {
      * LocalAPI /up uses. The system VPN icon never leaves the shade.
      */
     private fun rebuildInterfaceForSplitTunnel() {
-        synchronized(this) {
+        synchronized(tunnelLock) {
             if (vpnInterface == null) return
             try {
                 val newPfd = buildVpnInterface()
@@ -329,26 +359,28 @@ class XBondVpnService : VpnService() {
     }
 
     private fun stopTunnelResources() {
-        try {
-            // Order matters: stop the core first (it reads from the fd),
-            // then drop the hand-off copy, then the interface descriptor.
-            tunnel?.stop()
-        } catch (e: Exception) {
-            Log.e(TAG, "Core stop failed: ${e.message}", e)
-        }
-        closeCoreTunFd()
-        try {
-            vpnInterface?.close()
-            vpnInterface = null
-        } catch (e: Exception) {
-            Log.e(TAG, "Interface close failed: ${e.message}", e)
-        }
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        runCatching {
-            android.service.quicksettings.TileService.requestListeningState(
-                this,
-                android.content.ComponentName(this, XBondTileService::class.java),
-            )
+        synchronized(tunnelLock) {
+            try {
+                // Order matters: stop the core first (it reads from the fd),
+                // then drop the hand-off copy, then the interface descriptor.
+                tunnel?.stop()
+            } catch (e: Exception) {
+                Log.e(TAG, "Core stop failed: ${e.message}", e)
+            }
+            closeCoreTunFd()
+            try {
+                vpnInterface?.close()
+                vpnInterface = null
+            } catch (e: Exception) {
+                Log.e(TAG, "Interface close failed: ${e.message}", e)
+            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            runCatching {
+                android.service.quicksettings.TileService.requestListeningState(
+                    this,
+                    android.content.ComponentName(this, XBondTileService::class.java),
+                )
+            }
         }
     }
 
@@ -432,13 +464,27 @@ class XBondVpnService : VpnService() {
     }
 
     override fun onDestroy() {
-        try {
-            tunnel?.stop()
-        } finally {
-            closeCoreTunFd()
-            vpnInterface?.close()
-            vpnInterface = null
-            active = null
+        networkMonitor?.stop()
+        networkMonitor = null
+        synchronized(tunnelLock) {
+            try {
+                // Close (not just Stop) so the in-process LocalAPI listener on
+                // 24190, pending OAuth flows, and gomobile refs are released
+                // when Android tears down the service.
+                tunnel?.close()
+            } finally {
+                tunnel = null
+                closeCoreTunFd()
+                vpnInterface?.close()
+                vpnInterface = null
+                if (active === this) {
+                    active = null
+                    runCatching {
+                        File(filesDir, "localapi.addr").delete()
+                        File(filesDir, "localapi.token").delete()
+                    }
+                }
+            }
         }
         super.onDestroy()
     }
@@ -482,66 +528,69 @@ class XBondVpnService : VpnService() {
         // is the caller's problem — when it is needed this throws and the
         // LocalAPI answers 409, and the UI slice drives the interactive flow.
         override fun requestConnect() {
-            // Mirrors the Go mobile package's StateConnected (not exported by
-            // gomobile): getState() 2 = connected, and /up is idempotent then.
-            // The state alone is not proof the core lives — a failed hot
-            // reload can leave state==2 with the core stopped and the TUN up
-            // (engine.running=false), where an early return would deadlock
-            // /up forever: /up must rebuild in that case, so require the
-            // status JSON's top-level running (state==Connected AND the core
-            // actually serving) before treating this as a no-op.
-            val coreActuallyRunning = runCatching {
-                org.json.JSONObject(tunnel?.getStatusJSON() ?: "{}")
-                    .optBoolean("running", false)
-            }.getOrDefault(false)
-            if (tunnel?.getState() == 2 && coreActuallyRunning) {
-                return
-            }
-            val consent = VpnService.prepare(this@XBondVpnService)
-            if (consent != null) {
-                // Do NOT startActivity from this Service context: the system
-                // ConfirmDialog identifies the app to authorize through its
-                // calling package, which only an activity-launched result
-                // flow provides — a Service startActivity makes it finish
-                // instantly (and background-activity-launch rules may abort
-                // the start outright). The LocalAPI answers 409; the UI then
-                // drives the interactive consent through the plugin's
-                // requestVpnConsent (activity + Activity Result API) and
-                // calls /up again.
-                throw Exception("VPN consent required")
-            }
-            goForeground(R.string.notification_establishing)
+            synchronized(tunnelLock) {
+                val currentTunnel = tunnel ?: throw Exception("VPN service stopped")
+                // Mirrors the Go mobile package's StateConnected (not exported by
+                // gomobile): getState() 2 = connected, and /up is idempotent then.
+                // The state alone is not proof the core lives — a failed hot
+                // reload can leave state==2 with the core stopped and the TUN up
+                // (engine.running=false), where an early return would deadlock
+                // /up forever: /up must rebuild in that case, so require the
+                // status JSON's top-level running (state==Connected AND the core
+                // actually serving) before treating this as a no-op.
+                val coreActuallyRunning = runCatching {
+                    org.json.JSONObject(currentTunnel.getStatusJSON() ?: "{}")
+                        .optBoolean("running", false)
+                }.getOrDefault(false)
+                if (currentTunnel.getState() == 2 && coreActuallyRunning) {
+                    return
+                }
+                val consent = VpnService.prepare(this@XBondVpnService)
+                if (consent != null) {
+                    // Do NOT startActivity from this Service context: the system
+                    // ConfirmDialog identifies the app to authorize through its
+                    // calling package, which only an activity-launched result
+                    // flow provides — a Service startActivity makes it finish
+                    // instantly (and background-activity-launch rules may abort
+                    // the start outright). The LocalAPI answers 409; the UI then
+                    // drives the interactive consent through the plugin's
+                    // requestVpnConsent (activity + Activity Result API) and
+                    // calls /up again.
+                    throw Exception("VPN consent required")
+                }
+                goForeground(R.string.notification_establishing)
 
-            // 重連可能是 rebuildInterfaceForSplitTunnel 失敗留下的半啓動狀態：
-            // 先按 startTunnel 的換序拆掉舊隧道與接口，避免覆寫 vpnInterface
-            // 時把舊 fd 和舊接口整個漏掉。
-            runCatching { tunnel?.stop() }
-            closeCoreTunFd()
-            vpnInterface?.close()
-            vpnInterface = null
+                // 重連可能是 rebuildInterfaceForSplitTunnel 失敗留下的半啓動狀態：
+                // 先按 startTunnel 的換序拆掉舊隧道與接口，避免覆寫 vpnInterface
+                // 時把舊 fd 和舊接口整個漏掉。
+                runCatching { currentTunnel.stop() }
+                closeCoreTunFd()
+                vpnInterface?.close()
+                vpnInterface = null
 
-            val pfd = buildVpnInterface() ?: run {
-                throw Exception("Failed to establish VPN interface (not prepared?)")
-            }
-            vpnInterface = pfd
-            // Ownership split (see startTunnel): the core gets a dup it may
-            // close; the original stays ours and its close destroys the
-            // interface on every teardown path. The hand-off copy is closed
-            // by closeCoreTunFd on the same paths.
-            val coreFd = handOffTunDescriptor(pfd)
-            Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core fd=$coreFd)")
+                val pfd = buildVpnInterface() ?: run {
+                    throw Exception("Failed to establish VPN interface (not prepared?)")
+                }
+                vpnInterface = pfd
+                // Ownership split (see startTunnel): the core gets a dup it may
+                // close; the original stays ours and its close destroys the
+                // interface on every teardown path. The hand-off copy is closed
+                // by closeCoreTunFd on the same paths.
+                val coreFd = handOffTunDescriptor(pfd)
+                Log.i(TAG, "Established VPN interface with fd=${pfd.fd} (core fd=$coreFd)")
 
-            try {
-                tunnel?.startActive(coreFd)
-            } catch (e: Exception) {
-                // A failed start must not leave an interface with no core
-                // behind: the UI would report disconnected while the system
-                // VPN (and its routes) stayed up.
-                stopTunnelResources()
-                throw e
+                try {
+                    currentTunnel.startActive(coreFd)
+                } catch (e: Exception) {
+                    // A failed start must not leave an interface with no core
+                    // behind: the UI would report disconnected while the system
+                    // VPN (and its routes) stayed up.
+                    stopTunnelResources()
+                    throw e
+                }
+                goForeground(R.string.notification_active)
+                Log.i(TAG, "Core started over core fd=$coreFd")
             }
-            goForeground(R.string.notification_active)
-            Log.i(TAG, "Core started over core fd=$coreFd")
         }
 
         // LocalAPI /down: the tunnel and interface go away; the service

@@ -37,12 +37,10 @@ type TunnelService struct {
 	activeTunFd int32
 	// runtime owns the active-subscription apply cycle (LocalAPI up/restart/
 	// mode); api serves the in-process LocalAPI on loopback; account carries
-	// the XBond Cloud login state; controller pins a stable front for the
-	// per-apply core controller.
-	runtime    *mobileRuntime
-	account    *mobileAccount
-	api        *apiServer
-	controller *controllerProxy
+	// the XBond Cloud login state.
+	runtime *mobileRuntime
+	account *mobileAccount
+	api     *apiServer
 }
 
 func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelService {
@@ -79,9 +77,6 @@ func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelS
 	}
 	svc.runtime = newMobileRuntime(svc, engine.RoutingRule)
 	svc.account = newMobileAccount(svc, "zh")
-	if proxy, proxyErr := newControllerProxy(svc, svc.runtime.endpoint); proxyErr == nil {
-		svc.controller = proxy
-	}
 	// The in-process LocalAPI makes the app drivable by the shared web UI
 	// and by LocalAPI tooling; loopback only, token in localapi.token.
 	api, apiErr := newAPIServer(svc)
@@ -133,9 +128,6 @@ func (s *TunnelService) Close() error {
 	s.account.cancelPending()
 	if s.api != nil {
 		s.api.close()
-	}
-	if s.controller != nil {
-		_ = s.controller.listener.Close()
 	}
 	return s.Stop()
 }
@@ -288,6 +280,7 @@ func (s *TunnelService) StartActive(tunFd int32) error {
 		return fmt.Errorf("invalid TUN file descriptor: %d", tunFd)
 	}
 
+	redirectPanicLog()
 	s.setState(StateConnecting, "Starting VPN tunnel...")
 
 	if s.platform != nil {
@@ -319,6 +312,13 @@ func (s *TunnelService) StartActive(tunFd int32) error {
 }
 
 func (s *TunnelService) Stop() error {
+	// Acquire runtime.mu before s.mu (matching apply/setRouting/setLogLevel) so
+	// an in-flight runtime apply cannot start a core over a closed tunFd.
+	if s.runtime != nil {
+		s.runtime.mu.Lock()
+		defer s.runtime.mu.Unlock()
+	}
+
 	s.mu.Lock()
 	if s.state == StateIdle || s.state == StateDisconnecting {
 		s.mu.Unlock()
@@ -326,9 +326,10 @@ func (s *TunnelService) Stop() error {
 	}
 	s.state = StateDisconnecting
 	stopTicker := s.stopTicker
+	s.stopTicker = nil
 	mgr := s.manager
-	s.manager = nil
 	s.clashClient = nil
+	s.activeTunFd = 0
 	s.mu.Unlock()
 
 	if stopTicker != nil {
@@ -344,6 +345,10 @@ func (s *TunnelService) Stop() error {
 		err = mgr.Stop()
 	}
 	engine.SetMobileTunFD(0)
+	if s.runtime != nil {
+		s.runtime.tunFd = 0
+		s.runtime.appliedSub = ""
+	}
 
 	s.setState(StateIdle, "VPN tunnel stopped")
 	return err

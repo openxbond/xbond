@@ -79,6 +79,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::deliver_account_callback,
             commands::save_text_file,
             commands::share_text_file,
+            commands::perform_haptic,
         ])
         .build()
 }

@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.webkit.WebView
+import androidx.activity.OnBackPressedCallback
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import net.xbond.app.xbond.StartupSplash
 
@@ -34,6 +35,25 @@ class MainActivity : TauriActivity() {
 
   private var webView: WebView? = null
 
+  // Register via OnBackPressedDispatcher (last-added runs first) so Tauri's
+  // AppPlugin callback never intercepts Back with webView.goBack() before
+  // window.__xbondHandleBack() runs.
+  private val backCallback = object : OnBackPressedCallback(true) {
+    override fun handleOnBackPressed() {
+      val currentWebView = webView
+      if (currentWebView == null) {
+        moveTaskToBack(true)
+        return
+      }
+      currentWebView.evaluateJavascript(
+        "(typeof window.__xbondHandleBack === 'function' ? window.__xbondHandleBack() : false)",
+      ) { result ->
+        val handled = result?.trim()?.equals("true") ?: false
+        if (!handled) moveTaskToBack(true)
+      }
+    }
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     // installSplashScreen() must run before super.onCreate and expects the
     // activity theme Theme.XBond.Starting (postSplashScreenTheme swaps back
@@ -45,26 +65,16 @@ class MainActivity : TauriActivity() {
       SPLASH_WATCHDOG_MS,
     )
     super.onCreate(savedInstanceState)
+    onBackPressedDispatcher.addCallback(this, backCallback)
   }
 
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     this.webView = webView
-  }
-
-  @Deprecated("Deprecated in Java")
-  override fun onBackPressed() {
-    val currentWebView = webView
-    if (currentWebView == null) {
-      moveTaskToBack(true)
-      return
-    }
-    currentWebView.evaluateJavascript(
-      "(typeof window.__xbondHandleBack === 'function' ? window.__xbondHandleBack() : false)",
-    ) { result ->
-      val handled = result?.trim()?.equals("true") ?: false
-      if (!handled) moveTaskToBack(true)
-    }
+    // Re-append after AppPlugin loads so this callback stays ahead of
+    // AppPlugin's OnBackPressedCallback in LIFO dispatch order.
+    backCallback.remove()
+    onBackPressedDispatcher.addCallback(this, backCallback)
   }
 
   private companion object {

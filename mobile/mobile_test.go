@@ -3,6 +3,7 @@ package mobile
 import (
 	"encoding/json"
 	"errors"
+	"net"
 	"sync"
 	"testing"
 )
@@ -149,5 +150,45 @@ func TestTunnelServiceReloadKeepsTunnelAndRepointsClient(t *testing.T) {
 	tunFd := int32(0)
 	if err := svc.Start(sampleConfig(), tunFd); err == nil {
 		t.Skip("engine requires a real TUN descriptor; skip on this host")
+	}
+}
+
+func TestNewTunnelServiceDoesNotExposeControllerProxyPort(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	svc := NewTunnelService(&mockPlatform{}, &mockListener{})
+	t.Cleanup(func() { _ = svc.Close() })
+
+	// Port 24191 used to host an unauthenticated controller proxy on Android;
+	// verify NewTunnelService leaves it unbound.
+	l, err := net.Listen("tcp", "127.0.0.1:24191")
+	if err != nil {
+		t.Fatalf("expected 127.0.0.1:24191 to remain unbound, got: %v", err)
+	}
+	_ = l.Close()
+}
+
+func TestTunnelServiceStopPreservesManagerAndResetsRuntimeState(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	svc := NewTunnelService(&mockPlatform{}, &mockListener{})
+	t.Cleanup(func() { _ = svc.Close() })
+
+	mgr := svc.engineManager()
+	svc.mu.Lock()
+	svc.state = StateConnected
+	svc.activeTunFd = 42
+	svc.mu.Unlock()
+	svc.runtime.mu.Lock()
+	svc.runtime.tunFd = 42
+	svc.runtime.appliedSub = "sub-1"
+	svc.runtime.mu.Unlock()
+
+	if err := svc.Stop(); err != nil {
+		t.Fatalf("Stop failed: %v", err)
+	}
+	if svc.engineManager() != mgr {
+		t.Fatal("Stop replaced engineManager, which would wipe core logs")
+	}
+	if svc.activeTunFd != 0 || svc.runtime.tunFd != 0 || svc.runtime.appliedSubID() != "" {
+		t.Fatalf("Stop left stale fd/sub state: active=%d runtime=%d sub=%q", svc.activeTunFd, svc.runtime.tunFd, svc.runtime.appliedSubID())
 	}
 }

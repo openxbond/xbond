@@ -16,4 +16,5 @@ permissions = [
   "allow-request-vpn-consent",
   "allow-save-text-file",
   "allow-share-text-file",
+  "allow-perform-haptic",
 ]

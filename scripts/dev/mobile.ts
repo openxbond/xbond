@@ -231,6 +231,50 @@ export function detectAndroidHome(): string | null {
   return null;
 }
 
+const ANDROID_AAR_INPUTS = ["mobile", "internal", "go.mod", "go.sum"];
+
+/**
+ * Returns true when `aarPath` is missing or older than any Go source / module
+ * file that feeds `gomobile bind`.
+ */
+export function isAndroidAARStale(
+  aarPath = path.join(root, ANDROID_AAR),
+  inputs: string[] = ANDROID_AAR_INPUTS.map((rel) => path.join(root, rel)),
+): boolean {
+  if (!fs.existsSync(aarPath)) return true;
+  const aarMtimeMs = fs.statSync(aarPath).mtimeMs;
+  const checkEntry = (entry: string): boolean => {
+    if (!fs.existsSync(entry)) return false;
+    const stat = fs.statSync(entry);
+    if (stat.isDirectory()) {
+      for (const child of fs.readdirSync(entry)) {
+        if (checkEntry(path.join(entry, child))) return true;
+      }
+      return false;
+    }
+    const base = path.basename(entry);
+    if (
+      (base.endsWith(".go") && !base.endsWith("_test.go")) ||
+      base === "go.mod" ||
+      base === "go.sum"
+    ) {
+      return stat.mtimeMs > aarMtimeMs;
+    }
+    return false;
+  };
+  return inputs.some(checkEntry);
+}
+
+function ensureAndroidAAR(reasonPrefix: string): void {
+  const aarPath = path.join(root, ANDROID_AAR);
+  if (!isAndroidAARStale(aarPath)) return;
+  console.log(
+    `[${reasonPrefix}] ${fs.existsSync(aarPath) ? "AAR stale" : "AAR missing"}; binding (pnpm android:bind)…`,
+  );
+  const res = buildAndroidAAR();
+  if (!res.ok) throw new Error(res.message);
+}
+
 export function buildAndroidAPK(
   options: {
     target?: string;
@@ -239,10 +283,7 @@ export function buildAndroidAPK(
 ): string {
   const androidHome = detectAndroidHome();
   if (!androidHome) throw new Error("Set ANDROID_HOME to the Android SDK root");
-  if (!fs.existsSync(path.join(root, ANDROID_AAR))) {
-    const result = buildAndroidAAR();
-    if (!result.ok) throw new Error(result.message);
-  }
+  ensureAndroidAAR("mobile:build");
 
   const ndk = resolveAndroidNdk();
   const release = options.release;
@@ -378,11 +419,7 @@ function ensureDeviceOnline(): void {
 function runMobileDev(args: string[]): void {
   ensureDeviceOnline();
 
-  if (!fs.existsSync(path.join(root, ANDROID_AAR))) {
-    console.log("[mobile:dev] AAR missing; binding (pnpm android:bind)…");
-    const res = buildAndroidAAR();
-    if (!res.ok) throw new Error(res.message);
-  }
+  ensureAndroidAAR("mobile:dev");
 
   adb(["reverse", `tcp:${MOBILE_DEV_PORT}`, `tcp:${MOBILE_DEV_PORT}`]);
   console.log(
