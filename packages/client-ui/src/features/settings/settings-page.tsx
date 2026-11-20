@@ -945,6 +945,7 @@ export default function Settings() {
       {isAndroid && (
         <PerAppVpnSheet
           open={splitTunnelOpen}
+          onSaved={refreshSplitSummary}
           onClose={() => {
             setSplitTunnelOpen(false);
             refreshSplitSummary();

@@ -260,8 +260,14 @@ class XBondVpnService : VpnService() {
      */
     private fun applySplitTunnel(builder: Builder) {
         if (lastAllowed.isNotEmpty()) {
+            var added = 0
             for (pkg in lastAllowed) {
-                if (pkg != packageName) runCatching { builder.addAllowedApplication(pkg) }
+                if (pkg != packageName && runCatching { builder.addAllowedApplication(pkg) }.isSuccess) {
+                    added++
+                }
+            }
+            if (added == 0) {
+                runCatching { builder.addDisallowedApplication(packageName) }
             }
             return
         }
@@ -273,11 +279,18 @@ class XBondVpnService : VpnService() {
         val (mode, packages) = SplitTunnelPrefs.read(this)
         when (mode) {
             SplitTunnelPrefs.MODE_ALLOW -> {
-                if (packages.isEmpty()) return
                 // Android VpnService.Builder: addAllowedApplication and addDisallowedApplication are mutually exclusive.
                 // In allowlist mode, anything not added is automatically excluded, including packageName itself.
+                // If no allowed package resolves (empty list or uninstalled packages), fall back to excluding self so
+                // XBond's own outbound sockets never loop into the TUN interface.
+                var added = 0
                 for (pkg in packages) {
-                    if (pkg != packageName) runCatching { builder.addAllowedApplication(pkg) }
+                    if (pkg != packageName && runCatching { builder.addAllowedApplication(pkg) }.isSuccess) {
+                        added++
+                    }
+                }
+                if (added == 0) {
+                    runCatching { builder.addDisallowedApplication(packageName) }
                 }
             }
             SplitTunnelPrefs.MODE_DISALLOW -> {

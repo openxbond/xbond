@@ -25,9 +25,11 @@ import {
 export function PerAppVpnSheet({
   open,
   onClose,
+  onSaved,
 }: {
   open: boolean;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
   return (
     <Sheet
@@ -42,13 +44,13 @@ export function PerAppVpnSheet({
         className="flex h-[85dvh] flex-col rounded-t-3xl px-4 pb-[calc(env(safe-area-inset-bottom)+12px)]"
       >
         {/* 面板只在打開時掛載：橋接配置在掛載瞬間讀一次，天然是初始值。 */}
-        {open && <PerAppVpnPanel />}
+        {open && <PerAppVpnPanel onSaved={onSaved} />}
       </SheetContent>
     </Sheet>
   );
 }
 
-function PerAppVpnPanel() {
+function PerAppVpnPanel({ onSaved }: { onSaved?: () => void }) {
   const { t } = useTranslation("configuration");
   const { t: common } = useTranslation("common");
   const [mode, setMode] = useState<SplitTunnelMode>("all");
@@ -57,6 +59,12 @@ function PerAppVpnPanel() {
   const [query, setQuery] = useState("");
   const [showSystem, setShowSystem] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
+  const pendingSaveRef = useRef<{
+    mode: SplitTunnelMode;
+    packages: Set<string>;
+  } | null>(null);
+  const onSavedRef = useRef(onSaved);
+  onSavedRef.current = onSaved;
 
   // 面板打開時掛載：橋接配置異步讀入，到達前保持「全部應用」初值。
   useEffect(() => {
@@ -74,19 +82,46 @@ function PerAppVpnPanel() {
     };
   }, []);
 
-  // 勾選即存：防抖 800ms 合併連續點擊，一次寫盤一次隧道重建。定時器放
-  // ref——存 state 會在連續點擊時讀到過期閉包，清不掉上一個定時器。
+  function commitSave(nextMode: SplitTunnelMode, nextPackages: Set<string>) {
+    pendingSaveRef.current = null;
+    flushSplitTunnelSave(
+      nextMode,
+      nextPackages,
+      t("perAppVpn.saveFailed"),
+      onSavedRef.current,
+    );
+  }
+
+  // 勾選即存：防抖 800ms 合併連續點擊，一次寫盤一次隧道重建；關閉面板時立即沖刷，避免 800ms 內關窗丟失修改或讀到舊摘要。
+  const failMessageRef = useRef(t("perAppVpn.saveFailed"));
+  failMessageRef.current = t("perAppVpn.saveFailed");
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      const pending = pendingSaveRef.current;
+      if (pending) {
+        pendingSaveRef.current = null;
+        flushSplitTunnelSave(
+          pending.mode,
+          pending.packages,
+          failMessageRef.current,
+          onSavedRef.current,
+        );
+      }
+    };
+  }, []);
+
+  // 定時器放 ref——存 state 會在連續點擊時讀到過期閉包，清不掉上一個定時器。
   function persist(nextMode: SplitTunnelMode, nextPackages: Set<string>) {
     if (saveTimerRef.current !== null)
       window.clearTimeout(saveTimerRef.current);
+    pendingSaveRef.current = { mode: nextMode, packages: nextPackages };
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = null;
-      void setSplitTunnelConfig({
-        mode: nextMode,
-        packages: [...nextPackages],
-      }).then((ok) => {
-        if (!ok) toast.error(t("perAppVpn.saveFailed"), { duration: 6000 });
-      });
+      commitSave(nextMode, nextPackages);
     }, 800);
   }
 
@@ -237,6 +272,24 @@ function PerAppVpnPanel() {
       </p>
     </>
   );
+}
+
+function flushSplitTunnelSave(
+  mode: SplitTunnelMode,
+  packages: Set<string>,
+  failMessage: string,
+  onSaved?: () => void,
+) {
+  void setSplitTunnelConfig({
+    mode,
+    packages: [...packages],
+  }).then((ok) => {
+    if (!ok) {
+      toast.error(failMessage, { duration: 6000 });
+      return;
+    }
+    onSaved?.();
+  });
 }
 
 /** 配置頁行尾的狀態摘要（全部應用 / 繞過 N 個 / 僅代理 N 個）。 */
