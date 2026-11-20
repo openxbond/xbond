@@ -88,7 +88,34 @@ func joinHostPort(host, port string) string {
 // compare numerically. Unparsable servers cannot match a listener, so they
 // report false — the honest "unknown" for this check.
 func (s Snapshot) TargetsPort(port int) bool {
-	_, portText, err := net.SplitHostPort(s.Server)
+	raw := strings.TrimSpace(s.Server)
+	if raw == "" {
+		return false
+	}
+	if !strings.Contains(raw, "=") {
+		return endpointMatchesPort(raw, port)
+	}
+	matched := 0
+	for _, entry := range strings.Split(raw, ";") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		_, addr, ok := strings.Cut(entry, "=")
+		if !ok || !endpointMatchesPort(addr, port) {
+			return false
+		}
+		matched++
+	}
+	return matched > 0
+}
+
+func endpointMatchesPort(endpoint string, port int) bool {
+	endpoint = strings.TrimSpace(endpoint)
+	if _, after, ok := strings.Cut(endpoint, "://"); ok {
+		endpoint = after
+	}
+	_, portText, err := net.SplitHostPort(endpoint)
 	if err != nil {
 		return false
 	}
