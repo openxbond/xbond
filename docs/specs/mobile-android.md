@@ -62,7 +62,7 @@ release 包帶 `BuildConfig.RELEASE_PUBLIC_KEY`（gradle 環境變量 `XBOND_REL
 
 1. `app/src/main/AndroidManifest.xml`：`android:roundIcon`、`android:networkSecurityConfig="@xml/network_security_config"`、`android:theme="@style/Theme.XBond"`（插件庫資源）、activity `android:theme="@style/Theme.XBond.Starting"`（啟動 splash 主題，插件庫資源）、activity `windowSoftInputMode="adjustResize"`、`xbond`/`clash`/`sing-box` 的 BROWSABLE intent-filter。
 2. `app/build.gradle.kts`：`versionName`=`XBOND_VERSION`、`versionCode`=`XBOND_BUILD_NUMBER`（回退 `tauri.properties`），及 `androidx.core:core-splashscreen` 依賴。
-3. `app/src/main/java/net/xbond/app/MainActivity.kt`：`onCreate` 開頭的 `installSplashScreen()` + `setKeepOnScreenCondition { !StartupSplash.settled }` + 10s splash 看門狗；`onWebViewCreate` 捕獲 WebView + `onBackPressed`（先求值 `window.__xbondHandleBack`，未處理則 `moveTaskToBack(true)`）。不加 `enableEdgeToEdge()`：Android 14 及以下 WebView 的 `env(safe-area-inset-*)` 恆為 0，內容會鑽到狀態欄下；15+ 系統本就強制 edge-to-edge。
+3. `app/src/main/java/net/xbond/app/MainActivity.kt`：`onCreate` 開頭的 `installSplashScreen()` + `setKeepOnScreenCondition { !StartupSplash.settled }` + 10s splash 看門狗；`onWebViewCreate` 捕獲 WebView + `OnBackPressedCallback`（高於 `AppPlugin` 優先級，先求值 `window.__xbondHandleBack`，未處理則 `moveTaskToBack(true)`）。不加 `enableEdgeToEdge()`：Android 14 及以下 WebView 的 `env(safe-area-inset-*)` 恆為 0，內容會鑽到狀態欄下；15+ 系統本就強制 edge-to-edge。
 4. 啟動圖標資源（`res/mipmap-*`、`drawable/ic_launcher_*`、`values/ic_launcher_background.xml`，來源 `scripts/dev/build-logo-assets.ts` 測試斷言）；刪除模板殘留（`values/colors.xml`、模板主題、layout）。
 
 插件側（`plugins/xbond/android/`）在 gen 之外，再生成不受影響。
