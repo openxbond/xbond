@@ -253,6 +253,11 @@ pub fn get_autostart(app: AppHandle) -> bool {
 }
 
 pub(crate) fn initialize_autostart(app: &AppHandle) -> Result<(), String> {
+    // Dev builds point at target/debug/xbond-app (which expects a Vite dev
+    // server); never register them into OS autostart automatically.
+    if cfg!(debug_assertions) {
+        return Ok(());
+    }
     let state = app.state::<ShellState>();
     if !state.preferences().autostart_initialized {
         app.autolaunch().enable().map_err(|err| err.to_string())?;
