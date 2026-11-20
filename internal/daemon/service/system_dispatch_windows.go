@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
@@ -116,12 +117,23 @@ func (h *systemHandler) Execute(args []string, req <-chan svc.ChangeRequest, cha
 			case svc.Interrogate:
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
-				changes <- svc.Status{State: svc.StopPending, WaitHint: 5_000}
+				checkpoint := uint32(1)
+				changes <- svc.Status{State: svc.StopPending, CheckPoint: checkpoint, WaitHint: 5_000}
 				close(stop)
-				if err := <-serveErr; err != nil {
-					return false, 1
+				ticker := time.NewTicker(1 * time.Second)
+				defer ticker.Stop()
+				for {
+					select {
+					case err := <-serveErr:
+						if err != nil {
+							return false, 1
+						}
+						return false, 0
+					case <-ticker.C:
+						checkpoint++
+						changes <- svc.Status{State: svc.StopPending, CheckPoint: checkpoint, WaitHint: 5_000}
+					}
 				}
-				return false, 0
 			}
 		}
 	}

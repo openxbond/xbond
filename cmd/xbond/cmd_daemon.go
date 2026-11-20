@@ -129,6 +129,15 @@ func serveDaemon(server *daemon.Server, stop <-chan struct{}) error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+	var sessionEnd <-chan struct{}
+	var markSessionDone func()
+	if stop == nil {
+		sessionEnd, markSessionDone = watchSessionEnd()
+	} else {
+		markSessionDone = func() {}
+	}
+	defer markSessionDone()
+
 	select {
 	case err := <-serveErr:
 		if err != nil && err != http.ErrServerClosed {
@@ -138,6 +147,7 @@ func serveDaemon(server *daemon.Server, stop <-chan struct{}) error {
 	case <-sigChan:
 	case <-server.ShutdownRequested():
 	case <-stop:
+	case <-sessionEnd:
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
