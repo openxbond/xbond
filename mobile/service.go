@@ -280,6 +280,7 @@ func (s *TunnelService) StartActive(tunFd int32) error {
 		return fmt.Errorf("invalid TUN file descriptor: %d", tunFd)
 	}
 
+	redirectPanicLog()
 	s.setState(StateConnecting, "Starting VPN tunnel...")
 
 	if s.platform != nil {
@@ -311,6 +312,13 @@ func (s *TunnelService) StartActive(tunFd int32) error {
 }
 
 func (s *TunnelService) Stop() error {
+	// Acquire runtime.mu before s.mu (matching apply/setRouting/setLogLevel) so
+	// an in-flight runtime apply cannot start a core over a closed tunFd.
+	if s.runtime != nil {
+		s.runtime.mu.Lock()
+		defer s.runtime.mu.Unlock()
+	}
+
 	s.mu.Lock()
 	if s.state == StateIdle || s.state == StateDisconnecting {
 		s.mu.Unlock()
@@ -318,9 +326,10 @@ func (s *TunnelService) Stop() error {
 	}
 	s.state = StateDisconnecting
 	stopTicker := s.stopTicker
+	s.stopTicker = nil
 	mgr := s.manager
-	s.manager = nil
 	s.clashClient = nil
+	s.activeTunFd = 0
 	s.mu.Unlock()
 
 	if stopTicker != nil {
@@ -336,6 +345,10 @@ func (s *TunnelService) Stop() error {
 		err = mgr.Stop()
 	}
 	engine.SetMobileTunFD(0)
+	if s.runtime != nil {
+		s.runtime.tunFd = 0
+		s.runtime.appliedSub = ""
+	}
 
 	s.setState(StateIdle, "VPN tunnel stopped")
 	return err

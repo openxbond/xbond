@@ -174,9 +174,9 @@ func (c *mobileRuntime) apply(tunFd int32) error {
 	engine.SetMobileTunFD(tunFd)
 	mgr := c.engine()
 	if mgr.IsRunning() {
-		err = mgr.Reload(derived, nil)
+		err = guardCorePanic(func() error { return mgr.Reload(derived, nil) })
 	} else {
-		err = mgr.Start(derived)
+		err = guardCorePanic(func() error { return mgr.Start(derived) })
 	}
 	if err != nil {
 		return fmt.Errorf("failed to start engine: %w", err)
@@ -209,7 +209,7 @@ func (c *mobileRuntime) setRouting(routing engine.RoutingMode) error {
 		return fmt.Errorf("failed to derive mobile runtime config: %w", err)
 	}
 	derived = engine.PatchLogLevel(derived, c.logLevel)
-	if err := c.engine().Reload(derived, nil); err != nil {
+	if err := guardCorePanic(func() error { return c.engine().Reload(derived, nil) }); err != nil {
 		return err
 	}
 	c.clashPort = port
@@ -248,7 +248,7 @@ func (c *mobileRuntime) setLogLevel(level string) error {
 		return fmt.Errorf("failed to derive mobile runtime config: %w", err)
 	}
 	derived = engine.PatchLogLevel(derived, canonical)
-	if err := c.engine().Reload(derived, nil); err != nil {
+	if err := guardCorePanic(func() error { return c.engine().Reload(derived, nil) }); err != nil {
 		return err
 	}
 	c.logLevel = canonical
@@ -332,11 +332,4 @@ func (c *mobileRuntime) endpoint() (int, string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.clashPort, c.clashSecret
-}
-
-func (c *mobileRuntime) stop() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	_ = c.engine().Stop()
-	c.appliedSub = ""
 }

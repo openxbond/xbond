@@ -22,5 +22,6 @@ func redirectPanicLog() {
 	if err != nil {
 		return
 	}
-	syscall.Syscall(syscall.SYS_DUP3, uintptr(f.Fd()), 2, 0)
+	defer f.Close()
+	_, _, _ = syscall.Syscall(syscall.SYS_DUP3, uintptr(f.Fd()), 2, 0)
 }

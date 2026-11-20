@@ -166,3 +166,29 @@ func TestNewTunnelServiceDoesNotExposeControllerProxyPort(t *testing.T) {
 	}
 	_ = l.Close()
 }
+
+func TestTunnelServiceStopPreservesManagerAndResetsRuntimeState(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	svc := NewTunnelService(&mockPlatform{}, &mockListener{})
+	t.Cleanup(func() { _ = svc.Close() })
+
+	mgr := svc.engineManager()
+	svc.mu.Lock()
+	svc.state = StateConnected
+	svc.activeTunFd = 42
+	svc.mu.Unlock()
+	svc.runtime.mu.Lock()
+	svc.runtime.tunFd = 42
+	svc.runtime.appliedSub = "sub-1"
+	svc.runtime.mu.Unlock()
+
+	if err := svc.Stop(); err != nil {
+		t.Fatalf("Stop failed: %v", err)
+	}
+	if svc.engineManager() != mgr {
+		t.Fatal("Stop replaced engineManager, which would wipe core logs")
+	}
+	if svc.activeTunFd != 0 || svc.runtime.tunFd != 0 || svc.runtime.appliedSubID() != "" {
+		t.Fatalf("Stop left stale fd/sub state: active=%d runtime=%d sub=%q", svc.activeTunFd, svc.runtime.tunFd, svc.runtime.appliedSubID())
+	}
+}
