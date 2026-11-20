@@ -235,7 +235,14 @@ internal class AppUpdates(private val activity: Activity) {
         val app = runCatching {
             activity.packageManager.getPackageInfo(activity.packageName, 0).versionName
         }.getOrNull() ?: return null
-        val arch = Build.SUPPORTED_ABIS.firstOrNull() ?: return null
+        val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: return null
+        val arch = when (abi) {
+            "arm64-v8a" -> "arm64"
+            "armeabi-v7a" -> "arm"
+            "x86_64" -> "amd64"
+            "x86" -> "386"
+            else -> abi
+        }
         return listOf(
             "id=$id",
             "app=$app",
