@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 
+	"github.com/openxbond/xbond/internal/platform/wintun"
 	"github.com/openxbond/xbond/internal/upgrade"
 )
 
@@ -280,7 +281,23 @@ func writeDelegationGrant(dataDir string) error {
 		return err
 	}
 	grant := filepath.Join(dataDir, "delegated-user")
-	return os.WriteFile(grant, []byte(sid), 0o644)
+	staged, err := os.CreateTemp(dataDir, ".delegation-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(staged.Name())
+	if _, err := staged.WriteString(sid); err != nil {
+		_ = staged.Close()
+		return err
+	}
+	if err := staged.Sync(); err != nil {
+		_ = staged.Close()
+		return err
+	}
+	if err := staged.Close(); err != nil {
+		return err
+	}
+	return os.Rename(staged.Name(), grant)
 }
 
 // currentUserSID resolves the SID string of this process's token user.
@@ -327,7 +344,54 @@ func uninstallSystem(exePath string) error {
 	if err := stopSystemInstalled(handle); err != nil {
 		return err
 	}
-	return handle.Delete()
+	if err := handle.Delete(); err != nil {
+		return err
+	}
+	return removeWindowsMachineFiles()
+}
+
+func removeWindowsMachineFiles() error {
+	installation, err := machinePaths()
+	if err != nil {
+		return err
+	}
+	dir := filepath.Dir(installation.Binary)
+	// Windows can keep the executable image handle locked briefly after SCM
+	// reports svc.Stopped; retry removal over a short window before giving up.
+	targets := []string{
+		installation.Binary,
+		machineUpdaterSlot(dir, "a"),
+		machineUpdaterSlot(dir, "b"),
+		filepath.Join(dir, wintun.DLLName),
+		filepath.Join(dir, updaterSlotFile),
+		filepath.Join(dir, machineOwnerFile),
+		filepath.Join(dir, machineOwnerPathFile),
+		filepath.Join(dir, "upgrade.lock"),
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		var pendingErr error
+		for _, p := range targets {
+			if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+				pendingErr = err
+			}
+		}
+		if err := os.RemoveAll(installation.DataDir); err != nil && !errors.Is(err, os.ErrNotExist) {
+			pendingErr = err
+		}
+		if pendingErr == nil || time.Now().After(deadline) {
+			if pendingErr != nil {
+				return pendingErr
+			}
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	// Remove the outer directory only when empty; leave user-placed files intact.
+	if err := os.Remove(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return nil
 }
 
 func installSystemScope(exePath string) error { return installSystem(exePath) }

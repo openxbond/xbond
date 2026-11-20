@@ -180,10 +180,23 @@ func installWindowsMachineFiles(source, dir string) (string, string, error) {
 	if err := writeMachineMetadata(ownerPath, owner); err != nil {
 		return "", "", err
 	}
+	if resolved, err := resolvedOwnerPath(source); err == nil {
+		if err := writeMachineMetadata(filepath.Join(dir, machineOwnerPathFile), resolved); err != nil {
+			return "", "", err
+		}
+	}
 	if err := setMachineUpdaterSlot(dir, "a"); err != nil {
 		return "", "", err
 	}
 	return target, stateDir, nil
+}
+
+func resolvedOwnerPath(exe string) (string, error) {
+	path, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Abs(path)
 }
 
 func machineUpdaterSlot(dir, slot string) string {

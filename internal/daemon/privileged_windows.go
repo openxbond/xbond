@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/tailscale/go-winio"
@@ -25,11 +26,15 @@ const systemPipeName = `\\.\pipe\xbond-daemon-system`
 // to admit, so the transport stays closed: a delegating daemon then reports
 // an honest "unreachable" instead of an anonymous backdoor.
 func listenPrivileged() (net.Listener, error) {
-	sid, err := os.ReadFile(paths.DelegationGrantPath())
+	raw, err := os.ReadFile(paths.DelegationGrantPath())
 	if err != nil {
 		return nil, fmt.Errorf("delegation grant not readable (%v); refusing to open an anonymous privileged transport", err)
 	}
-	sddl := fmt.Sprintf("D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;%s)", string(sid))
+	sid := strings.TrimSpace(string(raw))
+	if sid == "" {
+		return nil, fmt.Errorf("delegation grant is empty; refusing to open an anonymous privileged transport")
+	}
+	sddl := fmt.Sprintf("D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;%s)", sid)
 	return winio.ListenPipe(systemPipeName, &winio.PipeConfig{SecurityDescriptor: sddl})
 }
 
