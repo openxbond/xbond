@@ -69,6 +69,10 @@ for home in /home/* /root; do
   if [ -d "$data_home/xbond" ]; then
     rm -rf "$data_home/xbond"
   fi
+  if [ -e "$home/.config/autostart/xbond.desktop" ]; then
+    rm -f "$home/.config/autostart/xbond.desktop"
+    rmdir --ignore-fail-on-non-empty "$home/.config/autostart" 2>/dev/null || true
+  fi
   unit="$home/.config/systemd/user/xbond-daemon.service"
   if [ -e "$unit" ]; then
     uid=$(id -u "$user" 2>/dev/null) || continue

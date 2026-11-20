@@ -17,4 +17,5 @@ test("preRemove only runs on genuine removal, never on upgrade", () => {
   assert.match(script, /case "\$1" in\nremove \| 0\) ;;\n\*\) exit 0 ;;?/);
   assert.match(script, /purge-user-data/);
   assert.match(script, /rm -rf \/var\/lib\/xbond-system/);
+  assert.match(script, /rm -f "\$home\/\.config\/autostart\/xbond\.desktop"/);
 });
