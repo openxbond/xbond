@@ -118,7 +118,7 @@ export async function resolveShellLocalAPIConfig(): Promise<LocalAPIConfig | nul
           ? "plugin:xbond|get_localapi_config"
           : "get_localapi_config",
       )) as { addr: string; token: string; is_running?: boolean } | null;
-      if (cfg && cfg.token) {
+      if (cfg && cfg.addr && cfg.token) {
         const endpoint = cfg.addr.startsWith("http")
           ? cfg.addr
           : `http://${cfg.addr}`;

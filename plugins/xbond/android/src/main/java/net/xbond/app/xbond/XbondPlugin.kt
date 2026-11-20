@@ -68,11 +68,12 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
         super.load(webView)
         updates = AppUpdates(activity)
 
-        // Drop the previous process's address file only if the service is not
-        // already active, so getLocalAPIConfig waits for a fresh port instead
-        // of answering with a dead one.
+        // Drop the previous process's discovery files only if the service is not
+        // already active, so getLocalAPIConfig waits for a fresh pair instead
+        // of answering with a dead port or stale token.
         if (XBondVpnService.active == null) {
             File(activity.filesDir, "localapi.addr").delete()
+            File(activity.filesDir, "localapi.token").delete()
         }
 
         // The service owns the TunnelService and its in-process LocalAPI;
@@ -116,9 +117,15 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.reject("localapi endpoint not ready")
             return
         }
+        val addr = runCatching { addrFile.readText().trim() }.getOrDefault("")
+        val token = runCatching { tokenFile.readText().trim() }.getOrDefault("")
+        if (addr.isEmpty() || token.isEmpty()) {
+            invoke.reject("localapi endpoint not ready")
+            return
+        }
         val result = JSObject()
-        result.put("addr", addrFile.readText().trim())
-        result.put("token", tokenFile.readText().trim())
+        result.put("addr", addr)
+        result.put("token", token)
         invoke.resolve(result)
     }
 
