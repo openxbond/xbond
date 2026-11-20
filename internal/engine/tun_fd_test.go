@@ -238,4 +238,26 @@ func TestMobileNetworkInterfacesSnapshot(t *testing.T) {
 	if notified == nil || notified.Index != 12 {
 		t.Fatalf("default-change callback not fired, got %+v", notified)
 	}
+
+	// Scoped IPv6 addresses emitted by Android Inet6Address.getHostAddress()
+	// must keep their prefix after stripping the zone identifier, and an empty
+	// snapshot must clear the stale default interface and notify listeners.
+	scopedSnapshot := `[{"name":"wlan0","index":12,"mtu":1500,"addresses":["fe80::1%wlan0/64","2408:8207:1::1%wlan0/64"],"flags":["up","running"],"default":true,"type":"wifi"}]`
+	if err := SetMobileNetworkInterfacesJSON(scopedSnapshot); err != nil {
+		t.Fatalf("scoped IPv6 snapshot rejected: %v", err)
+	}
+	ifaces, err = platform.NetworkInterfaces()
+	if err != nil || len(ifaces) != 1 || len(ifaces[0].Addresses) != 2 {
+		t.Fatalf("expected 2 IPv6 prefixes after stripping zone ID, got %+v, err=%v", ifaces, err)
+	}
+
+	if err := SetMobileNetworkInterfacesJSON(`[]`); err != nil {
+		t.Fatalf("empty snapshot rejected: %v", err)
+	}
+	if def := monitorDefaultInterface(platform); def != nil {
+		t.Fatalf("expected empty snapshot to clear default interface, got %+v", def)
+	}
+	if notified != nil {
+		t.Fatalf("expected default-change callback to receive nil on empty snapshot, got %+v", notified)
+	}
 }

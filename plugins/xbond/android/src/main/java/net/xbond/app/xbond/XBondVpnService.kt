@@ -49,6 +49,7 @@ class XBondVpnService : VpnService() {
     private val coreTunFdLock = Any()
     private val tunnelLock = Any()
     private var tunnel: TunnelService? = null
+    private var networkMonitor: AndroidNetworkMonitor? = null
     private var lastConfig: String = ""
     private var lastDisallowed: Array<String> = emptyArray()
     private var lastAllowed: Array<String> = emptyArray()
@@ -135,6 +136,7 @@ class XBondVpnService : VpnService() {
         super.onCreate()
         active = this
         tunnel = TunnelService(PlatformBridgeImpl(), LogListener())
+        networkMonitor = AndroidNetworkMonitor(this).also { it.start() }
         ensureDiscoveryFiles()
     }
 
@@ -462,6 +464,8 @@ class XBondVpnService : VpnService() {
     }
 
     override fun onDestroy() {
+        networkMonitor?.stop()
+        networkMonitor = null
         synchronized(tunnelLock) {
             try {
                 // Close (not just Stop) so the in-process LocalAPI listener on
