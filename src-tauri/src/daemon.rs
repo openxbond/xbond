@@ -289,6 +289,7 @@ pub fn launch_ensure() {
     let _ = ensure_daemon_locked(false);
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
     if let Some((addr, token)) = read_credentials() {
         if daemon_alive(&addr) {
