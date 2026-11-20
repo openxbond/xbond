@@ -3,6 +3,7 @@ package mobile
 import (
 	"encoding/json"
 	"errors"
+	"net"
 	"sync"
 	"testing"
 )
@@ -150,4 +151,18 @@ func TestTunnelServiceReloadKeepsTunnelAndRepointsClient(t *testing.T) {
 	if err := svc.Start(sampleConfig(), tunFd); err == nil {
 		t.Skip("engine requires a real TUN descriptor; skip on this host")
 	}
+}
+
+func TestNewTunnelServiceDoesNotExposeControllerProxyPort(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	svc := NewTunnelService(&mockPlatform{}, &mockListener{})
+	t.Cleanup(func() { _ = svc.Close() })
+
+	// Port 24191 used to host an unauthenticated controller proxy on Android;
+	// verify NewTunnelService leaves it unbound.
+	l, err := net.Listen("tcp", "127.0.0.1:24191")
+	if err != nil {
+		t.Fatalf("expected 127.0.0.1:24191 to remain unbound, got: %v", err)
+	}
+	_ = l.Close()
 }

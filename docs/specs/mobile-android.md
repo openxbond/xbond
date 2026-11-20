@@ -50,7 +50,7 @@
 - **分應用代理**持久化在 `SplitTunnelPrefs`（SharedPreferences `xbond_vpn_prefs`）：`mode` = `all`（默認）| `disallow`（黑名單）| `allow`（白名單）。`buildVpnInterface` 讀取該配置；**應用自身在所有模式下恆被排除**（核心出站、更新下載、雲同步必須走物理網）。`listInstalledApps` 供選擇器。
 - **TUN 采纳链**（歷史實測，不變量）：`auto-route=false` 且 `auto-detect-interface=false`；TUN 網段地址必須掛接口（fake-ip 段首 + IPv6 對應）；`stack: gvisor`；DNS 引導解析用純 IP `default-nameserver`。任一不成立都是靜默假成功——`/configs` 的 `tun.enable` 是判定真相。
 - **運行中換配置**：`XBondVpnService.reloadIfConnected()`（`set_split_tunnel_config` 保存後觸發）先建新接口，成功後停核心、換接口、走 `/up` 同一 runtime apply 路徑重啟核心；失敗回滾，系統 VPN 圖標全程不消失。
-- **核心 controller 端點進程內固定**（`mobileRuntime.baseEndpoint`）與 **controllerProxy**（24191 穩定前、WebSocket 跨重載）不變；UI 從 status preferences 讀端點，不依賴頁面 meta 注入。
+- **核心 controller 端點進程內固定**（`mobileRuntime.baseEndpoint`）：進程生命週期內固定同一 loopback 端口與 secret；UI 從 status preferences 讀端點，不依賴頁面 meta 注入或額外 proxy。
 
 ### 自我更新（`AppUpdates`）
 

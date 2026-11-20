@@ -1,9 +1,5 @@
 package mobile
 
-import "runtime"
-
-const iosWebOrigin = runtime.GOOS == "ios"
-
 const (
 	StateIdle          int32 = 0
 	StateConnecting    int32 = 1
