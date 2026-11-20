@@ -20,9 +20,10 @@ import (
 // user and launches the daemon at logon. The value launches
 // `xbond-daemon --background`, the same line a logon task would run.
 const (
-	runKeyPath    = `Software\Microsoft\Windows\CurrentVersion\Run`
-	runValueName  = "XBondDaemon"
-	daemonExeName = "xbond-daemon.exe"
+	runKeyPath             = `Software\Microsoft\Windows\CurrentVersion\Run`
+	startupApprovedRunPath = `Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run`
+	runValueName           = "XBondDaemon"
+	daemonExeName          = "xbond-daemon.exe"
 )
 
 func installDaemon(exePath string) error {
@@ -48,11 +49,22 @@ func uninstallDaemon() error {
 	if err := k.DeleteValue(runValueName); err != nil {
 		// Tolerate an already-missing value so uninstall converges on "gone".
 		if _, _, gerr := k.GetStringValue(runValueName); gerr != nil {
+			deleteStartupApprovedValue()
 			return nil
 		}
 		return fmt.Errorf("failed to delete Run value: %w", err)
 	}
+	deleteStartupApprovedValue()
 	return nil
+}
+
+func deleteStartupApprovedValue() {
+	k, err := registry.OpenKey(registry.CURRENT_USER, startupApprovedRunPath, registry.SET_VALUE)
+	if err != nil {
+		return
+	}
+	defer k.Close()
+	_ = k.DeleteValue(runValueName)
 }
 
 func startDaemon() error {

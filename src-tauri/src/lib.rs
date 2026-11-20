@@ -190,14 +190,6 @@ pub fn run() {
             });
 
             updater::on_launch(app.handle().clone());
-
-            // An explicit quit stops the supervised daemon, so a fresh
-            // launch reconciles the runtime back up — one supervisor verb
-            // through the bundled CLI; the GUI itself still never spawns a
-            // rival daemon (daemon-runtime spec).
-            std::thread::spawn(|| {
-                daemon::launch_ensure();
-            });
             Ok(())
         })
         .on_window_event(|window, event| {

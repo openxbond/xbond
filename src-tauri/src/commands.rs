@@ -279,7 +279,36 @@ pub fn set_autostart(app: AppHandle, enable: bool) -> Result<bool, String> {
         launch.disable()
     };
     result.map_err(|e| e.to_string())?;
-    Ok(launch.is_enabled().unwrap_or(enable))
+    let enabled = launch.is_enabled().unwrap_or(enable);
+    #[cfg(target_os = "windows")]
+    sync_windows_daemon_startup_approval(enabled);
+    Ok(enabled)
+}
+
+#[cfg(target_os = "windows")]
+fn sync_windows_daemon_startup_approval(enable: bool) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    const KEY: &str =
+        r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+    let mut cmd = std::process::Command::new("reg.exe");
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    if enable {
+        cmd.args(["delete", KEY, "/v", "XBondDaemon", "/f"]);
+    } else {
+        cmd.args([
+            "add",
+            KEY,
+            "/v",
+            "XBondDaemon",
+            "/t",
+            "REG_BINARY",
+            "/d",
+            "030000000000000000000000",
+            "/f",
+        ]);
+    }
+    let _ = cmd.output();
 }
 
 /// Extract the subscription URL from a handover URL:
