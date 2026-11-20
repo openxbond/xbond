@@ -250,11 +250,9 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
             activity.getSharedPreferences(PREFS_UI, Context.MODE_PRIVATE).getString(args.key, null)
         }.getOrNull()
         if (value == null) {
-            invoke.resolve(null as JSObject?)
+            invoke.resolve()
         } else {
-            val result = JSObject()
-            result.put("value", value)
-            invoke.resolve(result)
+            invoke.resolveObject(value)
         }
     }
 

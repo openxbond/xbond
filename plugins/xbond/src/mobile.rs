@@ -75,6 +75,11 @@ impl<R: Runtime> Xbond<R> {
             .map(|value| match value {
                 serde_json::Value::Null => None,
                 serde_json::Value::String(value) => Some(value),
+                serde_json::Value::Object(mut map) => match map.remove("value") {
+                    Some(serde_json::Value::String(value)) => Some(value),
+                    Some(serde_json::Value::Null) | None => None,
+                    Some(other) => Some(other.to_string()),
+                },
                 other => Some(other.to_string()),
             })
             .map_err(Into::into)
