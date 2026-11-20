@@ -1,0 +1,5 @@
+- Android: Fixed system back navigation in sheets and top-level tabs, wired native haptic cues and preferences, prevented self-traffic routing loops on empty allowlists, and improved Android 14+ network handover tracking and VPN service teardown.
+- Android: Removed an unused local controller proxy listener to tighten in-process loopback security.
+- Windows: Bundled architecture-matched `wintun.dll` for both amd64 and arm64, extracted it inside the machine service directory for delegated TUN, and waited synchronously for UAC elevation results.
+- Windows: Broadcast WinINet system proxy updates immediately, restored the system proxy cleanly on session logoff or shutdown, and removed machine service files during uninstall.
+- Desktop: Fixed packaged daemon startup races and crash self-healing, synced Windows autostart toggles with background service startup, and cleaned Linux autostart entries on uninstall.

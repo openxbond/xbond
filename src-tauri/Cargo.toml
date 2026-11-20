@@ -1,6 +1,6 @@
 [package]
 name = "xbond-app"
-version = "1.0.1"
+version = "1.0.2"
 description = "XBond client shell (desktop and mobile)"
 authors = ["openxbond <no-reply@xbond.net>"]
 edition = "2021"
