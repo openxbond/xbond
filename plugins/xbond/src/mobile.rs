@@ -154,4 +154,15 @@ impl<R: Runtime> Xbond<R> {
             .map_err(Into::into)
             .and_then(|value| serde_json::from_value(value).map_err(Into::into))
     }
+
+    /// Fires a native tactile feedback cue on mobile.
+    pub fn perform_haptic(&self, kind: &str) -> super::Result<()> {
+        self.mobile_plugin_handle
+            .run_mobile_plugin::<serde_json::Value>(
+                "performHaptic",
+                serde_json::json!({ "kind": kind }),
+            )
+            .map(|_| ())
+            .map_err(Into::into)
+    }
 }

@@ -77,7 +77,8 @@ pub async fn save_text_file<R: Runtime>(
     file_name: String,
     mime_type: String,
 ) -> Result<bool> {
-    app.xbond().save_text_file(&contents, &file_name, &mime_type)
+    app.xbond()
+        .save_text_file(&contents, &file_name, &mime_type)
 }
 
 #[tauri::command]
@@ -87,5 +88,11 @@ pub async fn share_text_file<R: Runtime>(
     file_name: String,
     mime_type: String,
 ) -> Result<bool> {
-    app.xbond().share_text_file(&contents, &file_name, &mime_type)
+    app.xbond()
+        .share_text_file(&contents, &file_name, &mime_type)
+}
+
+#[tauri::command]
+pub async fn perform_haptic<R: Runtime>(app: AppHandle<R>, kind: String) -> Result<()> {
+    app.xbond().perform_haptic(&kind)
 }
