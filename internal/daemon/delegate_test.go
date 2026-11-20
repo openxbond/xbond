@@ -563,3 +563,34 @@ func TestRemoteRoutesOnlyOnPrivilegedMux(t *testing.T) {
 		t.Fatalf("idle system session reported a running core: %+v", reply)
 	}
 }
+
+func TestDelegateTracksWintunMissingFromRemoteStatus(t *testing.T) {
+	wintunMissing := true
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/localapi/v0/remote/status" {
+			writeJSON(w, http.StatusOK, remoteReply{Ok: true, WintunMissing: wintunMissing})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	d := newTestDelegate(srv)
+	if err := d.Available(); err != nil {
+		t.Fatalf("Available failed: %v", err)
+	}
+	if !d.WintunMissing() {
+		t.Fatal("expected WintunMissing=true from remote status")
+	}
+
+	wintunMissing = false
+	d.mu.Lock()
+	d.probeAt = time.Time{}
+	d.mu.Unlock()
+	if err := d.Available(); err != nil {
+		t.Fatalf("Available failed: %v", err)
+	}
+	if d.WintunMissing() {
+		t.Fatal("expected WintunMissing=false after recovery")
+	}
+}

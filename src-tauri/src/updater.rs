@@ -285,7 +285,7 @@ pub async fn install_desktop_update(
 
 pub fn on_launch(app: AppHandle) {
     if !crate::daemon::packaged() {
-        let _ = crate::daemon::ensure_daemon();
+        tauri::async_runtime::spawn_blocking(crate::daemon::launch_ensure);
         return;
     }
     if let Ok(mut status) = app.state::<UpdateState>().inner.lock() {
@@ -311,6 +311,11 @@ pub fn on_launch(app: AppHandle) {
             status.daemon_error = daemon_error;
             status.machine_update_error = machine_update_error;
         }
+        // Start the managed daemon after reconciliation finishes: syncDesktop
+        // leaves an already-current stopped daemon idle, and racing before
+        // reconciliation would register the installer sidecar instead of the
+        // managed desktop binary.
+        let _ = tauri::async_runtime::spawn_blocking(crate::daemon::launch_ensure).await;
         if enabled() {
             if let Err(error) = check(&app, &state, true).await {
                 eprintln!("[XBond Desktop] Automatic update check failed: {error}");

@@ -2,7 +2,18 @@
 
 package service
 
-import "golang.org/x/sys/windows/svc"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/svc"
+	"golang.org/x/sys/windows/svc/mgr"
+
+	"github.com/openxbond/xbond/internal/platform/wintun"
+)
 
 func systemInstalled() bool { return ServiceSystemInstalled() }
 
@@ -38,7 +49,49 @@ func stopSystemScope(string) error {
 // run callback blocks serving the daemon and returns on stop; SCM stop and
 // shutdown both close the stop channel.
 func RunSystemService(listen, webDir string, run func(stop <-chan struct{}) error) error {
+	if installation, err := machinePaths(); err == nil {
+		if vanish, err := machineOwnerVanished(filepath.Dir(installation.Binary)); err != nil {
+			fmt.Fprintf(os.Stderr, "xbond machine service: ownership probe failed: %v\n", err)
+		} else if vanish {
+			return reclaimWindowsOrphanedService()
+		}
+	}
 	return svc.Run(systemServiceName, &systemHandler{listen: listen, webDir: webDir, run: run})
+}
+
+func reclaimWindowsOrphanedService() error {
+	fmt.Fprintln(os.Stderr, "xbond machine service: the installing application is gone; reclaiming the machine registration")
+	if m, err := mgr.Connect(); err == nil {
+		defer m.Disconnect()
+		if handle, err := m.OpenService(systemServiceName); err == nil {
+			_ = handle.Delete()
+			_ = handle.Close()
+		}
+	}
+	if installation, err := machinePaths(); err == nil {
+		dir := filepath.Dir(installation.Binary)
+		for _, p := range []string{
+			machineUpdaterSlot(dir, "a"),
+			machineUpdaterSlot(dir, "b"),
+			filepath.Join(dir, wintun.DLLName),
+			filepath.Join(dir, updaterSlotFile),
+			filepath.Join(dir, machineOwnerFile),
+			filepath.Join(dir, machineOwnerPathFile),
+			filepath.Join(dir, "upgrade.lock"),
+		} {
+			_ = os.Remove(p)
+		}
+		_ = os.RemoveAll(installation.DataDir)
+		// The running executable image cannot be unlinked in-place on Windows;
+		// schedule it for deletion on next reboot after DeleteService stops SCM respawn.
+		if p16, err := windows.UTF16PtrFromString(installation.Binary); err == nil {
+			_ = windows.MoveFileEx(p16, nil, windows.MOVEFILE_DELAY_UNTIL_REBOOT)
+		}
+		if d16, err := windows.UTF16PtrFromString(dir); err == nil {
+			_ = windows.MoveFileEx(d16, nil, windows.MOVEFILE_DELAY_UNTIL_REBOOT)
+		}
+	}
+	return nil
 }
 
 type systemHandler struct {
@@ -64,12 +117,23 @@ func (h *systemHandler) Execute(args []string, req <-chan svc.ChangeRequest, cha
 			case svc.Interrogate:
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
-				changes <- svc.Status{State: svc.StopPending, WaitHint: 5_000}
+				checkpoint := uint32(1)
+				changes <- svc.Status{State: svc.StopPending, CheckPoint: checkpoint, WaitHint: 5_000}
 				close(stop)
-				if err := <-serveErr; err != nil {
-					return false, 1
+				ticker := time.NewTicker(1 * time.Second)
+				defer ticker.Stop()
+				for {
+					select {
+					case err := <-serveErr:
+						if err != nil {
+							return false, 1
+						}
+						return false, 0
+					case <-ticker.C:
+						checkpoint++
+						changes <- svc.Status{State: svc.StopPending, CheckPoint: checkpoint, WaitHint: 5_000}
+					}
 				}
-				return false, 0
 			}
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/openxbond/xbond/internal/platform/wintun"
 	"github.com/openxbond/xbond/internal/upgrade"
 	"golang.org/x/sys/windows"
 )
@@ -163,6 +164,14 @@ func installWindowsMachineFiles(source, dir string) (string, string, error) {
 			return "", "", err
 		}
 	}
+	if wintun.EnsureInDir(dir) {
+		dllPath := filepath.Join(dir, wintun.DLLName)
+		if _, err := os.Stat(dllPath); err == nil {
+			if err := protectMachineCandidate(dllPath); err != nil {
+				return "", "", err
+			}
+		}
+	}
 	owner, err := machineOwner(source)
 	if err != nil {
 		return "", "", err
@@ -171,10 +180,23 @@ func installWindowsMachineFiles(source, dir string) (string, string, error) {
 	if err := writeMachineMetadata(ownerPath, owner); err != nil {
 		return "", "", err
 	}
+	if resolved, err := resolvedOwnerPath(source); err == nil {
+		if err := writeMachineMetadata(filepath.Join(dir, machineOwnerPathFile), resolved); err != nil {
+			return "", "", err
+		}
+	}
 	if err := setMachineUpdaterSlot(dir, "a"); err != nil {
 		return "", "", err
 	}
 	return target, stateDir, nil
+}
+
+func resolvedOwnerPath(exe string) (string, error) {
+	path, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Abs(path)
 }
 
 func machineUpdaterSlot(dir, slot string) string {

@@ -120,3 +120,25 @@ func TestDefaultBypassKeepsPrivateRangesDirect(t *testing.T) {
 		}
 	}
 }
+
+func TestSnapshotTargetsPortHandlesSchemesAndWindowsPerProtocol(t *testing.T) {
+	cases := []struct {
+		server string
+		port   int
+		want   bool
+	}{
+		{"127.0.0.1:7890", 7890, true},
+		{"127.0.0.1:17890", 7890, false},
+		{"http://127.0.0.1:7890", 7890, true},
+		{"http=127.0.0.1:7890;https=127.0.0.1:7890", 7890, true},
+		{"http=127.0.0.1:7890;https=127.0.0.1:9999", 7890, false},
+		{"", 7890, false},
+		{"invalid-no-port", 7890, false},
+	}
+	for _, tc := range cases {
+		snap := Snapshot{Enabled: true, Server: tc.server}
+		if got := snap.TargetsPort(tc.port); got != tc.want {
+			t.Errorf("Snapshot{Server:%q}.TargetsPort(%d) = %v, want %v", tc.server, tc.port, got, tc.want)
+		}
+	}
+}

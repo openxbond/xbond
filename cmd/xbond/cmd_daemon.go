@@ -129,6 +129,15 @@ func serveDaemon(server *daemon.Server, stop <-chan struct{}) error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+	var sessionEnd <-chan struct{}
+	var markSessionDone func()
+	if stop == nil {
+		sessionEnd, markSessionDone = watchSessionEnd()
+	} else {
+		markSessionDone = func() {}
+	}
+	defer markSessionDone()
+
 	select {
 	case err := <-serveErr:
 		if err != nil && err != http.ErrServerClosed {
@@ -138,6 +147,7 @@ func serveDaemon(server *daemon.Server, stop <-chan struct{}) error {
 	case <-sigChan:
 	case <-server.ShutdownRequested():
 	case <-stop:
+	case <-sessionEnd:
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -379,16 +389,19 @@ var daemonStatusCmd = &cobra.Command{
 // systemActionCmd continues a mutating system-scope action inside the
 // elevated copy launched by the service package (UAC accepted).
 var systemActionCmd = &cobra.Command{
-	Use:    "system-action",
+	Use:    "system-action <action> [error-file]",
 	Short:  "Continue an elevated system-scope action (internal)",
-	Args:   cobra.ExactArgs(1),
+	Args:   cobra.RangeArgs(1, 2),
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		exe, err := service.SelfPath()
-		if err != nil {
-			return err
+		if err == nil {
+			err = service.RunSystemAction(exe, service.SystemAction(args[0]))
 		}
-		return service.RunSystemAction(exe, service.SystemAction(args[0]))
+		if err != nil && len(args) == 2 && args[1] != "" {
+			_ = os.WriteFile(args[1], []byte(err.Error()), 0o600)
+		}
+		return err
 	},
 }
 

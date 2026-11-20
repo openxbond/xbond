@@ -38,17 +38,19 @@ type delegateManager struct {
 
 	// probe state: a short-lived cache so the capability gate and every
 	// /status poll do not hammer the transport.
-	probeAt time.Time
-	probeOK bool
+	probeAt       time.Time
+	probeOK       bool
+	wintunMissing bool
 
 	ring *engine.RingLogger
 }
 
 // remoteReply is the envelope the delegation endpoints answer with.
 type remoteReply struct {
-	Ok     bool                `json:"ok"`
-	Error  string              `json:"error,omitempty"`
-	Status engine.EngineStatus `json:"status,omitempty"`
+	Ok            bool                `json:"ok"`
+	Error         string              `json:"error,omitempty"`
+	Status        engine.EngineStatus `json:"status,omitempty"`
+	WintunMissing bool                `json:"wintunMissing,omitempty"`
 }
 
 const (
@@ -280,6 +282,15 @@ func (d *delegateManager) Status() (engine.EngineStatus, bool) {
 	return st, true
 }
 
+// WintunMissing reports whether the last machine-service status probe
+// indicated that wintun.dll could not be located or extracted beside the
+// machine binary.
+func (d *delegateManager) WintunMissing() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.wintunMissing
+}
+
 // Available probes the transport cheaply for the TUN capability gate.
 // Reachability is the bar: a freshly installed service runs no core yet, and
 // that must count as available — the delegation is what starts it. Results
@@ -365,6 +376,9 @@ func (d *delegateManager) fetchStatus(ctx context.Context) (engine.EngineStatus,
 	if !reply.Ok {
 		return engine.EngineStatus{}, fmt.Errorf("machine service rejected the status request: %s", reply.Error)
 	}
+	d.mu.Lock()
+	d.wintunMissing = reply.WintunMissing
+	d.mu.Unlock()
 	return reply.Status, nil
 }
 

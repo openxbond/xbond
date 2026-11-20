@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -103,6 +103,7 @@ static ENSURE_LOCK: Mutex<()> = Mutex::new(());
 /// creds probe is never cooldown-gated — only spawning is.
 static LAST_FAILED_SPAWN: AtomicU64 = AtomicU64::new(0);
 const SPAWN_COOLDOWN_MS: u64 = 30_000;
+static PACKAGED_RECONCILED: AtomicBool = AtomicBool::new(false);
 
 pub fn packaged() -> bool {
     option_env!("XBOND_DESKTOP_RELEASE") == Some("1")
@@ -115,6 +116,11 @@ struct BundledDaemonUpdate {
 }
 
 pub fn reconcile_packaged_daemon() -> Result<Option<String>, String> {
+    let _ensure_guard = ENSURE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    reconcile_packaged_daemon_locked()
+}
+
+fn reconcile_packaged_daemon_locked() -> Result<Option<String>, String> {
     let current = std::env::current_exe().map_err(|err| err.to_string())?;
     let executable = current.with_file_name(if cfg!(windows) {
         "xbond-daemon.exe"
@@ -129,6 +135,7 @@ pub fn reconcile_packaged_daemon() -> Result<Option<String>, String> {
         command.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
     let output = command.output().map_err(|err| err.to_string())?;
+    PACKAGED_RECONCILED.store(true, Ordering::Release);
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).trim().to_owned());
     }
@@ -278,28 +285,12 @@ pub fn launch_ensure() {
     if daemon_running() {
         return;
     }
-    if let Err(err) = cli_verb(&["daemon", "start"]) {
-        eprintln!("[XBond Desktop] launch daemon start failed: {err}");
-        if let Err(install_err) = cli_verb(&["daemon", "install"]) {
-            eprintln!("[XBond Desktop] launch daemon install failed: {install_err}");
-            return;
-        }
-    }
-    if wait_for_daemon().is_none() {
-        eprintln!(
-            "[XBond Desktop] daemon start claimed success but the daemon never became reachable"
-        );
-    }
+    let _ensure_guard = ENSURE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _ = ensure_daemon_locked(false);
 }
 
+#[cfg_attr(test, allow(dead_code))]
 pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
-    // The release sidecar reconciles registration and runtime on launch.
-    // Reads must preserve a stopped service and must never start from the
-    // immutable application bundle (or an ephemeral AppImage mount).
-    if packaged() {
-        return Ok(resolve_config());
-    }
-
     if let Some((addr, token)) = read_credentials() {
         if daemon_alive(&addr) {
             return Ok(LocalAPIConfig {
@@ -311,11 +302,72 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
         // Stale files from a dead daemon: fall through and (re)start.
     }
 
-    // Queue behind an in-flight ensure instead of spawning a rival daemon.
+    // Queue behind an in-flight ensure or packaged reconciliation instead of
+    // spawning a rival daemon or registering the wrong executable.
     let _ensure_guard = ENSURE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    Ok(ensure_daemon_locked(true))
+}
 
-    if spawn_on_cooldown() {
-        return Ok(resolve_config());
+fn ensure_daemon_locked(respect_cooldown: bool) -> LocalAPIConfig {
+    if let Some((addr, token)) = read_credentials() {
+        if daemon_alive(&addr) {
+            return LocalAPIConfig {
+                addr,
+                token,
+                is_running: true,
+            };
+        }
+    }
+
+    if respect_cooldown && spawn_on_cooldown() {
+        return resolve_config();
+    }
+
+    if packaged() {
+        if !PACKAGED_RECONCILED.load(Ordering::Acquire) {
+            if let Err(err) = reconcile_packaged_daemon_locked() {
+                eprintln!("[XBond Desktop] Packaged daemon reconciliation failed: {err}");
+            }
+            if let Some((addr, token)) = read_credentials() {
+                if daemon_alive(&addr) {
+                    return LocalAPIConfig {
+                        addr,
+                        token,
+                        is_running: true,
+                    };
+                }
+            }
+        }
+        match cli_verb(&["daemon", "start"]) {
+            Ok(_) => {
+                if let Some(cfg) = wait_for_daemon() {
+                    return cfg;
+                }
+                eprintln!(
+                    "[XBond Desktop] daemon start claimed success but the daemon never became reachable"
+                );
+            }
+            Err(err) if err.contains("not installed") => {
+                // Re-stage and register the managed desktop binary rather than
+                // registering the bundled sidecar path via `daemon install`.
+                if let Err(rec_err) = reconcile_packaged_daemon_locked() {
+                    eprintln!("[XBond Desktop] daemon reconciliation fallback failed: {rec_err}");
+                } else if daemon_running() {
+                    return resolve_config();
+                } else if let Err(start_err) = cli_verb(&["daemon", "start"]) {
+                    eprintln!(
+                        "[XBond Desktop] daemon start after reconciliation failed: {start_err}"
+                    );
+                } else if let Some(cfg) = wait_for_daemon() {
+                    return cfg;
+                }
+            }
+            Err(err) => {
+                eprintln!("[XBond Desktop] daemon start failed: {err}");
+            }
+        }
+        record_failed_spawn();
+        return resolve_config();
     }
 
     // The desktop app and the CLI are peers over one shared xbond daemon;
@@ -370,7 +422,7 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
         match lifecycle(&["daemon", "start"]) {
             Ok(out) if out.status.success() => {
                 if let Some(cfg) = wait_for_daemon() {
-                    return Ok(cfg);
+                    return cfg;
                 }
                 eprintln!(
                     "[XBond Desktop] daemon start claimed success but the daemon never became reachable"
@@ -384,7 +436,7 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
                     match lifecycle(&["daemon", "install"]) {
                         Ok(out) if out.status.success() => {
                             if let Some(cfg) = wait_for_daemon() {
-                                return Ok(cfg);
+                                return cfg;
                             }
                             eprintln!(
                                 "[XBond Desktop] daemon install claimed success but the daemon never became reachable"
@@ -420,7 +472,7 @@ pub fn ensure_daemon() -> Result<LocalAPIConfig, String> {
         );
     }
 
-    Ok(resolve_config())
+    resolve_config()
 }
 
 #[tauri::command]

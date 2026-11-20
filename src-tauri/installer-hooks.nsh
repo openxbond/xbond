@@ -35,6 +35,10 @@ LangString XBondRequiresWin10 ${XBOND_LANG_FARSI} "XBond به ویندوز ۱۰ 
     Sleep 1000
     nsExec::Exec 'taskkill /IM xbond-daemon.exe /F'
     Pop $R9
+    ; Packaged desktop builds run the user daemon from %APPDATA%\xbond\desktop\xbond.exe.
+    ; Ensure a hung managed daemon exits before purge-user-data deletes its directory.
+    nsExec::Exec 'powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command "Get-Process xbond -ErrorAction SilentlyContinue | Where-Object { $$_.Path -eq (Join-Path ([Environment]::GetFolderPath(''ApplicationData'')) ''xbond\desktop\xbond.exe'') } | Stop-Process -Force"'
+    Pop $R9
     Sleep 500
   xbond_daemon_stopped_${XBOND_STOP_ID}:
   !undef XBOND_STOP_ID
