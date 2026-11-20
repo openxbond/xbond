@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/openxbond/xbond/internal/engine"
+	"github.com/openxbond/xbond/internal/platform/wintun"
 )
 
 // Delegation endpoints for the machine-scoped daemon. They are registered
@@ -64,6 +65,10 @@ func (s *Server) handleRemoteApply(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, remoteReply{Error: err.Error()})
 		return
 	}
+	if !wintun.EnsureLocal() {
+		writeJSON(w, http.StatusInternalServerError, remoteReply{Error: "wintun.dll could not be extracted for the system service"})
+		return
+	}
 	if err := s.engineMgr.Reload(config, selections); err != nil {
 		writeJSON(w, http.StatusInternalServerError, remoteReply{Error: err.Error()})
 		return
@@ -84,7 +89,12 @@ func (s *Server) handleRemoteStop(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRemoteStatus(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, remoteReply{Ok: true, Status: s.engineMgr.Status()})
+	wintunMissing := !wintun.EnsureLocal()
+	writeJSON(w, http.StatusOK, remoteReply{
+		Ok:            true,
+		Status:        s.engineMgr.Status(),
+		WintunMissing: wintunMissing,
+	})
 }
 
 func (s *Server) handleRemoteLogs(w http.ResponseWriter, r *http.Request) {

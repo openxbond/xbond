@@ -8,13 +8,9 @@
 package wintun
 
 import (
-	_ "embed"
 	"os"
 	"path/filepath"
 )
-
-//go:embed bin/wintun.dll
-var embedded []byte
 
 // DLLName is the file name the loader searches for.
 const DLLName = "wintun.dll"
@@ -23,29 +19,63 @@ const DLLName = "wintun.dll"
 // the executable's directory nor System32 provides one. It reports whether
 // the DLL is present afterwards.
 func EnsureLocal() bool {
-	if presentOnDisk() {
-		return true
-	}
 	exe, err := os.Executable()
 	if err != nil {
-		return false
+		return presentInSystem32()
 	}
-	target := filepath.Join(filepath.Dir(exe), DLLName)
-	// A read-only install directory is a real deployment choice; the
-	// outcome rules — the gate reports wintun_missing either way.
-	if err := os.WriteFile(target, embedded, 0o644); err != nil {
-		return false
-	}
-	return presentOnDisk()
+	return EnsureInDir(filepath.Dir(exe))
 }
 
-func presentOnDisk() bool {
-	exe, err := os.Executable()
-	if err == nil {
-		if _, err := os.Stat(filepath.Join(filepath.Dir(exe), DLLName)); err == nil {
+// EnsureInDir extracts the packaged DLL into dir when neither dir nor
+// System32 already provides one.
+func EnsureInDir(dir string) bool {
+	if PresentInDir(dir) {
+		return true
+	}
+	if dir == "" || len(embedded) == 0 {
+		return false
+	}
+	target := filepath.Join(dir, DLLName)
+	staged, err := os.CreateTemp(dir, ".wintun-*.dll")
+	if err != nil {
+		// Fallback to direct write if temp creation is blocked.
+		if err := os.WriteFile(target, embedded, 0o644); err != nil {
+			return false
+		}
+		return PresentInDir(dir)
+	}
+	stagedName := staged.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(stagedName)
+		}
+	}()
+	if _, err := staged.Write(embedded); err != nil {
+		_ = staged.Close()
+		return false
+	}
+	if err := staged.Close(); err != nil {
+		return false
+	}
+	if err := os.Rename(stagedName, target); err != nil {
+		return false
+	}
+	cleanup = false
+	return PresentInDir(dir)
+}
+
+// PresentInDir reports whether wintun.dll exists in dir or System32.
+func PresentInDir(dir string) bool {
+	if dir != "" {
+		if _, err := os.Stat(filepath.Join(dir, DLLName)); err == nil {
 			return true
 		}
 	}
+	return presentInSystem32()
+}
+
+func presentInSystem32() bool {
 	if sysDir := os.Getenv("SystemRoot"); sysDir != "" {
 		if _, err := os.Stat(filepath.Join(sysDir, "System32", DLLName)); err == nil {
 			return true

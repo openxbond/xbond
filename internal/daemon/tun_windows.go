@@ -60,7 +60,7 @@ func tunCapability(delegate *delegateManager) TUNCapability {
 				Reason:           fmt.Sprintf("the system service is installed but not serving delegation: %v", err),
 			}
 		}
-		if !wintun.EnsureLocal() {
+		if delegate.WintunMissing() {
 			return TUNCapability{
 				ServiceInstalled: svcInstalled,
 				Delegated:        true,
