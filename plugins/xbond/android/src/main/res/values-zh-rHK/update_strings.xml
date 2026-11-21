@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_check">檢查更新</string>
+    <string name="update_checking">正在檢查更新…</string>
+    <string name="update_development">此開發版本請透過手動方式更新。</string>
+    <string name="update_current">XBond 已是最新版本。</string>
+    <string name="update_available">發現新版本 XBond %1$s</string>
+    <string name="update_confirm">是否下載更新並開啟 Android 安裝器？</string>
+    <string name="update_download">下載更新</string>
+    <string name="update_downloading">正在下載更新…</string>
+    <string name="update_failed">檢查或安裝更新失敗，請再試一次。</string>
+    <string name="update_permission_denied">請允許 XBond 安裝應用程式以完成此更新。</string>
+</resources>
