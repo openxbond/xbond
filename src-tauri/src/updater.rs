@@ -1,7 +1,7 @@
 use serde::Serialize;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
@@ -15,6 +15,14 @@ pub fn mark_registered() {
 }
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
+const DOWNLOAD_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+const DOWNLOAD_STALL_TIMEOUT: Duration = Duration::from_secs(15);
+const GITHUB_RELEASE_PREFIX: &str = "https://github.com/openxbond/xbond/releases/download/";
+const GITHUB_MIRRORS: &[&str] = &[
+    "https://gh-proxy.com",
+    "https://ghproxy.imciel.com",
+    "https://ghfast.top",
+];
 
 #[derive(Default)]
 pub struct UpdateState {
@@ -233,13 +241,91 @@ pub async fn check_desktop_update(
     check(&app, &state, false).await
 }
 
+fn download_urls(original: &str) -> Vec<String> {
+    let mut urls = vec![original.to_string()];
+    if original.starts_with(GITHUB_RELEASE_PREFIX) {
+        for mirror in GITHUB_MIRRORS {
+            urls.push(format!("{mirror}/{original}"));
+        }
+    }
+    urls
+}
+
+async fn download_candidate(app: &AppHandle, mut candidate: Update) -> Result<Vec<u8>, String> {
+    if let Ok(mut status) = app.state::<UpdateState>().inner.lock() {
+        status.phase = Phase::Downloading {
+            received: 0,
+            total: None,
+        };
+    }
+    candidate.timeout = Some(DOWNLOAD_ATTEMPT_TIMEOUT);
+
+    let active = Arc::new(AtomicBool::new(true));
+    let finished = Arc::new(AtomicBool::new(false));
+    let last_activity_ms = Arc::new(AtomicU64::new(0));
+    let start = Instant::now();
+    let (tx, mut rx) = tauri::async_runtime::channel::<Result<Vec<u8>, String>>(1);
+
+    let app_for_task = app.clone();
+    let active_for_task = Arc::clone(&active);
+    let last_for_task = Arc::clone(&last_activity_ms);
+    let tx_task = tx.clone();
+    let task = tauri::async_runtime::spawn(async move {
+        let mut received = 0u64;
+        let result = candidate
+            .download(
+                |chunk, total| {
+                    if !active_for_task.load(Ordering::Acquire) {
+                        return;
+                    }
+                    received += chunk as u64;
+                    last_for_task.store(start.elapsed().as_millis() as u64, Ordering::Release);
+                    if let Ok(mut status) = app_for_task.state::<UpdateState>().inner.lock() {
+                        status.phase = Phase::Downloading { received, total };
+                    }
+                },
+                || {},
+            )
+            .await
+            .map_err(|err| err.to_string());
+        let _ = tx_task.send(result).await;
+    });
+
+    let finished_for_watch = Arc::clone(&finished);
+    let last_for_watch = Arc::clone(&last_activity_ms);
+    let stall_ms = DOWNLOAD_STALL_TIMEOUT.as_millis() as u64;
+    std::thread::spawn(move || {
+        while !finished_for_watch.load(Ordering::Acquire) {
+            std::thread::sleep(Duration::from_millis(500));
+            if finished_for_watch.load(Ordering::Acquire) {
+                break;
+            }
+            let now_ms = start.elapsed().as_millis() as u64;
+            let last_ms = last_for_watch.load(Ordering::Acquire);
+            if now_ms.saturating_sub(last_ms) >= stall_ms {
+                let _ = tx.blocking_send(Err("Download stalled".into()));
+                break;
+            }
+        }
+    });
+
+    let outcome = rx
+        .recv()
+        .await
+        .unwrap_or_else(|| Err("Download aborted".into()));
+    active.store(false, Ordering::Release);
+    finished.store(true, Ordering::Release);
+    task.abort();
+    outcome
+}
+
 #[tauri::command]
 pub async fn install_desktop_update(
     app: AppHandle,
     state: State<'_, UpdateState>,
     version: String,
 ) -> Result<(), String> {
-    let mut update = {
+    let update = {
         let mut status = state.inner.lock().map_err(|err| err.to_string())?;
         if !enabled()
             || status.reconciling_daemon
@@ -257,27 +343,49 @@ pub async fn install_desktop_update(
         };
         status.update.take().expect("update was checked")
     };
-    update.timeout = Some(Duration::from_secs(20 * 60));
-    let mut received = 0;
-    let result = update
-        .download_and_install(
-            |chunk, total| {
-                received += chunk as u64;
-                if let Ok(mut status) = state.inner.lock() {
-                    status.phase = Phase::Downloading { received, total };
-                }
-            },
-            || {
-                if let Ok(mut status) = state.inner.lock() {
-                    status.phase = Phase::Installing;
-                }
-            },
-        )
-        .await;
-    if let Err(error) = result {
+
+    let original_url = update.download_url.as_str().to_string();
+    let mut downloaded: Option<(Update, Vec<u8>)> = None;
+    let mut last_error = String::from("Download failed");
+
+    for candidate_url in download_urls(&original_url) {
+        let Ok(parsed) = candidate_url.parse() else {
+            continue;
+        };
+        let mut candidate = update.clone();
+        candidate.download_url = parsed;
+        match download_candidate(&app, candidate.clone()).await {
+            Ok(bytes) => {
+                downloaded = Some((candidate, bytes));
+                break;
+            }
+            Err(error) => {
+                eprintln!("[XBond Desktop] Update download failed from {candidate_url}: {error}");
+                last_error = error;
+            }
+        }
+    }
+
+    let Some((chosen, bytes)) = downloaded else {
         let mut status = state.inner.lock().map_err(|err| err.to_string())?;
         status.phase = Phase::Failed;
-        return Err(error.to_string());
+        return Err(last_error);
+    };
+
+    {
+        let mut status = state.inner.lock().map_err(|err| err.to_string())?;
+        status.phase = Phase::Installing;
+    }
+
+    let install_result = tauri::async_runtime::spawn_blocking(move || chosen.install(&bytes))
+        .await
+        .map_err(|err| err.to_string())
+        .and_then(|res| res.map_err(|err| err.to_string()));
+
+    if let Err(error) = install_result {
+        let mut status = state.inner.lock().map_err(|err| err.to_string())?;
+        status.phase = Phase::Failed;
+        return Err(error);
     }
     app.request_restart();
     Ok(())
@@ -322,4 +430,30 @@ pub fn on_launch(app: AppHandle) {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::download_urls;
+
+    #[test]
+    fn download_urls_include_mirrors_for_release_assets() {
+        let direct =
+            "https://github.com/openxbond/xbond/releases/download/v1.0.2/xbond-desktop-v1.0.2-windows-amd64.exe";
+        assert_eq!(
+            download_urls(direct),
+            vec![
+                direct,
+                "https://gh-proxy.com/https://github.com/openxbond/xbond/releases/download/v1.0.2/xbond-desktop-v1.0.2-windows-amd64.exe",
+                "https://ghproxy.imciel.com/https://github.com/openxbond/xbond/releases/download/v1.0.2/xbond-desktop-v1.0.2-windows-amd64.exe",
+                "https://ghfast.top/https://github.com/openxbond/xbond/releases/download/v1.0.2/xbond-desktop-v1.0.2-windows-amd64.exe",
+            ]
+        );
+    }
+
+    #[test]
+    fn download_urls_skip_mirrors_for_other_urls() {
+        let other = "https://example.com/xbond.exe";
+        assert_eq!(download_urls(other), vec![other]);
+    }
 }
