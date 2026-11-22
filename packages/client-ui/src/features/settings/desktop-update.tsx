@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { invokeDesktop } from "@/platform/local-api-bootstrap";
 
-import { formatDownloadProgress } from "./update-progress";
+import {
+  formatDownloadProgress,
+  selectLocalizedReleaseNote,
+} from "./update-progress";
 
 type UpdateStatus = {
   enabled: boolean;
@@ -18,6 +21,7 @@ type UpdateStatus = {
     | "installing"
     | "failed";
   version: string | null;
+  notesByLocale?: Record<string, string>;
   received?: number;
   total?: number | null;
   daemonError: boolean;
@@ -26,7 +30,7 @@ type UpdateStatus = {
 };
 
 export function DesktopUpdate() {
-  const { t } = useTranslation("settings");
+  const { t, i18n } = useTranslation("settings");
   const [update, setUpdate] = useState<UpdateStatus>();
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -97,6 +101,10 @@ export function DesktopUpdate() {
     update?.status === "downloading"
       ? formatDownloadProgress(update.received, update.total)
       : null;
+  const releaseNote =
+    version && !failed
+      ? selectLocalizedReleaseNote(update?.notesByLocale, i18n.language)
+      : null;
 
   return (
     <section
@@ -115,6 +123,11 @@ export function DesktopUpdate() {
             </div>
           )}
           {version && !failed && <p>{t("desktopUpdate.interruption")}</p>}
+          {releaseNote && (
+            <p className="mt-1.5 whitespace-pre-line text-muted-foreground/90">
+              {releaseNote}
+            </p>
+          )}
           {update?.daemonError && <p>{t("desktopUpdate.daemonError")}</p>}
           {update?.machineUpdateError && (
             <p>{t("desktopUpdate.machineUpdateError")}</p>

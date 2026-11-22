@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -24,6 +25,14 @@ const GITHUB_MIRRORS: &[&str] = &[
     "https://ghfast.top",
 ];
 
+const LOCALE_HEADINGS: &[(&str, &str)] = &[
+    ("繁體中文（香港）", "zh-hk"),
+    ("English", "en-us"),
+    ("简体中文", "zh-cn"),
+    ("한국어", "ko"),
+    ("فارسی", "fa"),
+];
+
 #[derive(Default)]
 pub struct UpdateState {
     inner: Mutex<UpdateStatus>,
@@ -33,6 +42,7 @@ pub struct UpdateState {
 struct UpdateStatus {
     phase: Phase,
     update: Option<Update>,
+    notes_by_locale: BTreeMap<String, String>,
     reconciling_daemon: bool,
     daemon_error: bool,
     machine_update_error: bool,
@@ -61,6 +71,7 @@ pub struct UpdateSnapshot {
     #[serde(flatten)]
     phase: Phase,
     version: Option<String>,
+    notes_by_locale: BTreeMap<String, String>,
     daemon_error: bool,
     machine_update_error: bool,
     reconciling_daemon: bool,
@@ -151,6 +162,64 @@ fn install_id_path() -> Option<std::path::PathBuf> {
     }
 }
 
+fn extract_sections_from_markdown(markdown: &str) -> BTreeMap<String, String> {
+    let mut map = BTreeMap::new();
+    let mut active_locale: Option<&str> = None;
+    let mut buffer: Vec<&str> = Vec::new();
+
+    for line in markdown.lines() {
+        let trimmed = line.trim();
+        if let Some(heading) = trimmed.strip_prefix("## ") {
+            if let Some(locale) = active_locale.take() {
+                let body = buffer.join("\n").trim().to_string();
+                if !body.is_empty() {
+                    map.insert(locale.to_string(), body);
+                }
+            }
+            buffer.clear();
+            let heading = heading.trim();
+            active_locale = LOCALE_HEADINGS
+                .iter()
+                .find(|(label, code)| *label == heading || *code == heading)
+                .map(|(_, code)| *code);
+            continue;
+        }
+        if active_locale.is_some() {
+            buffer.push(line.trim_end_matches('\r'));
+        }
+    }
+    if let Some(locale) = active_locale {
+        let body = buffer.join("\n").trim().to_string();
+        if !body.is_empty() {
+            map.insert(locale.to_string(), body);
+        }
+    }
+    map
+}
+
+fn extract_notes_by_locale(update: &Update) -> BTreeMap<String, String> {
+    let mut map = BTreeMap::new();
+    if let Some(object) = update
+        .raw_json
+        .get("notesByLocale")
+        .and_then(|value| value.as_object())
+    {
+        for (locale, value) in object {
+            if let Some(text) = value.as_str().map(str::trim).filter(|s| !s.is_empty()) {
+                map.insert(locale.clone(), text.to_string());
+            }
+        }
+    }
+    if !map.is_empty() {
+        return map;
+    }
+    update
+        .body
+        .as_deref()
+        .map(extract_sections_from_markdown)
+        .unwrap_or_default()
+}
+
 #[tauri::command]
 pub fn desktop_update_status(state: State<'_, UpdateState>) -> UpdateSnapshot {
     let status = state.inner.lock().unwrap_or_else(|err| err.into_inner());
@@ -158,6 +227,7 @@ pub fn desktop_update_status(state: State<'_, UpdateState>) -> UpdateSnapshot {
         enabled: enabled(),
         phase: status.phase,
         version: status.update.as_ref().map(|update| update.version.clone()),
+        notes_by_locale: status.notes_by_locale.clone(),
         daemon_error: status.daemon_error,
         machine_update_error: status.machine_update_error,
         reconciling_daemon: status.reconciling_daemon,
@@ -198,6 +268,7 @@ async fn check(app: &AppHandle, state: &UpdateState, automatic: bool) -> Result<
         std::fs::write(&marker, now.to_string()).map_err(|err| err.to_string())?;
         status.phase = Phase::Checking;
         status.update = None;
+        status.notes_by_locale.clear();
     }
     let result = async {
         let mut builder = app.updater_builder().header("Cache-Control", "no-cache")?;
@@ -215,9 +286,14 @@ async fn check(app: &AppHandle, state: &UpdateState, automatic: bool) -> Result<
     match result {
         Ok(Some(update)) if !release_asset(&update) => {
             status.phase = Phase::Failed;
+            status.notes_by_locale.clear();
             Err("Unexpected update download URL".into())
         }
         Ok(update) => {
+            status.notes_by_locale = update
+                .as_ref()
+                .map(extract_notes_by_locale)
+                .unwrap_or_default();
             status.phase = if update.is_some() {
                 Phase::Available
             } else {
@@ -228,6 +304,7 @@ async fn check(app: &AppHandle, state: &UpdateState, automatic: bool) -> Result<
         }
         Err(error) => {
             status.phase = Phase::Failed;
+            status.notes_by_locale.clear();
             Err(error.to_string())
         }
     }
@@ -434,7 +511,7 @@ pub fn on_launch(app: AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::download_urls;
+    use super::{download_urls, extract_sections_from_markdown};
 
     #[test]
     fn download_urls_include_mirrors_for_release_assets() {
@@ -455,5 +532,15 @@ mod tests {
     fn download_urls_skip_mirrors_for_other_urls() {
         let other = "https://example.com/xbond.exe";
         assert_eq!(download_urls(other), vec![other]);
+    }
+
+    #[test]
+    fn extract_sections_from_markdown_splits_locale_blocks() {
+        let markdown = "# XBond 1.0.3\n\n## 繁體中文（香港）\n\n- 繁體更新\n\n## English\n\n- English note\n\n## 简体中文\n\n- 简体更新\n\n## 升級須知 / Upgrade notes\n\n- Keep key\n";
+        let map = extract_sections_from_markdown(markdown);
+        assert_eq!(map.get("zh-hk").map(String::as_str), Some("- 繁體更新"));
+        assert_eq!(map.get("en-us").map(String::as_str), Some("- English note"));
+        assert_eq!(map.get("zh-cn").map(String::as_str), Some("- 简体更新"));
+        assert_eq!(map.len(), 3);
     }
 }

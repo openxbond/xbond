@@ -27,3 +27,21 @@ export function formatDownloadProgress(
   }
   return { percent: null, label: null };
 }
+
+/** Maps a UI locale tag to the matching single-locale release note section. */
+export function selectLocalizedReleaseNote(
+  notesByLocale: Record<string, string> | undefined,
+  language: string,
+): string | null {
+  if (!notesByLocale) return null;
+  const lower = language.trim().toLowerCase();
+  let preferred = "en-us";
+  if (/^(zh-tw|zh-hk|zh-mo|zh-hant)/.test(lower)) preferred = "zh-hk";
+  else if (lower.startsWith("zh")) preferred = "zh-cn";
+  else if (lower.startsWith("ko")) preferred = "ko";
+  else if (lower.startsWith("fa")) preferred = "fa";
+
+  const candidate =
+    notesByLocale[preferred]?.trim() || notesByLocale["en-us"]?.trim();
+  return candidate || null;
+}
