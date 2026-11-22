@@ -102,7 +102,20 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
     () => assemble(directory, tag, "", pem, "wrong"),
     /does not match/,
   );
-  assemble(directory, tag, "<script>test</script>", pem, key);
+  assemble(
+    directory,
+    tag,
+    "# XBond 0.4.2\n\n## English\n\n- <script>test</script>\n\n## 简体中文\n\n- 中文更新说明\n",
+    pem,
+    key,
+  );
+  const desktopManifest = JSON.parse(
+    fs.readFileSync(path.join(directory, "desktop.json"), "utf8"),
+  ) as { notesByLocale?: Record<string, string> };
+  assert.deepEqual(desktopManifest.notesByLocale, {
+    "en-us": "- <script>test</script>",
+    "zh-cn": "- 中文更新说明",
+  });
   verifyManifestAsset(directory, tag, "release-evidence", key);
   verifyManifestAsset(directory, tag, "desktop-linux-arm64-rpm", key);
   verifyManifestAsset(directory, tag, "android-universal", key);

@@ -32,7 +32,7 @@ XBond takes care of the proxy loop for you: import your connection configs, brin
 
 ## Download
 
-Installers and update manifests publish on the [download page](https://openxbond.github.io/xbond/download/); [GitHub Releases](https://github.com/openxbond/xbond/releases) carry the same artifacts with SHA256 checksums.
+Installers and update manifests publish on the [download page](https://openxbond.github.io/xbond/download/?lang=en); [GitHub Releases](https://github.com/openxbond/xbond/releases) carry the same artifacts with SHA256 checksums.
 
 | Platform | Form |
 | --- | --- |
@@ -48,7 +48,7 @@ Installers and update manifests publish on the [download page](https://openxbond
 
 ### Desktop
 
-1. Install the desktop app for your platform from the [download page](https://openxbond.github.io/xbond/download/) and launch it — the first launch registers and starts the local service.
+1. Install the desktop app for your platform from the [download page](https://openxbond.github.io/xbond/download/?lang=en) and launch it — the first launch registers and starts the local service.
 2. Sign in to an XBond account, or import a third-party subscription.
 3. Pick a traffic-capture mode and switch the connection on.
 

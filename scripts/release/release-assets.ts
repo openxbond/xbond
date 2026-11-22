@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { checksum, validateArchive } from "./artifact.ts";
+import { extractNotesByLocale } from "./notes.ts";
 import {
   androidAbis,
   androidAsset,
@@ -151,11 +152,24 @@ export function assemble(
   }
   asset("android-universal", androidAsset(tag));
   asset("dashboard", "dashboard.zip");
-  putJSON(directory, "desktop.json", { version, notes, platforms });
+  const notesByLocale = extractNotesByLocale(notes);
+  const hasLocalizedNotes = Object.keys(notesByLocale).length > 0;
+  putJSON(directory, "desktop.json", {
+    version,
+    notes,
+    ...(hasLocalizedNotes ? { notesByLocale } : {}),
+    platforms,
+  });
   asset("desktop-manifest", "desktop.json");
   asset("release-evidence", "release-evidence.json");
   const payload = Buffer.from(
-    JSON.stringify({ version, build, notes, assets }),
+    JSON.stringify({
+      version,
+      build,
+      notes,
+      ...(hasLocalizedNotes ? { notesByLocale } : {}),
+      assets,
+    }),
   );
   putJSON(directory, "release.json", {
     payload: payload.toString("base64"),
@@ -206,6 +220,7 @@ function readManifest(directory: string, tag: string, publicKey: string) {
   const manifest: {
     assets: Record<string, ReleaseAsset>;
     notes: string;
+    notesByLocale?: Record<string, string>;
     version: string;
     build: number;
   } = JSON.parse(payload.toString("utf8"));
@@ -421,7 +436,11 @@ export function buildPages(
   storeLinks: string[],
   publicKey: string,
 ) {
-  const { version, assets, notes } = readManifest(directory, tag, publicKey);
+  const { version, assets, notes, notesByLocale } = readManifest(
+    directory,
+    tag,
+    publicKey,
+  );
   const sums = fs.readFileSync(readAsset(directory, "SHA256SUMS"), "utf8");
   const checksums = new Map<string, string>();
   for (const line of sums.trimEnd().split("\n")) {
@@ -647,7 +666,7 @@ export function buildPages(
     <a class="btn" href="${escape(`${repo}/releases/tag/${tag}`)}" data-i18n="githubRelease">GitHub Release</a>
     <a class="btn" href="../SHA256SUMS" data-i18n="checksums">SHA-256 checksums</a>
   </div>
-  <details><summary data-i18n="releaseNotes">Release notes</summary><pre dir="auto">${escape(notes)}</pre></details>
+  <details><summary data-i18n="releaseNotes">Release notes</summary><pre id="release-notes" dir="auto">${escape(notes)}</pre></details>
 </article>`;
 
   // The page shell (CSS, topbar, hero, script) lives in
@@ -668,6 +687,8 @@ export function buildPages(
     releaseCard,
     stringsJson: JSON.stringify(DOWNLOAD_STRINGS),
     localesJson: JSON.stringify(DOWNLOAD_LOCALES),
+    notesByLocaleJson: JSON.stringify(notesByLocale ?? {}),
+    fullNotesJson: JSON.stringify(notes),
   };
   let html = template;
   for (const [name, value] of Object.entries(replacements)) {

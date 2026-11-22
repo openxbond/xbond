@@ -44,14 +44,52 @@ export function parseCommits(log: string): ReleaseCommit[] {
 }
 
 export const NOTE_LOCALES = ["zh-hk", "en-us", "zh-cn", "ko", "fa"] as const;
+export type NoteLocale = (typeof NOTE_LOCALES)[number];
 
-const NOTE_LABELS: Record<string, string> = {
+const NOTE_LABELS: Record<NoteLocale, string> = {
   "zh-hk": "繁體中文（香港）",
   "en-us": "English",
   "zh-cn": "简体中文",
   ko: "한국어",
   fa: "فارسی",
 };
+
+const LABEL_TO_LOCALE = new Map<string, NoteLocale>(
+  NOTE_LOCALES.flatMap((locale) => [
+    [NOTE_LABELS[locale], locale] as const,
+    [locale, locale] as const,
+  ]),
+);
+
+/** Splits combined multi-locale release notes back into per-locale markdown bodies. */
+export function extractNotesByLocale(
+  markdown: string,
+): Partial<Record<NoteLocale, string>> {
+  const result: Partial<Record<NoteLocale, string>> = {};
+  let activeLocale: NoteLocale | null = null;
+  let buffer: string[] = [];
+
+  function flush() {
+    if (!activeLocale) return;
+    const body = buffer.join("\n").trim();
+    if (body) result[activeLocale] = body;
+  }
+
+  for (const line of markdown.replace(/\r\n/g, "\n").split("\n")) {
+    const heading = /^##\s+(.+?)\s*$/.exec(line);
+    if (heading) {
+      flush();
+      activeLocale = LABEL_TO_LOCALE.get(heading[1]) ?? null;
+      buffer = [];
+      continue;
+    }
+    if (activeLocale) {
+      buffer.push(line);
+    }
+  }
+  flush();
+  return result;
+}
 
 function section(title: string, subjects: string[]): string {
   if (subjects.length === 0) return "";
@@ -114,7 +152,7 @@ export function releaseNotes(options: {
 
   const localized = notes.map(
     (note) =>
-      `## ${NOTE_LABELS[note.locale] ?? note.locale}\n\n${note.body.trim()}\n`,
+      `## ${NOTE_LABELS[note.locale as NoteLocale] ?? note.locale}\n\n${note.body.trim()}\n`,
   );
 
   const body = localized.length
