@@ -1,6 +1,6 @@
 {
   "name": "xbond",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "XBond CLI, desktop and mobile clients, and web dashboard.",
   "keywords": [
