@@ -32,7 +32,7 @@ XBond 帮你导入连接配置、建立连接、选择代理策略，并查看�
 
 ## 下载
 
-安装包与更新清单统一发布在[下载页](https://openxbond.github.io/xbond/download/)，[GitHub Releases](https://github.com/openxbond/xbond/releases) 提供同一批产物及 SHA256 校验。
+安装包与更新清单统一发布在[下载页](https://openxbond.github.io/xbond/download/?lang=zh)，[GitHub Releases](https://github.com/openxbond/xbond/releases) 提供同一批产物及 SHA256 校验。
 
 | 平台 | 形态 |
 | --- | --- |
@@ -48,7 +48,7 @@ XBond 帮你导入连接配置、建立连接、选择代理策略，并查看�
 
 ### 桌面
 
-1. 从[下载页](https://openxbond.github.io/xbond/download/)安装对应平台的桌面应用并启动，首次启动会注册并启动本机服务。
+1. 从[下载页](https://openxbond.github.io/xbond/download/?lang=zh)安装对应平台的桌面应用并启动，首次启动会注册并启动本机服务。
 2. 登录 XBond 账号，或导入第三方订阅。
 3. 选择流量接管模式，开启连接。
 

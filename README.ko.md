@@ -32,7 +32,7 @@ XBond는 프록시에 필요한 전 과정을 한 번에 처리합니다. 연결
 
 ## 다운로드
 
-설치 패키지와 업데이트 매니페스트는 [다운로드 페이지](https://openxbond.github.io/xbond/download/)에, 동일한 아티팩트와 SHA256 검증값은 [GitHub Releases](https://github.com/openxbond/xbond/releases)에 있습니다.
+설치 패키지와 업데이트 매니페스트는 [다운로드 페이지](https://openxbond.github.io/xbond/download/?lang=ko)에, 동일한 아티팩트와 SHA256 검증값은 [GitHub Releases](https://github.com/openxbond/xbond/releases)에 있습니다.
 
 | 플랫폼 | 형태 |
 | --- | --- |
@@ -48,7 +48,7 @@ XBond는 프록시에 필요한 전 과정을 한 번에 처리합니다. 연결
 
 ### 데스크톱
 
-1. [다운로드 페이지](https://openxbond.github.io/xbond/download/)에서 플랫폼에 맞는 데스크톱 앱을 설치해 실행합니다. 처음 실행할 때 로컬 서비스가 등록되고 시작됩니다.
+1. [다운로드 페이지](https://openxbond.github.io/xbond/download/?lang=ko)에서 플랫폼에 맞는 데스크톱 앱을 설치해 실행합니다. 처음 실행할 때 로컬 서비스가 등록되고 시작됩니다.
 2. XBond 계정에 로그인하거나 서드파티 구독을 가져옵니다.
 3. 트래픽 처리 방식을 고르고 연결을 켭니다.
 
