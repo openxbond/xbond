@@ -1,5 +1,6 @@
 import Foundation
 import NetworkExtension
+import UserNotifications
 import XBondMobile
 
 final class PacketTunnelProvider: NEPacketTunnelProvider {
@@ -47,6 +48,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
                     service = tunnel
                     packets = bridge
                     bridge.start()
+                    UNUserNotificationCenter.current().removeDeliveredNotifications(
+                        withIdentifiers: [MobileSupport.disconnectNotificationID]
+                    )
                     completionHandler(nil)
                 } catch {
                     completionHandler(error)
@@ -57,12 +61,55 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         queue.async { [self] in
+            notifyUnexpectedDisconnectIfNeeded(reason: reason)
             packets?.stop()
             try? service?.close()
             service = nil
             packets = nil
             completionHandler()
         }
+    }
+
+    private func notifyUnexpectedDisconnectIfNeeded(reason: NEProviderStopReason) {
+        let revoked: Bool
+        switch reason {
+        case .superceded, .configurationDisabled, .configurationRemoved, .providerDisabled:
+            revoked = true
+        case .providerFailed, .connectionFailed, .configurationFailed,
+             .authenticationCanceled, .noNetworkAvailable, .unrecoverableNetworkChange, .idleTimeout:
+            revoked = false
+        case .none, .userInitiated, .userLogout, .userSwitch, .sleep, .appUpdate:
+            return
+        @unknown default:
+            return
+        }
+
+        let group = DispatchGroup()
+        group.enter()
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            let authorized = settings.authorizationStatus == .authorized
+                || settings.authorizationStatus == .provisional
+                || settings.authorizationStatus == .ephemeral
+            guard authorized else {
+                group.leave()
+                return
+            }
+            let notice = MobileSupport.disconnectNotice(revoked: revoked)
+            let content = UNMutableNotificationContent()
+            content.title = notice.title
+            content.body = notice.body
+            content.sound = .default
+            let request = UNNotificationRequest(
+                identifier: MobileSupport.disconnectNotificationID,
+                content: content,
+                trigger: nil
+            )
+            center.add(request) { _ in
+                group.leave()
+            }
+        }
+        _ = group.wait(timeout: .now() + 1.0)
     }
 
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {

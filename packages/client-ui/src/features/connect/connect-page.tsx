@@ -67,6 +67,7 @@ import { isClashX } from "@/platform/clashx-bridge";
 import { performHaptic } from "@/platform/haptic";
 import { isTauriRuntime, useIsMobile } from "@/platform/host";
 import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
+import { promptMobileNotificationOnFirstConnect } from "@/platform/notifications";
 import { useAPIInfo, useClient, identityAtom } from "@/state/controller-target";
 import { useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
@@ -299,6 +300,7 @@ export default function Connect() {
         async () => {
           setPendingConnection("connecting");
           try {
+            await promptMobileNotificationOnFirstConnect();
             await up();
           } catch (err) {
             caught = err;

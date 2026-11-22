@@ -2,6 +2,7 @@ import Foundation
 import NetworkExtension
 import Tauri
 import UIKit
+import UserNotifications
 import WebKit
 import XBondMobile
 
@@ -23,6 +24,15 @@ struct TextFileArgs: Decodable {
   let contents: String
   let fileName: String
   let mimeType: String?
+}
+
+struct PreferenceKeyArgs: Decodable {
+  let key: String
+}
+
+struct PreferenceSetArgs: Decodable {
+  let key: String
+  let value: String
 }
 
 /**
@@ -201,6 +211,60 @@ class XbondPlugin: Plugin {
       // Keep delegate alive for the duration of the picker interaction.
       objc_setAssociatedObject(picker, &ExportPickerDelegate.associatedKey, delegate, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
       presenter.present(picker, animated: true)
+    }
+  }
+
+  @objc public func getPreference(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(PreferenceKeyArgs.self)
+    if let value = UserDefaults.standard.string(forKey: args.key) {
+      invoke.resolve(value)
+    } else {
+      invoke.resolve()
+    }
+  }
+
+  @objc public func setPreference(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(PreferenceSetArgs.self)
+    UserDefaults.standard.set(args.value, forKey: args.key)
+    if args.key == MobileSupport.appLanguageKey {
+      UserDefaults(suiteName: MobileSupport.appGroup)?.set(args.value, forKey: MobileSupport.appLanguageKey)
+    }
+    invoke.resolve(true)
+  }
+
+  @objc public func getNotificationPermissionState(_ invoke: Invoke) throws {
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      let state: String
+      switch settings.authorizationStatus {
+      case .authorized, .provisional, .ephemeral:
+        state = "granted"
+      case .denied:
+        state = "denied"
+      case .notDetermined:
+        state = "prompt"
+      @unknown default:
+        state = "prompt"
+      }
+      invoke.resolve(state)
+    }
+  }
+
+  @objc public func requestNotificationPermission(_ invoke: Invoke) throws {
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+      invoke.resolve(granted)
+    }
+  }
+
+  @objc public func openNotificationSettings(_ invoke: Invoke) throws {
+    DispatchQueue.main.async {
+      let target = UIApplication.openNotificationSettingsURLString
+      guard let url = URL(string: target) else {
+        invoke.resolve(false)
+        return
+      }
+      UIApplication.shared.open(url) { opened in
+        invoke.resolve(opened)
+      }
     }
   }
 

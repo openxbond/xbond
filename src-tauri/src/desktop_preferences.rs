@@ -7,6 +7,7 @@ pub(crate) struct DesktopPreferences {
     pub autostart_initialized: bool,
     pub close_to_tray: bool,
     pub silent_start: bool,
+    pub notifications: bool,
 }
 
 impl Default for DesktopPreferences {
@@ -15,6 +16,7 @@ impl Default for DesktopPreferences {
             autostart_initialized: false,
             close_to_tray: true,
             silent_start: true,
+            notifications: true,
         }
     }
 }
@@ -38,5 +40,20 @@ impl DesktopPreferences {
             .and_then(|()| fs::write(&temporary, data))
             .and_then(|()| fs::rename(temporary, path))
             .map_err(|err| err.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_notifications_field_defaults_to_true() {
+        let prefs: DesktopPreferences = serde_json::from_str(
+            r#"{"autostart_initialized":true,"close_to_tray":false,"silent_start":false}"#,
+        )
+        .expect("legacy preferences should deserialize");
+        assert!(prefs.notifications);
+        assert!(!prefs.close_to_tray);
     }
 }

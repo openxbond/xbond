@@ -659,6 +659,22 @@ const KO = {
       silentStartDesc: "로그인 시 창을 열지 않고 시스템 트레이에서 시작합니다",
       closeToTray: "닫을 때 시스템 트레이로 최소화",
       closeToTrayDesc: "창을 닫을 때 프록시를 백그라운드에서 유지합니다",
+      notifications: "시스템 알림",
+      notificationsDesc:
+        "백그라운드 서비스가 오프라인이거나 트레이 작업이 실패할 때 알림을 표시합니다",
+      systemNotificationSettings: "시스템 알림 설정",
+    },
+    mobileNotifications: {
+      title: "알림",
+      descAndroid:
+        "VPN 실행 상태 알림, 빠른 연결 해제 및 권한 철회 알림을 표시합니다",
+      descIos:
+        "백그라운드에서 예기치 않게 연결이 끊기거나 VPN 권한이 변경될 때 알립니다",
+      granted: "허용됨",
+      denied: "시스템 설정에서 꺼짐",
+      prompt: "허용되지 않음",
+      enableAction: "알림 허용",
+      openSettingsAction: "시스템 설정",
     },
     terminalCommand: "터미널 프록시 명령",
     terminalCommandDesc: "터미널 형식에 맞는 프록시 환경 변수를 복사합니다.",

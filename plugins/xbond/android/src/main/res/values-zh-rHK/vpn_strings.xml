@@ -5,5 +5,12 @@
     <string name="notification_establishing">正在建立 XBond VPN…</string>
     <string name="notification_needs_permission">XBond VPN 需要授權</string>
     <string name="notification_active">XBond VPN 運行中</string>
+    <string name="notification_active_split_allow">XBond VPN 運行中 · 僅代理 %1$d 個應用</string>
+    <string name="notification_active_split_disallow">XBond VPN 運行中 · 已繞過 %1$d 個應用</string>
+    <string name="notification_revoked">VPN 已中斷，點擊重新授權</string>
     <string name="notification_disconnect">斷線</string>
+    <string name="notification_channel_name">VPN 運行狀態</string>
+    <string name="notification_channel_desc">持續顯示 XBond VPN 連線狀態與快捷斷線操作</string>
+    <string name="notification_alert_channel_name">VPN 異常提醒</string>
+    <string name="notification_alert_channel_desc">當 VPN 權限被撤回或背景意外中斷時提醒</string>
 </resources>

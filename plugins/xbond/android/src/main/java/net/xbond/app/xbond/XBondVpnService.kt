@@ -1,10 +1,14 @@
 package net.xbond.app.xbond
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.VpnService
 import android.os.Binder
 import android.os.Build
@@ -12,7 +16,10 @@ import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.annotation.StringRes
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import java.io.File
+import java.util.Locale
 import mobile.TunnelService
 
 /**
@@ -72,6 +79,14 @@ class XBondVpnService : VpnService() {
             Thread { service.rebuildInterfaceForSplitTunnel() }.start()
         }
 
+        /** Re-posts the foreground notification in the active app locale. */
+        fun refreshNotificationIfActive() {
+            val service = active ?: return
+            if (service.vpnInterface != null) {
+                service.goForeground(R.string.notification_active)
+            }
+        }
+
         const val TAG = "XBondVpnService"
         const val ACTION_START = "net.xbond.app.START"
         const val ACTION_STOP = "net.xbond.app.STOP"
@@ -84,7 +99,9 @@ class XBondVpnService : VpnService() {
         /** When non-empty, ONLY these packages ride the VPN. */
         const val EXTRA_ALLOWED = "allowedPackages"
         const val NOTIFICATION_ID = 1
+        const val ALERT_NOTIFICATION_ID = 2
         const val CHANNEL_ID = "xbond_vpn"
+        const val ALERT_CHANNEL_ID = "xbond_vpn_alerts"
 
         /**
          * Permission contract for the future UI activity: returns the
@@ -192,7 +209,9 @@ class XBondVpnService : VpnService() {
 
                 val pfd = buildVpnInterface() ?: run {
                     Log.e(TAG, "Failed to establish VPN interface (not prepared?)")
-                    goForeground(R.string.notification_needs_permission)
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    postAlertNotification(R.string.notification_needs_permission)
+                    stopSelf()
                     return
                 }
 
@@ -384,22 +403,48 @@ class XBondVpnService : VpnService() {
         }
     }
 
-    private fun goForeground(
-        @StringRes message: Int,
-    ) {
-        val manager = getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "XBond VPN",
-                NotificationManager.IMPORTANCE_LOW,
-            )
-            manager.createNotificationChannel(channel)
+    private fun localizedContext(): Context {
+        val code = runCatching {
+            getSharedPreferences("xbond_ui_preferences", Context.MODE_PRIVATE)
+                .getString("app_lang", null)
+        }.getOrNull() ?: return this
+        val locale = when (code) {
+            "zh_HK" -> Locale.Builder().setLanguage("zh").setRegion("HK").build()
+            "zh_CN" -> Locale.Builder().setLanguage("zh").setRegion("CN").build()
+            "en_US" -> Locale.Builder().setLanguage("en").setRegion("US").build()
+            "ko" -> Locale.Builder().setLanguage("ko").build()
+            "fa" -> Locale.Builder().setLanguage("fa").build()
+            else -> return this
         }
+        val config = Configuration(resources.configuration)
+        config.setLocale(locale)
+        return createConfigurationContext(config)
+    }
 
-        // The launcher activity lives in the app module; resolve it by
-        // package so the plugin library does not depend on it.
-        val openIntent = packageManager.getLaunchIntentForPackage(packageName)?.let { launch ->
+    private fun ensureNotificationChannels(manager: NotificationManager, l10n: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val statusChannel = NotificationChannel(
+            CHANNEL_ID,
+            l10n.getString(R.string.notification_channel_name),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = l10n.getString(R.string.notification_channel_desc)
+            setShowBadge(false)
+        }
+        val alertChannel = NotificationChannel(
+            ALERT_CHANNEL_ID,
+            l10n.getString(R.string.notification_alert_channel_name),
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = l10n.getString(R.string.notification_alert_channel_desc)
+            setShowBadge(false)
+        }
+        manager.createNotificationChannel(statusChannel)
+        manager.createNotificationChannel(alertChannel)
+    }
+
+    private fun launchAppPendingIntent(): PendingIntent? =
+        packageManager.getLaunchIntentForPackage(packageName)?.let { launch ->
             PendingIntent.getActivity(
                 this,
                 0,
@@ -407,6 +452,64 @@ class XBondVpnService : VpnService() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
         }
+
+    private fun activeNotificationText(l10n: Context): String {
+        val (mode, packages) = SplitTunnelPrefs.read(this)
+        return when {
+            mode == SplitTunnelPrefs.MODE_ALLOW && packages.isNotEmpty() ->
+                l10n.getString(R.string.notification_active_split_allow, packages.size)
+            mode == SplitTunnelPrefs.MODE_DISALLOW && packages.isNotEmpty() ->
+                l10n.getString(R.string.notification_active_split_disallow, packages.size)
+            else -> l10n.getString(R.string.notification_active)
+        }
+    }
+
+    private fun areNotificationsPermitted(): Boolean {
+        if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun postAlertNotification(@StringRes message: Int) {
+        if (!areNotificationsPermitted()) return
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        val l10n = localizedContext()
+        ensureNotificationChannels(manager, l10n)
+
+        val openIntent = launchAppPendingIntent()
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, ALERT_CHANNEL_ID)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+        val notification = builder
+            .setContentTitle("XBond")
+            .setContentText(l10n.getString(message))
+            .setSmallIcon(R.drawable.ic_stat_xbond)
+            .setCategory(Notification.CATEGORY_ERROR)
+            .setAutoCancel(true)
+            .apply { if (openIntent != null) setContentIntent(openIntent) }
+            .build()
+        runCatching { manager.notify(ALERT_NOTIFICATION_ID, notification) }
+    }
+
+    private fun goForeground(
+        @StringRes message: Int,
+    ) {
+        val manager = getSystemService(NotificationManager::class.java)
+        val l10n = localizedContext()
+        ensureNotificationChannels(manager, l10n)
+        if (message == R.string.notification_active) {
+            manager.cancel(ALERT_NOTIFICATION_ID)
+        }
+
+        // The launcher activity lives in the app module; resolve it by
+        // package so the plugin library does not depend on it.
+        val openIntent = launchAppPendingIntent()
         val stopIntent = PendingIntent.getService(
             this,
             0,
@@ -415,7 +518,7 @@ class XBondVpnService : VpnService() {
         )
         val disconnectAction = Notification.Action.Builder(
             android.R.drawable.ic_menu_close_clear_cancel,
-            getString(R.string.notification_disconnect),
+            l10n.getString(R.string.notification_disconnect),
             stopIntent,
         ).build()
 
@@ -426,15 +529,20 @@ class XBondVpnService : VpnService() {
             Notification.Builder(this)
         }
         val showDisconnectAction = message == R.string.notification_active
-        val notification: Notification = builder
+        val contentText = if (showDisconnectAction) activeNotificationText(l10n) else l10n.getString(message)
+        builder
             .setContentTitle("XBond")
-            .setContentText(getString(message))
+            .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_stat_xbond)
             .setCategory(Notification.CATEGORY_SERVICE)
+            .setOnlyAlertOnce(true)
             .apply { if (openIntent != null) setContentIntent(openIntent) }
             .apply { if (showDisconnectAction) addAction(disconnectAction) }
             .setOngoing(true)
-            .build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+        }
+        val notification: Notification = builder.build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
@@ -458,8 +566,12 @@ class XBondVpnService : VpnService() {
         // Permission revoked by the user or another VPN took over: full
         // teardown, and the sticky restart must not resurrect without
         // permission.
+        val wasConnected = vpnInterface != null
         lastConfig = ""
         stopAndShutdown()
+        if (wasConnected) {
+            postAlertNotification(R.string.notification_revoked)
+        }
         super.onRevoke()
     }
 

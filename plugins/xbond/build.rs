@@ -13,6 +13,9 @@ const COMMANDS: &[&str] = &[
     "save_text_file",
     "share_text_file",
     "perform_haptic",
+    "get_notification_permission_state",
+    "request_notification_permission",
+    "open_notification_settings",
 ];
 
 fn main() {

@@ -662,6 +662,20 @@ const FA = {
       closeToTray: "کوچک‌سازی به سینی سیستم هنگام بستن",
       closeToTrayDesc:
         "هنگام بستن پنجره، پراکسی را در پس‌زمینه در حال اجرا نگه دارید",
+      notifications: "اعلان‌های سیستم",
+      notificationsDesc:
+        "نمایش هشدار هنگام آفلاین شدن سرویس پس‌زمینه یا خطا در عملیات سینی",
+      systemNotificationSettings: "تنظیمات اعلان سیستم",
+    },
+    mobileNotifications: {
+      title: "اعلان‌ها",
+      descAndroid: "نمایش وضعیت مداوم VPN، دکمه قطع سریع و هشدار لغو دسترسی",
+      descIos: "هشدار هنگام قطع غیرمنتظره VPN در پس‌زمینه یا تغییر دسترسی",
+      granted: "فعال",
+      denied: "در تنظیمات سیستم غیرفعال است",
+      prompt: "مجاز نشده",
+      enableAction: "فعال‌سازی اعلان‌ها",
+      openSettingsAction: "تنظیمات سیستم",
     },
     terminalCommand: "فرمان پروکسی ترمینال",
     terminalCommandDesc: "متغیر محیطی پروکسی را در قالب ترمینال شما کپی می‌کند.",

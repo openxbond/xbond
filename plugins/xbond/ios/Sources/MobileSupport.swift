@@ -4,6 +4,36 @@ import XBondMobile
 enum MobileSupport {
     static let providerID = "net.xbond.app.PacketTunnel"
     static let appGroup = "group.net.xbond.app"
+    static let appLanguageKey = "app_lang"
+    static let disconnectNotificationID = "xbond.vpn.disconnected"
+
+    static func disconnectNotice(revoked: Bool) -> (title: String, body: String) {
+        let saved = UserDefaults(suiteName: appGroup)?.string(forKey: appLanguageKey)
+        let lang = (saved ?? Locale.preferredLanguages.first ?? "en").lowercased()
+        if lang == "zh_hk" || lang.hasPrefix("zh-hant") || lang.hasPrefix("zh-hk") || lang.hasPrefix("zh-tw") || lang.hasPrefix("zh-mo") {
+            return revoked
+                ? ("XBond VPN 已中斷", "VPN 權限或設定已變更，需要重新連線。")
+                : ("XBond VPN 已中斷", "背景連線已意外斷開，請返回應用檢查。")
+        }
+        if lang == "zh_cn" || lang.hasPrefix("zh") {
+            return revoked
+                ? ("XBond VPN 已中断", "VPN 权限或配置已变更，需要重新连接。")
+                : ("XBond VPN 已中断", "后台连接意外断开，请返回应用检查。")
+        }
+        if lang == "ko" || lang.hasPrefix("ko") {
+            return revoked
+                ? ("XBond VPN 연결 끊김", "VPN 권한 또는 구성이 변경되었습니다. 다시 연결해 주세요.")
+                : ("XBond VPN 연결 끊김", "백그라운드에서 예기치 않게 연결이 끊어졌습니다.")
+        }
+        if lang == "fa" || lang.hasPrefix("fa") {
+            return revoked
+                ? ("‏VPN XBond قطع شد", "دسترسی یا پیکربندی VPN تغییر کرده است. دوباره متصل شوید.")
+                : ("‏VPN XBond قطع شد", "اتصال در پس‌زمینه به‌طور غیرمنتظره قطع شد.")
+        }
+        return revoked
+            ? ("XBond VPN disconnected", "VPN permission or configuration changed. Tap to reconnect.")
+            : ("XBond VPN disconnected", "The background connection stopped unexpectedly.")
+    }
     private static let sharedDirectory = Result<URL, Error> {
         #if targetEnvironment(simulator)
         let appSupport = try FileManager.default.url(

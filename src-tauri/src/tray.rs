@@ -1170,7 +1170,12 @@ fn state_icon(app: &AppHandle, state: &TrayState, connecting: bool) -> Option<Im
 }
 
 fn notify(app: &AppHandle, title: &str, body: &str) {
-    let _ = app.notification().builder().title(title).body(body).show();
+    if !app.state::<crate::commands::ShellState>().notifications() {
+        return;
+    }
+    if let Err(err) = app.notification().builder().title(title).body(body).show() {
+        eprintln!("[XBond Desktop] Notification failed: {err}");
+    }
 }
 
 #[cfg(test)]

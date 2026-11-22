@@ -5,5 +5,12 @@
     <string name="notification_establishing">Establishing XBond VPN…</string>
     <string name="notification_needs_permission">XBond VPN needs permission</string>
     <string name="notification_active">XBond VPN active</string>
+    <string name="notification_active_split_allow">XBond VPN active · %1$d apps allowed</string>
+    <string name="notification_active_split_disallow">XBond VPN active · %1$d apps bypassed</string>
+    <string name="notification_revoked">VPN disconnected. Tap to re-authorize.</string>
     <string name="notification_disconnect">Disconnect</string>
+    <string name="notification_channel_name">VPN status</string>
+    <string name="notification_channel_desc">Ongoing VPN status and quick disconnect action</string>
+    <string name="notification_alert_channel_name">VPN alerts</string>
+    <string name="notification_alert_channel_desc">Alerts when VPN permission is revoked or disconnected unexpectedly</string>
 </resources>

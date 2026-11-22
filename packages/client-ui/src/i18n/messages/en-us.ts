@@ -667,6 +667,22 @@ const EN = {
         "Start in the system tray without opening the window when you sign in",
       closeToTray: "Minimize to tray on close",
       closeToTrayDesc: "Keep proxy running in background when closing window",
+      notifications: "System notifications",
+      notificationsDesc:
+        "Show alerts when the background service goes offline or a tray action fails",
+      systemNotificationSettings: "System notification settings",
+    },
+    mobileNotifications: {
+      title: "Notifications",
+      descAndroid:
+        "Shows ongoing VPN status, quick disconnect action, and permission revocation alerts",
+      descIos:
+        "Alerts when the VPN disconnects unexpectedly in the background or permission changes",
+      granted: "Enabled",
+      denied: "Disabled in system settings",
+      prompt: "Not authorized",
+      enableAction: "Enable notifications",
+      openSettingsAction: "System settings",
     },
     terminalCommand: "Terminal proxy command",
     terminalCommandDesc:

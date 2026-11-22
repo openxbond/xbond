@@ -23,6 +23,7 @@
 | `get_preference`／`set_preference` | 同名 | UI 鍵值持久化 |
 | `sync_system_bars` | `syncSystemBars` | 系統欄隨主題同步：圖標明暗＋欄色＋視窗背景（Android 15+ edge-to-edge 下欄色是 no-op，透明欄露出的是視窗背景，必須一併上色）。顏色取 `theme-color` meta，須與 `tokens.css` 的 `--background` 十六進制一致 |
 | `deliver_account_callback` | `deliverAccountCallback` | OAuth code/state POST `/localapi/v0/account/callback`（8×500ms 重試） |
+| `get_notification_permission_state`／`request_notification_permission`／`open_notification_settings` | 同名 | 通知權限狀態查詢（`granted`/`denied`/`prompt`）、Android 13+ 首次連線一次性的運行時請求及系統通知設定跳轉（iOS 同名實現） |
 
 外部鏈接統一走 `plugin:opener|open_url`；深鏈走 `tauri-plugin-deep-link`（`deep-link://new-url` 事件 → `packages/client-ui/src/platform/deep-links.ts` 路由導入／導航，callback 類型調 `deliver_account_callback` 後派發既有 `xbond-account-updated` 事件）。偏好持久化在 tauri 協議固定源下由 localStorage 承擔（舊殼的隨機端口源已消失）。
 
@@ -32,7 +33,7 @@
 
 1. **prepare**：UI 啟動前經 `XBondVpnService.prepare(context)` 取得授權意圖（非空 = 先請求權限）；服務不自行繞過。
 2. **啟動**：LocalAPI `/up` → PlatformBridge `requestConnect()` 同步建立 VPN（需要同意時拋錯、LocalAPI 答 409、系統對話框浮在應用上）→ 構建 TUN（`172.19.0.1/30`、`198.18.0.1/30`、`fdfe:dcba:9876::1/126`、DNS `172.19.0.2`、默認路由、MTU 1500）→ `establish()` → 前台通知常駐（`systemExempted`）→ fd 以 `dup().detachFd()` 交給 `TunnelService.startActive(fd)`——核心每次 start 再 dup 自己的一份並在停止時關閉，平台保留原件並在拆除時關閉交出的那份，任何一側不雙關閉。漏關交出的 dup 會令系統 VPN 介面在 `/down` 後仍然存在（介面壽命跟隨最後一個 fd）。
-3. **粘性恢復**：`START_STICKY`；進程被殼後系統以空 intent 重啟時只拉回服務與 LocalAPI（UI 或磁貼再經 `/up` 重建隧道）。`onRevoke`（撤權或他方 VPN 接管）清空配置並完整拆除。
+3. **粘性恢復**：`START_STICKY`；進程被殼後系統以空 intent 重啟時只拉回服務與 LocalAPI（UI 或磁貼再經 `/up` 重建隧道）。`onRevoke`（撤權或他方 VPN 接管）清空配置並完整拆除，若先前處於已連線且通知已授權，發送一次性中斷提醒（重連後自動清除）。
 4. **停止**：`/down` → `requestDisconnect()` 先 `TunnelService.Stop()` 再關接口、移除通知；服務本身存活（UI 存續期間 LocalAPI 保持可用）；`ACTION_STOP` 與 `onRevoke` 完整收縮。
 
 ### 進程內 LocalAPI 與移動運行時
