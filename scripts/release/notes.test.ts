@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseCommits, releaseNotes } from "./notes.ts";
+import { extractNotesByLocale, parseCommits, releaseNotes } from "./notes.ts";
 
 const log = [
   "a1\tfeat(mobile): add save and share export for logs",
@@ -163,4 +163,28 @@ test("a release with only internal commits still explains itself", () => {
   });
   assert.match(notes, /本版以內部改進與穩定性修復為主/);
   assert.doesNotMatch(notes, /tidy up/);
+});
+
+test("extractNotesByLocale splits localized sections and ignores non-locale headings", () => {
+  const combined = releaseNotes({
+    version: "1.0.3",
+    candidate: false,
+    commits: [],
+    previousTag: "v1.0.2",
+    notes: [
+      { locale: "en-us", body: "- Added mirror fallback." },
+      { locale: "zh-cn", body: "- 新增镜像回退。" },
+      { locale: "zh-hk", body: "- 新增鏡像回退。" },
+      { locale: "ko", body: "- 미러 폴백 추가." },
+      { locale: "fa", body: "- افزودن آینه جایگزین." },
+    ],
+  });
+  assert.deepEqual(extractNotesByLocale(combined), {
+    "zh-hk": "- 新增鏡像回退。",
+    "en-us": "- Added mirror fallback.",
+    "zh-cn": "- 新增镜像回退。",
+    ko: "- 미러 폴백 추가.",
+    fa: "- افزودن آینه جایگزین.",
+  });
+  assert.deepEqual(extractNotesByLocale("## Features\n\n- Something"), {});
 });

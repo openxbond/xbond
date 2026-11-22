@@ -873,6 +873,9 @@
   <script>
     const STRINGS = @@stringsJson@@;
     const LOCALES = @@localesJson@@;
+    const NOTES_BY_LOCALE = @@notesByLocaleJson@@;
+    const FULL_NOTES = @@fullNotesJson@@;
+    const NOTE_KEYS = { en: "en-us", zh: "zh-cn", "zh-HK": "zh-hk", ko: "ko", fa: "fa" };
     const select = document.getElementById("lang");
     let currentLocale = "en";
     const docker = {
@@ -944,17 +947,29 @@
       );
       return { run: runLines.join(" \\\n"), compose: composeLines.join("\n") + "\n" };
     }
+    function normalizeLocale(tag) {
+      if (!tag) return null;
+      const lower = tag.trim().toLowerCase();
+      if (lower === "en" || lower === "en-us" || lower.startsWith("en-")) return "en";
+      if (/^(zh-tw|zh-hk|zh-mo|zh-hant)/.test(lower)) return "zh-HK";
+      if (lower.startsWith("zh")) return "zh";
+      if (lower === "ko" || lower.startsWith("ko-")) return "ko";
+      if (lower === "fa" || lower.startsWith("fa-")) return "fa";
+      return null;
+    }
     function detect() {
+      try {
+        const param = new URLSearchParams(location.search).get("lang");
+        const fromUrl = normalizeLocale(param);
+        if (fromUrl && STRINGS[fromUrl]) return fromUrl;
+      } catch {}
       try {
         const saved = localStorage.getItem("xbond-lang");
         if (saved && STRINGS[saved]) return saved;
       } catch {}
       for (const tag of navigator.languages || []) {
-        const lower = tag.toLowerCase();
-        if (/^(zh-tw|zh-hk|zh-hant)/.test(lower)) return "zh-HK";
-        if (lower.startsWith("zh")) return "zh";
-        if (lower.startsWith("ko")) return "ko";
-        if (lower.startsWith("fa")) return "fa";
+        const normalized = normalizeLocale(tag);
+        if (normalized && STRINGS[normalized]) return normalized;
       }
       return "en";
     }
@@ -985,6 +1000,11 @@
       select.setAttribute("aria-label", strings.langAria);
       for (const button of document.querySelectorAll(".copy-btn"))
         button.setAttribute("aria-label", strings.copy);
+      const notesEl = document.getElementById("release-notes");
+      if (notesEl) {
+        const noteKey = NOTE_KEYS[locale];
+        notesEl.textContent = (noteKey && NOTES_BY_LOCALE[noteKey]) || FULL_NOTES;
+      }
       try {
         localStorage.setItem("xbond-lang", locale);
       } catch {}
