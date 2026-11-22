@@ -1,0 +1,3 @@
+- Desktop: Added a 15-second stall watchdog with automatic mirror fallback for update downloads, live byte/percentage progress indicators, and single-locale release notes in Settings.
+- Android: Added a cancelable update download progress dialog, Simplified and Traditional Chinese update strings, mirror fallback, and locale-filtered release notes.
+- Download page & docs: Published per-locale release notes (`notesByLocale`) in manifests and the download page (`?lang=` support), and linked each translated README to its matching download page language.
