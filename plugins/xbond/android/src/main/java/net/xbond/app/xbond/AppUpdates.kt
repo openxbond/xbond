@@ -295,8 +295,65 @@ internal class AppUpdates(private val activity: Activity) {
         require(asset.getString("name") == name && asset.getString("url") == url)
         val sha256 = asset.getString("sha256")
         require(sha256.matches(Regex("[0-9a-f]{64}")))
-        return Release(version, build, release.optString("notes"), url, sha256)
+        val notes = selectLocalizedNotes(
+            release.optJSONObject("notesByLocale"),
+            release.optString("notes"),
+        )
+        return Release(version, build, notes, url, sha256)
     }
+
+    private fun preferredNoteLocale(): String {
+        val locale = activity.resources.configuration.locales[0] ?: Locale.getDefault()
+        val lang = locale.language.lowercase(Locale.US)
+        val country = locale.country.uppercase(Locale.US)
+        val script = locale.script.lowercase(Locale.US)
+        return when {
+            lang == "zh" && (script == "hant" || country in setOf("HK", "TW", "MO")) -> "zh-hk"
+            lang == "zh" -> "zh-cn"
+            lang == "ko" -> "ko"
+            lang == "fa" -> "fa"
+            else -> "en-us"
+        }
+    }
+
+    private fun selectLocalizedNotes(notesByLocale: JSONObject?, rawNotes: String): String {
+        val preferred = preferredNoteLocale()
+        val structured = notesByLocale?.optString(preferred)?.trim().orEmpty()
+        if (structured.isNotEmpty()) return formatNotesForDialog(structured)
+        val extracted = extractLocaleSection(rawNotes, preferred)
+        if (extracted.isNotEmpty()) return formatNotesForDialog(extracted)
+        if (preferred != "en-us") {
+            val fallbackStructured = notesByLocale?.optString("en-us")?.trim().orEmpty()
+            if (fallbackStructured.isNotEmpty()) return formatNotesForDialog(fallbackStructured)
+            val fallbackExtracted = extractLocaleSection(rawNotes, "en-us")
+            if (fallbackExtracted.isNotEmpty()) return formatNotesForDialog(fallbackExtracted)
+        }
+        return rawNotes
+    }
+
+    private fun extractLocaleSection(rawNotes: String, locale: String): String {
+        val targetHeading = LOCALE_HEADINGS[locale] ?: return ""
+        var capturing = false
+        val lines = mutableListOf<String>()
+        for (line in rawNotes.replace("\r\n", "\n").lineSequence()) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("## ")) {
+                val heading = trimmed.removePrefix("## ").trim()
+                if (capturing) break
+                if (heading == targetHeading || heading == locale) {
+                    capturing = true
+                }
+                continue
+            }
+            if (capturing) lines.add(line)
+        }
+        return lines.joinToString("\n").trim()
+    }
+
+    private fun formatNotesForDialog(notes: String): String =
+        notes.lineSequence().joinToString("\n") { line ->
+            if (line.startsWith("- ")) "• ${line.removePrefix("- ")}" else line
+        }.trim()
 
     private fun downloadUrls(original: String): List<String> =
         listOf(original) + GITHUB_MIRRORS.map { "$it/$original" }
@@ -477,6 +534,13 @@ internal class AppUpdates(private val activity: Activity) {
         private val ASSET_REDIRECTS = setOf("release-assets.githubusercontent.com", "objects.githubusercontent.com")
         private val GITHUB_MIRRORS = listOf("https://gh-proxy.com", "https://ghproxy.imciel.com", "https://ghfast.top")
         private val GITHUB_MIRROR_HOSTS = setOf("gh-proxy.com", "ghproxy.imciel.com", "ghfast.top")
+        private val LOCALE_HEADINGS = mapOf(
+            "zh-hk" to "繁體中文（香港）",
+            "en-us" to "English",
+            "zh-cn" to "简体中文",
+            "ko" to "한국어",
+            "fa" to "فارسی",
+        )
         private val SEMVER = Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)")
     }
 }
