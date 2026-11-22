@@ -43,23 +43,58 @@ type ServiceStatus struct {
 
 // Announcement is one published announcement from user.notifications.list.
 type Announcement struct {
-	ID          string  `json:"id"`
-	Title       string  `json:"title"`
-	Summary     string  `json:"summary,omitempty"`
-	Category    string  `json:"category,omitempty"`
-	PublishedAt string  `json:"publishedAt,omitempty"`
-	ReadAt      *string `json:"readAt,omitempty"`
+	ID           string  `json:"id"`
+	Title        string  `json:"title"`
+	Summary      string  `json:"summary,omitempty"`
+	Content      string  `json:"content,omitempty"`
+	Category     string  `json:"category,omitempty"`
+	Tag          *string `json:"tag,omitempty"`
+	IsBanner     bool    `json:"isBanner,omitempty"`
+	BannerEndsAt *string `json:"bannerEndsAt,omitempty"`
+	PublishedAt  string  `json:"publishedAt,omitempty"`
+	ReadAt       *string `json:"readAt,omitempty"`
+}
+
+// PersonalNotification is one user-targeted notification from
+// user.notifications.list (e.g. referral_reward).
+type PersonalNotification struct {
+	ID        string          `json:"id"`
+	Kind      string          `json:"kind"`
+	Data      json.RawMessage `json:"data"`
+	ReadAt    *string         `json:"readAt,omitempty"`
+	CreatedAt string          `json:"createdAt"`
 }
 
 // AccountOverview is the account snapshot a signed-in client displays.
 // Identity is authoritative; the service and notification reads degrade
 // independently (nil parts) so a partial Cloud outage shows what it can.
 type AccountOverview struct {
-	Profile       Profile        `json:"profile"`
-	Service       *ServiceStatus `json:"service,omitempty"`
-	Announcements []Announcement `json:"announcements,omitempty"`
-	UnreadCount   int            `json:"unreadCount"`
-	FetchedAt     time.Time      `json:"fetchedAt"`
+	Profile       Profile                `json:"profile"`
+	Service       *ServiceStatus         `json:"service,omitempty"`
+	Announcements []Announcement         `json:"announcements,omitempty"`
+	Personal      []PersonalNotification `json:"personal,omitempty"`
+	UnreadCount   int                    `json:"unreadCount"`
+	FetchedAt     time.Time              `json:"fetchedAt"`
+}
+
+// NormalizeLanguageHeader maps client UI / locale tags onto Cloud API's
+// x-app-language header values ("zh", "zh-HK", "en", "ko", "fa"). Empty or
+// unrecognized values return "" so the request leaves the header unset.
+func NormalizeLanguageHeader(lang string) string {
+	switch strings.ToLower(strings.TrimSpace(lang)) {
+	case "zh", "zh-cn", "zh_cn", "zh-sg", "zh_sg", "zh-hans", "zh_hans":
+		return "zh"
+	case "zh-hk", "zh_hk", "zh-tw", "zh_tw", "zh-mo", "zh_mo", "zh-hant", "zh_hant":
+		return "zh-HK"
+	case "en", "en-us", "en_us", "en-gb", "en_gb":
+		return "en"
+	case "ko", "ko-kr", "ko_kr":
+		return "ko"
+	case "fa", "fa-ir", "fa_ir":
+		return "fa"
+	default:
+		return ""
+	}
 }
 
 // FetchAccountOverview reads identity, service status and announcements in
@@ -68,12 +103,16 @@ type AccountOverview struct {
 // service or notification read leaves its part nil.
 func FetchAccountOverview(
 	ctx context.Context,
-	origin, accessToken string,
+	origin, accessToken, lang string,
 ) (*AccountOverview, error) {
+	headerLang := NormalizeLanguageHeader(lang)
 	client := &trpc.Client{
 		BaseURL: trimOrigin(origin) + "/api/trpc",
 		Authorize: func(r *http.Request) {
 			r.Header.Set("Authorization", "Bearer "+accessToken)
+			if headerLang != "" {
+				r.Header.Set("x-app-language", headerLang)
+			}
 		},
 	}
 	results, err := client.Call(ctx,
@@ -102,8 +141,9 @@ func FetchAccountOverview(
 	}
 	if results[2].Err == nil {
 		var list struct {
-			Items       []Announcement `json:"items"`
-			UnreadCount int            `json:"unreadCount"`
+			Items       []Announcement         `json:"items"`
+			Personal    []PersonalNotification `json:"personal"`
+			UnreadCount int                    `json:"unreadCount"`
 		}
 		if err := json.Unmarshal(results[2].Data, &list); err != nil {
 			return nil, fmt.Errorf("malformed notifications response: %w", err)
@@ -113,6 +153,10 @@ func FetchAccountOverview(
 		overview.Announcements = list.Items
 		if overview.Announcements == nil {
 			overview.Announcements = []Announcement{}
+		}
+		overview.Personal = list.Personal
+		if overview.Personal == nil {
+			overview.Personal = []PersonalNotification{}
 		}
 		overview.UnreadCount = list.UnreadCount
 	}
@@ -140,10 +184,11 @@ func FetchAccountOverviewWithRefresh(
 	ctx context.Context,
 	origin string,
 	token *oauth2.Token,
+	lang string,
 ) (*AccountOverview, error) {
 	var overview *AccountOverview
 	err := fetchWithRefresh(ctx, origin, token, func(ctx context.Context, access string) error {
-		result, fetchErr := FetchAccountOverview(ctx, origin, access)
+		result, fetchErr := FetchAccountOverview(ctx, origin, access, lang)
 		if fetchErr != nil {
 			return fetchErr
 		}
@@ -154,6 +199,141 @@ func FetchAccountOverviewWithRefresh(
 		return nil, err
 	}
 	return overview, nil
+}
+
+func callNotificationMutation(
+	ctx context.Context,
+	origin, accessToken, procedure string,
+	input any,
+	target any,
+) error {
+	client := &trpc.Client{
+		BaseURL: trimOrigin(origin) + "/api/trpc",
+		Authorize: func(r *http.Request) {
+			r.Header.Set("Authorization", "Bearer "+accessToken)
+		},
+	}
+	results, err := client.Call(ctx, trpc.Procedure{
+		Name:     procedure,
+		Input:    input,
+		Mutation: true,
+	})
+	if err != nil {
+		var httpErr *trpc.HTTPError
+		if errors.As(err, &httpErr) && httpErr.Status == http.StatusUnauthorized {
+			return ErrUnauthorized
+		}
+		return fmt.Errorf("%s failed: %w", procedure, err)
+	}
+	result := results[0]
+	if result.Err != nil {
+		if result.Err.Code == "UNAUTHORIZED" || result.Err.HTTPStatus == http.StatusUnauthorized {
+			return ErrUnauthorized
+		}
+		return fmt.Errorf("%s rejected: %w", procedure, result.Err)
+	}
+	if target != nil && len(result.Data) > 0 {
+		if err := json.Unmarshal(result.Data, target); err != nil {
+			return fmt.Errorf("malformed %s response: %w", procedure, err)
+		}
+	}
+	return nil
+}
+
+// MarkAnnouncementRead marks one announcement as read on the Cloud server.
+func MarkAnnouncementRead(
+	ctx context.Context,
+	origin, accessToken, announcementID string,
+) error {
+	return callNotificationMutation(
+		ctx,
+		origin,
+		accessToken,
+		"user.notifications.markRead",
+		map[string]string{"announcementId": announcementID},
+		nil,
+	)
+}
+
+// MarkAnnouncementReadWithRefresh marks one announcement read with automatic
+// access-token refresh on 401.
+func MarkAnnouncementReadWithRefresh(
+	ctx context.Context,
+	origin string,
+	token *oauth2.Token,
+	announcementID string,
+) error {
+	return fetchWithRefresh(ctx, origin, token, func(ctx context.Context, access string) error {
+		return MarkAnnouncementRead(ctx, origin, access, announcementID)
+	})
+}
+
+// MarkPersonalNotificationRead marks one personal notification as read on Cloud.
+func MarkPersonalNotificationRead(
+	ctx context.Context,
+	origin, accessToken, id string,
+) error {
+	return callNotificationMutation(
+		ctx,
+		origin,
+		accessToken,
+		"user.notifications.markPersonalRead",
+		map[string]string{"id": id},
+		nil,
+	)
+}
+
+// MarkPersonalNotificationReadWithRefresh marks one personal notification read
+// with automatic access-token refresh on 401.
+func MarkPersonalNotificationReadWithRefresh(
+	ctx context.Context,
+	origin string,
+	token *oauth2.Token,
+	id string,
+) error {
+	return fetchWithRefresh(ctx, origin, token, func(ctx context.Context, access string) error {
+		return MarkPersonalNotificationRead(ctx, origin, access, id)
+	})
+}
+
+// MarkAllNotificationsRead marks all announcements and personal notifications read.
+func MarkAllNotificationsRead(
+	ctx context.Context,
+	origin, accessToken string,
+) (int, error) {
+	var out struct {
+		Marked int `json:"marked"`
+	}
+	if err := callNotificationMutation(
+		ctx,
+		origin,
+		accessToken,
+		"user.notifications.markAllRead",
+		nil,
+		&out,
+	); err != nil {
+		return 0, err
+	}
+	return out.Marked, nil
+}
+
+// MarkAllNotificationsReadWithRefresh marks all notifications read with automatic
+// access-token refresh on 401.
+func MarkAllNotificationsReadWithRefresh(
+	ctx context.Context,
+	origin string,
+	token *oauth2.Token,
+) (int, error) {
+	var marked int
+	err := fetchWithRefresh(ctx, origin, token, func(ctx context.Context, access string) error {
+		count, callErr := MarkAllNotificationsRead(ctx, origin, access)
+		if callErr != nil {
+			return callErr
+		}
+		marked = count
+		return nil
+	})
+	return marked, err
 }
 
 // RevokeToken revokes a token per RFC 7009 at the issuer's revocation

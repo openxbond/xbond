@@ -470,24 +470,69 @@ func TestOverviewPersistsRotatedTokens(t *testing.T) {
 	if err := SaveSession(sessionPath, &Session{AccessToken: "at-1", RefreshToken: "rt-1", Origin: DefaultOrigin}); err != nil {
 		t.Fatalf("save session: %v", err)
 	}
-	manager.fetchOverview = func(_ context.Context, origin string, token *oauth2.Token) (*clientapi.AccountOverview, error) {
+	var seenLang string
+	manager.fetchOverview = func(_ context.Context, origin string, token *oauth2.Token, lang string) (*clientapi.AccountOverview, error) {
 		if origin != DefaultOrigin || token.AccessToken != "at-1" {
 			t.Errorf("unexpected fetch context: %q %q", origin, token.AccessToken)
 		}
+		seenLang = lang
 		token.AccessToken = "at-2"
 		return &clientapi.AccountOverview{
 			Profile: clientapi.Profile{Email: "user@example.invalid", Name: "User"},
 		}, nil
 	}
-	overview, err := manager.Overview(context.Background())
+	overview, err := manager.Overview(context.Background(), "en-US")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if seenLang != "en-US" {
+		t.Fatalf("language not forwarded: got %q", seenLang)
 	}
 	if overview.Profile.Email != "user@example.invalid" {
 		t.Fatalf("unexpected overview: %+v", overview)
 	}
 	session, err := manager.Session()
 	if err != nil || session.AccessToken != "at-2" {
+		t.Fatalf("rotated token not persisted: %+v (%v)", session, err)
+	}
+}
+
+func TestNotificationMarkersPersistRotatedTokens(t *testing.T) {
+	sessionPath := filepath.Join(t.TempDir(), "account.json")
+	manager := NewManager(sessionPath)
+	if err := SaveSession(sessionPath, &Session{AccessToken: "at-1", RefreshToken: "rt-1", Origin: DefaultOrigin}); err != nil {
+		t.Fatalf("save session: %v", err)
+	}
+	manager.markAnnouncementRead = func(_ context.Context, _ string, token *oauth2.Token, id string) error {
+		if id != "ann-1" {
+			t.Errorf("unexpected announcement id: %q", id)
+		}
+		token.AccessToken = "at-2"
+		return nil
+	}
+	manager.markPersonalRead = func(_ context.Context, _ string, token *oauth2.Token, id string) error {
+		if id != "per-1" {
+			t.Errorf("unexpected personal id: %q", id)
+		}
+		token.AccessToken = "at-3"
+		return nil
+	}
+	manager.markAllRead = func(_ context.Context, _ string, token *oauth2.Token) (int, error) {
+		token.AccessToken = "at-4"
+		return 2, nil
+	}
+	if err := manager.MarkAnnouncementRead(context.Background(), "ann-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.MarkPersonalNotificationRead(context.Background(), "per-1"); err != nil {
+		t.Fatal(err)
+	}
+	marked, err := manager.MarkAllNotificationsRead(context.Background())
+	if err != nil || marked != 2 {
+		t.Fatalf("MarkAllNotificationsRead: marked=%d err=%v", marked, err)
+	}
+	session, err := manager.Session()
+	if err != nil || session.AccessToken != "at-4" {
 		t.Fatalf("rotated token not persisted: %+v (%v)", session, err)
 	}
 }

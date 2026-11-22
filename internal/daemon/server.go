@@ -332,6 +332,9 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/localapi/v0/account/login", s.authMiddleware(s.handleAccountLogin))
 	mux.HandleFunc("/localapi/v0/account/logout", s.authMiddleware(s.handleAccountLogout))
 	mux.HandleFunc("/localapi/v0/account/refresh", s.authMiddleware(s.handleAccountRefresh))
+	mux.HandleFunc("/localapi/v0/account/sync", s.authMiddleware(s.handleAccountSync))
+	mux.HandleFunc("/localapi/v0/account/notifications/read", s.authMiddleware(s.handleAccountNotificationsRead))
+	mux.HandleFunc("/localapi/v0/account/notifications/read-all", s.authMiddleware(s.handleAccountNotificationsReadAll))
 	mux.HandleFunc("/localapi/v0/account/cancel", s.authMiddleware(s.handleAccountCancel))
 	mux.HandleFunc("/localapi/v0/account/callback", s.authMiddleware(s.handleAccountCallback))
 
@@ -1483,6 +1486,9 @@ func (s *Server) runScheduledUpdates() {
 		case now := <-ticker.C:
 			if err := s.runtime.UpdateDue(s.lifecycle, now); err != nil && s.lifecycle.Err() == nil {
 				s.engineMgr.RingLog().Append(engine.LogLevelError, "Scheduled subscription update or runtime application failed")
+			}
+			if s.account != nil {
+				s.account.syncOverviewIfDue(now, 15*time.Minute)
 			}
 		}
 	}

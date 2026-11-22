@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -14,14 +16,19 @@ import (
 )
 
 type fakeAccountManager struct {
-	session     *account.Session
-	login       func(context.Context, account.LoginOptions, func(account.Progress)) (*account.Credentials, error)
-	link        *clientapi.SubscriptionLink
-	refreshErr  error
-	refresh     func(context.Context) (*clientapi.SubscriptionLink, error)
-	overview    *clientapi.AccountOverview
-	overviewErr error
-	logoutCalls int
+	session          *account.Session
+	login            func(context.Context, account.LoginOptions, func(account.Progress)) (*account.Credentials, error)
+	link             *clientapi.SubscriptionLink
+	refreshErr       error
+	refresh          func(context.Context) (*clientapi.SubscriptionLink, error)
+	overview         *clientapi.AccountOverview
+	overviewErr      error
+	lastOverviewLang string
+	markReadErr      error
+	markedAnnIDs     []string
+	markedPersonal   []string
+	markedAllCalls   int
+	logoutCalls      int
 }
 
 func (f *fakeAccountManager) Login(
@@ -49,7 +56,8 @@ func (f *fakeAccountManager) RefreshLink(ctx context.Context) (*clientapi.Subscr
 	return f.link, nil
 }
 
-func (f *fakeAccountManager) Overview(context.Context) (*clientapi.AccountOverview, error) {
+func (f *fakeAccountManager) Overview(_ context.Context, lang string) (*clientapi.AccountOverview, error) {
+	f.lastOverviewLang = lang
 	if f.overviewErr != nil {
 		return nil, f.overviewErr
 	}
@@ -57,6 +65,30 @@ func (f *fakeAccountManager) Overview(context.Context) (*clientapi.AccountOvervi
 		return nil, errors.New("no overview")
 	}
 	return f.overview, nil
+}
+
+func (f *fakeAccountManager) MarkAnnouncementRead(_ context.Context, id string) error {
+	if f.markReadErr != nil {
+		return f.markReadErr
+	}
+	f.markedAnnIDs = append(f.markedAnnIDs, id)
+	return nil
+}
+
+func (f *fakeAccountManager) MarkPersonalNotificationRead(_ context.Context, id string) error {
+	if f.markReadErr != nil {
+		return f.markReadErr
+	}
+	f.markedPersonal = append(f.markedPersonal, id)
+	return nil
+}
+
+func (f *fakeAccountManager) MarkAllNotificationsRead(context.Context) (int, error) {
+	if f.markReadErr != nil {
+		return 0, f.markReadErr
+	}
+	f.markedAllCalls++
+	return 1, nil
 }
 
 func (f *fakeAccountManager) Logout(context.Context) error {
@@ -615,5 +647,91 @@ func TestAccountControllerSyncOverviewSessionExpired(t *testing.T) {
 	}
 	if manager.logoutCalls == 0 {
 		t.Errorf("expected manager.Logout to be called on session expiration")
+	}
+}
+
+func TestAccountControllerSyncAndNotificationReadHandlers(t *testing.T) {
+	t.Setenv("XBOND_DATA_DIR", t.TempDir())
+	manager := &fakeAccountManager{
+		session: &account.Session{AccessToken: "at", Origin: account.DefaultOrigin},
+		overview: &clientapi.AccountOverview{
+			Profile: clientapi.Profile{Email: "user@example.invalid", Name: "User"},
+			Service: &clientapi.ServiceStatus{Plan: "Pro"},
+			Announcements: []clientapi.Announcement{
+				{ID: "ann-1", Title: "Notice 1", Content: "Body", Category: "notice"},
+			},
+			Personal: []clientapi.PersonalNotification{
+				{ID: "per-1", Kind: "referral_reward", Data: json.RawMessage(`{"amountCents":500,"currency":"USD"}`), CreatedAt: "2026-11-22T00:00:00Z"},
+			},
+			UnreadCount: 2,
+		},
+	}
+	controller := newAccountController(
+		manager,
+		nil,
+		func() ([]sub.SubscriptionMeta, error) { return nil, nil },
+		func() *sub.SubscriptionMeta { return nil },
+	)
+	srv := &Server{account: controller}
+
+	// Sync with explicit language updates manager language and overview state.
+	req := httptest.NewRequest(http.MethodPost, "/localapi/v0/account/sync", bytes.NewBufferString(`{"lang":"en_US"}`))
+	rec := httptest.NewRecorder()
+	srv.handleAccountSync(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sync status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if manager.lastOverviewLang != "en_US" {
+		t.Errorf("lastOverviewLang=%q, want en_US", manager.lastOverviewLang)
+	}
+	var state AccountState
+	if err := json.Unmarshal(rec.Body.Bytes(), &state); err != nil {
+		t.Fatalf("decode sync response: %v", err)
+	}
+	if state.UnreadCount != 2 || len(state.Personal) != 1 || len(state.Announcements) != 1 {
+		t.Fatalf("unexpected sync state: %+v", state)
+	}
+
+	// Invalid read payload rejected with 400.
+	badReq := httptest.NewRequest(http.MethodPost, "/localapi/v0/account/notifications/read", bytes.NewBufferString(`{}`))
+	badRec := httptest.NewRecorder()
+	srv.handleAccountNotificationsRead(badRec, badReq)
+	if badRec.Code != http.StatusBadRequest {
+		t.Errorf("empty read request: status=%d, want 400", badRec.Code)
+	}
+
+	// Mark single announcement read decrements UnreadCount and updates cache.
+	readReq := httptest.NewRequest(http.MethodPost, "/localapi/v0/account/notifications/read", bytes.NewBufferString(`{"announcementId":"ann-1"}`))
+	readRec := httptest.NewRecorder()
+	srv.handleAccountNotificationsRead(readRec, readReq)
+	if readRec.Code != http.StatusOK {
+		t.Fatalf("mark read status=%d body=%s", readRec.Code, readRec.Body.String())
+	}
+	if err := json.Unmarshal(readRec.Body.Bytes(), &state); err != nil {
+		t.Fatalf("decode mark read response: %v", err)
+	}
+	if state.UnreadCount != 1 || state.Announcements[0].ReadAt == nil {
+		t.Fatalf("announcement not marked read: %+v", state)
+	}
+	if cached := loadOverviewCache(); cached == nil || cached.UnreadCount != 1 {
+		t.Fatalf("cache not updated on mark read: %+v", cached)
+	}
+
+	// Mark all read clears remaining personal notification unread count.
+	allReq := httptest.NewRequest(http.MethodPost, "/localapi/v0/account/notifications/read-all", nil)
+	allRec := httptest.NewRecorder()
+	srv.handleAccountNotificationsReadAll(allRec, allReq)
+	if allRec.Code != http.StatusOK {
+		t.Fatalf("mark all read status=%d body=%s", allRec.Code, allRec.Body.String())
+	}
+	var allState AccountState
+	if err := json.Unmarshal(allRec.Body.Bytes(), &allState); err != nil {
+		t.Fatalf("decode mark all response: %v", err)
+	}
+	if allState.UnreadCount != 0 || allState.Personal[0].ReadAt == nil {
+		t.Fatalf("personal notification not marked read-all: %+v", allState)
+	}
+	if manager.markedAllCalls != 1 || len(manager.markedAnnIDs) != 1 || manager.markedAnnIDs[0] != "ann-1" {
+		t.Fatalf("unexpected manager calls: all=%d ann=%v", manager.markedAllCalls, manager.markedAnnIDs)
 	}
 }

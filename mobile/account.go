@@ -22,25 +22,26 @@ import (
 // reads the same fields on every host. The OAuth token set never leaves the
 // process — LocalAPI consumers see login state only.
 type AccountState struct {
-	Status                  string                   `json:"status"`
-	Phase                   string                   `json:"phase,omitempty"`
-	Method                  string                   `json:"method,omitempty"`
-	AuthURL                 string                   `json:"authUrl,omitempty"`
-	VerificationURI         string                   `json:"verificationUri,omitempty"`
-	VerificationURIComplete string                   `json:"verificationUriComplete,omitempty"`
-	UserCode                string                   `json:"userCode,omitempty"`
-	ErrorCode               string                   `json:"errorCode,omitempty"`
-	Error                   string                   `json:"error,omitempty"`
-	StartedAt               *time.Time               `json:"startedAt,omitempty"`
-	Subscription            *sub.SubscriptionMeta    `json:"subscription,omitempty"`
-	UpdateError             string                   `json:"updateError,omitempty"`
-	Email                   string                   `json:"email,omitempty"`
-	Name                    string                   `json:"name,omitempty"`
-	ConsoleURL              string                   `json:"consoleUrl,omitempty"`
-	Service                 *clientapi.ServiceStatus `json:"service,omitempty"`
-	Announcements           []clientapi.Announcement `json:"announcements,omitempty"`
-	UnreadCount             int                      `json:"unreadCount,omitempty"`
-	OverviewError           string                   `json:"overviewError,omitempty"`
+	Status                  string                           `json:"status"`
+	Phase                   string                           `json:"phase,omitempty"`
+	Method                  string                           `json:"method,omitempty"`
+	AuthURL                 string                           `json:"authUrl,omitempty"`
+	VerificationURI         string                           `json:"verificationUri,omitempty"`
+	VerificationURIComplete string                           `json:"verificationUriComplete,omitempty"`
+	UserCode                string                           `json:"userCode,omitempty"`
+	ErrorCode               string                           `json:"errorCode,omitempty"`
+	Error                   string                           `json:"error,omitempty"`
+	StartedAt               *time.Time                       `json:"startedAt,omitempty"`
+	Subscription            *sub.SubscriptionMeta            `json:"subscription,omitempty"`
+	UpdateError             string                           `json:"updateError,omitempty"`
+	Email                   string                           `json:"email,omitempty"`
+	Name                    string                           `json:"name,omitempty"`
+	ConsoleURL              string                           `json:"consoleUrl,omitempty"`
+	Service                 *clientapi.ServiceStatus         `json:"service,omitempty"`
+	Announcements           []clientapi.Announcement         `json:"announcements,omitempty"`
+	Personal                []clientapi.PersonalNotification `json:"personal,omitempty"`
+	UnreadCount             int                              `json:"unreadCount,omitempty"`
+	OverviewError           string                           `json:"overviewError,omitempty"`
 }
 
 // mobileAccount is the VPN host's slice of the daemon account controller:
@@ -48,14 +49,15 @@ type AccountState struct {
 // subscription bind, overview sync and logout. Same evidence rules as the
 // daemon — a valid login survives a temporarily unreachable Cloud.
 type mobileAccount struct {
-	mu         sync.Mutex
-	svc        *TunnelService
-	manager    *account.Manager
-	state      AccountState
-	cancel     context.CancelFunc
-	syncGen    int
-	lang       string
-	bindCalled bool
+	mu           sync.Mutex
+	svc          *TunnelService
+	manager      *account.Manager
+	state        AccountState
+	lastOverview *clientapi.AccountOverview
+	cancel       context.CancelFunc
+	syncGen      int
+	lang         string
+	bindCalled   bool
 	// Deep-link scheme flow: the browser hands the authorization code to the
 	// OS, the Activity forwards it through LocalAPI /account/callback, and
 	// the pending login picks it up here (daemon-identical semantics).
@@ -86,6 +88,9 @@ func (a *mobileAccount) hydrate() {
 		}
 	}
 	if a.state.Status == "signed_in" {
+		if a.lang == "" && a.state.Subscription != nil && a.state.Subscription.Lang != "" {
+			a.lang = a.state.Subscription.Lang
+		}
 		if cached := a.loadOverviewCache(); cached != nil {
 			a.applyOverviewLocked(cached, "")
 		}
@@ -249,6 +254,7 @@ func (a *mobileAccount) cancelPending() {
 	a.cancel = nil
 	a.syncGen++
 	a.state = AccountState{Status: "signed_out"}
+	a.lastOverview = nil
 	a.schemeState = ""
 	a.codeCh = nil
 	a.mu.Unlock()
@@ -450,10 +456,34 @@ func (a *mobileAccount) bindLink(ctx context.Context, link *clientapi.Subscripti
 	return meta, updateError
 }
 
+func (a *mobileAccount) setLang(lang string) {
+	if lang == "" {
+		return
+	}
+	a.mu.Lock()
+	a.lang = lang
+	a.mu.Unlock()
+}
+
 func (a *mobileAccount) syncOverview() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	a.syncOverviewCtx(ctx)
+}
+
+func (a *mobileAccount) sync(ctx context.Context, lang string) AccountState {
+	a.mu.Lock()
+	if lang != "" {
+		a.lang = lang
+	}
+	signedIn := a.state.Status == "signed_in"
+	state := a.state
+	a.mu.Unlock()
+	if !signedIn {
+		return state
+	}
+	a.syncOverviewCtx(ctx)
+	return a.snapshot()
 }
 
 func (a *mobileAccount) syncOverviewCtx(ctx context.Context) {
@@ -463,8 +493,9 @@ func (a *mobileAccount) syncOverviewCtx(ctx context.Context) {
 		return
 	}
 	generation := a.syncGen
+	lang := a.lang
 	a.mu.Unlock()
-	overview, err := a.manager.Overview(ctx)
+	overview, err := a.manager.Overview(ctx, lang)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return
@@ -501,17 +532,142 @@ func (a *mobileAccount) syncOverviewCtx(ctx context.Context) {
 	a.mu.Unlock()
 }
 
+func (a *mobileAccount) markRead(ctx context.Context, announcementID, personalID string) (AccountState, error) {
+	a.mu.Lock()
+	if a.state.Status != "signed_in" {
+		state := a.state
+		a.mu.Unlock()
+		return state, errors.New("not signed in")
+	}
+	generation := a.syncGen
+	a.mu.Unlock()
+
+	var err error
+	if announcementID != "" {
+		err = a.manager.MarkAnnouncementRead(ctx, announcementID)
+	} else {
+		err = a.manager.MarkPersonalNotificationRead(ctx, personalID)
+	}
+	if err != nil {
+		a.mu.Lock()
+		if a.syncGen == generation && account.IsSessionExpired(err) {
+			a.state.Status = "error"
+			a.state.ErrorCode = "session_expired"
+			a.state.Error = "Account session expired. Sign in again."
+			_ = a.manager.Logout(ctx)
+		}
+		state := a.state
+		a.mu.Unlock()
+		return state, err
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.syncGen != generation {
+		return a.state, context.Canceled
+	}
+	if announcementID != "" {
+		for i := range a.state.Announcements {
+			if a.state.Announcements[i].ID == announcementID && a.state.Announcements[i].ReadAt == nil {
+				a.state.Announcements[i].ReadAt = &now
+			}
+		}
+	}
+	if personalID != "" {
+		for i := range a.state.Personal {
+			if a.state.Personal[i].ID == personalID && a.state.Personal[i].ReadAt == nil {
+				a.state.Personal[i].ReadAt = &now
+			}
+		}
+	}
+	a.state.UnreadCount = countMobileUnread(a.state.Announcements, a.state.Personal)
+	a.persistStateOverviewLocked()
+	return a.state, nil
+}
+
+func (a *mobileAccount) markAllRead(ctx context.Context) (AccountState, error) {
+	a.mu.Lock()
+	if a.state.Status != "signed_in" {
+		state := a.state
+		a.mu.Unlock()
+		return state, errors.New("not signed in")
+	}
+	generation := a.syncGen
+	a.mu.Unlock()
+
+	if _, err := a.manager.MarkAllNotificationsRead(ctx); err != nil {
+		a.mu.Lock()
+		if a.syncGen == generation && account.IsSessionExpired(err) {
+			a.state.Status = "error"
+			a.state.ErrorCode = "session_expired"
+			a.state.Error = "Account session expired. Sign in again."
+			_ = a.manager.Logout(ctx)
+		}
+		state := a.state
+		a.mu.Unlock()
+		return state, err
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.syncGen != generation {
+		return a.state, context.Canceled
+	}
+	for i := range a.state.Announcements {
+		if a.state.Announcements[i].ReadAt == nil {
+			a.state.Announcements[i].ReadAt = &now
+		}
+	}
+	for i := range a.state.Personal {
+		if a.state.Personal[i].ReadAt == nil {
+			a.state.Personal[i].ReadAt = &now
+		}
+	}
+	a.state.UnreadCount = 0
+	a.persistStateOverviewLocked()
+	return a.state, nil
+}
+
 func (a *mobileAccount) applyOverviewLocked(overview *clientapi.AccountOverview, degraded string) {
+	a.lastOverview = overview
 	a.state.Email = overview.Profile.Email
 	a.state.Name = overview.Profile.Name
 	a.state.Service = overview.Service
 	a.state.Announcements = overview.Announcements
+	a.state.Personal = overview.Personal
 	a.state.UnreadCount = overview.UnreadCount
 	a.state.ConsoleURL = a.consoleURLLocked()
 	a.state.OverviewError = degraded
 	if degraded == "" && overview.Profile.Email != "" {
 		a.saveOverviewCache(overview)
 	}
+}
+
+func (a *mobileAccount) persistStateOverviewLocked() {
+	if a.lastOverview == nil || a.state.Email == "" {
+		return
+	}
+	a.lastOverview.Announcements = a.state.Announcements
+	a.lastOverview.Personal = a.state.Personal
+	a.lastOverview.UnreadCount = a.state.UnreadCount
+	a.saveOverviewCache(a.lastOverview)
+}
+
+func countMobileUnread(announcements []clientapi.Announcement, personal []clientapi.PersonalNotification) int {
+	unread := 0
+	for _, item := range announcements {
+		if item.ReadAt == nil {
+			unread++
+		}
+	}
+	for _, item := range personal {
+		if item.ReadAt == nil {
+			unread++
+		}
+	}
+	return unread
 }
 
 func (a *mobileAccount) consoleURLLocked() string {
