@@ -225,6 +225,7 @@ pub fn run() {
             commands::set_notifications,
             commands::can_open_notification_settings,
             commands::open_notification_settings,
+            commands::send_desktop_notification,
             commands::set_tray_language,
             commands::take_pending_import,
             commands::read_clipboard_text,

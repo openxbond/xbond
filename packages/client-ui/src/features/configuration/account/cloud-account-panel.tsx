@@ -4,6 +4,9 @@ import {
   AlertCircle,
   Calendar,
   Check,
+  CheckCheck,
+  ChevronRight,
+  CloudOff,
   ExternalLink,
   Globe,
   LoaderCircle,
@@ -19,6 +22,7 @@ import { AuroraWave } from "@/components/aurora-wave";
 import { CopyIconButton } from "@/components/copy-button";
 import { QuotaRing } from "@/components/quota-ring";
 import { SegmentedControl } from "@/components/segmented-control";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +32,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import {
+  categoryStyle,
+  formatRelativeNotificationTime,
+  personalNotificationCopy,
+  personalNotificationIcon,
+} from "@/features/notifications/announcement-meta";
+import { useNotificationActions } from "@/features/notifications/notification-drawer";
 import { cn } from "@/lib/utils";
 import { isMobileApp } from "@/platform/host";
 import { isDesktopApp } from "@/platform/local-api-bootstrap";
@@ -75,6 +86,8 @@ export default function AccountPanel() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const { openList, openAnnouncement, openPersonal, markAllAsRead } =
+    useNotificationActions();
   const authorizationTab = useAuthorizationTab(account);
   const { authorizationURL } = authorizationTab;
   const connecting = daemonState === "connecting";
@@ -673,25 +686,157 @@ export default function AccountPanel() {
             </dl>
           </div>
 
-          {/* 公告卡片 */}
+          {/* 公告与通知卡片 */}
           <div className="flex flex-col gap-3 rounded-card border border-border/70 bg-card p-3.5 shadow-elevation-card xl:p-5">
-            <h3 className="text-body font-semibold tracking-tight text-foreground">
-              {t("announcements")}
-            </h3>
-            {account.announcements && account.announcements.length > 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-body font-semibold tracking-tight text-foreground">
+                  {t("announcements")}
+                </h3>
+                {(account.unreadCount ?? 0) > 0 && (
+                  <Badge variant="secondary" className="tabular-nums">
+                    {account.unreadCount}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                {(account.unreadCount ?? 0) > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 px-2 text-xs"
+                    onClick={() => void markAllAsRead()}
+                  >
+                    <CheckCheck aria-hidden className="size-3.5" />
+                    {t("notifications.markAllRead")}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-0.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={openList}
+                >
+                  {t("notifications.viewAll")}
+                  <ChevronRight
+                    aria-hidden
+                    className="size-3.5 rtl:rotate-180"
+                  />
+                </Button>
+              </div>
+            </div>
+
+            {account.overviewError && (
+              <div className="flex items-center gap-2 rounded-lg border border-border/80 bg-inset px-3 py-2 text-xs text-muted-foreground">
+                <CloudOff aria-hidden className="size-3.5 shrink-0" />
+                <span>{t("notifications.cachedNotice")}</span>
+              </div>
+            )}
+
+            {(account.personal && account.personal.length > 0) ||
+            (account.announcements && account.announcements.length > 0) ? (
               <div className="divide-y divide-border/60">
-                {account.announcements.slice(0, 3).map((item) => (
-                  <article key={item.id} className="py-3 first:pt-0 last:pb-0">
-                    <h4 className="text-sm font-medium leading-snug text-foreground">
-                      {item.title}
-                    </h4>
-                    {item.summary && (
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        {item.summary}
-                      </p>
-                    )}
-                  </article>
-                ))}
+                {(account.personal ?? []).slice(0, 2).map((item) => {
+                  const Icon = personalNotificationIcon(item.kind);
+                  const copy = personalNotificationCopy(item, lang, (k, opts) =>
+                    t(k, opts),
+                  );
+                  const unread = !item.readAt;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => openPersonal(item)}
+                      className="-mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-start gap-2.5 rounded-lg px-2 py-2.5 text-start transition-colors hover:bg-inset first:pt-2 last:pb-2"
+                    >
+                      <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand-text">
+                        <Icon aria-hidden className="size-3.5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-medium text-foreground">
+                            {copy.title}
+                          </span>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <span className="text-[11px] text-muted-foreground">
+                              {formatRelativeNotificationTime(
+                                item.createdAt,
+                                lang,
+                              )}
+                            </span>
+                            {unread && (
+                              <span className="size-2 rounded-full bg-brand" />
+                            )}
+                          </div>
+                        </div>
+                        {copy.summary && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {copy.summary}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+                {(account.announcements ?? []).slice(0, 3).map((item) => {
+                  const cat = categoryStyle(item.category);
+                  const CatIcon = cat.Icon;
+                  const unread = !item.readAt;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => openAnnouncement(item)}
+                      className="-mx-2 flex w-[calc(100%+1rem)] cursor-pointer flex-col gap-1 rounded-lg px-2 py-2.5 text-start transition-colors hover:bg-inset first:pt-2 last:pb-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "gap-1 px-1.5 py-0 text-[10px]",
+                              cat.badgeClass,
+                            )}
+                          >
+                            <CatIcon aria-hidden className="size-2.5" />
+                            {t(`notifications.category.${cat.key}`)}
+                          </Badge>
+                          {item.tag && (
+                            <Badge
+                              variant="secondary"
+                              className="px-1.5 py-0 text-[10px]"
+                            >
+                              {item.tag}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {item.publishedAt && (
+                            <span className="text-[11px] text-muted-foreground">
+                              {formatRelativeNotificationTime(
+                                item.publishedAt,
+                                lang,
+                              )}
+                            </span>
+                          )}
+                          {unread && (
+                            <span className="size-2 rounded-full bg-brand" />
+                          )}
+                        </div>
+                      </div>
+                      <h4 className="text-sm font-medium leading-snug text-foreground">
+                        {item.title}
+                      </h4>
+                      {item.summary && (
+                        <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                          {item.summary}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <div className="flex items-center gap-3.5 py-1">

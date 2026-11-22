@@ -119,6 +119,15 @@ pub fn can_open_notification_settings() -> bool {
 }
 
 #[tauri::command]
+pub fn send_desktop_notification(app: AppHandle, title: String, body: String) {
+    let title = title.trim();
+    if title.is_empty() {
+        return;
+    }
+    crate::tray::notify(&app, title, body.trim());
+}
+
+#[tauri::command]
 pub fn open_notification_settings(app: AppHandle) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {

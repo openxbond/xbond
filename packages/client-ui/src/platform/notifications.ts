@@ -115,3 +115,16 @@ export async function openDesktopNotificationSettings(): Promise<void> {
   if (!invoke) return;
   await invoke("open_notification_settings");
 }
+
+export async function sendDesktopNotification(
+  title: string,
+  body: string,
+): Promise<void> {
+  const invoke = invokeDesktop();
+  if (!invoke || !title.trim()) return;
+  try {
+    await invoke("send_desktop_notification", { title, body });
+  } catch {
+    // Notification delivery must never fail UI interactions.
+  }
+}

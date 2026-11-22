@@ -12,11 +12,11 @@
 
 ### 概覽讀取
 
-守護進程以保存的 OAuth 會話（自動刷新、旋轉令牌回寫）對 Cloud 發一次 tRPC 批量讀取：身份 `user.profile.me`、服務狀態 `user.billing.subscription`、公告 `user.notifications.list`。身份是權威讀取：UNAUTHORIZED 觸發一次強制刷新重試，仍失敗則整體報錯。服務與公告讀取各自退化——讀取失敗只讓對應部分缺失（空列表與讀取失敗以 nil／空區分），不阻斷身份展示，退化以 `overviewError` 呈現。令牌集合永不離開守護進程；LocalAPI 消費者只看到 `AccountState`。
+守護進程以保存的 OAuth 會話（自動刷新、旋轉令牌回寫）對 Cloud 發一次 tRPC 批量讀取：身份 `user.profile.me`、服務狀態 `user.billing.subscription`、公告與個人通知 `user.notifications.list`（攜帶正規化後的 `x-app-language` 請求頭，覆蓋 `zh`／`zh-HK`／`en`／`ko`／`fa`）。公告包含完整 Markdown 正文、標籤、`isBanner`／`bannerEndsAt` 及 `readAt`，並同步返回個人通知列表（`personal`，如推薦返利）。身份是權威讀取：UNAUTHORIZED 觸發一次強制刷新重試，仍失敗則整體報錯。服務與公告讀取各自退化——讀取失敗只讓對應部分缺失（空列表與讀取失敗以 nil／空區分），不阻斷身份展示，退化以 `overviewError` 呈現。令牌集合永不離開守護進程；LocalAPI 消費者只看到 `AccountState`。已登入期間守護進程按 15 分鐘週期靜默同步概覽，UI 亦可透過 `POST /localapi/v0/account/sync` 主動帶語言同步，以及透過 `POST /localapi/v0/account/notifications/read` 和 `/notifications/read-all` 跨端同步已讀狀態。
 
 ### 緩存與展示
 
-最近一次成功的概覽以 0600 緩存於數據目錄（account-overview.json），守護進程啟動時立即展示緩存並在後台刷新；刷新失敗保留緩存並上報 `overviewError`。控制台入口由會話自身的 origin 推導（`{origin}/dash`）——是簽發令牌的發行方，不是用戶輸入。登錄成功後、狀態翻轉為 signed_in 之前完成首次同步；刷新（resync）同樣同步刷新概覽。登出時遞增同步代數，遲到的後台同步不得復原已重置的狀態。
+最近一次成功的概覽以 0600 緩存於數據目錄（account-overview.json），守護進程啟動時立即展示緩存並在後台刷新；刷新失敗保留緩存並上報 `overviewError`。跨端標記已讀時同時回寫本地緩存。控制台入口由會話自身的 origin 推導（`{origin}/dash`）——是簽發令牌的發行方，不是用戶輸入。登錄成功後、狀態翻轉為 signed_in 之前完成首次同步；刷新（resync）同樣同步刷新概覽。登出時遞增同步代數，遲到的後台同步不得復原已重置的狀態。客戶端僅對「建立基線之後」新到達的未讀 `security`／`maintenance` 公告觸發系統或應用內高優提醒，不在首次登入或啟動回放舊公告，也不針對 `promo`／`notice` 發系統通知。
 
 ### 服務狀態語義
 
@@ -35,8 +35,9 @@
 | ACCOUNT-01c | 登出撤銷刷新令牌（盡力而為）、刪除會話與概覽緩存、遲到同步不復原狀態 | 同上 |
 | ACCOUNT-01d | 啟動展示緩存概覽，Cloud 失敗保留緩存並上報 overviewError | `internal/daemon` 測試 |
 | ACCOUNT-01e | Cloud 側 `user.profile.me` 為 Bearer 可讀身份出口，路由快照釘住 | cloud `client-oauth.test.ts`、`routes.snapshot.test.ts` |
+| ACCOUNT-01f | 客戶端帶 `x-app-language` 同步多語言公告與個人通知、支撐 `markRead`／`markAllRead` 雙端回寫、橫幅與通知抽屜互動 | `internal/clientapi`、`internal/daemon`、`mobile`、`packages/client`、`packages/client-ui` 測試 |
 | ACCOUNT-02 | 瀏覽器 PKCE 登入全鏈路可用（會話授權 → 回環回跳 → 令牌 → 鏈路發現 → 訂閱綁定），pending 態呈現登入連結／設備碼，取消後可換方式重啟 | 真實鏈路冒煙（dev Cloud + 守護進程，簽入到 signed_in 並綁定訂閱）、`internal/daemon` 取消重啟測試、cloud `client-oauth.test.ts` PKCE 分支 |
 
 ## 已知限制
 
-通知為輪讀，無推送通道；已讀標記（markRead 族）本切片未接入客戶端。緩存寫入失敗只損失啟動時的新鮮度，不作為錯誤上報。控制台入口假設 dash 掛在發行方 origin 的 `/dash` 路徑。測試使用 tRPC 批量替身，不證明真實 Cloud 部署、配額數值或公告內容的正確性。瀏覽器登入已對 dev Cloud 部署全鏈路實測（含回環隨機端口回跳與訂閱綁定），對生產部署僅要求種子行在位。
+通知為定時／聚焦／語言切換輪讀，無服務端推送通道。緩存寫入失敗只損失啟動時的新鮮度，不作為錯誤上報。控制台入口假設 dash 掛在發行方 origin 的 `/dash` 路徑。測試使用 tRPC 批量替身，不證明真實 Cloud 部署、配額數值或公告內容的正確性。瀏覽器登入已對 dev Cloud 部署全鏈路實測（含回環隨機端口回跳與訂閱綁定），對生產部署僅要求種子行在位。

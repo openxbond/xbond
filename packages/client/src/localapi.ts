@@ -288,9 +288,21 @@ export interface AccountAnnouncement {
   id: string;
   title: string;
   summary?: string;
+  content?: string;
   category?: string;
+  tag?: string | null;
+  isBanner?: boolean;
+  bannerEndsAt?: string | null;
   publishedAt?: string;
   readAt?: string | null;
+}
+
+export interface PersonalNotification {
+  id: string;
+  kind: string;
+  data: Record<string, unknown>;
+  readAt?: string | null;
+  createdAt: string;
 }
 
 export interface AccountStatus {
@@ -319,6 +331,7 @@ export interface AccountStatus {
   consoleUrl?: string;
   service?: AccountServiceStatus | null;
   announcements?: AccountAnnouncement[];
+  personal?: PersonalNotification[];
   unreadCount?: number;
   overviewError?: string;
 }
@@ -355,6 +368,7 @@ interface AccountStatusWire extends Omit<AccountStatus, "subscription"> {
 function normalizeAccountStatus(wire: AccountStatusWire): AccountStatus {
   return {
     ...wire,
+    unreadCount: wire.unreadCount ?? 0,
     subscription: wire.subscription
       ? normalizeSubscription(wire.subscription)
       : null,
@@ -752,6 +766,40 @@ export class LocalAPIClient {
     const data = await this.request<AccountStatusWire>(
       "/localapi/v0/account/refresh",
       { method: "POST", body: JSON.stringify(options ?? {}) },
+    );
+    return normalizeAccountStatus(data);
+  }
+
+  /** Refreshes Cloud account overview (identity, service status, announcements,
+   * personal notifications) using the optional UI language for localized copy. */
+  async accountSync(options?: { lang?: string }): Promise<AccountStatus> {
+    const data = await this.request<AccountStatusWire>(
+      "/localapi/v0/account/sync",
+      { method: "POST", body: JSON.stringify(options ?? {}) },
+    );
+    return normalizeAccountStatus(data);
+  }
+
+  async markAnnouncementRead(announcementId: string): Promise<AccountStatus> {
+    const data = await this.request<AccountStatusWire>(
+      "/localapi/v0/account/notifications/read",
+      { method: "POST", body: JSON.stringify({ announcementId }) },
+    );
+    return normalizeAccountStatus(data);
+  }
+
+  async markPersonalNotificationRead(id: string): Promise<AccountStatus> {
+    const data = await this.request<AccountStatusWire>(
+      "/localapi/v0/account/notifications/read",
+      { method: "POST", body: JSON.stringify({ personalId: id }) },
+    );
+    return normalizeAccountStatus(data);
+  }
+
+  async markAllNotificationsRead(): Promise<AccountStatus> {
+    const data = await this.request<AccountStatusWire>(
+      "/localapi/v0/account/notifications/read-all",
+      { method: "POST" },
     );
     return normalizeAccountStatus(data);
   }

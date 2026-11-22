@@ -1169,7 +1169,7 @@ fn state_icon(app: &AppHandle, state: &TrayState, connecting: bool) -> Option<Im
     Some(Image::new_owned(data, width, height))
 }
 
-fn notify(app: &AppHandle, title: &str, body: &str) {
+pub(crate) fn notify(app: &AppHandle, title: &str, body: &str) {
     if !app.state::<crate::commands::ShellState>().notifications() {
         return;
     }
