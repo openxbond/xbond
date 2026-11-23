@@ -215,5 +215,5 @@ export function NotificationMarkdown({ content }: { content: string }) {
     );
   }
 
-  return <div className="space-y-3">{blocks}</div>;
+  return <div className="min-w-0 space-y-3 break-words">{blocks}</div>;
 }
