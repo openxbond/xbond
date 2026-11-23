@@ -1,0 +1,3 @@
+- Docker 관리 콘솔을 LAN 브라우저에서 직접 열 수 있도록 지원합니다(`http://<호스트 IP>:19090` 및 단일 레이블·`.lan`·`.local` 등 로컬 호스트명 허용, 외부 도메인의 DNS rebinding 차단은 유지).
+- Docker 관리 콘솔 및 LocalAPI에 `XBOND_SECRET` 인증을 추가했습니다. 설정 시 HTML에 토큰을 내장하지 않으며, 브라우저에서 Secret을 입력해 검증한 뒤 로컬에 저장합니다(미설정 시 데스크톱·모바일·로컬 CLI는 기존처럼 비밀번호 없이 연결).
+- 기본 Docker Compose 및 다운로드 페이지 배포 템플릿을 LAN 접근과 `XBOND_SECRET` 구성에 맞게 업데이트했습니다.

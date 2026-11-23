@@ -1,0 +1,3 @@
+- 支援在區域網絡瀏覽器直接開啟 Docker 管理控制台（例如 `http://<宿主機 IP>:19090`）及本地區域網絡主機名（單標籤名稱與 `.lan`、`.local` 等保留後綴），同時繼續攔截可被 DNS rebinding 利用的外部網域。
+- 為 Docker 管理控制台與 LocalAPI 新增 `XBOND_SECRET` 認證：設定後首頁不再內嵌免密憑據，瀏覽器須輸入 Secret 驗證解鎖並儲存於本機；未設定時桌面端、流動端與本機 CLI 維持免密直連。
+- 更新預設 Docker Compose 與下載頁部署範本，預設支援區域網絡存取並隨附 `XBOND_SECRET` 設定。

@@ -1,0 +1,3 @@
+- Supported direct LAN browser access to the Docker management console (such as `http://<host-ip>:19090`) and local LAN hostnames (single-label names and `.lan`/`.local` suffixes) while keeping DNS-rebinding protection against external domains.
+- Added `XBOND_SECRET` authentication for the Docker management console and LocalAPI: when configured, the web UI prompts to verify the Secret before unlocking and remembers it in the browser, while desktop, mobile, and local CLI sessions stay passwordless when unset.
+- Updated default Docker deployment templates and documentation to publish ports for LAN access with `XBOND_SECRET` enabled.

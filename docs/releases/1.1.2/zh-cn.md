@@ -1,0 +1,3 @@
+- 支持在局域网浏览器直接访问 Docker 管理控制台（如 `http://<宿主机 IP>:19090`）及本地局域网主机名（单标签主机名与 `.lan`、`.local` 等保留后缀），同时继续拦截可被 DNS rebinding 利用的外部域名。
+- 为 Docker 管理控制台与 LocalAPI 新增 `XBOND_SECRET` 认证：配置后首页不再内嵌免密凭据，浏览器需输入 Secret 验证解锁并保存到本地；未配置时桌面端、移动端与本机 CLI 保持免密直连。
+- 更新默认 Docker Compose 与下载页部署模板，默认支持局域网访问并随附 `XBOND_SECRET` 配置。
