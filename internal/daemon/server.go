@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -57,6 +58,7 @@ type Server struct {
 	autostart       bool
 	autoConnect     bool
 	container       bool
+	secretRequired  bool
 	done            chan struct{}
 	// shutdownCh is closed when a LocalAPI client asked the daemon to exit
 	// (service stop); the daemon main loop watches it beside OS signals.
@@ -131,9 +133,14 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	// sources must become the canonical Clash YAML the mihomo core expects.
 	subMgr.MigrateLegacySources()
 
-	tokenBytes := make([]byte, 16)
-	_, _ = rand.Read(tokenBytes)
-	token := hex.EncodeToString(tokenBytes)
+	configuredSecret := strings.TrimSpace(os.Getenv("XBOND_SECRET"))
+	secretRequired := configuredSecret != ""
+	token := configuredSecret
+	if !secretRequired {
+		tokenBytes := make([]byte, 16)
+		_, _ = rand.Read(tokenBytes)
+		token = hex.EncodeToString(tokenBytes)
+	}
 
 	core := engine.NewManager(1000)
 	if systemScope {
@@ -154,6 +161,7 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 		autostart:       autostart,
 		autoConnect:     autoConnect,
 		container:       os.Getenv("XBOND_DASHBOARD_LISTEN") != "",
+		secretRequired:  secretRequired,
 	}
 	s.runtime.fixedDeployment = s.container
 
@@ -183,8 +191,12 @@ func newServer(addr string, webDir string, systemScope bool) (*Server, error) {
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 
+	handler := http.Handler(mux)
+	if !s.secretRequired {
+		handler = httplocal.Guard(mux)
+	}
 	s.httpServer = &http.Server{
-		Handler: httplocal.Guard(mux),
+		Handler: handler,
 	}
 
 	if systemScope {
@@ -278,7 +290,7 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		token := r.Header.Get("X-XBond-Token")
-		if token != s.token {
+		if subtle.ConstantTimeCompare([]byte(token), []byte(s.token)) != 1 {
 			http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
@@ -1463,8 +1475,10 @@ func (s *Server) handleWeb(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		metaTag := fmt.Sprintf(`<meta name="localapi-controller" content="%s">
-    <meta name="localapi-token" content="%s">`, controllerProxyPath, s.token)
+		metaTag := fmt.Sprintf(`<meta name="localapi-controller" content="%s">`, controllerProxyPath)
+		if !s.secretRequired {
+			metaTag += fmt.Sprintf("\n    "+`<meta name="localapi-token" content="%s">`, s.token)
+		}
 		html := strings.Replace(string(indexBytes), "<head>", "<head>\n    "+metaTag, 1)
 
 		w.Header().Set("Cache-Control", "no-store")

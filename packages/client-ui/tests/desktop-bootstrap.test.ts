@@ -9,9 +9,15 @@ import CN from "../src/i18n/messages/zh-cn.ts";
 import HK from "../src/i18n/messages/zh-hk.ts";
 import { handleDesktopShortcut } from "../src/platform/desktop-shortcuts.ts";
 import {
+  clearLocalAPIToken,
+  detectLocalAPIConfig,
+  hasDaemonConfig,
   invokeDesktop,
+  isDaemonHostedPage,
+  isDaemonSecretRequired,
   isDesktopApp,
   resolveShellLocalAPIConfig,
+  saveLocalAPIToken,
 } from "../src/platform/local-api-bootstrap.ts";
 
 test("isDesktopApp identifies presence vs absence of Tauri desktop shell", () => {
@@ -289,5 +295,101 @@ test("errorKind distinguishes local core vs remote controller network errors", (
     assert.ok(dict.runtime.networkLocal);
     assert.ok(dict.runtime.network);
     assert.equal(dict.runtime.network.includes("CORS"), false);
+  }
+});
+
+test("Daemon secret gate helpers detect controller-only pages and persist tokens", (t) => {
+  const prevDocument = globalThis.document;
+  const prevWindow = globalThis.window;
+  const prevLocalStorage = globalThis.localStorage;
+  t.after(() => {
+    if (prevDocument === undefined)
+      Reflect.deleteProperty(globalThis, "document");
+    else globalThis.document = prevDocument;
+    if (prevWindow === undefined) Reflect.deleteProperty(globalThis, "window");
+    else globalThis.window = prevWindow;
+    if (prevLocalStorage === undefined)
+      Reflect.deleteProperty(globalThis, "localStorage");
+    else globalThis.localStorage = prevLocalStorage;
+  });
+
+  const storage = new Map<string, string>();
+  const mockLocalStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      storage.set(key, value);
+    },
+    removeItem: (key: string) => {
+      storage.delete(key);
+    },
+  } as unknown as Storage;
+  globalThis.localStorage = mockLocalStorage;
+  globalThis.window = {
+    location: { search: "" },
+  } as unknown as Window & typeof globalThis;
+
+  const setMetaTags = (tags: Record<string, string>) => {
+    globalThis.document = {
+      querySelector: (selector: string) => {
+        const match = /^meta\[name="([^"]+)"\]$/.exec(selector);
+        if (!match) return null;
+        const content = tags[match[1]];
+        return content === undefined
+          ? null
+          : {
+              getAttribute: (name: string) =>
+                name === "content" ? content : null,
+            };
+      },
+    } as unknown as Document;
+  };
+
+  // Pure web page (no daemon meta tags)
+  setMetaTags({});
+  assert.equal(isDaemonHostedPage(), false);
+  assert.equal(isDaemonSecretRequired(), false);
+  assert.equal(hasDaemonConfig(), false);
+
+  // Passwordless daemon page (controller + token injected)
+  setMetaTags({
+    "localapi-controller": "/localapi/v0/controller/",
+    "localapi-token": "auto-token",
+  });
+  assert.equal(isDaemonHostedPage(), true);
+  assert.equal(isDaemonSecretRequired(), false);
+  assert.equal(hasDaemonConfig(), true);
+  assert.deepEqual(detectLocalAPIConfig(), {
+    endpoint: "",
+    token: "auto-token",
+  });
+
+  // Secret-protected daemon page (controller only, no token meta)
+  setMetaTags({
+    "localapi-controller": "/localapi/v0/controller/",
+  });
+  assert.equal(isDaemonHostedPage(), true);
+  assert.equal(isDaemonSecretRequired(), true);
+  assert.equal(hasDaemonConfig(), true);
+  assert.equal(detectLocalAPIConfig(), null);
+
+  // Stale saved address is ignored in favor of same-origin on daemon-hosted pages
+  storage.set("xbond_localapi_addr", "127.0.0.1:9999");
+  assert.deepEqual(saveLocalAPIToken("MySecret_123"), {
+    endpoint: "",
+    token: "MySecret_123",
+  });
+  assert.equal(storage.get("xbond_localapi_addr"), undefined);
+  assert.deepEqual(detectLocalAPIConfig(), {
+    endpoint: "",
+    token: "MySecret_123",
+  });
+
+  clearLocalAPIToken();
+  assert.equal(detectLocalAPIConfig(), null);
+
+  for (const dict of [EN, CN, HK, KO, FA]) {
+    assert.ok(dict.onboarding.daemonSecretTitle);
+    assert.ok(dict.onboarding.daemonSecretDesc);
+    assert.ok(dict.onboarding.daemonSecretSubmit);
   }
 });

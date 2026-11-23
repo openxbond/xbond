@@ -890,6 +890,10 @@ const FA = {
     secretPlaceholder: "اختیاری — اگر کلیدی ندارید خالی بگذارید",
     namePlaceholder: "مثلاً: مودم خانه",
     quickFill: "نشانی‌های رایج:",
+    daemonSecretTitle: "تأیید Secret",
+    daemonSecretDesc:
+      "این نمونه XBond با کلید دسترسی محافظت شده است. برای مدیریت، Secret تنظیم‌شده هنگام استقرار را وارد کنید.",
+    daemonSecretSubmit: "باز کردن قفل",
     collapse: "بستن",
     expand: "گسترش",
   },

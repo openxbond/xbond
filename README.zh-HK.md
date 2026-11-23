@@ -86,7 +86,7 @@ $ xbond status                     # 查看三層連線狀態、訂閱與流量
 $ docker compose up -d
 ```
 
-打開 `http://localhost:19090` 登入 XBond Cloud 或匯入訂閱；也可在首次啟動前設定 `SUB_URL`。配置和登入狀態保存在 `/data` 卷，活躍訂閱會自動更新，預設 mixed 代理位於 `127.0.0.1:7890`。更新容器版本執行 `docker compose up -d --pull always`。
+在宿主機打開 `http://localhost:19090`（或在區域網絡存取 `http://<宿主機 IP>:19090`，切勿將 19090 連接埠暴露到公網）登入 XBond Cloud 或匯入訂閱；可透過 `XBOND_SECRET` 設定管理介面的存取 Secret，也可在首次啟動前設定 `SUB_URL`。配置和登入狀態保存在 `/data` 卷，活躍訂閱會自動更新，預設 mixed 代理監聽 `7890` 連接埠。更新容器版本執行 `docker compose up -d --pull always`。
 
 本機開發可執行 `docker build -t ghcr.io/openxbond/xbond:local .`，再用 `XBOND_IMAGE_TAG=local docker compose up -d --pull never`。詳見 [Docker 行為契約](docs/specs/docker-daemon.md)。
 

@@ -850,6 +850,10 @@ const HK = {
     secretPlaceholder: "可選，沒有密鑰就留空",
     namePlaceholder: "例如：屋企的軟路由",
     quickFill: "常用位址：",
+    daemonSecretTitle: "驗證 Secret",
+    daemonSecretDesc:
+      "此 XBond 實例已啟用存取密鑰，請輸入部署時設定的 Secret 後繼續管理。",
+    daemonSecretSubmit: "解鎖控制台",
     collapse: "收起",
     expand: "展開",
   },

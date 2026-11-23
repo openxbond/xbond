@@ -850,6 +850,10 @@ const CN = {
     secretPlaceholder: "可选，没有密钥就留空",
     namePlaceholder: "例如：家里的软路由",
     quickFill: "常用地址：",
+    daemonSecretTitle: "验证 Secret",
+    daemonSecretDesc:
+      "该 XBond 实例启用了访问密钥，请输入部署时设置的 Secret 后继续管理。",
+    daemonSecretSubmit: "解锁控制台",
     collapse: "收起",
     expand: "展开",
   },

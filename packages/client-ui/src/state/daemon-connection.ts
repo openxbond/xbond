@@ -9,8 +9,11 @@ import useSWR from "swr";
 
 import { isTauriRuntime } from "@/platform/host";
 import {
+  clearLocalAPIToken,
   detectLocalAPIConfig,
+  isDaemonSecretRequired,
   resolveShellLocalAPIConfig,
+  saveLocalAPIToken,
 } from "@/platform/local-api-bootstrap";
 
 /** Retain resolved daemon config globally so route changes don't re-probe IPC or drop clients. */
@@ -102,12 +105,24 @@ export function useDaemonConnection() {
     {
       refreshInterval: STATUS_POLL_MS,
       // SWR pauses interval revalidation while the cache has an error.
-      onErrorRetry: (_error, _key, _config, retry, options) => {
+      onErrorRetry: (err, _key, _config, retry, options) => {
+        if (err instanceof Error && err.message === "unauthorized") return;
         setTimeout(() => retry(options), STATUS_POLL_MS);
       },
       fallbackData: cachedStatus ?? undefined,
     },
   );
+
+  const secretRequired = isDaemonSecretRequired();
+  const unauthorizedError =
+    error instanceof Error && error.message === "unauthorized";
+
+  useEffect(() => {
+    if (!secretRequired || !unauthorizedError) return;
+    clearLocalAPIToken();
+    setCachedStatus(null);
+    setConfig(null);
+  }, [secretRequired, unauthorizedError, setCachedStatus, setConfig]);
 
   const effectiveStatus = data ?? cachedStatus;
 
@@ -149,13 +164,35 @@ export function useDaemonConnection() {
     return () => clearTimeout(timer);
   }, [error, config, setConfig]);
 
-  const daemonState = !configReady
-    ? ("connecting" as const)
-    : !config || statusStale
-      ? ("offline" as const)
-      : !effectiveStatus
-        ? ("connecting" as const)
-        : ("ready" as const);
+  const daemonState: "connecting" | "offline" | "unauthorized" | "ready" =
+    !configReady
+      ? "connecting"
+      : secretRequired && (!config || unauthorizedError)
+        ? "unauthorized"
+        : !config || statusStale
+          ? "offline"
+          : !effectiveStatus
+            ? "connecting"
+            : "ready";
+
+  /** Verifies a daemon Secret against `/localapi/v0/status` and persists it. */
+  const authenticateSecret = useCallback(
+    async (secret: string) => {
+      const trimmed = secret.trim();
+      if (!trimmed) {
+        throw new Error("unauthorized");
+      }
+      const probe = new LocalAPIClient("", trimmed);
+      const res = await probe.getStatus();
+      const nextConfig = saveLocalAPIToken(trimmed);
+      globalLastGoodStatusAt = Date.now();
+      setCachedStatus(res);
+      setDegraded(false);
+      setConfig(nextConfig);
+      setConfigReady(true);
+    },
+    [setCachedStatus, setConfig, setConfigReady],
+  );
 
   /** Manual retry entry: re-resolve the native config, then re-read status. */
   const reconnect = useCallback(async () => {
@@ -176,6 +213,7 @@ export function useDaemonConnection() {
     error: error ?? null,
     mutateStatus: mutate,
     reconnect,
+    authenticateSecret,
     hasDaemon: daemonState === "ready",
     daemonState,
   };

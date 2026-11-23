@@ -44,7 +44,8 @@ if (
   !isTauriRuntime() &&
   "serviceWorker" in navigator &&
   location.protocol === "https:" &&
-  !document.querySelector('meta[name="localapi-token"]')
+  !document.querySelector('meta[name="localapi-token"]') &&
+  !document.querySelector('meta[name="localapi-controller"]')
 ) {
   void registerDashboardWorker().catch((error: unknown) =>
     console.warn("Dashboard service worker unavailable", error),

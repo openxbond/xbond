@@ -86,7 +86,7 @@ Copy the Docker deployment command from the XBond Cloud subscription page and yo
 $ docker compose up -d
 ```
 
-Open `http://localhost:19090` to sign in to XBond Cloud or import a subscription; `SUB_URL` can be set before the first start instead. Config and sign-in state live in the `/data` volume, the active subscription refreshes itself, and the default mixed proxy listens on `127.0.0.1:7890`. To update the container version, run `docker compose up -d --pull always`.
+Open `http://localhost:19090` on the host (or `http://<host-ip>:19090` from the LAN — do not expose port 19090 to the public internet) to sign in to XBond Cloud or import a subscription; set `XBOND_SECRET` to require a management secret in the browser, and `SUB_URL` can be set before the first start instead. Config and sign-in state live in the `/data` volume, the active subscription refreshes itself, and the default mixed proxy listens on port `7890`. To update the container version, run `docker compose up -d --pull always`.
 
 For local development, run `docker build -t ghcr.io/openxbond/xbond:local .`, then `XBOND_IMAGE_TAG=local docker compose up -d --pull never`. See the [Docker behavior contract](docs/specs/docker-daemon.md).
 

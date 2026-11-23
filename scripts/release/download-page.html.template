@@ -878,25 +878,38 @@
     const NOTE_KEYS = { en: "en-us", zh: "zh-cn", "zh-HK": "zh-hk", ko: "ko", fa: "fa" };
     const select = document.getElementById("lang");
     let currentLocale = "zh-HK";
+    function randomDockerSecret() {
+      const alphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+      const bytes = new Uint8Array(16);
+      if (globalThis.crypto?.getRandomValues) {
+        globalThis.crypto.getRandomValues(bytes);
+      } else {
+        for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+      }
+      let out = "";
+      for (let i = 0; i < bytes.length; i += 1) out += alphabet[bytes[i] % alphabet.length];
+      return out;
+    }
     const docker = {
       mode: /Macintosh|Windows/.test(navigator.userAgent) ? "port" : "tun",
       form: "run",
       tz: "Asia/Shanghai",
+      secret: randomDockerSecret(),
     };
     try {
       docker.tz = Intl.DateTimeFormat().resolvedOptions().timeZone || docker.tz;
     } catch {}
     const DOCKER_IMAGE = "ghcr.io/openxbond/xbond:latest";
-    const DOCKER_PORTS = ["127.0.0.1:7890:7890", "127.0.0.1:19090:19090"];
+    const DOCKER_PORTS = ["7890:7890", "19090:19090"];
     const shellQuote = (value) => "'" + value.replace(/'/g, "'\\''") + "'";
     function dockerCommands() {
       const tun = docker.mode === "tun";
-      const environment = { TZ: docker.tz };
+      const environment = { TZ: docker.tz, XBOND_SECRET: docker.secret };
       if (tun)
         Object.assign(environment, {
           XBOND_TAKEOVER_MODE: "tun",
           XBOND_MIXED_PORT: "7890",
-          XBOND_DASHBOARD_LISTEN: "127.0.0.1:19090",
+          XBOND_DASHBOARD_LISTEN: "0.0.0.0:19090",
         });
       const runLines = [
         "docker run -d",

@@ -635,9 +635,10 @@ export function buildPages(
     "  --device /dev/net/tun",
     "  -v xbond-data:/data",
     "  -e TZ='Asia/Shanghai'",
+    "  -e XBOND_SECRET='change-me-secret'",
     "  -e XBOND_TAKEOVER_MODE='tun'",
     "  -e XBOND_MIXED_PORT='7890'",
-    "  -e XBOND_DASHBOARD_LISTEN='127.0.0.1:19090'",
+    "  -e XBOND_DASHBOARD_LISTEN='0.0.0.0:19090'",
     "  ghcr.io/openxbond/xbond:latest",
   ].join(" \\\n");
   const dockerCard = `<article class="card">

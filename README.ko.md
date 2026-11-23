@@ -86,7 +86,7 @@ XBond Cloud 구독 페이지의 Docker 배포 명령을 복사하면 구독이 �
 $ docker compose up -d
 ```
 
-`http://localhost:19090`을 열어 XBond Cloud에 로그인하거나 구독을 가져옵니다. 첫 시작 전에 `SUB_URL`을 지정하는 방법도 있습니다. 설정과 로그인 상태는 `/data` 볼륨에 저장되고, 활성 구독은 자동으로 갱신되며, 기본 mixed 프록시는 `127.0.0.1:7890`에서 대기합니다. 컨테이너 버전을 올릴 때는 `docker compose up -d --pull always`를 실행하세요.
+호스트에서 `http://localhost:19090`(또는 LAN에서 `http://<호스트 IP>:19090` — 19090 포트를 공용 인터넷에 노출하지 마세요)을 열어 XBond Cloud에 로그인하거나 구독을 가져옵니다. `XBOND_SECRET`으로 관리 화면의 액세스 Secret을 설정할 수 있으며, 첫 시작 전에 `SUB_URL`을 지정하는 방법도 있습니다. 설정과 로그인 상태는 `/data` 볼륨에 저장되고, 활성 구독은 자동으로 갱신되며, 기본 mixed 프록시는 `7890` 포트에서 대기합니다. 컨테이너 버전을 올릴 때는 `docker compose up -d --pull always`를 실행하세요.
 
 로컬 개발에서는 `docker build -t ghcr.io/openxbond/xbond:local .`로 빌드한 뒤 `XBOND_IMAGE_TAG=local docker compose up -d --pull never`로 실행합니다. 자세한 내용은 [Docker 동작 계약](docs/specs/docker-daemon.md)을 참고하세요.
 

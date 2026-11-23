@@ -16,6 +16,36 @@ function normalizeEndpoint(addr: string | null | undefined): string {
 }
 
 /**
+ * Whether this page is served directly by an xbond daemon (which injects
+ * `localapi-controller`, and optionally `localapi-token` when no Secret is
+ * configured).
+ */
+export function isDaemonHostedPage(): boolean {
+  if (typeof document === "undefined") return false;
+  return Boolean(
+    document.querySelector('meta[name="localapi-controller"]') ||
+    document.querySelector('meta[name="localapi-token"]'),
+  );
+}
+
+/**
+ * Whether the current daemon-hosted web page requires the user to enter a
+ * configured Secret (`XBOND_SECRET`) instead of auto-injecting the token.
+ */
+export function isDaemonSecretRequired(): boolean {
+  if (typeof document === "undefined" || isTauriRuntime()) return false;
+  const hasController = Boolean(
+    document.querySelector('meta[name="localapi-controller"]'),
+  );
+  const hasMetaToken = Boolean(
+    document
+      .querySelector('meta[name="localapi-token"]')
+      ?.getAttribute("content"),
+  );
+  return hasController && !hasMetaToken;
+}
+
+/**
  * Detects LocalAPI connection info from HTML meta tags, query params, or localStorage.
  */
 export function detectLocalAPIConfig(): LocalAPIConfig | null {
@@ -53,8 +83,10 @@ export function detectLocalAPIConfig(): LocalAPIConfig | null {
     const savedToken = localStorage.getItem("xbond_localapi_token");
     const savedAddr = localStorage.getItem("xbond_localapi_addr");
     if (savedToken) {
+      const endpoint =
+        isDaemonHostedPage() && !metaAddr ? "" : normalizeEndpoint(savedAddr);
       return {
-        endpoint: normalizeEndpoint(savedAddr),
+        endpoint,
         token: savedToken,
       };
     }
@@ -63,6 +95,29 @@ export function detectLocalAPIConfig(): LocalAPIConfig | null {
   }
 
   return null;
+}
+
+/**
+ * Persists a verified daemon Secret for same-origin LocalAPI access and drops
+ * any stale `xbond_localapi_addr` so requests always target the served origin.
+ */
+export function saveLocalAPIToken(token: string): LocalAPIConfig {
+  try {
+    localStorage.setItem("xbond_localapi_token", token);
+    localStorage.removeItem("xbond_localapi_addr");
+  } catch {
+    // Ignore storage errors
+  }
+  return { endpoint: "", token };
+}
+
+/** Removes the stored LocalAPI Secret after an unauthorized rejection. */
+export function clearLocalAPIToken(): void {
+  try {
+    localStorage.removeItem("xbond_localapi_token");
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 /**
@@ -81,7 +136,9 @@ export function isDesktopApp(): boolean {
  * (Sidebar, App, Connect).
  */
 export function hasDaemonConfig(): boolean {
-  return Boolean(detectLocalAPIConfig() || isTauriRuntime());
+  return Boolean(
+    detectLocalAPIConfig() || isDaemonHostedPage() || isTauriRuntime(),
+  );
 }
 
 type TauriInternals = {

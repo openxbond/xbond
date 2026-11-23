@@ -899,6 +899,10 @@ const EN = {
     secretPlaceholder: "Optional — leave blank if there is no secret",
     namePlaceholder: "e.g. Home router",
     quickFill: "Common addresses:",
+    daemonSecretTitle: "Verify Secret",
+    daemonSecretDesc:
+      "This XBond instance requires the XBOND_SECRET configured at deployment before you can manage it.",
+    daemonSecretSubmit: "Unlock",
     collapse: "Collapse",
     expand: "Expand",
   },

@@ -26,6 +26,7 @@ export function useLocalAPI() {
     error,
     mutateStatus,
     reconnect,
+    authenticateSecret,
     hasDaemon,
     daemonState,
   } = useDaemonConnection();
@@ -194,6 +195,7 @@ export function useLocalAPI() {
     error,
     refresh: mutateStatus,
     reconnect,
+    authenticateSecret,
     up,
     down,
     restart,

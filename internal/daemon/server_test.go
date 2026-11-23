@@ -150,9 +150,9 @@ func TestAuthMiddlewareRejectsMissingAndWrongTokens(t *testing.T) {
 	}
 }
 
-// Host 守卫：rebinding 页面把自家域名解析到 127.0.0.1 后，浏览器发出的
-// Host 是攻击者域名——必须一律拒绝；三种 loopback 名（含 IPv6 字面量）
-// 是完整白名单。
+// Host 守卫：rebinding 页面把自家域名解析到 127.0.0.1 或局域网地址后，浏览器
+// 发出的 Host 是攻击者域名——必须一律拒绝；loopback 名、非回环/非未指定 IP
+// 字面量（浏览器不走 DNS）与本地局域网主机名允许访问。
 func TestLoopbackHostGuard(t *testing.T) {
 	srv := httptest.NewServer(httplocal.Guard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -163,12 +163,21 @@ func TestLoopbackHostGuard(t *testing.T) {
 		host   string
 		status int
 	}{
-		"loopback IPv4":  {host: "127.0.0.1", status: http.StatusOK},
-		"loopback name":  {host: "localhost", status: http.StatusOK},
-		"loopback IPv6":  {host: "[::1]", status: http.StatusOK},
-		"rebound domain": {host: "evil.example", status: http.StatusForbidden},
-		"suffix spoof":   {host: "127.0.0.1.evil.example", status: http.StatusForbidden},
-		"lookup-alike":   {host: "127.0.0.2", status: http.StatusForbidden},
+		"loopback IPv4":         {host: "127.0.0.1", status: http.StatusOK},
+		"loopback name":         {host: "localhost", status: http.StatusOK},
+		"loopback IPv6":         {host: "[::1]", status: http.StatusOK},
+		"LAN IPv4 with port":    {host: "192.168.10.1:19090", status: http.StatusOK},
+		"LAN IPv4 without port": {host: "10.0.0.1", status: http.StatusOK},
+		"LAN IPv6":              {host: "[fd00::1]:19090", status: http.StatusOK},
+		"LAN IPv6 link-local":   {host: "[fe80::1%eth0]:19090", status: http.StatusOK},
+		"local single label":    {host: "openwrt:19090", status: http.StatusOK},
+		"local .lan":            {host: "openwrt.lan:19090", status: http.StatusOK},
+		"local .local":          {host: "router.local", status: http.StatusOK},
+		"unspecified IPv4":      {host: "0.0.0.0", status: http.StatusForbidden},
+		"unspecified IPv6":      {host: "[::]", status: http.StatusForbidden},
+		"rebound domain":        {host: "evil.example", status: http.StatusForbidden},
+		"suffix spoof":          {host: "127.0.0.1.evil.example", status: http.StatusForbidden},
+		"lookup-alike":          {host: "127.0.0.2", status: http.StatusForbidden},
 	} {
 		req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
 		if err != nil {
@@ -270,5 +279,84 @@ func TestUnknownLocalAPIPathIsNotSwallowedBySPA(t *testing.T) {
 	server.handleWeb(recorder, httptest.NewRequest(http.MethodGet, "/logs", nil))
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "<!DOCTYPE") {
 		t.Fatalf("SPA fallback broke for ui routes: %d %s", recorder.Code, recorder.Body)
+	}
+}
+
+func TestServerWithConfiguredSecret(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("XBOND_DATA_DIR", tempDir)
+	t.Setenv("XBOND_SECRET", "TestSecret_123")
+
+	webDir := filepath.Join(tempDir, "dist")
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(webDir, "index.html"), []byte("<!DOCTYPE html><html><head><title>XBond</title></head></html>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	server, err := NewServer("127.0.0.1:0", webDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+	go func() {
+		_ = server.Start()
+	}()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = server.Stop(ctx)
+	}()
+
+	// Index must advertise controller proxy path without leaking the secret.
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/", server.Addr()), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Host = "router.example.com:19090"
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /, got %d: %s", resp.StatusCode, body)
+	}
+	html := string(body)
+	if !strings.Contains(html, `<meta name="localapi-controller" content="`+controllerProxyPath+`">`) {
+		t.Fatalf("expected localapi-controller meta tag in html, got: %s", html)
+	}
+	if strings.Contains(html, `<meta name="localapi-token"`) || strings.Contains(html, "TestSecret_123") {
+		t.Fatalf("configured secret must not be embedded in html: %s", html)
+	}
+
+	// LocalAPI must reject missing or wrong tokens and accept the configured secret.
+	for name, tc := range map[string]struct {
+		token  string
+		status int
+	}{
+		"missing": {token: "", status: http.StatusUnauthorized},
+		"wrong":   {token: "wrong-secret", status: http.StatusUnauthorized},
+		"correct": {token: "TestSecret_123", status: http.StatusOK},
+	} {
+		apiReq, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/localapi/v0/status?light=1", server.Addr()), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tc.token != "" {
+			apiReq.Header.Set("X-XBond-Token", tc.token)
+		}
+		apiResp, err := http.DefaultClient.Do(apiReq)
+		if err != nil {
+			t.Fatal(err)
+		}
+		apiResp.Body.Close()
+		if apiResp.StatusCode != tc.status {
+			t.Errorf("%s: got %d, want %d", name, apiResp.StatusCode, tc.status)
+		}
 	}
 }

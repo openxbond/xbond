@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 
 import { CommandPalette } from "@/components/command-palette";
+import { DaemonSecretGate } from "@/components/daemon-secret-gate";
 import {
   IS_MACOS,
   TitleBar,
@@ -34,6 +35,7 @@ import { useDesktopShell } from "@/platform/desktop-shell";
 import { isMobileApp } from "@/platform/host";
 import { isDesktopApp } from "@/platform/local-api-bootstrap";
 import { identityAtom, useAPIInfo } from "@/state/controller-target";
+import { useLocalAPI } from "@/state/local-runtime";
 import { useTheme } from "@/state/user-preferences";
 
 import AppNavigation, {
@@ -265,5 +267,9 @@ export default function App() {
 }
 
 function ControllerPage() {
+  const { isLocalTarget, daemonState } = useLocalAPI();
+  if (isLocalTarget && daemonState === "unauthorized") {
+    return <DaemonSecretGate />;
+  }
   return <Outlet />;
 }

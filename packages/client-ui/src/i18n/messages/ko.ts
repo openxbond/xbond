@@ -886,6 +886,10 @@ const KO = {
     secretPlaceholder: "선택 사항 — 시크릿이 없으면 비워 두세요",
     namePlaceholder: "예: 집의 공유기",
     quickFill: "자주 쓰는 주소:",
+    daemonSecretTitle: "Secret 확인",
+    daemonSecretDesc:
+      "이 XBond 인스턴스는 액세스 키가 설정되어 있습니다. 배포 시 지정한 Secret을 입력해 계속 관리하세요.",
+    daemonSecretSubmit: "잠금 해제",
     collapse: "접기",
     expand: "펼치기",
   },
