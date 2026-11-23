@@ -10,6 +10,7 @@ import {
   CloudOff,
   ExternalLink,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -132,20 +134,21 @@ export function NotificationDrawer() {
     >
       <SheetContent
         side="right"
-        closeLabel={common("close")}
-        className="w-full gap-0 p-0 sm:max-w-md"
+        showCloseButton={false}
+        className="w-full max-w-full gap-0 border-0 p-0 sm:max-w-md sm:border-l"
       >
         {selectedAnnouncement ? (
           <DetailView
             item={selectedAnnouncement}
             lang={lang}
             consoleUrl={account?.consoleUrl}
+            closeLabel={common("close")}
             onBack={() => setSelectedId(null)}
             onOpenConsole={handleOpenConsole}
           />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
-            <SheetHeader className="border-b border-border px-5 py-4 pe-12">
+            <SheetHeader className="gap-1.5 border-b border-border bg-card px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 sm:px-5 sm:pt-4 sm:pb-3.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <SheetTitle className="truncate text-base">
@@ -157,12 +160,12 @@ export function NotificationDrawer() {
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-8"
+                    className="size-9 sm:size-8"
                     disabled={syncing}
                     aria-label={t("notifications.refresh")}
                     title={t("notifications.refresh")}
@@ -170,30 +173,36 @@ export function NotificationDrawer() {
                   >
                     <RefreshCw
                       aria-hidden
-                      className={cn("size-3.5", syncing && "animate-spin")}
+                      className={cn(
+                        "size-4 sm:size-3.5",
+                        syncing && "animate-spin",
+                      )}
                     />
                   </Button>
-                  {unreadCount > 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 gap-1 px-2 text-xs"
-                      onClick={() => void markAllAsRead()}
-                    >
-                      <CheckCheck aria-hidden className="size-3.5" />
-                      {t("notifications.markAllRead")}
-                    </Button>
-                  )}
+                  <DrawerCloseButton label={common("close")} />
                 </div>
               </div>
-              <SheetDescription className="text-xs">
-                {t("notifications.subtitle")}
-              </SheetDescription>
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                <SheetDescription className="min-w-0 text-xs leading-snug">
+                  {t("notifications.subtitle")}
+                </SheetDescription>
+                {unreadCount > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="-me-2 h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => void markAllAsRead()}
+                  >
+                    <CheckCheck aria-hidden className="size-3.5" />
+                    {t("notifications.markAllRead")}
+                  </Button>
+                )}
+              </div>
             </SheetHeader>
 
             {account?.overviewError && (
-              <div className="flex items-center gap-2 border-b border-border bg-inset px-5 py-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 border-b border-border bg-inset px-4 py-2 text-xs text-muted-foreground sm:px-5">
                 <CloudOff aria-hidden className="size-3.5 shrink-0" />
                 <span className="truncate">
                   {t("notifications.cachedNotice")}
@@ -201,7 +210,13 @@ export function NotificationDrawer() {
               </div>
             )}
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            <div
+              className={cn(
+                "min-h-0 flex-1 overflow-y-auto bg-inset/50 px-4 py-3 sm:bg-transparent",
+                !account?.consoleUrl &&
+                  "pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-3",
+              )}
+            >
               {announcements.length === 0 && personal.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-inset/50 px-6 py-12 text-center">
                   <Bell
@@ -362,12 +377,12 @@ export function NotificationDrawer() {
             </div>
 
             {account?.consoleUrl && (
-              <div className="border-t border-border px-5 py-3">
+              <div className="border-t border-border bg-card px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:px-5 sm:py-3">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="w-full gap-1.5"
+                  className="h-10 w-full gap-1.5 sm:h-9"
                   onClick={handleOpenConsole}
                 >
                   <ExternalLink aria-hidden className="size-3.5" />
@@ -382,16 +397,35 @@ export function NotificationDrawer() {
   );
 }
 
+function DrawerCloseButton({ label }: { label: string }) {
+  return (
+    <SheetClose asChild>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-9 shrink-0 sm:size-8"
+        aria-label={label}
+        title={label}
+      >
+        <X aria-hidden className="size-4" />
+      </Button>
+    </SheetClose>
+  );
+}
+
 function DetailView({
   item,
   lang,
   consoleUrl,
+  closeLabel,
   onBack,
   onOpenConsole,
 }: {
   item: AccountAnnouncement;
   lang: string;
   consoleUrl?: string;
+  closeLabel: string;
   onBack: () => void;
   onOpenConsole: () => void;
 }) {
@@ -401,18 +435,19 @@ function DetailView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <SheetHeader className="border-b border-border px-5 py-4 pe-12">
-        <div className="flex items-center gap-2">
+      <SheetHeader className="gap-1.5 border-b border-border bg-card px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3.5 sm:px-5 sm:pt-4 sm:pb-4">
+        <div className="flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="-ms-2 h-8 gap-1 px-2 text-xs"
+            className="-ms-2 h-9 gap-1 px-2 text-xs sm:h-8"
             onClick={onBack}
           >
             <ArrowLeft aria-hidden className="size-3.5 rtl:rotate-180" />
             {t("notifications.backToList")}
           </Button>
+          <DrawerCloseButton label={closeLabel} />
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <Badge
@@ -443,7 +478,12 @@ function DetailView({
         )}
       </SheetHeader>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5",
+          !consoleUrl && "pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:pb-4",
+        )}
+      >
         {item.content?.trim() ? (
           <NotificationMarkdown content={item.content} />
         ) : item.summary ? (
@@ -454,12 +494,12 @@ function DetailView({
       </div>
 
       {consoleUrl && (
-        <div className="border-t border-border px-5 py-3">
+        <div className="border-t border-border bg-card px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:px-5 sm:py-3">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="w-full gap-1.5"
+            className="h-10 w-full gap-1.5 sm:h-9"
             onClick={onOpenConsole}
           >
             <ExternalLink aria-hidden className="size-3.5" />
