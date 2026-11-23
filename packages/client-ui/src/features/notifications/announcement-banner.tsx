@@ -52,6 +52,14 @@ export function AnnouncementBanner({ className }: { className?: string }) {
           <CatIcon aria-hidden className="size-3" />
           {t(`notifications.category.${cat.key}`)}
         </Badge>
+        {banner.tag && (
+          <Badge
+            variant="secondary"
+            className="shrink-0 px-1.5 py-0 text-[10px]"
+          >
+            {banner.tag}
+          </Badge>
+        )}
         <span className="truncate font-medium text-foreground">
           {banner.title}
         </span>

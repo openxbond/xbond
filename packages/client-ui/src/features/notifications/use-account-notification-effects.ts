@@ -90,13 +90,10 @@ export function useAccountNotificationEffects(): void {
     }
   }, [signedIn, accountKey, account?.announcements, openAnnouncement, t]);
 
-  // Keep announcement language synced with active UI locale when signed in.
+  // Keep announcement language synced with active UI locale when signed in,
+  // including aligning cold-start daemon cache with the current UI language.
   useEffect(() => {
     if (!signedIn) return;
-    if (lastLangRef.current === null) {
-      lastLangRef.current = apiLang;
-      return;
-    }
     if (lastLangRef.current === apiLang) return;
     lastLangRef.current = apiLang;
     lastSyncAtRef.current = Date.now();

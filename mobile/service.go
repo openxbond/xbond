@@ -76,7 +76,7 @@ func NewTunnelService(platform PlatformBridge, listener StatusListener) *TunnelS
 		subMgr:   subMgr,
 	}
 	svc.runtime = newMobileRuntime(svc, engine.RoutingRule)
-	svc.account = newMobileAccount(svc, "zh")
+	svc.account = newMobileAccount(svc, "")
 	// The in-process LocalAPI makes the app drivable by the shared web UI
 	// and by LocalAPI tooling; loopback only, token in localapi.token.
 	api, apiErr := newAPIServer(svc)

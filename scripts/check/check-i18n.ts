@@ -12,12 +12,12 @@ export type LocaleDict = Record<string, unknown>;
 
 const LOCALES = [
   {
-    code: "en_US",
-    file: "packages/client-ui/src/i18n/messages/en-us.ts",
+    code: "zh_HK",
+    file: "packages/client-ui/src/i18n/messages/zh-hk.ts",
     isBase: true,
   },
   { code: "zh_CN", file: "packages/client-ui/src/i18n/messages/zh-cn.ts" },
-  { code: "zh_HK", file: "packages/client-ui/src/i18n/messages/zh-hk.ts" },
+  { code: "en_US", file: "packages/client-ui/src/i18n/messages/en-us.ts" },
   { code: "ko", file: "packages/client-ui/src/i18n/messages/ko.ts" },
   { code: "fa", file: "packages/client-ui/src/i18n/messages/fa.ts" },
 ];
@@ -155,7 +155,7 @@ export function checkTrayI18n(rootDir: string): I18nProblem[] {
 export async function checkI18n(rootDir: string): Promise<I18nProblem[]> {
   const problems: I18nProblem[] = [];
 
-  // 1. Load base locale (en_US)
+  // 1. Load base locale (zh_HK)
   const baseDef = LOCALES.find((l) => l.isBase)!;
   const basePath = path.join(rootDir, baseDef.file);
 
@@ -237,7 +237,7 @@ export async function checkI18n(rootDir: string): Promise<I18nProblem[]> {
         problems.push({
           file: loc.file,
           key,
-          message: `Orphaned/extra translation key not present in en_US: '${key}'`,
+          message: `Orphaned/extra translation key not present in ${baseDef.code}: '${key}'`,
         });
       }
     }

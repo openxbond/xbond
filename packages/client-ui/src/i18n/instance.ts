@@ -35,7 +35,7 @@ export function getDefaultLanguage(): Lang {
       return "en_US";
     }
   }
-  return "en_US";
+  return "zh_HK";
 }
 
 function getStoredLanguage(): Lang {
@@ -62,49 +62,49 @@ function getStoredLanguage(): Lang {
   return getDefaultLanguage();
 }
 
-// Shape parity: every locale must cover the same key paths as en_US,
+// Shape parity: every locale must cover the same key paths as zh_HK,
 // so a missing translation fails typecheck instead of rendering blank.
-type KeyPaths = Infer<typeof en_US>;
+type KeyPaths = Infer<typeof zh_HK>;
 type TrueGuard<T extends true> = T;
+type _parityEN = TrueGuard<IsEqual<KeyPaths, Infer<typeof en_US>>>;
 type _parityCN = TrueGuard<IsEqual<KeyPaths, Infer<typeof zh_CN>>>;
-type _parityHK = TrueGuard<IsEqual<KeyPaths, Infer<typeof zh_HK>>>;
 type _parityKO = TrueGuard<IsEqual<KeyPaths, Infer<typeof ko>>>;
 type _parityFA = TrueGuard<IsEqual<KeyPaths, Infer<typeof fa>>>;
 
 declare module "i18next" {
   interface CustomTypeOptions {
     resources: {
-      common: typeof en_US.common;
-      titlebar: typeof en_US.titlebar;
-      sidebar: typeof en_US.sidebar;
-      overview: typeof en_US.overview;
-      connect: typeof en_US.connect;
-      proxies: typeof en_US.proxies;
-      connections: typeof en_US.connections;
-      logs: typeof en_US.logs;
-      rules: typeof en_US.rules;
-      diagnostics: typeof en_US.diagnostics;
-      subscriptions: typeof en_US.subscriptions;
-      settings: typeof en_US.settings;
-      runtime: typeof en_US.runtime;
-      onboarding: typeof en_US.onboarding;
-      account: typeof en_US.account;
-      configuration: typeof en_US.configuration;
-      commandPalette: typeof en_US.commandPalette;
+      common: typeof zh_HK.common;
+      titlebar: typeof zh_HK.titlebar;
+      sidebar: typeof zh_HK.sidebar;
+      overview: typeof zh_HK.overview;
+      connect: typeof zh_HK.connect;
+      proxies: typeof zh_HK.proxies;
+      connections: typeof zh_HK.connections;
+      logs: typeof zh_HK.logs;
+      rules: typeof zh_HK.rules;
+      diagnostics: typeof zh_HK.diagnostics;
+      subscriptions: typeof zh_HK.subscriptions;
+      settings: typeof zh_HK.settings;
+      runtime: typeof zh_HK.runtime;
+      onboarding: typeof zh_HK.onboarding;
+      account: typeof zh_HK.account;
+      configuration: typeof zh_HK.configuration;
+      commandPalette: typeof zh_HK.commandPalette;
     };
   }
 }
 
 void i18next.use(initReactI18next).init({
   resources: {
-    en_US: en_US,
-    zh_CN: zh_CN,
     zh_HK: zh_HK,
+    zh_CN: zh_CN,
+    en_US: en_US,
     ko: ko,
     fa: fa,
   },
   lng: getStoredLanguage(),
-  fallbackLng: "en_US",
+  fallbackLng: "zh_HK",
   defaultNS: "common",
   // React escapes interpolated values itself.
   interpolation: { escapeValue: false },
