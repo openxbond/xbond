@@ -1,0 +1,2 @@
+- Fixed mobile Notification Center layout overlapping the system status bar and bottom navigation bar: list/detail headers, close button, and the bottom "Open console" action bar now respect safe-area insets and align header actions consistently.
+- Improved Notification Center surface separation between header, scrollable feed, and announcement cards, plus word wrapping for long links inside Markdown details.

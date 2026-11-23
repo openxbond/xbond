@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	Version        = "1.1.0"
+	Version        = "1.1.1"
 	CoreVersion    = "1.19.33"
 	SingBoxVersion = "1.13.21"
 	ClientName     = "xbond"
