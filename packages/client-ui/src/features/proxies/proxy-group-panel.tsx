@@ -344,7 +344,7 @@ export function Group({
   );
 
   return (
-    <div className="flex h-full animate-in flex-col gap-3 fade-in-50 slide-in-from-bottom-1 duration-200 lg:p-3.5 xl:p-4.5">
+    <div className="flex h-full animate-in flex-col gap-3 fade-in-50 duration-150 lg:p-3.5 xl:p-4.5">
       {/* 桌面：群組標題與工具列共用同一列；窄屏改由卡片內的
           工具列承擔（下方渲染），頁首不再出現孤立按鈕。 */}
       {!cardToolbar && (

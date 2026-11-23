@@ -3,6 +3,7 @@ import type { Snapshot } from "@xbond/client/request";
 import { useAtom } from "jotai";
 import {
   Activity,
+  Bell,
   Check,
   ChevronRight,
   Copy,
@@ -56,8 +57,16 @@ import {
   openAndroidUrl,
 } from "@/platform/android-bridge";
 import { isClashX } from "@/platform/clashx-bridge";
-import { useIsMobile } from "@/platform/host";
+import { isMobileApp, useIsMobile } from "@/platform/host";
 import { invokeDesktop, isDesktopApp } from "@/platform/local-api-bootstrap";
+import {
+  canOpenDesktopNotificationSettings,
+  getMobileNotificationPermissionState,
+  openDesktopNotificationSettings,
+  openMobileNotificationSettings,
+  requestMobileNotificationPermission,
+  type NotificationPermissionState,
+} from "@/platform/notifications";
 import { openExternalUrl } from "@/platform/open-external";
 import { useAPIInfo, useClient } from "@/state/controller-target";
 import { useCapabilities, useGeneral, useVersion } from "@/state/core-settings";
@@ -178,7 +187,10 @@ export default function Settings() {
     autostart: boolean;
     closeToTray: boolean;
     silentStart: boolean;
+    notifications: boolean;
   } | null>(null);
+  const [canOpenSystemNotifSettings, setCanOpenSystemNotifSettings] =
+    useState(false);
   const [savingDesktopPreference, setSavingDesktopPreference] = useState(false);
   const { run, pending } = useAction();
 
@@ -189,8 +201,12 @@ export default function Settings() {
     useState<TerminalFormat>("powershell");
   const [copied, setCopied] = useState(false);
   const isMobile = useIsMobile();
+  const isMobileHost = isMobileApp();
   const isAndroid = hasAndroidBridge();
   const [splitTunnelOpen, setSplitTunnelOpen] = useState(false);
+  const [mobileNotifState, setMobileNotifState] =
+    useState<NotificationPermissionState | null>(null);
+  const [requestingMobileNotif, setRequestingMobileNotif] = useState(false);
 
   // 活跃连接数订阅（移动端快捷入口指标）
   const connStream = useStreamReader<Snapshot>("connections");
@@ -221,6 +237,28 @@ export default function Settings() {
     refreshSplitSummary();
   }, [refreshSplitSummary]);
 
+  const refreshMobileNotifState = useCallback(() => {
+    if (!isMobileHost) return;
+    void getMobileNotificationPermissionState().then((state) => {
+      if (state) setMobileNotifState(state);
+    });
+  }, [isMobileHost]);
+
+  useEffect(() => {
+    if (!isMobileHost) return;
+    refreshMobileNotifState();
+    const onFocus = () => refreshMobileNotifState();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshMobileNotifState();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [isMobileHost, refreshMobileNotifState]);
+
   const isDesktop = isDesktopApp();
   const clientInfo = parseClientInfo(
     version.version,
@@ -237,17 +275,34 @@ export default function Settings() {
       invoke("get_autostart"),
       invoke("get_close_to_tray"),
       invoke("get_silent_start"),
+      invoke("get_notifications"),
+      canOpenDesktopNotificationSettings(),
     ])
-      .then(([autostart, closeToTray, silentStart]) => {
-        if (
-          !cancelled &&
-          typeof autostart === "boolean" &&
-          typeof closeToTray === "boolean" &&
-          typeof silentStart === "boolean"
-        ) {
-          setDesktopPrefs({ autostart, closeToTray, silentStart });
-        }
-      })
+      .then(
+        ([
+          autostart,
+          closeToTray,
+          silentStart,
+          notifications,
+          canOpenSystemSettings,
+        ]) => {
+          if (
+            !cancelled &&
+            typeof autostart === "boolean" &&
+            typeof closeToTray === "boolean" &&
+            typeof silentStart === "boolean"
+          ) {
+            setDesktopPrefs({
+              autostart,
+              closeToTray,
+              silentStart,
+              notifications:
+                typeof notifications === "boolean" ? notifications : true,
+            });
+            setCanOpenSystemNotifSettings(canOpenSystemSettings);
+          }
+        },
+      )
       .catch((err: unknown) => {
         if (!cancelled)
           toast.error(err instanceof Error ? err.message : String(err));
@@ -258,22 +313,22 @@ export default function Settings() {
   }, [isDesktop]);
 
   async function toggleDesktopPreference(
-    preference: "autostart" | "closeToTray" | "silentStart",
+    preference: "autostart" | "closeToTray" | "silentStart" | "notifications",
     value: boolean,
   ) {
     const invoke = invokeDesktop();
     if (!invoke || !desktopPrefs || savingDesktopPreference) return;
     setSavingDesktopPreference(true);
     try {
+      const commandMap = {
+        closeToTray: "set_close_to_tray",
+        silentStart: "set_silent_start",
+        notifications: "set_notifications",
+      } as const;
       const result =
         preference === "autostart"
           ? await invoke("set_autostart", { enable: value })
-          : await invoke(
-              preference === "closeToTray"
-                ? "set_close_to_tray"
-                : "set_silent_start",
-              { value },
-            );
+          : await invoke(commandMap[preference], { value });
       setDesktopPrefs({
         ...desktopPrefs,
         [preference]: typeof result === "boolean" ? result : value,
@@ -283,6 +338,21 @@ export default function Settings() {
     } finally {
       setSavingDesktopPreference(false);
     }
+  }
+
+  async function handleMobileNotificationAction() {
+    if (requestingMobileNotif) return;
+    if (mobileNotifState === "prompt") {
+      setRequestingMobileNotif(true);
+      try {
+        await requestMobileNotificationPermission();
+        refreshMobileNotifState();
+      } finally {
+        setRequestingMobileNotif(false);
+      }
+      return;
+    }
+    await openMobileNotificationSettings();
   }
 
   const fixedDeployment = isLocalTarget && Boolean(status?.container);
@@ -570,6 +640,90 @@ export default function Settings() {
                   void toggleDesktopPreference("closeToTray", value)
                 }
               />
+            </SettingRow>
+
+            <SettingRow
+              title={t("desktop.notifications")}
+              description={t("desktop.notificationsDesc")}
+            >
+              <div className="flex items-center gap-2.5">
+                {canOpenSystemNotifSettings && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      void openDesktopNotificationSettings().catch(
+                        (err: unknown) =>
+                          toast.error(
+                            err instanceof Error ? err.message : String(err),
+                          ),
+                      )
+                    }
+                  >
+                    {t("desktop.systemNotificationSettings")}
+                  </Button>
+                )}
+                <Switch
+                  aria-label={t("desktop.notifications")}
+                  checked={desktopPrefs?.notifications ?? true}
+                  disabled={!desktopPrefs || savingDesktopPreference}
+                  onCheckedChange={(value) =>
+                    void toggleDesktopPreference("notifications", value)
+                  }
+                />
+              </div>
+            </SettingRow>
+          </SettingsSection>
+        )}
+
+        {/* Section 2b: 移動端通知權限（Android / iOS 原生殼） */}
+        {isMobileHost && (
+          <SettingsSection
+            icon={
+              <Bell
+                className="size-4.5 text-muted-foreground"
+                aria-hidden="true"
+              />
+            }
+            title={t("mobileNotifications.title")}
+          >
+            <SettingRow
+              title={t("mobileNotifications.title")}
+              badge={
+                mobileNotifState && (
+                  <span className="inline-flex items-center gap-1.5 text-footnote text-muted-foreground">
+                    <span
+                      className={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        mobileNotifState === "granted"
+                          ? "bg-success"
+                          : mobileNotifState === "denied"
+                            ? "bg-warning"
+                            : "bg-muted-foreground/50",
+                      )}
+                      aria-hidden="true"
+                    />
+                    {t(`mobileNotifications.${mobileNotifState}`)}
+                  </span>
+                )
+              }
+              description={
+                isAndroid
+                  ? t("mobileNotifications.descAndroid")
+                  : t("mobileNotifications.descIos")
+              }
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={requestingMobileNotif || mobileNotifState === null}
+                onClick={() => void handleMobileNotificationAction()}
+                className="h-9 max-md:h-10 font-medium"
+              >
+                {mobileNotifState === "prompt"
+                  ? t("mobileNotifications.enableAction")
+                  : t("mobileNotifications.openSettingsAction")}
+              </Button>
             </SettingRow>
           </SettingsSection>
         )}

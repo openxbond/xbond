@@ -96,3 +96,18 @@ pub async fn share_text_file<R: Runtime>(
 pub async fn perform_haptic<R: Runtime>(app: AppHandle<R>, kind: String) -> Result<()> {
     app.xbond().perform_haptic(&kind)
 }
+
+#[tauri::command]
+pub async fn get_notification_permission_state<R: Runtime>(app: AppHandle<R>) -> Result<String> {
+    app.xbond().get_notification_permission_state()
+}
+
+#[tauri::command]
+pub async fn request_notification_permission<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
+    app.xbond().request_notification_permission()
+}
+
+#[tauri::command]
+pub async fn open_notification_settings<R: Runtime>(app: AppHandle<R>) -> Result<bool> {
+    app.xbond().open_notification_settings()
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -311,5 +312,138 @@ func TestFetchSubscriptionLinkWithRefresh(t *testing.T) {
 	// reuse it without an immediate second refresh.
 	if !token.Expiry.After(time.Now()) {
 		t.Errorf("expiry not propagated: %+v", token.Expiry)
+	}
+}
+
+func TestNormalizeLanguageHeader(t *testing.T) {
+	cases := map[string]string{
+		"zh_CN":   "zh",
+		"zh-CN":   "zh",
+		"zh_HK":   "zh-HK",
+		"zh-TW":   "zh-HK",
+		"en_US":   "en",
+		"en-GB":   "en",
+		"ko":      "ko",
+		"fa":      "fa",
+		"":        "",
+		"unknown": "",
+	}
+	for input, want := range cases {
+		if got := NormalizeLanguageHeader(input); got != want {
+			t.Errorf("NormalizeLanguageHeader(%q): got %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestFetchAccountOverviewContractAndLanguageHeader(t *testing.T) {
+	var seenLang string
+	tag := "v2.0"
+	bannerEndsAt := "2026-12-01T00:00:00Z"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenLang = r.Header.Get("x-app-language")
+		if r.Header.Get("Authorization") != "Bearer at-1" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]map[string]any{
+			{"result": map[string]any{"data": map[string]any{
+				"email": "user@example.invalid", "name": "User", "emailVerified": true, "language": "en",
+			}}},
+			{"result": map[string]any{"data": map[string]any{
+				"enabled": true, "plan": "Pro", "status": "active",
+			}}},
+			{"result": map[string]any{"data": map[string]any{
+				"items": []map[string]any{{
+					"id":           "ann-1",
+					"title":        "Maintenance",
+					"summary":      "Planned maintenance",
+					"content":      "Details in **Markdown**",
+					"category":     "maintenance",
+					"tag":          tag,
+					"isBanner":     true,
+					"bannerEndsAt": bannerEndsAt,
+					"publishedAt":  "2026-11-22T00:00:00Z",
+				}},
+				"personal": []map[string]any{{
+					"id":        "per-1",
+					"kind":      "referral_reward",
+					"data":      map[string]any{"amountCents": 500, "currency": "USD"},
+					"createdAt": "2026-11-22T01:00:00Z",
+				}},
+				"unreadCount": 2,
+			}}},
+		})
+	}))
+	defer server.Close()
+
+	overview, err := FetchAccountOverview(context.Background(), server.URL, "at-1", "zh_CN")
+	if err != nil {
+		t.Fatalf("FetchAccountOverview failed: %v", err)
+	}
+	if seenLang != "zh" {
+		t.Errorf("x-app-language header: got %q, want %q", seenLang, "zh")
+	}
+	if len(overview.Announcements) != 1 || overview.Announcements[0].Content != "Details in **Markdown**" ||
+		overview.Announcements[0].Tag == nil || *overview.Announcements[0].Tag != tag ||
+		!overview.Announcements[0].IsBanner || overview.Announcements[0].BannerEndsAt == nil {
+		t.Fatalf("unexpected announcement payload: %+v", overview.Announcements)
+	}
+	if len(overview.Personal) != 1 || overview.Personal[0].Kind != "referral_reward" {
+		t.Fatalf("unexpected personal payload: %+v", overview.Personal)
+	}
+	if overview.UnreadCount != 2 {
+		t.Errorf("unread count: got %d, want 2", overview.UnreadCount)
+	}
+}
+
+func TestMarkNotificationMutations(t *testing.T) {
+	var called []string
+	var bodies []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer at-1" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		called = append(called, r.URL.Path)
+		bodies = append(bodies, string(raw))
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasSuffix(r.URL.Path, "markAllRead") {
+			_ = json.NewEncoder(w).Encode([]map[string]any{{"result": map[string]any{"data": map[string]any{"ok": true, "marked": 3}}}})
+			return
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]any{{"result": map[string]any{"data": map[string]any{"ok": true}}}})
+	}))
+	defer server.Close()
+
+	if err := MarkAnnouncementRead(context.Background(), server.URL, "at-1", "ann-1"); err != nil {
+		t.Fatalf("MarkAnnouncementRead failed: %v", err)
+	}
+	if err := MarkPersonalNotificationRead(context.Background(), server.URL, "at-1", "per-1"); err != nil {
+		t.Fatalf("MarkPersonalNotificationRead failed: %v", err)
+	}
+	marked, err := MarkAllNotificationsRead(context.Background(), server.URL, "at-1")
+	if err != nil {
+		t.Fatalf("MarkAllNotificationsRead failed: %v", err)
+	}
+	if marked != 3 {
+		t.Errorf("marked count: got %d, want 3", marked)
+	}
+	if len(called) != 3 ||
+		called[0] != "/api/trpc/user.notifications.markRead" ||
+		called[1] != "/api/trpc/user.notifications.markPersonalRead" ||
+		called[2] != "/api/trpc/user.notifications.markAllRead" {
+		t.Fatalf("unexpected procedure paths: %+v", called)
+	}
+	if !strings.Contains(bodies[0], `"announcementId":"ann-1"`) || !strings.Contains(bodies[1], `"id":"per-1"`) {
+		t.Fatalf("unexpected mutation bodies: %+v", bodies)
 	}
 }

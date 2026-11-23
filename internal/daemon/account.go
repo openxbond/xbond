@@ -28,25 +28,26 @@ import (
 // via OAuth Bearer; the console link derives from the session's own origin,
 // the issuer the tokens actually came from).
 type AccountState struct {
-	Status                  string                   `json:"status"`
-	Phase                   string                   `json:"phase,omitempty"`
-	Method                  string                   `json:"method,omitempty"`
-	AuthURL                 string                   `json:"authUrl,omitempty"`
-	VerificationURI         string                   `json:"verificationUri,omitempty"`
-	VerificationURIComplete string                   `json:"verificationUriComplete,omitempty"`
-	UserCode                string                   `json:"userCode,omitempty"`
-	ErrorCode               string                   `json:"errorCode,omitempty"`
-	Error                   string                   `json:"error,omitempty"`
-	StartedAt               *time.Time               `json:"startedAt,omitempty"`
-	Subscription            *sub.SubscriptionMeta    `json:"subscription,omitempty"`
-	UpdateError             string                   `json:"updateError,omitempty"`
-	Email                   string                   `json:"email,omitempty"`
-	Name                    string                   `json:"name,omitempty"`
-	ConsoleURL              string                   `json:"consoleUrl,omitempty"`
-	Service                 *clientapi.ServiceStatus `json:"service,omitempty"`
-	Announcements           []clientapi.Announcement `json:"announcements,omitempty"`
-	UnreadCount             int                      `json:"unreadCount,omitempty"`
-	OverviewError           string                   `json:"overviewError,omitempty"`
+	Status                  string                           `json:"status"`
+	Phase                   string                           `json:"phase,omitempty"`
+	Method                  string                           `json:"method,omitempty"`
+	AuthURL                 string                           `json:"authUrl,omitempty"`
+	VerificationURI         string                           `json:"verificationUri,omitempty"`
+	VerificationURIComplete string                           `json:"verificationUriComplete,omitempty"`
+	UserCode                string                           `json:"userCode,omitempty"`
+	ErrorCode               string                           `json:"errorCode,omitempty"`
+	Error                   string                           `json:"error,omitempty"`
+	StartedAt               *time.Time                       `json:"startedAt,omitempty"`
+	Subscription            *sub.SubscriptionMeta            `json:"subscription,omitempty"`
+	UpdateError             string                           `json:"updateError,omitempty"`
+	Email                   string                           `json:"email,omitempty"`
+	Name                    string                           `json:"name,omitempty"`
+	ConsoleURL              string                           `json:"consoleUrl,omitempty"`
+	Service                 *clientapi.ServiceStatus         `json:"service,omitempty"`
+	Announcements           []clientapi.Announcement         `json:"announcements,omitempty"`
+	Personal                []clientapi.PersonalNotification `json:"personal,omitempty"`
+	UnreadCount             int                              `json:"unreadCount,omitempty"`
+	OverviewError           string                           `json:"overviewError,omitempty"`
 }
 
 type accountBindOptions struct {
@@ -63,20 +64,26 @@ type accountLoginManager interface {
 	Login(context.Context, account.LoginOptions, func(account.Progress)) (*account.Credentials, error)
 	Session() (*account.Session, error)
 	RefreshLink(context.Context) (*clientapi.SubscriptionLink, error)
-	Overview(context.Context) (*clientapi.AccountOverview, error)
+	Overview(context.Context, string) (*clientapi.AccountOverview, error)
+	MarkAnnouncementRead(context.Context, string) error
+	MarkPersonalNotificationRead(context.Context, string) error
+	MarkAllNotificationsRead(context.Context) (int, error)
 	Logout(context.Context) error
 }
 
 type accountController struct {
-	mu         sync.Mutex
-	operation  sync.Mutex
-	manager    accountLoginManager
-	state      AccountState
-	cancel     context.CancelFunc
-	syncGen    int
-	bind       func(context.Context, *account.Credentials, accountBindOptions) (*sub.SubscriptionMeta, string, error)
-	logoutSubs func() ([]sub.SubscriptionMeta, error)
-	listXBond  func() *sub.SubscriptionMeta
+	mu               sync.Mutex
+	operation        sync.Mutex
+	manager          accountLoginManager
+	state            AccountState
+	lastOverview     *clientapi.AccountOverview
+	lastOverviewSync time.Time
+	lang             string
+	cancel           context.CancelFunc
+	syncGen          int
+	bind             func(context.Context, *account.Credentials, accountBindOptions) (*sub.SubscriptionMeta, string, error)
+	logoutSubs       func() ([]sub.SubscriptionMeta, error)
+	listXBond        func() *sub.SubscriptionMeta
 	// Deep-link scheme flow: the browser hands the authorization code to the
 	// desktop shell, the shell delivers it through the LocalAPI callback
 	// endpoint, and waitSchemeCode unblocks the in-flight flow. One flow at a
@@ -84,7 +91,7 @@ type accountController struct {
 	schemeState string
 	codeCh      chan string
 	// overview is the overview fetch seam; defaults to manager.Overview.
-	overview func(context.Context) (*clientapi.AccountOverview, error)
+	overview func(context.Context, string) (*clientapi.AccountOverview, error)
 }
 
 func newAccountController(
@@ -114,6 +121,9 @@ func (c *accountController) hydrate() {
 	}
 	if c.state.Status == "signed_in" {
 		c.state.Subscription = c.listXBond()
+		if c.lang == "" && c.state.Subscription != nil && c.state.Subscription.Lang != "" {
+			c.lang = c.state.Subscription.Lang
+		}
 		if cached := loadOverviewCache(); cached != nil {
 			c.applyOverviewLocked(cached, "")
 		}
@@ -167,6 +177,9 @@ func (c *accountController) start(
 		c.codeCh = make(chan string, 1)
 		c.schemeState = ""
 		login.WaitCode = c.waitSchemeCode
+	}
+	if bindOptions.Lang != "" {
+		c.lang = bindOptions.Lang
 	}
 	c.mu.Unlock()
 
@@ -296,6 +309,8 @@ func (c *accountController) cancelPending(authorizationOnly bool) {
 	// over the reset below.
 	c.syncGen++
 	c.state = AccountState{Status: "signed_out"}
+	c.lastOverview = nil
+	c.lastOverviewSync = time.Time{}
 	c.schemeState = ""
 	c.codeCh = nil
 	c.mu.Unlock()
@@ -322,6 +337,9 @@ func (c *accountController) refresh(ctx context.Context, lang string) (result Ac
 	defer c.operation.Unlock()
 	c.mu.Lock()
 	generation := c.syncGen
+	if lang != "" {
+		c.lang = lang
+	}
 	c.mu.Unlock()
 	c.setPhase(generation, "fetching_subscription")
 	defer func() {
@@ -418,6 +436,33 @@ func (c *accountController) syncOverview() {
 	c.syncOverviewCtx(ctx)
 }
 
+func (c *accountController) syncOverviewIfDue(now time.Time, interval time.Duration) {
+	c.mu.Lock()
+	due := c.state.Status == "signed_in" && (c.lastOverviewSync.IsZero() || now.Sub(c.lastOverviewSync) >= interval)
+	if due {
+		c.lastOverviewSync = now
+	}
+	c.mu.Unlock()
+	if due {
+		go c.syncOverview()
+	}
+}
+
+func (c *accountController) sync(ctx context.Context, lang string) AccountState {
+	c.mu.Lock()
+	if lang != "" {
+		c.lang = lang
+	}
+	signedIn := c.state.Status == "signed_in"
+	state := c.state
+	c.mu.Unlock()
+	if !signedIn {
+		return state
+	}
+	c.syncOverviewCtx(ctx)
+	return c.snapshot()
+}
+
 func (c *accountController) syncOverviewCtx(ctx context.Context) {
 	c.mu.Lock()
 	if c.state.Status == "signed_out" {
@@ -425,8 +470,9 @@ func (c *accountController) syncOverviewCtx(ctx context.Context) {
 		return // signed out: nothing to sync
 	}
 	generation := c.syncGen
+	lang := c.lang
 	c.mu.Unlock()
-	overview, err := c.overview(ctx)
+	overview, err := c.overview(ctx, lang)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return // signed out: nothing to sync
@@ -459,23 +505,149 @@ func (c *accountController) syncOverviewCtx(ctx context.Context) {
 		c.mu.Unlock()
 		return // superseded by a logout or reset
 	}
+	c.lastOverviewSync = time.Now()
 	c.applyOverviewLocked(overview, degraded)
 	c.mu.Unlock()
+}
+
+func (c *accountController) markRead(ctx context.Context, announcementID, personalID string) (AccountState, error) {
+	c.mu.Lock()
+	if c.state.Status != "signed_in" {
+		state := c.state
+		c.mu.Unlock()
+		return state, errors.New("not signed in")
+	}
+	generation := c.syncGen
+	c.mu.Unlock()
+
+	var err error
+	if announcementID != "" {
+		err = c.manager.MarkAnnouncementRead(ctx, announcementID)
+	} else {
+		err = c.manager.MarkPersonalNotificationRead(ctx, personalID)
+	}
+	if err != nil {
+		c.mu.Lock()
+		if c.syncGen == generation && account.IsSessionExpired(err) {
+			c.state.Status = "error"
+			c.state.ErrorCode = "session_expired"
+			c.state.Error = "Account session expired. Sign in again."
+			_ = c.manager.Logout(ctx)
+		}
+		state := c.state
+		c.mu.Unlock()
+		return state, err
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.syncGen != generation {
+		return c.state, context.Canceled
+	}
+	if announcementID != "" {
+		for i := range c.state.Announcements {
+			if c.state.Announcements[i].ID == announcementID && c.state.Announcements[i].ReadAt == nil {
+				c.state.Announcements[i].ReadAt = &now
+			}
+		}
+	}
+	if personalID != "" {
+		for i := range c.state.Personal {
+			if c.state.Personal[i].ID == personalID && c.state.Personal[i].ReadAt == nil {
+				c.state.Personal[i].ReadAt = &now
+			}
+		}
+	}
+	c.state.UnreadCount = countUnread(c.state.Announcements, c.state.Personal)
+	c.persistStateOverviewLocked()
+	return c.state, nil
+}
+
+func (c *accountController) markAllRead(ctx context.Context) (AccountState, error) {
+	c.mu.Lock()
+	if c.state.Status != "signed_in" {
+		state := c.state
+		c.mu.Unlock()
+		return state, errors.New("not signed in")
+	}
+	generation := c.syncGen
+	c.mu.Unlock()
+
+	if _, err := c.manager.MarkAllNotificationsRead(ctx); err != nil {
+		c.mu.Lock()
+		if c.syncGen == generation && account.IsSessionExpired(err) {
+			c.state.Status = "error"
+			c.state.ErrorCode = "session_expired"
+			c.state.Error = "Account session expired. Sign in again."
+			_ = c.manager.Logout(ctx)
+		}
+		state := c.state
+		c.mu.Unlock()
+		return state, err
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.syncGen != generation {
+		return c.state, context.Canceled
+	}
+	for i := range c.state.Announcements {
+		if c.state.Announcements[i].ReadAt == nil {
+			c.state.Announcements[i].ReadAt = &now
+		}
+	}
+	for i := range c.state.Personal {
+		if c.state.Personal[i].ReadAt == nil {
+			c.state.Personal[i].ReadAt = &now
+		}
+	}
+	c.state.UnreadCount = 0
+	c.persistStateOverviewLocked()
+	return c.state, nil
 }
 
 // applyOverviewLocked folds a fetched or cached overview into the state.
 // Callers hold c.mu.
 func (c *accountController) applyOverviewLocked(overview *clientapi.AccountOverview, degraded string) {
+	c.lastOverview = overview
 	c.state.Email = overview.Profile.Email
 	c.state.Name = overview.Profile.Name
 	c.state.Service = overview.Service
 	c.state.Announcements = overview.Announcements
+	c.state.Personal = overview.Personal
 	c.state.UnreadCount = overview.UnreadCount
 	c.state.ConsoleURL = c.consoleURLLocked()
 	c.state.OverviewError = degraded
 	if degraded == "" && overview.Profile.Email != "" {
 		saveOverviewCache(overview)
 	}
+}
+
+func (c *accountController) persistStateOverviewLocked() {
+	if c.lastOverview == nil || c.state.Email == "" {
+		return
+	}
+	c.lastOverview.Announcements = c.state.Announcements
+	c.lastOverview.Personal = c.state.Personal
+	c.lastOverview.UnreadCount = c.state.UnreadCount
+	saveOverviewCache(c.lastOverview)
+}
+
+func countUnread(announcements []clientapi.Announcement, personal []clientapi.PersonalNotification) int {
+	unread := 0
+	for _, item := range announcements {
+		if item.ReadAt == nil {
+			unread++
+		}
+	}
+	for _, item := range personal {
+		if item.ReadAt == nil {
+			unread++
+		}
+	}
+	return unread
 }
 
 // consoleURLLocked derives the trusted console entry from the session's own
@@ -712,5 +884,70 @@ func (s *Server) handleAccountRefresh(w http.ResponseWriter, r *http.Request) {
 	state, _ := s.account.refresh(r.Context(), req.Lang)
 	// The state carries UpdateError; return it with 200 so the UI can render
 	// the retry path instead of treating the session as invalid.
+	writeJSON(w, http.StatusOK, state)
+}
+
+func (s *Server) handleAccountSync(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		Lang string `json:"lang"`
+	}
+	if r.Body != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "invalid account sync request")
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, s.account.sync(r.Context(), req.Lang))
+}
+
+func (s *Server) handleAccountNotificationsRead(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		AnnouncementID string `json:"announcementId"`
+		PersonalID     string `json:"personalId"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid notification read request")
+		return
+	}
+	announcementID := strings.TrimSpace(req.AnnouncementID)
+	personalID := strings.TrimSpace(req.PersonalID)
+	if (announcementID == "") == (personalID == "") {
+		writeError(w, http.StatusBadRequest, "specify exactly one of announcementId or personalId")
+		return
+	}
+	state, err := s.account.markRead(r.Context(), announcementID, personalID)
+	if err != nil {
+		if account.IsSessionExpired(err) {
+			writeError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, state)
+}
+
+func (s *Server) handleAccountNotificationsReadAll(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	state, err := s.account.markAllRead(r.Context())
+	if err != nil {
+		if account.IsSessionExpired(err) {
+			writeError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, state)
 }

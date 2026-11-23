@@ -123,6 +123,45 @@ export function useAccount() {
     [client, mutate, runOperation, lang],
   );
 
+  const syncOverview = useCallback(
+    async (explicitLang?: string) => {
+      if (!client) throw new Error("LocalAPI not available");
+      const status = await client.accountSync({
+        lang: explicitLang ?? subscriptionLang(lang),
+      });
+      await mutate(status, { revalidate: false });
+      return status;
+    },
+    [client, mutate, lang],
+  );
+
+  const markAnnouncementRead = useCallback(
+    async (announcementId: string) => {
+      if (!client) throw new Error("LocalAPI not available");
+      const status = await client.markAnnouncementRead(announcementId);
+      await mutate(status, { revalidate: false });
+      return status;
+    },
+    [client, mutate],
+  );
+
+  const markPersonalRead = useCallback(
+    async (id: string) => {
+      if (!client) throw new Error("LocalAPI not available");
+      const status = await client.markPersonalNotificationRead(id);
+      await mutate(status, { revalidate: false });
+      return status;
+    },
+    [client, mutate],
+  );
+
+  const markAllRead = useCallback(async () => {
+    if (!client) throw new Error("LocalAPI not available");
+    const status = await client.markAllNotificationsRead();
+    await mutate(status, { revalidate: false });
+    return status;
+  }, [client, mutate]);
+
   const cloudProfile = cloudSubscription(subscriptions, data?.subscription);
   const activateCloud = useCallback(
     () => selectCloud(cloudProfile),
@@ -140,6 +179,10 @@ export function useAccount() {
     cancelLogin,
     logout,
     resync,
+    syncOverview,
+    markAnnouncementRead,
+    markPersonalRead,
+    markAllRead,
     cloudProfile,
     activateCloud,
   };

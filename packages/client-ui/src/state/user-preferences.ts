@@ -14,7 +14,8 @@ import {
   getDefaultLanguage,
   setAppLanguage,
 } from "@/i18n/instance";
-import { invokeDesktop } from "@/platform/local-api-bootstrap";
+import { isMobileApp } from "@/platform/host";
+import { invokeDesktop, invokeTauri } from "@/platform/local-api-bootstrap";
 
 const languageAtom = atomWithStorage<Lang | undefined>(
   LANG_STORAGE_KEY,
@@ -77,9 +78,15 @@ export function useLanguage() {
 
   useEffect(() => {
     setAppLanguage(lang);
-    const invoke = invokeDesktop();
-    if (invoke) {
-      void invoke("set_tray_language", { lang }).catch(() => {});
+    const desktopInvoke = invokeDesktop();
+    if (desktopInvoke) {
+      void desktopInvoke("set_tray_language", { lang }).catch(() => {});
+    }
+    if (isMobileApp()) {
+      void invokeTauri()?.("plugin:xbond|set_preference", {
+        key: "app_lang",
+        value: lang,
+      }).catch(() => {});
     }
   }, [lang]);
 

@@ -57,6 +57,8 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
+import { AnnouncementBanner } from "@/features/notifications/announcement-banner";
+import { NotificationBell } from "@/features/notifications/notification-bell";
 import { useProxy, useProxyMapping } from "@/features/proxies/proxy-data";
 import { useNodeSelection } from "@/features/proxies/use-node-selection";
 import { errorKind, useAction } from "@/hooks/use-action";
@@ -67,6 +69,7 @@ import { isClashX } from "@/platform/clashx-bridge";
 import { performHaptic } from "@/platform/haptic";
 import { isTauriRuntime, useIsMobile } from "@/platform/host";
 import { hasDaemonConfig } from "@/platform/local-api-bootstrap";
+import { promptMobileNotificationOnFirstConnect } from "@/platform/notifications";
 import { useAPIInfo, useClient, identityAtom } from "@/state/controller-target";
 import { useGeneral } from "@/state/core-settings";
 import { useLocalAPI } from "@/state/local-runtime";
@@ -299,6 +302,7 @@ export default function Connect() {
         async () => {
           setPendingConnection("connecting");
           try {
+            await promptMobileNotificationOnFirstConnect();
             await up();
           } catch (err) {
             caught = err;
@@ -771,6 +775,7 @@ export default function Connect() {
               "mask-x-from-85%",
             )}
           />
+          <AnnouncementBanner />
           {/* 開放式 Hero：狀態直接落在畫布上，品牌波形裝飾在右後方。 */}
           <section
             className={cn(
@@ -781,7 +786,8 @@ export default function Connect() {
           >
             {isMobile ? (
               <div className="relative flex min-w-0 flex-col gap-2.5">
-                <div className="flex justify-end">
+                <div className="flex items-center justify-end gap-1.5">
+                  <NotificationBell className="max-md:size-11 rounded-full border border-border/80 bg-card shadow-2xs" />
                   {/* 移動端配置藥丸：取代底部/二級卡片重複資訊 */}
                   <Link
                     to="/config"

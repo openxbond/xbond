@@ -73,4 +73,16 @@ impl<R: tauri::Runtime> Xbond<R> {
     pub fn perform_haptic(&self, _kind: &str) -> super::Result<()> {
         Err(Error::UnsupportedPlatform)
     }
+
+    pub fn get_notification_permission_state(&self) -> super::Result<String> {
+        Err(Error::UnsupportedPlatform)
+    }
+
+    pub fn request_notification_permission(&self) -> super::Result<bool> {
+        Err(Error::UnsupportedPlatform)
+    }
+
+    pub fn open_notification_settings(&self) -> super::Result<bool> {
+        Err(Error::UnsupportedPlatform)
+    }
 }

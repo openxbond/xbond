@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
+	"github.com/openxbond/xbond/internal/account"
 	"github.com/openxbond/xbond/internal/diag"
 	"github.com/openxbond/xbond/internal/engine"
 	"github.com/openxbond/xbond/internal/platform/atomicfile"
@@ -82,6 +84,9 @@ func newAPIServer(svc *TunnelService) (*apiServer, error) {
 	mux.HandleFunc("/localapi/v0/account/login", auth(s.handleAccountLogin))
 	mux.HandleFunc("/localapi/v0/account/logout", auth(s.handleAccountLogout))
 	mux.HandleFunc("/localapi/v0/account/refresh", auth(s.handleAccountRefresh))
+	mux.HandleFunc("/localapi/v0/account/sync", auth(s.handleAccountSync))
+	mux.HandleFunc("/localapi/v0/account/notifications/read", auth(s.handleAccountNotificationsRead))
+	mux.HandleFunc("/localapi/v0/account/notifications/read-all", auth(s.handleAccountNotificationsReadAll))
 	mux.HandleFunc("/localapi/v0/account/cancel", auth(s.handleAccountCancel))
 	mux.HandleFunc("/localapi/v0/account/callback", auth(s.handleAccountCallback))
 	mux.HandleFunc("/localapi/v0/subs", auth(s.handleSubs))
@@ -379,7 +384,7 @@ func (s *apiServer) handleAccountLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Lang != "" {
-		s.svc.account.lang = req.Lang
+		s.svc.account.setLang(req.Lang)
 	}
 	writeJSON(w, http.StatusOK, s.svc.account.login(req.Origin, req.Device, req.NoBrowser, req.CallbackScheme))
 }
@@ -438,11 +443,76 @@ func (s *apiServer) handleAccountRefresh(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	if req.Lang != "" {
-		s.svc.account.lang = req.Lang
+		s.svc.account.setLang(req.Lang)
 	}
 	// The refreshed state carries UpdateError with 200, so the UI renders
 	// the retry path instead of treating the session as invalid.
 	writeJSON(w, http.StatusOK, s.svc.account.refresh(r.Context()))
+}
+
+func (s *apiServer) handleAccountSync(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		Lang string `json:"lang"`
+	}
+	if r.Body != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "invalid account sync request")
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, s.svc.account.sync(r.Context(), req.Lang))
+}
+
+func (s *apiServer) handleAccountNotificationsRead(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		AnnouncementID string `json:"announcementId"`
+		PersonalID     string `json:"personalId"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid notification read request")
+		return
+	}
+	announcementID := strings.TrimSpace(req.AnnouncementID)
+	personalID := strings.TrimSpace(req.PersonalID)
+	if (announcementID == "") == (personalID == "") {
+		writeError(w, http.StatusBadRequest, "specify exactly one of announcementId or personalId")
+		return
+	}
+	state, err := s.svc.account.markRead(r.Context(), announcementID, personalID)
+	if err != nil {
+		if account.IsSessionExpired(err) {
+			writeError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, state)
+}
+
+func (s *apiServer) handleAccountNotificationsReadAll(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	state, err := s.svc.account.markAllRead(r.Context())
+	if err != nil {
+		if account.IsSessionExpired(err) {
+			writeError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, state)
 }
 
 func (s *apiServer) handleAccountCancel(w http.ResponseWriter, r *http.Request) {

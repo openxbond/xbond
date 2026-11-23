@@ -170,4 +170,27 @@ impl<R: Runtime> Xbond<R> {
             .map(|_| ())
             .map_err(Into::into)
     }
+
+    /// Returns the native notification authorization status: "granted",
+    /// "denied", or "prompt".
+    pub fn get_notification_permission_state(&self) -> super::Result<String> {
+        self.mobile_plugin_handle
+            .run_mobile_plugin("getNotificationPermissionState", serde_json::json!({}))
+            .map_err(Into::into)
+    }
+
+    /// Prompts for native notification permission when undecided; returns
+    /// whether notifications are authorized afterwards.
+    pub fn request_notification_permission(&self) -> super::Result<bool> {
+        self.mobile_plugin_handle
+            .run_mobile_plugin("requestNotificationPermission", serde_json::json!({}))
+            .map_err(Into::into)
+    }
+
+    /// Opens the OS app notification settings screen.
+    pub fn open_notification_settings(&self) -> super::Result<bool> {
+        self.mobile_plugin_handle
+            .run_mobile_plugin("openNotificationSettings", serde_json::json!({}))
+            .map_err(Into::into)
+    }
 }

@@ -17,4 +17,7 @@ permissions = [
   "allow-save-text-file",
   "allow-share-text-file",
   "allow-perform-haptic",
+  "allow-get-notification-permission-state",
+  "allow-request-notification-permission",
+  "allow-open-notification-settings",
 ]

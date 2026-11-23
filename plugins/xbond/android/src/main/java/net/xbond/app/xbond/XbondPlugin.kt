@@ -1,28 +1,38 @@
 package net.xbond.app.xbond
 
+import android.Manifest
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
 import android.util.Log
 import android.view.HapticFeedbackConstants
 import androidx.activity.result.ActivityResult
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
+import app.tauri.PermissionState
 import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
+import app.tauri.annotation.Permission
+import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import java.io.File
+
+private const val NOTIFICATION_PERMISSION_ALIAS = "notifications"
 
 /**
  * The platform surface the shared web UI consumes through the Tauri `xbond`
@@ -37,7 +47,14 @@ import java.io.File
  * the old extract/poll/loadUrl boot dance is gone with the local-origin
  * webview.
  */
-@TauriPlugin
+@TauriPlugin(
+    permissions = [
+        Permission(
+            strings = [Manifest.permission.POST_NOTIFICATIONS],
+            alias = NOTIFICATION_PERMISSION_ALIAS,
+        ),
+    ],
+)
 class XbondPlugin(private val activity: Activity) : Plugin(activity) {
 
     private var updates: AppUpdates? = null
@@ -224,6 +241,90 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
         invoke.resolveObject(result.resultCode == Activity.RESULT_OK)
     }
 
+    private fun isNotificationsGranted(): Boolean {
+        val enabled = NotificationManagerCompat.from(activity).areNotificationsEnabled()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return enabled
+        }
+        val granted = ContextCompat.checkSelfPermission(
+            activity,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        return enabled && granted
+    }
+
+    /**
+     * Reports the notification authorization state: "granted", "denied"
+     * (permanently declined or disabled in system settings), or "prompt"
+     * (runtime prompt can still be shown on Android 13+).
+     */
+    @Command
+    fun getNotificationPermissionState(invoke: Invoke) {
+        val state = when {
+            isNotificationsGranted() -> "granted"
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU -> "denied"
+            ContextCompat.checkSelfPermission(
+                activity,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED -> "denied"
+            getPermissionState(NOTIFICATION_PERMISSION_ALIAS) == PermissionState.DENIED -> "denied"
+            else -> "prompt"
+        }
+        invoke.resolveObject(state)
+    }
+
+    /**
+     * Requests runtime POST_NOTIFICATIONS permission on Android 13+.
+     * Never throws when declined; resolves false so VPN connect continues.
+     */
+    @Command
+    fun requestNotificationPermission(invoke: Invoke) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            invoke.resolveObject(NotificationManagerCompat.from(activity).areNotificationsEnabled())
+            return
+        }
+        val permGranted = ContextCompat.checkSelfPermission(
+            activity,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (permGranted) {
+            invoke.resolveObject(NotificationManagerCompat.from(activity).areNotificationsEnabled())
+            return
+        }
+        requestPermissionForAlias(
+            NOTIFICATION_PERMISSION_ALIAS,
+            invoke,
+            "notificationPermissionCallback",
+        )
+    }
+
+    @PermissionCallback
+    fun notificationPermissionCallback(invoke: Invoke) {
+        invoke.resolveObject(isNotificationsGranted())
+    }
+
+    /** Opens the system app notification settings screen. */
+    @Command
+    fun openNotificationSettings(invoke: Invoke) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName)
+            }
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", activity.packageName, null)
+            }
+        }
+        val opened = runCatching {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            activity.startActivity(intent)
+            true
+        }.onFailure { err ->
+            Log.w(TAG, "openNotificationSettings failed: ${err.message}")
+        }.getOrDefault(false)
+        invoke.resolveObject(opened)
+    }
+
     /** Manual update check from the about card. */
     @Command
     fun checkForUpdates(invoke: Invoke) {
@@ -263,6 +364,9 @@ class XbondPlugin(private val activity: Activity) : Plugin(activity) {
                 .putString(args.key, args.value)
                 .commit()
         }.getOrDefault(false)
+        if (saved && args.key == "app_lang") {
+            XBondVpnService.refreshNotificationIfActive()
+        }
         invoke.resolveObject(saved)
     }
 

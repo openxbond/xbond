@@ -59,6 +59,10 @@ impl ShellState {
         self.tray_available && self.close_to_tray()
     }
 
+    pub fn notifications(&self) -> bool {
+        self.preferences().notifications
+    }
+
     /// Whether this launch must stay in the background (autostart + silent
     /// start preference with a tray to come back through): no splash, no
     /// revealed main window.
@@ -97,6 +101,56 @@ pub fn get_silent_start(state: State<'_, ShellState>) -> bool {
 #[tauri::command]
 pub fn set_silent_start(state: State<'_, ShellState>, value: bool) -> Result<(), String> {
     state.update_preferences(|preferences| preferences.silent_start = value)
+}
+
+#[tauri::command]
+pub fn get_notifications(state: State<'_, ShellState>) -> bool {
+    state.notifications()
+}
+
+#[tauri::command]
+pub fn set_notifications(state: State<'_, ShellState>, value: bool) -> Result<(), String> {
+    state.update_preferences(|preferences| preferences.notifications = value)
+}
+
+#[tauri::command]
+pub fn can_open_notification_settings() -> bool {
+    cfg!(any(target_os = "macos", target_os = "windows"))
+}
+
+#[tauri::command]
+pub fn send_desktop_notification(app: AppHandle, title: String, body: String) {
+    let title = title.trim();
+    if title.is_empty() {
+        return;
+    }
+    crate::tray::notify(&app, title, body.trim());
+}
+
+#[tauri::command]
+pub fn open_notification_settings(app: AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        return app
+            .opener()
+            .open_url(
+                "x-apple.systempreferences:com.apple.Notifications-Settings.extension",
+                None::<&str>,
+            )
+            .map_err(|err| err.to_string());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        return app
+            .opener()
+            .open_url("ms-settings:notifications", None::<&str>)
+            .map_err(|err| err.to_string());
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = app;
+        Err("System notification settings shortcut is unavailable on this platform.".to_string())
+    }
 }
 
 #[tauri::command]

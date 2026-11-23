@@ -22,6 +22,8 @@ import Logs from "@/features/activity/logs/logs-page";
 import Config from "@/features/configuration/configuration-page";
 import Connect from "@/features/connect/connect-page";
 import Diagnostics from "@/features/diagnostics/diagnostics-page";
+import { NotificationDrawer } from "@/features/notifications/notification-drawer";
+import { useAccountNotificationEffects } from "@/features/notifications/use-account-notification-effects";
 import ProxyPage from "@/features/proxies/proxies-page";
 import Rules from "@/features/rules/rules-page";
 import Settings from "@/features/settings/settings-page";
@@ -55,6 +57,7 @@ export default function App() {
   // Startup hand-off: close the splash / release the native splash once the
   // daemon connection settles (or the cap fires).
   useStartupHandoff();
+  useAccountNotificationEffects();
 
   const [identity, setIdentity] = useAtom(identityAtom);
   const target = useAPIInfo();
@@ -189,6 +192,7 @@ export default function App() {
           top: "calc(env(safe-area-inset-top) + 8px)",
         }}
       />
+      <NotificationDrawer />
       <CommandPalette />
     </div>
   );

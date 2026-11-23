@@ -462,3 +462,36 @@ func TestWebBlocksPathTraversal(t *testing.T) {
 		}
 	}
 }
+
+func TestAPIAccountSyncAndReadValidation(t *testing.T) {
+	svc, s := newTestAPIServer(t)
+
+	// Signed-out sync returns current signed_out snapshot with 200.
+	code, data, _ := apiCall(t, s, http.MethodPost, "/localapi/v0/account/sync", `{"lang":"en_US"}`)
+	if code != http.StatusOK {
+		t.Fatalf("expected 200 for signed-out sync, got %d: %s", code, data)
+	}
+	var state AccountState
+	if err := json.Unmarshal(data, &state); err != nil {
+		t.Fatalf("decode signed-out sync: %v", err)
+	}
+	if state.Status != "signed_out" {
+		t.Fatalf("expected signed_out status, got %+v", state)
+	}
+	svc.account.mu.Lock()
+	gotLang := svc.account.lang
+	svc.account.mu.Unlock()
+	if gotLang != "en_US" {
+		t.Fatalf("expected sync to store lang en_US, got %q", gotLang)
+	}
+
+	// Read validation rejects empty or ambiguous target.
+	code, _, _ = apiCall(t, s, http.MethodPost, "/localapi/v0/account/notifications/read", `{}`)
+	if code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for empty read payload, got %d", code)
+	}
+	code, _, _ = apiCall(t, s, http.MethodPost, "/localapi/v0/account/notifications/read", `{"announcementId":"a","personalId":"p"}`)
+	if code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for both ids, got %d", code)
+	}
+}

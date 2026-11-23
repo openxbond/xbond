@@ -212,7 +212,7 @@ function ProxyGroups() {
             kind: group.type,
           }))}
         />
-        <div className="min-w-0 h-full min-h-0 overflow-y-auto lg:overflow-hidden lg:bg-card">
+        <div className="min-w-0 h-full min-h-0 lg:overflow-hidden lg:bg-card">
           <Group
             key={selected.name}
             config={selected}

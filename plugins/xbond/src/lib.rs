@@ -80,6 +80,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::save_text_file,
             commands::share_text_file,
             commands::perform_haptic,
+            commands::get_notification_permission_state,
+            commands::request_notification_permission,
+            commands::open_notification_settings,
         ])
         .build()
 }

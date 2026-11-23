@@ -17,6 +17,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import { IS_MACOS } from "@/components/title-bar";
 import { XBondIcon } from "@/components/xbond-icon";
+import { NotificationBell } from "@/features/notifications/notification-bell";
 import { cn } from "@/lib/utils";
 import { isDesktopApp } from "@/platform/local-api-bootstrap";
 
@@ -158,7 +159,10 @@ function DesktopSidebar() {
         <span className="text-title font-bold tracking-tight text-foreground">
           XBond
         </span>
-        <SearchTrigger />
+        <div className="ms-auto flex items-center gap-0.5">
+          <NotificationBell />
+          <SearchTrigger />
+        </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 pt-1 pb-2">
         <ul className="m-0 flex list-none flex-col gap-0.5 p-0">

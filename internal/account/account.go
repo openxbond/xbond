@@ -140,27 +140,35 @@ func (s *Session) Token() *oauth2.Token {
 
 type Flow func(context.Context, LoginOptions, func(Progress)) (*oauth2.Token, error)
 type LinkFetcher func(context.Context, string, *oauth2.Token) (*clientapi.SubscriptionLink, error)
-type OverviewFetcher func(context.Context, string, *oauth2.Token) (*clientapi.AccountOverview, error)
+type OverviewFetcher func(context.Context, string, *oauth2.Token, string) (*clientapi.AccountOverview, error)
+type NotificationMarker func(context.Context, string, *oauth2.Token, string) error
+type AllNotificationsMarker func(context.Context, string, *oauth2.Token) (int, error)
 type TokenRevoker func(context.Context, string, string) error
 
 // Manager owns the persisted session and the OAuth/link operations.
 type Manager struct {
-	mu            sync.Mutex
-	generation    uint64
-	sessionPath   string
-	flow          Flow
-	fetchLink     LinkFetcher
-	fetchOverview OverviewFetcher
-	revoke        TokenRevoker
+	mu                   sync.Mutex
+	generation           uint64
+	sessionPath          string
+	flow                 Flow
+	fetchLink            LinkFetcher
+	fetchOverview        OverviewFetcher
+	markAnnouncementRead NotificationMarker
+	markPersonalRead     NotificationMarker
+	markAllRead          AllNotificationsMarker
+	revoke               TokenRevoker
 }
 
 func NewManager(sessionPath string) *Manager {
 	return &Manager{
-		sessionPath:   sessionPath,
-		flow:          Authenticate,
-		fetchLink:     clientapi.FetchSubscriptionLinkWithRefresh,
-		fetchOverview: clientapi.FetchAccountOverviewWithRefresh,
-		revoke:        clientapi.RevokeToken,
+		sessionPath:          sessionPath,
+		flow:                 Authenticate,
+		fetchLink:            clientapi.FetchSubscriptionLinkWithRefresh,
+		fetchOverview:        clientapi.FetchAccountOverviewWithRefresh,
+		markAnnouncementRead: clientapi.MarkAnnouncementReadWithRefresh,
+		markPersonalRead:     clientapi.MarkPersonalNotificationReadWithRefresh,
+		markAllRead:          clientapi.MarkAllNotificationsReadWithRefresh,
+		revoke:               clientapi.RevokeToken,
 	}
 }
 
@@ -227,25 +235,37 @@ func (m *Manager) Session() (*Session, error) {
 	return &session, nil
 }
 
-// RefreshLink resolves the subscription link again with the saved session and
-// persists any rotated tokens. This is the recovery path after a purchase or a
-// temporary Cloud failure.
-func (m *Manager) RefreshLink(ctx context.Context) (*clientapi.SubscriptionLink, error) {
+func (m *Manager) withSessionToken(
+	ctx context.Context,
+	fn func(origin string, token *oauth2.Token) error,
+) error {
 	generation := m.currentGeneration()
 	session, err := m.Session()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	token := session.Token()
-	link, err := m.fetchLink(ctx, session.Origin, token)
-	if err != nil {
-		return nil, err
+	if err := fn(session.Origin, token); err != nil {
+		return err
 	}
 	session.AccessToken = token.AccessToken
 	session.RefreshToken = token.RefreshToken
 	session.TokenType = token.TokenType
 	session.Expiry = token.Expiry
-	if err := m.saveCurrentSession(ctx, generation, session); err != nil {
+	return m.saveCurrentSession(ctx, generation, session)
+}
+
+// RefreshLink resolves the subscription link again with the saved session and
+// persists any rotated tokens. This is the recovery path after a purchase or a
+// temporary Cloud failure.
+func (m *Manager) RefreshLink(ctx context.Context) (*clientapi.SubscriptionLink, error) {
+	var link *clientapi.SubscriptionLink
+	err := m.withSessionToken(ctx, func(origin string, token *oauth2.Token) error {
+		var callErr error
+		link, callErr = m.fetchLink(ctx, origin, token)
+		return callErr
+	})
+	if err != nil {
 		return nil, err
 	}
 	return link, nil
@@ -254,25 +274,45 @@ func (m *Manager) RefreshLink(ctx context.Context) (*clientapi.SubscriptionLink,
 // Overview reads the account overview (identity, service status,
 // announcements) with the saved session and persists any rotated tokens.
 // It is the read path behind the daemon's account status.
-func (m *Manager) Overview(ctx context.Context) (*clientapi.AccountOverview, error) {
-	generation := m.currentGeneration()
-	session, err := m.Session()
+func (m *Manager) Overview(ctx context.Context, lang string) (*clientapi.AccountOverview, error) {
+	var overview *clientapi.AccountOverview
+	err := m.withSessionToken(ctx, func(origin string, token *oauth2.Token) error {
+		var callErr error
+		overview, callErr = m.fetchOverview(ctx, origin, token, lang)
+		return callErr
+	})
 	if err != nil {
-		return nil, err
-	}
-	token := session.Token()
-	overview, err := m.fetchOverview(ctx, session.Origin, token)
-	if err != nil {
-		return nil, err
-	}
-	session.AccessToken = token.AccessToken
-	session.RefreshToken = token.RefreshToken
-	session.TokenType = token.TokenType
-	session.Expiry = token.Expiry
-	if err := m.saveCurrentSession(ctx, generation, session); err != nil {
 		return nil, err
 	}
 	return overview, nil
+}
+
+// MarkAnnouncementRead marks one announcement read at the Cloud API and
+// persists any rotated OAuth tokens.
+func (m *Manager) MarkAnnouncementRead(ctx context.Context, announcementID string) error {
+	return m.withSessionToken(ctx, func(origin string, token *oauth2.Token) error {
+		return m.markAnnouncementRead(ctx, origin, token, announcementID)
+	})
+}
+
+// MarkPersonalNotificationRead marks one personal notification read at the
+// Cloud API and persists any rotated OAuth tokens.
+func (m *Manager) MarkPersonalNotificationRead(ctx context.Context, id string) error {
+	return m.withSessionToken(ctx, func(origin string, token *oauth2.Token) error {
+		return m.markPersonalRead(ctx, origin, token, id)
+	})
+}
+
+// MarkAllNotificationsRead marks all announcements and personal notifications
+// read at the Cloud API and persists any rotated OAuth tokens.
+func (m *Manager) MarkAllNotificationsRead(ctx context.Context) (int, error) {
+	var marked int
+	err := m.withSessionToken(ctx, func(origin string, token *oauth2.Token) error {
+		var callErr error
+		marked, callErr = m.markAllRead(ctx, origin, token)
+		return callErr
+	})
+	return marked, err
 }
 
 // Logout revokes the refresh chain at the Cloud (best effort: a network
