@@ -11,7 +11,7 @@ configFiles:
   release: XBond.xcconfig
 settings:
   base:
-    MARKETING_VERSION: "1.1.1"
+    MARKETING_VERSION: "1.1.2"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     # cargo-mobile2's simulator dev loop runs `xcodebuild archive` with a
