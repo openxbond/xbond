@@ -1,2 +1,2 @@
-XBOND_MARKETING_VERSION = 1.1.0
+XBOND_MARKETING_VERSION = 1.1.1
 #include? "XBond.release.local.xcconfig"
