@@ -112,12 +112,21 @@ test("renderPackageManifests renders all five ecosystems and writePackageManifes
   const scoopDesktop = JSON.parse(files.get("scoop/xbond.json")!) as {
     version: string;
     architecture: Record<string, { url: string; hash: string }>;
+    installer?: unknown;
+    uninstaller?: unknown;
+    post_install?: string;
+    shortcuts: string[][];
   };
   assert.equal(scoopDesktop.version, "2.4.1");
+  assert.match(scoopDesktop.architecture["64bit"]!.url, /#\/dl\.7z$/);
   assert.equal(
     scoopDesktop.architecture["64bit"]!.hash,
     checksums.get("xbond-desktop-v2.4.1-windows-amd64.exe"),
   );
+  assert.equal(scoopDesktop.installer, undefined);
+  assert.equal(scoopDesktop.uninstaller, undefined);
+  assert.match(scoopDesktop.post_install ?? "", /\$PLUGINSDIR/);
+  assert.deepEqual(scoopDesktop.shortcuts, [["xbond-app.exe", "XBond"]]);
 
   const scoopCli = JSON.parse(files.get("scoop/xbond-cli.json")!) as {
     bin: string;
@@ -135,6 +144,11 @@ test("renderPackageManifests renders all five ecosystems and writePackageManifes
   assert.match(wingetInstaller, /^Scope: user$/m);
   assert.match(wingetInstaller, /^InstallerType: nullsoft$/m);
   assert.match(wingetInstaller, /^ReleaseDate: 2026-12-01$/m);
+  assert.match(wingetInstaller, /^AppsAndFeaturesEntries:$/m);
+  assert.match(wingetInstaller, /^\s+- DisplayName: XBond$/m);
+  assert.match(wingetInstaller, /^\s+Publisher: xbond$/m);
+  assert.match(wingetInstaller, /^\s+DisplayVersion: 2\.4\.1$/m);
+  assert.match(wingetInstaller, /^\s+InstallerType: nullsoft$/m);
   assert.match(
     wingetInstaller,
     new RegExp(
@@ -148,11 +162,14 @@ test("renderPackageManifests renders all five ecosystems and writePackageManifes
   assert.match(aurCliSrcinfo, /pkgver = 2\.4\.1/);
 
   const obtainium = JSON.parse(files.get("obtainium/xbond.json")!) as {
-    id: string;
-    additionalSettings: string;
+    apps: Array<{
+      id: string;
+      additionalSettings: string;
+    }>;
   };
-  assert.equal(obtainium.id, "net.xbond.app");
-  const nested = JSON.parse(obtainium.additionalSettings) as {
+  assert.equal(obtainium.apps.length, 1);
+  assert.equal(obtainium.apps[0]!.id, "net.xbond.app");
+  const nested = JSON.parse(obtainium.apps[0]!.additionalSettings) as {
     apkFilterRegEx: string;
     autoApkFilterByArch: boolean;
   };

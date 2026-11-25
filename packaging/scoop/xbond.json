@@ -5,33 +5,26 @@
   "license": "AGPL-3.0-only",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/openxbond/xbond/releases/download/v1.1.2/xbond-desktop-v1.1.2-windows-amd64.exe#/setup.exe",
+      "url": "https://github.com/openxbond/xbond/releases/download/v1.1.2/xbond-desktop-v1.1.2-windows-amd64.exe#/dl.7z",
       "hash": "a6043ec08916fafef905dfad33069f35f9e5b0968d55082b3a229e8e8c07f8b7"
     },
     "arm64": {
-      "url": "https://github.com/openxbond/xbond/releases/download/v1.1.2/xbond-desktop-v1.1.2-windows-arm64.exe#/setup.exe",
+      "url": "https://github.com/openxbond/xbond/releases/download/v1.1.2/xbond-desktop-v1.1.2-windows-arm64.exe#/dl.7z",
       "hash": "b51388d71a6a5c09f99745f704b1510466039b04093e22e5b15e495d2e0a80e1"
     }
   },
-  "installer": {
-    "args": ["/S", "/D=$dir"]
-  },
-  "post_install": "Remove-Item \"$dir\\setup.exe\" -Force -ErrorAction SilentlyContinue",
-  "uninstaller": {
-    "file": "uninstall.exe",
-    "args": ["/S"]
-  },
-  "shortcuts": [["XBond.exe", "XBond"]],
+  "post_install": "Remove-Item (Join-Path $dir '$PLUGINSDIR') -Force -Recurse -ErrorAction SilentlyContinue",
+  "shortcuts": [["xbond-app.exe", "XBond"]],
   "checkver": {
     "github": "https://github.com/openxbond/xbond"
   },
   "autoupdate": {
     "architecture": {
       "64bit": {
-        "url": "https://github.com/openxbond/xbond/releases/download/v$version/xbond-desktop-v$version-windows-amd64.exe#/setup.exe"
+        "url": "https://github.com/openxbond/xbond/releases/download/v$version/xbond-desktop-v$version-windows-amd64.exe#/dl.7z"
       },
       "arm64": {
-        "url": "https://github.com/openxbond/xbond/releases/download/v$version/xbond-desktop-v$version-windows-arm64.exe#/setup.exe"
+        "url": "https://github.com/openxbond/xbond/releases/download/v$version/xbond-desktop-v$version-windows-arm64.exe#/dl.7z"
       }
     },
     "hash": {
