@@ -138,6 +138,18 @@ test("Pages requires every signed release asset and rejects replaced bytes", (t)
   );
   assert.match(downloads, /&lt;script&gt;/);
   assert.match(downloads, /xbond-desktop-v0\.4\.2-linux-arm64\.AppImage/);
+  assert.match(
+    downloads,
+    /<link rel="canonical" href="https:\/\/www\.xbond\.net\/download\/" \/>/,
+  );
+  assert.match(
+    downloads,
+    /<a class="brand" href="https:\/\/www\.xbond\.net\/"/,
+  );
+  assert.match(
+    downloads,
+    /href="https:\/\/www\.xbond\.net\/download\/" data-i18n="officialWebsite"/,
+  );
   for (const arch of ["amd64", "arm64"]) {
     assert.ok(downloads.includes(`xbond-desktop-${tag}-linux-${arch}.deb`));
     assert.ok(downloads.includes(`xbond-desktop-${tag}-linux-${arch}.rpm`));
