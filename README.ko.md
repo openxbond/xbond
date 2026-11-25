@@ -12,6 +12,14 @@
 
 </div>
 
+<p align="center">
+  <a href="https://www.xbond.net/ko/">공식 웹사이트</a> ·
+  <a href="https://www.xbond.net/ko/download/">다운로드</a> ·
+  <a href="https://www.xbond.net/ko/guides/">가이드</a> ·
+  <a href="https://www.xbond.net/ko/rules/">라우팅 규칙</a> ·
+  <a href="https://www.xbond.net/ko/changelog/">변경 로그</a>
+</p>
+
 [English](README.md) | [繁體中文](README.zh-HK.md) | [简体中文](README.zh-CN.md) | 조선어 | [فارسی](README.fa.md)
 
 XBond는 프록시에 필요한 전 과정을 한 번에 처리합니다. 연결 설정을 가져오고, 연결을 켜고, 라우팅 전략을 고르고, 네트워크에서 벌어지는 일을 지켜볼 수 있습니다. [mihomo](https://github.com/MetaCubeX/mihomo)와 [sing-box](https://github.com/SagerNet/sing-box) 코어가 내장되어 있어 Clash YAML과 sing-box JSON 설정을 그대로 실행할 수 있고, XBond 계정이 없어도 서드파티 구독은 모든 기능을 제한 없이 쓸 수 있습니다.
@@ -32,7 +40,7 @@ XBond는 프록시에 필요한 전 과정을 한 번에 처리합니다. 연결
 
 ## 다운로드
 
-설치 패키지와 업데이트 매니페스트는 [다운로드 페이지](https://openxbond.github.io/xbond/download/?lang=ko)에, 동일한 아티팩트와 SHA256 검증값은 [GitHub Releases](https://github.com/openxbond/xbond/releases)에 있습니다.
+[공식 다운로드 페이지](https://www.xbond.net/ko/download/), [GitHub Pages 미러](https://openxbond.github.io/xbond/download/?lang=ko) 또는 [GitHub Releases](https://github.com/openxbond/xbond/releases)에서 설치 패키지와 업데이트 매니페스트를 내려받을 수 있습니다(모든 아티팩트에 SHA256 체크섬 포함).
 
 | 플랫폼 | 형태 |
 | --- | --- |
@@ -48,7 +56,7 @@ XBond는 프록시에 필요한 전 과정을 한 번에 처리합니다. 연결
 
 ### 데스크톱
 
-1. [다운로드 페이지](https://openxbond.github.io/xbond/download/?lang=ko)에서 플랫폼에 맞는 데스크톱 앱을 설치해 실행합니다. 처음 실행할 때 로컬 서비스가 등록되고 시작됩니다.
+1. [공식 다운로드 페이지](https://www.xbond.net/ko/download/)(또는 [GitHub Pages 미러](https://openxbond.github.io/xbond/download/?lang=ko))에서 플랫폼에 맞는 데스크톱 앱을 설치해 실행합니다. 처음 실행할 때 로컬 서비스가 등록되고 시작됩니다.
 2. XBond 계정에 로그인하거나 서드파티 구독을 가져옵니다.
 3. 트래픽 처리 방식을 고르고 연결을 켭니다.
 
@@ -103,6 +111,12 @@ $ docker compose up -d
 ```cron
 0 4 * * * cd /path/to/xbond && docker compose up -d --pull always
 ```
+
+## 가이드 및 라우팅 규칙
+
+- [가이드](https://www.xbond.net/ko/guides/): mihomo·sing-box 듀얼 코어 설정, AI 코딩 CLI 프록시 워크플로, Linux Docker 게이트웨이 배포, 클라이언트 비교.
+- [라우팅 규칙 카탈로그](https://www.xbond.net/ko/rules/)([openxbond/rules](https://github.com/openxbond/rules)): 엄선된 89개 카테고리를 Clash/mihomo YAML(`rule-providers`) 및 sing-box JSON(`rule_set`) 두 형식으로 제공합니다.
+- [변경 로그](https://www.xbond.net/ko/changelog/): 릴리스 이력과 업그레이드 안내.
 
 ## 계정 및 구독
 

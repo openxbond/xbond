@@ -12,6 +12,14 @@
 
 </div>
 
+<p align="center">
+  <a href="https://www.xbond.net/en/">Website</a> ·
+  <a href="https://www.xbond.net/en/download/">Download</a> ·
+  <a href="https://www.xbond.net/en/guides/">Guides</a> ·
+  <a href="https://www.xbond.net/en/rules/">Routing Rules</a> ·
+  <a href="https://www.xbond.net/en/changelog/">Changelog</a>
+</p>
+
 English | [繁體中文](README.zh-HK.md) | [简体中文](README.zh-CN.md) | [조선어](README.ko.md) | [فارسی](README.fa.md)
 
 XBond takes care of the proxy loop for you: import your connection configs, bring the connection up, pick a routing strategy, and watch what your network is doing. The [mihomo](https://github.com/MetaCubeX/mihomo) and [sing-box](https://github.com/SagerNet/sing-box) cores ship embedded, so Clash YAML and sing-box JSON configs run as-is — and third-party subscriptions work fully without an XBond account.
@@ -32,7 +40,7 @@ XBond takes care of the proxy loop for you: import your connection configs, brin
 
 ## Download
 
-Installers and update manifests publish on the [download page](https://openxbond.github.io/xbond/download/?lang=en); [GitHub Releases](https://github.com/openxbond/xbond/releases) carry the same artifacts with SHA256 checksums.
+Download installers and packages on the [official download page](https://www.xbond.net/en/download/), the [GitHub Pages direct mirror](https://openxbond.github.io/xbond/download/?lang=en), or [GitHub Releases](https://github.com/openxbond/xbond/releases) (all artifacts include SHA256 checksums).
 
 | Platform | Form |
 | --- | --- |
@@ -48,7 +56,7 @@ Installers and update manifests publish on the [download page](https://openxbond
 
 ### Desktop
 
-1. Install the desktop app for your platform from the [download page](https://openxbond.github.io/xbond/download/?lang=en) and launch it — the first launch registers and starts the local service.
+1. Install the desktop app for your platform from the [official download page](https://www.xbond.net/en/download/) (or the [GitHub Pages mirror](https://openxbond.github.io/xbond/download/?lang=en)) and launch it — the first launch registers and starts the local service.
 2. Sign in to an XBond account, or import a third-party subscription.
 3. Pick a traffic-capture mode and switch the connection on.
 
@@ -103,6 +111,12 @@ To refresh the image on a schedule, schedule it on the Docker host under an acco
 ```cron
 0 4 * * * cd /path/to/xbond && docker compose up -d --pull always
 ```
+
+## Guides & Routing Rules
+
+- [Guides](https://www.xbond.net/en/guides/): dual-core mihomo/sing-box setup, AI coding CLI proxy workflow, Linux Docker gateway deployment, and client comparisons.
+- [Routing rules catalog](https://www.xbond.net/en/rules/) ([openxbond/rules](https://github.com/openxbond/rules)): 89 curated categories in both Clash/mihomo YAML (`rule-providers`) and sing-box JSON (`rule_set`) formats.
+- [Release changelog](https://www.xbond.net/en/changelog/): version history and upgrade notes.
 
 ## Accounts and subscriptions
 

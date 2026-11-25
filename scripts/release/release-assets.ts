@@ -312,6 +312,7 @@ const DOWNLOAD_STRINGS: Record<DownloadLocale, Record<string, string>> = {
     cliHint: "Standalone binaries — no installation required.",
     releaseInfo: "Release information",
     githubRelease: "GitHub Release",
+    officialWebsite: "Official website",
     checksums: "SHA-256 checksums",
     releaseNotes: "Release notes",
     copy: "Copy",
@@ -338,6 +339,7 @@ const DOWNLOAD_STRINGS: Record<DownloadLocale, Record<string, string>> = {
     cliHint: "独立命令行二进制，无需安装。",
     releaseInfo: "发布信息",
     githubRelease: "GitHub Release",
+    officialWebsite: "官方网站",
     checksums: "SHA-256 校验和",
     releaseNotes: "发布说明",
     copy: "复制",
@@ -364,6 +366,7 @@ const DOWNLOAD_STRINGS: Record<DownloadLocale, Record<string, string>> = {
     cliHint: "獨立命令列二進位檔，無需安裝。",
     releaseInfo: "發布資訊",
     githubRelease: "GitHub Release",
+    officialWebsite: "官方網站",
     checksums: "SHA-256 校驗和",
     releaseNotes: "發布說明",
     copy: "複製",
@@ -391,6 +394,7 @@ const DOWNLOAD_STRINGS: Record<DownloadLocale, Record<string, string>> = {
     cliHint: "독립 실행 바이너리 — 설치가 필요 없습니다.",
     releaseInfo: "릴리스 정보",
     githubRelease: "GitHub Release",
+    officialWebsite: "공식 웹사이트",
     checksums: "SHA-256 체크섬",
     releaseNotes: "릴리스 노트",
     copy: "복사",
@@ -418,6 +422,7 @@ const DOWNLOAD_STRINGS: Record<DownloadLocale, Record<string, string>> = {
     cliHint: "باینری‌های مستقل — نیازی به نصب نیست.",
     releaseInfo: "اطلاعات انتشار",
     githubRelease: "GitHub Release",
+    officialWebsite: "وب‌سایت رسمی",
     checksums: "چک‌سام SHA-256",
     releaseNotes: "یادداشت‌های انتشار",
     copy: "کپی",
@@ -665,6 +670,7 @@ export function buildPages(
   <div class="card-head"><span class="icon-tile">${platformIcon("github")}</span><h2 data-i18n="releaseInfo">Release information</h2></div>
   <div class="release-links">
     <a class="btn" href="${escape(`${repo}/releases/tag/${tag}`)}" data-i18n="githubRelease">GitHub Release</a>
+    <a class="btn" href="https://www.xbond.net/download/" data-i18n="officialWebsite">Official website</a>
     <a class="btn" href="../SHA256SUMS" data-i18n="checksums">SHA-256 checksums</a>
   </div>
   <details><summary data-i18n="releaseNotes">Release notes</summary><pre id="release-notes" dir="auto">${escape(notes)}</pre></details>

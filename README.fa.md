@@ -12,6 +12,14 @@
 
 </div>
 
+<p align="center">
+  <a href="https://www.xbond.net/fa/">وب‌سایت رسمی</a> ·
+  <a href="https://www.xbond.net/fa/download/">دانلود</a> ·
+  <a href="https://www.xbond.net/fa/guides/">راهنماها</a> ·
+  <a href="https://www.xbond.net/fa/rules/">قواعد مسیریابی</a> ·
+  <a href="https://www.xbond.net/fa/changelog/">تغییرات نسخه</a>
+</p>
+
 [English](README.md) | [繁體中文](README.zh-HK.md) | [简体中文](README.zh-CN.md) | [조선어](README.ko.md) | فارسی
 
 <div dir="rtl">
@@ -34,7 +42,7 @@ XBond کارِ پروکسی را از اول تا آخر برایتان ساده
 
 ## دانلود
 
-بسته‌های نصب و مانیفست‌های به‌روزرسانی در [صفحه دانلود](https://openxbond.github.io/xbond/download/?lang=fa) منتشر می‌شوند و [GitHub Releases](https://github.com/openxbond/xbond/releases) همان فایل‌ها را همراه هش SHA256 ارائه می‌کند.
+بسته‌های نصب و مانیفست‌های به‌روزرسانی را از [صفحه دانلود رسمی](https://www.xbond.net/fa/download/)، [آینه مستقیم GitHub Pages](https://openxbond.github.io/xbond/download/?lang=fa) یا [GitHub Releases](https://github.com/openxbond/xbond/releases) دریافت کنید (همه فایل‌ها همراه هش SHA256 هستند).
 
 | پلتفرم | نوع |
 | --- | --- |
@@ -50,7 +58,7 @@ XBond کارِ پروکسی را از اول تا آخر برایتان ساده
 
 ### دسکتاپ
 
-۱. اپ دسکتاپِ پلتفرم خود را از [صفحه دانلود](https://openxbond.github.io/xbond/download/?lang=fa) نصب و اجرا کنید — در اولین اجرا، سرویس محلی ثبت و راه‌اندازی می‌شود. ۲. وارد حساب XBond شوید یا یک اشتراک شخص ثالث وارد کنید. ۳. روش در دست گرفتن ترافیک را انتخاب و اتصال را روشن کنید.
+۱. اپ دسکتاپِ پلتفرم خود را از [صفحه دانلود رسمی](https://www.xbond.net/fa/download/) (یا [آینه GitHub Pages](https://openxbond.github.io/xbond/download/?lang=fa)) نصب و اجرا کنید — در اولین اجرا، سرویس محلی ثبت و راه‌اندازی می‌شود. ۲. وارد حساب XBond شوید یا یک اشتراک شخص ثالث وارد کنید. ۳. روش در دست گرفتن ترافیک را انتخاب و اتصال را روشن کنید.
 
 ### خط فرمان
 
@@ -103,6 +111,12 @@ XBond برای ماشین‌های بدون دسکتاپ هم ساخته شده 
 ```cron
 0 4 * * * cd /path/to/xbond && docker compose up -d --pull always
 ```
+
+## راهنماها و قواعد مسیریابی
+
+- [راهنماها](https://www.xbond.net/fa/guides/): راه‌اندازی دو هسته mihomo/sing-box، تنظیم پروکسی برای ابزارهای کدنویسی هوش مصنوعی، استقرار دروازه Docker لینوکس و مقایسه کلاینت‌ها.
+- [فهرست قواعد مسیریابی](https://www.xbond.net/fa/rules/) ([openxbond/rules](https://github.com/openxbond/rules)): ۸۹ دسته‌بندی منتخب در دو قالب Clash/mihomo YAML (`rule-providers`) و sing-box JSON (`rule_set`).
+- [تغییرات نسخه](https://www.xbond.net/fa/changelog/): تاریخچه انتشارها و نکات ارتقا.
 
 ## حساب و اشتراک
 

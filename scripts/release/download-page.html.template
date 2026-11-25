@@ -17,6 +17,7 @@
     name="description"
     content="Download XBond for Windows, macOS, Linux and Android."
   />
+  <link rel="canonical" href="https://www.xbond.net/download/" />
   <title data-i18n="title">Download XBond</title>
   <style>
     /* XBond design system —「冷瓷与暖橙缎带」, tokens mirror
@@ -755,7 +756,7 @@
     }
   </style>
   <header class="top">
-    <a class="brand" href="https://www.xbond.net/dash"
+    <a class="brand" href="https://www.xbond.net/"
       ><svg
         viewBox="0 0 100 100"
         fill="none"

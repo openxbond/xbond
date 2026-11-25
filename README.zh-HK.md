@@ -12,6 +12,14 @@
 
 </div>
 
+<p align="center">
+  <a href="https://www.xbond.net/">官方網站</a> ·
+  <a href="https://www.xbond.net/download/">下載</a> ·
+  <a href="https://www.xbond.net/guides/">指南</a> ·
+  <a href="https://www.xbond.net/rules/">分流規則</a> ·
+  <a href="https://www.xbond.net/changelog/">更新日誌</a>
+</p>
+
 [English](README.md) | 繁體中文 | [简体中文](README.zh-CN.md) | [조선어](README.ko.md) | [فارسی](README.fa.md)
 
 XBond 幫你匯入連線配置、建立連線、選擇代理策略，並查看網絡活動。核心內嵌 [mihomo](https://github.com/MetaCubeX/mihomo) 與 [sing-box](https://github.com/SagerNet/sing-box)，Clash YAML 與 sing-box JSON 兩類配置都能直接運行；沒有 XBond 帳號也可以完整使用第三方訂閱。
@@ -32,7 +40,7 @@ XBond 幫你匯入連線配置、建立連線、選擇代理策略，並查看�
 
 ## 下載
 
-安裝包與更新清單統一發佈在[下載頁](https://openxbond.github.io/xbond/download/?lang=zh-HK)，[GitHub Releases](https://github.com/openxbond/xbond/releases) 提供同一批產物及 SHA256 校驗。
+從[官方下載頁](https://www.xbond.net/download/)、[GitHub Pages 鏡像下載頁](https://openxbond.github.io/xbond/download/?lang=zh-HK)或 [GitHub Releases](https://github.com/openxbond/xbond/releases) 獲取安裝包與更新清單（全部產物附帶 SHA256 校驗）。
 
 | 平台 | 形態 |
 | --- | --- |
@@ -48,7 +56,7 @@ XBond 幫你匯入連線配置、建立連線、選擇代理策略，並查看�
 
 ### 桌面
 
-1. 從[下載頁](https://openxbond.github.io/xbond/download/?lang=zh-HK)安裝對應平台的桌面應用並啟動，首次啟動會註冊並啟動本機服務。
+1. 從[官方下載頁](https://www.xbond.net/download/)（或 [GitHub Pages 鏡像](https://openxbond.github.io/xbond/download/?lang=zh-HK)）安裝對應平台的桌面應用並啟動，首次啟動會註冊並啟動本機服務。
 2. 登入 XBond 帳號，或匯入第三方訂閱。
 3. 選擇流量接管模式，開啟連線。
 
@@ -103,6 +111,12 @@ XBond 同樣適合沒有桌面的機器：
 ```cron
 0 4 * * * cd /path/to/xbond && docker compose up -d --pull always
 ```
+
+## 指南與分流規則
+
+- [使用指南](https://www.xbond.net/guides/)：mihomo 與 sing-box 雙核心配置、AI 編程 CLI 代理流程、Linux Docker 網關部署與同類用戶端選型對比。
+- [分流規則目錄](https://www.xbond.net/rules/)（[openxbond/rules](https://github.com/openxbond/rules)）：精選 89 個分類，同時提供 Clash/mihomo YAML（`rule-providers`）與 sing-box JSON（`rule_set`）雙格式產物。
+- [更新日誌](https://www.xbond.net/changelog/)：版本發布歷史與升級須知。
 
 ## 帳號與訂閱
 
