@@ -1,0 +1,24 @@
+# Maintainer: openxbond <no-reply@xbond.net>
+pkgname=xbond-cli-bin
+pkgver=1.1.2
+pkgrel=1
+pkgdesc='Cross-platform dual-core (mihomo + sing-box) proxy CLI and daemon'
+arch=('x86_64' 'aarch64')
+url='https://www.xbond.net/'
+license=('AGPL-3.0-only')
+depends=('glibc')
+provides=('xbond')
+conflicts=('xbond' 'xbond-bin')
+options=('!strip')
+source_x86_64=("https://github.com/openxbond/xbond/releases/download/v${pkgver}/xbond-v${pkgver}-linux-amd64")
+source_aarch64=("https://github.com/openxbond/xbond/releases/download/v${pkgver}/xbond-v${pkgver}-linux-arm64")
+sha256sums_x86_64=('13e665493e304355722679af4ab4c9971f7e5501d4af654e3de658a75c2d854e')
+sha256sums_aarch64=('62e9f31ddc8a23f51ff2d4b643fcb025f64eef1481f47ccf47123e86a6074831')
+
+package() {
+  local bin_arch="amd64"
+  if [ "${CARCH}" = "aarch64" ]; then
+    bin_arch="arm64"
+  fi
+  install -Dm755 "${srcdir}/xbond-v${pkgver}-linux-${bin_arch}" "${pkgdir}/usr/bin/xbond"
+}

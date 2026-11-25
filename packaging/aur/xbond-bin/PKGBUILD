@@ -1,0 +1,28 @@
+# Maintainer: openxbond <no-reply@xbond.net>
+pkgname=xbond-bin
+pkgver=1.1.2
+pkgrel=1
+pkgdesc='Cross-platform dual-core (mihomo + sing-box) proxy desktop client'
+arch=('x86_64' 'aarch64')
+url='https://www.xbond.net/'
+license=('AGPL-3.0-only')
+depends=('gtk3' 'webkit2gtk-4.1' 'libayatana-appindicator')
+provides=('xbond')
+conflicts=('xbond' 'xbond-cli-bin')
+options=('!strip')
+source_x86_64=("https://github.com/openxbond/xbond/releases/download/v${pkgver}/xbond-desktop-v${pkgver}-linux-amd64.deb")
+source_aarch64=("https://github.com/openxbond/xbond/releases/download/v${pkgver}/xbond-desktop-v${pkgver}-linux-arm64.deb")
+noextract=(
+  "xbond-desktop-v${pkgver}-linux-amd64.deb"
+  "xbond-desktop-v${pkgver}-linux-arm64.deb"
+)
+sha256sums_x86_64=('b664e9351d4acd9ff25cd05ca65bac5faed8b0fca5757477e67cec57254ae461')
+sha256sums_aarch64=('8c2c9930ce33b28ba1bcd79fc959ba443719b6cfbb94fe05fe2d5351d767488c')
+
+package() {
+  local deb_arch="amd64"
+  if [ "${CARCH}" = "aarch64" ]; then
+    deb_arch="arm64"
+  fi
+  bsdtar -O -xf "${srcdir}/xbond-desktop-v${pkgver}-linux-${deb_arch}.deb" 'data.tar.*' | bsdtar -xf - -C "${pkgdir}"
+}

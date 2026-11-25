@@ -1,0 +1,33 @@
+{
+  "version": "1.1.2",
+  "description": "Cross-platform dual-core (mihomo + sing-box) proxy CLI and daemon",
+  "homepage": "https://www.xbond.net/",
+  "license": "AGPL-3.0-only",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/openxbond/xbond/releases/download/v1.1.2/xbond-v1.1.2-windows-amd64.exe#/xbond.exe",
+      "hash": "27291e453ddd5fa8687f7f0b501f52006558af7c86ebc7a0be7d334d6c620ca5"
+    },
+    "arm64": {
+      "url": "https://github.com/openxbond/xbond/releases/download/v1.1.2/xbond-v1.1.2-windows-arm64.exe#/xbond.exe",
+      "hash": "82799d87ad3546778e9429ad3dd0eeed181bb1debc80e63d6057b57ba4ff1924"
+    }
+  },
+  "bin": "xbond.exe",
+  "checkver": {
+    "github": "https://github.com/openxbond/xbond"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/openxbond/xbond/releases/download/v$version/xbond-v$version-windows-amd64.exe#/xbond.exe"
+      },
+      "arm64": {
+        "url": "https://github.com/openxbond/xbond/releases/download/v$version/xbond-v$version-windows-arm64.exe#/xbond.exe"
+      }
+    },
+    "hash": {
+      "url": "https://github.com/openxbond/xbond/releases/download/v$version/SHA256SUMS"
+    }
+  }
+}

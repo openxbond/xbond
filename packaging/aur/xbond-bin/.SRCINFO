@@ -1,0 +1,23 @@
+pkgbase = xbond-bin
+	pkgdesc = Cross-platform dual-core (mihomo + sing-box) proxy desktop client
+	pkgver = 1.1.2
+	pkgrel = 1
+	url = https://www.xbond.net/
+	arch = x86_64
+	arch = aarch64
+	license = AGPL-3.0-only
+	depends = gtk3
+	depends = webkit2gtk-4.1
+	depends = libayatana-appindicator
+	provides = xbond
+	conflicts = xbond
+	conflicts = xbond-cli-bin
+	noextract = xbond-desktop-v1.1.2-linux-amd64.deb
+	noextract = xbond-desktop-v1.1.2-linux-arm64.deb
+	options = !strip
+	source_x86_64 = https://github.com/openxbond/xbond/releases/download/v1.1.2/xbond-desktop-v1.1.2-linux-amd64.deb
+	sha256sums_x86_64 = b664e9351d4acd9ff25cd05ca65bac5faed8b0fca5757477e67cec57254ae461
+	source_aarch64 = https://github.com/openxbond/xbond/releases/download/v1.1.2/xbond-desktop-v1.1.2-linux-arm64.deb
+	sha256sums_aarch64 = 8c2c9930ce33b28ba1bcd79fc959ba443719b6cfbb94fe05fe2d5351d767488c
+
+pkgname = xbond-bin
