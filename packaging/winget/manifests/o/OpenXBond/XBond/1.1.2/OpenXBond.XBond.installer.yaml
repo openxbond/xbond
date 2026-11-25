@@ -8,6 +8,11 @@ InstallerType: nullsoft
 Scope: user
 UpgradeBehavior: install
 ReleaseDate: 2026-11-23
+AppsAndFeaturesEntries:
+  - DisplayName: XBond
+    Publisher: xbond
+    DisplayVersion: 1.1.2
+    InstallerType: nullsoft
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/openxbond/xbond/releases/download/v1.1.2/xbond-desktop-v1.1.2-windows-amd64.exe

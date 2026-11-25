@@ -1,8 +1,12 @@
 {
-  "id": "net.xbond.app",
-  "url": "https://github.com/openxbond/xbond",
-  "author": "openxbond",
-  "name": "XBond",
-  "preferredApkIndex": 0,
-  "additionalSettings": "{\"includePrereleases\":false,\"fallbackToOlderReleases\":true,\"filterReleaseTitlesByRegEx\":\"\",\"filterReleaseNotesByRegEx\":\"\",\"verifyLatestTag\":false,\"sortMethodChoice\":\"date\",\"useLatestAssetDateAsReleaseDate\":false,\"trackOnly\":false,\"versionExtractionRegEx\":\"v([0-9]+\\\\.[0-9]+\\\\.[0-9]+)\",\"matchGroupToUse\":\"1\",\"versionDetection\":true,\"apkFilterRegEx\":\"xbond-android-v.*\\\\.apk\",\"invertAPKFilter\":false,\"autoApkFilterByArch\":true,\"appName\":\"XBond\",\"appAuthor\":\"openxbond\"}"
+  "apps": [
+    {
+      "id": "net.xbond.app",
+      "url": "https://github.com/openxbond/xbond",
+      "author": "openxbond",
+      "name": "XBond",
+      "preferredApkIndex": 0,
+      "additionalSettings": "{\"includePrereleases\":false,\"fallbackToOlderReleases\":true,\"filterReleaseTitlesByRegEx\":\"\",\"filterReleaseNotesByRegEx\":\"\",\"verifyLatestTag\":false,\"sortMethodChoice\":\"date\",\"useLatestAssetDateAsReleaseDate\":false,\"trackOnly\":false,\"versionExtractionRegEx\":\"v([0-9]+\\\\.[0-9]+\\\\.[0-9]+)\",\"matchGroupToUse\":\"1\",\"versionDetection\":true,\"apkFilterRegEx\":\"xbond-android-v.*\\\\.apk\",\"invertAPKFilter\":false,\"autoApkFilterByArch\":true,\"appName\":\"XBond\",\"appAuthor\":\"openxbond\"}"
+    }
+  ]
 }

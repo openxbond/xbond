@@ -162,34 +162,27 @@ function renderScoopDesktop(
         license: "AGPL-3.0-only",
         architecture: {
           "64bit": {
-            url: `${downloadUrl(tag, amd64.name)}#/setup.exe`,
+            url: `${downloadUrl(tag, amd64.name)}#/dl.7z`,
             hash: amd64.sha256,
           },
           arm64: {
-            url: `${downloadUrl(tag, arm64.name)}#/setup.exe`,
+            url: `${downloadUrl(tag, arm64.name)}#/dl.7z`,
             hash: arm64.sha256,
           },
         },
-        installer: {
-          args: ["/S", "/D=$dir"],
-        },
         post_install:
-          'Remove-Item "$dir\\setup.exe" -Force -ErrorAction SilentlyContinue',
-        uninstaller: {
-          file: "uninstall.exe",
-          args: ["/S"],
-        },
-        shortcuts: [["XBond.exe", "XBond"]],
+          "Remove-Item (Join-Path $dir '$PLUGINSDIR') -Force -Recurse -ErrorAction SilentlyContinue",
+        shortcuts: [["xbond-app.exe", "XBond"]],
         checkver: {
           github: REPO_URL,
         },
         autoupdate: {
           architecture: {
             "64bit": {
-              url: `${REPO_URL}/releases/download/v$version/xbond-desktop-v$version-windows-amd64.exe#/setup.exe`,
+              url: `${REPO_URL}/releases/download/v$version/xbond-desktop-v$version-windows-amd64.exe#/dl.7z`,
             },
             arm64: {
-              url: `${REPO_URL}/releases/download/v$version/xbond-desktop-v$version-windows-arm64.exe#/setup.exe`,
+              url: `${REPO_URL}/releases/download/v$version/xbond-desktop-v$version-windows-arm64.exe#/dl.7z`,
             },
           },
           hash: {
@@ -199,16 +192,10 @@ function renderScoopDesktop(
       },
       null,
       2,
-    )
-      .replace(
-        '"args": [\n      "/S",\n      "/D=$dir"\n    ]',
-        '"args": ["/S", "/D=$dir"]',
-      )
-      .replace('"args": [\n      "/S"\n    ]', '"args": ["/S"]')
-      .replace(
-        '"shortcuts": [\n    [\n      "XBond.exe",\n      "XBond"\n    ]\n  ]',
-        '"shortcuts": [["XBond.exe", "XBond"]]',
-      ) + "\n"
+    ).replace(
+      '"shortcuts": [\n    [\n      "xbond-app.exe",\n      "XBond"\n    ]\n  ]',
+      '"shortcuts": [["xbond-app.exe", "XBond"]]',
+    ) + "\n"
   );
 }
 
@@ -287,6 +274,11 @@ InstallerType: nullsoft
 Scope: user
 UpgradeBehavior: install
 ReleaseDate: ${releaseDate}
+AppsAndFeaturesEntries:
+  - DisplayName: XBond
+    Publisher: xbond
+    DisplayVersion: ${version}
+    InstallerType: nullsoft
 Installers:
   - Architecture: x64
     InstallerUrl: ${downloadUrl(tag, amd64.name)}
@@ -474,12 +466,16 @@ function renderObtainium(): string {
   return (
     JSON.stringify(
       {
-        id: "net.xbond.app",
-        url: REPO_URL,
-        author: "openxbond",
-        name: "XBond",
-        preferredApkIndex: 0,
-        additionalSettings,
+        apps: [
+          {
+            id: "net.xbond.app",
+            url: REPO_URL,
+            author: "openxbond",
+            name: "XBond",
+            preferredApkIndex: 0,
+            additionalSettings,
+          },
+        ],
       },
       null,
       2,
