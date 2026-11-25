@@ -57,6 +57,7 @@
     "ios:bind": "node scripts/dev/mobile.ts bind:ios",
     "tauri": "tauri",
     "release:check": "node scripts/release/release-config.ts",
+    "release:manifests": "node scripts/release/package-manifests.ts",
     "release:core": "node --env-file-if-exists=.env scripts/release/build-release.ts",
     "release:desktop": "node --env-file-if-exists=.env scripts/release/build-desktop-release.ts",
     "release:android": "node --env-file-if-exists=.env scripts/release/release-android.ts",

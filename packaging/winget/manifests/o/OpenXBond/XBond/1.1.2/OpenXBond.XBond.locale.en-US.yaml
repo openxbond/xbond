@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
+PackageIdentifier: OpenXBond.XBond
+PackageVersion: 1.1.2
+PackageLocale: en-US
+Publisher: OpenXBond
+PublisherUrl: https://www.xbond.net/
+PublisherSupportUrl: https://github.com/openxbond/xbond/issues
+PackageName: XBond
+PackageUrl: https://www.xbond.net/
+License: AGPL-3.0-only
+LicenseUrl: https://github.com/openxbond/xbond/blob/main/LICENSE
+ShortDescription: Cross-platform dual-core (mihomo + sing-box) proxy client for desktop and CLI.
+Tags:
+  - clash
+  - mihomo
+  - proxy
+  - sing-box
+  - xbond
+ReleaseNotesUrl: https://github.com/openxbond/xbond/releases/tag/v1.1.2
+ManifestType: defaultLocale
+ManifestVersion: 1.10.0

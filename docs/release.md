@@ -163,3 +163,5 @@ RC 預設只做草稿，不進穩定更新通道。需要讓測試者自動跟�
 CLI 用 `xbond upgrade --check` 檢查、`xbond upgrade` 安裝，`--yes` 跳過 CLI 確認，系統級服務仍可能要求原生提權。桌面在設定頁更新，Android 用應用內入口與系統安裝器。iOS 測試版由 TestFlight 更新。商店版由原商店更新。
 
 更新清單（`desktop.json`、`release.json`）客戶端先經 `www.xbond.net/api/clients/update/` 取得：該代理回傳與 Pages 相同內容的簽名清單，並記錄匿名更新檢查（安裝信標契約見 [訂閱導入](specs/subscription-import.md)）。Pages 上的清單是雲端不可用時的回退，仍隨發佈流程同步部署；回退請求不帶信標。**僅穩定版發佈會更新這些清單與 `latest` 映像**；RC 不進入穩定更新通道。
+
+穩定版公開後，可執行 `pnpm release:manifests <tag> --fetch` 重新生成 Homebrew、Scoop、WinGet、AUR 與 Obtainium 的對應分發清單；目錄結構、同步對象與目標平台驗證狀態見 [套件管理器分發清單](../packaging/README.md)。
