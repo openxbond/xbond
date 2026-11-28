@@ -102,6 +102,8 @@ func normalizeRenderLang(lang string) string {
 		return "ko"
 	case "fa", "fa-ir", "fa_ir":
 		return "fa"
+	case "ru", "ru-ru", "ru_ru":
+		return "ru"
 	default:
 		return "zh-HK"
 	}

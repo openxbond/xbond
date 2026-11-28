@@ -266,6 +266,43 @@ pub const FA: TrayI18n = TrayI18n {
     notify_stop_failed: "توقف سرویس پس‌زمینه ناموفق بود؛ خروج لغو شد",
 };
 
+pub const RU: TrayI18n = TrayI18n {
+    connect: "Подключить",
+    disconnect: "Отключить",
+    connecting: "Подключение…",
+    disconnecting: "Отключение…",
+    disconnected: "Отключено",
+    daemon_down: "Ядро офлайн",
+    sysproxy: "Системный прокси",
+    tun: "TUN",
+    tun_short: "TUN",
+    tun_missing_wintun: "Отсутствует wintun.dll; невозможно запустить TUN",
+    tun_service_unreachable: "Системная служба установлена, но не отвечает; невозможно запустить TUN",
+    port_only: "Только порт",
+    routing_menu: "Режим маршрутизации",
+    rule: "Правила",
+    global: "Глобальный",
+    direct: "Напрямую",
+    proxies: "Прокси",
+    autostart: "Запуск при входе",
+    show_window: "Открыть XBond",
+    quit: "Выйти из XBond",
+    notify_offline_title: "Ядро XBond не в сети",
+    notify_offline_body: "Фоновая служба не отвечает. Откройте XBond снова для восстановления.",
+    notify_connect_failed: "Ошибка подключения",
+    notify_disconnect_failed: "Ошибка отключения",
+    notify_takeover_failed: "Не удалось переключить перехват",
+    notify_routing_failed: "Не удалось сменить режим маршрутизации",
+    notify_proxy_failed: "Не удалось переключить прокси",
+    notify_service_install_incomplete: "Установка службы не завершена; TUN не включён",
+    quit_confirm_title: "Выйти из XBond",
+    quit_confirm_connected: "Подключение всё ещё активно. Выход отключит его, сбросит системный прокси и остановит фоновую службу; при следующем открытии XBond она запустится снова.",
+    quit_confirm_idle: "Фоновая служба всё ещё работает. Выход остановит её; при следующем открытии XBond она запустится снова.",
+    quit_confirm_ok: "Выйти и остановить",
+    quit_confirm_cancel: "Отмена",
+    notify_stop_failed: "Не удалось остановить фоновую службу; выход отменён",
+};
+
 impl TrayI18n {
     pub fn for_lang(lang: &str) -> &'static Self {
         let l = lang.trim().to_lowercase().replace('-', "_");
@@ -277,6 +314,8 @@ impl TrayI18n {
             &KO
         } else if l.starts_with("fa") {
             &FA
+        } else if l.starts_with("ru") {
+            &RU
         } else {
             &EN_US
         }
@@ -298,6 +337,9 @@ fn detect_initial_language() -> String {
             }
             if lower.contains("fa") {
                 return "fa".to_string();
+            }
+            if lower.contains("ru") {
+                return "ru".to_string();
             }
             if lower.contains("en") {
                 return "en_US".to_string();
@@ -1301,6 +1343,7 @@ mod tests {
         assert_eq!(TrayI18n::for_lang("en").connect, "Connect");
         assert_eq!(TrayI18n::for_lang("ko").connect, "연결");
         assert_eq!(TrayI18n::for_lang("fa").connect, "اتصال");
+        assert_eq!(TrayI18n::for_lang("ru").connect, "Подключить");
         assert_eq!(TrayI18n::for_lang("unknown").connect, "Connect");
     }
 

@@ -325,6 +325,8 @@ func TestNormalizeLanguageHeader(t *testing.T) {
 		"en-GB":   "en",
 		"ko":      "ko",
 		"fa":      "fa",
+		"ru":      "ru",
+		"ru-RU":   "ru",
 		"":        "",
 		"unknown": "",
 	}

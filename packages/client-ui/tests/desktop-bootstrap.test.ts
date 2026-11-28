@@ -5,6 +5,7 @@ import { errorKind } from "../src/hooks/use-action.ts";
 import EN from "../src/i18n/messages/en-us.ts";
 import FA from "../src/i18n/messages/fa.ts";
 import KO from "../src/i18n/messages/ko.ts";
+import RU from "../src/i18n/messages/ru.ts";
 import CN from "../src/i18n/messages/zh-cn.ts";
 import HK from "../src/i18n/messages/zh-hk.ts";
 import { handleDesktopShortcut } from "../src/platform/desktop-shortcuts.ts";
@@ -169,8 +170,8 @@ test("Desktop shell syncs language preference to desktop runtime", async () => {
   delete globalThis.window;
 });
 
-test("Privileged service takeover keys exist across all 5 locale dictionaries", () => {
-  const dicts = [HK, CN, EN, KO, FA];
+test("Privileged service takeover keys exist across all 6 locale dictionaries", () => {
+  const dicts = [HK, CN, EN, KO, FA, RU];
   for (const dict of dicts) {
     const takeover = dict.settings.takeover;
     assert.ok(takeover.serviceInstalled);
@@ -184,8 +185,8 @@ test("Privileged service takeover keys exist across all 5 locale dictionaries", 
   }
 });
 
-test("Command palette localization keys exist across all 5 locale dictionaries", () => {
-  const dicts = [HK, CN, EN, KO, FA];
+test("Command palette localization keys exist across all 6 locale dictionaries", () => {
+  const dicts = [HK, CN, EN, KO, FA, RU];
   for (const dict of dicts) {
     assert.ok(dict.commandPalette.title);
     assert.ok(dict.commandPalette.searchPlaceholder);
@@ -291,7 +292,7 @@ test("errorKind distinguishes local core vs remote controller network errors", (
   assert.equal(errorKind(axiosNetworkError, true), "networkLocal");
   assert.equal(errorKind(axiosNetworkError, false), "network");
 
-  for (const dict of [EN, CN, HK, KO, FA]) {
+  for (const dict of [EN, CN, HK, KO, FA, RU]) {
     assert.ok(dict.runtime.networkLocal);
     assert.ok(dict.runtime.network);
     assert.equal(dict.runtime.network.includes("CORS"), false);
@@ -387,7 +388,7 @@ test("Daemon secret gate helpers detect controller-only pages and persist tokens
   clearLocalAPIToken();
   assert.equal(detectLocalAPIConfig(), null);
 
-  for (const dict of [EN, CN, HK, KO, FA]) {
+  for (const dict of [EN, CN, HK, KO, FA, RU]) {
     assert.ok(dict.onboarding.daemonSecretTitle);
     assert.ok(dict.onboarding.daemonSecretDesc);
     assert.ok(dict.onboarding.daemonSecretSubmit);

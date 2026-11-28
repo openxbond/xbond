@@ -40,6 +40,7 @@ export function selectLocalizedReleaseNote(
   else if (lower.startsWith("zh")) preferred = "zh-cn";
   else if (lower.startsWith("ko")) preferred = "ko";
   else if (lower.startsWith("fa")) preferred = "fa";
+  else if (lower.startsWith("ru")) preferred = "ru";
 
   const candidate =
     notesByLocale[preferred]?.trim() || notesByLocale["en-us"]?.trim();

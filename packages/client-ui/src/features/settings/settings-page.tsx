@@ -583,6 +583,7 @@ export default function Settings() {
                   <SelectItem value="en_US">English</SelectItem>
                   <SelectItem value="ko">한국어</SelectItem>
                   <SelectItem value="fa">فارسی</SelectItem>
+                  <SelectItem value="ru">Русский</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>

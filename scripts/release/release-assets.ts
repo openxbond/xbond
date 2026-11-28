@@ -280,7 +280,7 @@ function platformIcon(name: keyof typeof PLATFORM_ICON_PATHS) {
 
 // Locales mirror the cloud dash (apps/dash/locales); English is the no-JS
 // fallback baked into the markup, the rest apply client-side.
-type DownloadLocale = "en" | "zh" | "zh-HK" | "ko" | "fa";
+type DownloadLocale = "en" | "zh" | "zh-HK" | "ko" | "fa" | "ru";
 
 const DOWNLOAD_LOCALES: Record<
   DownloadLocale,
@@ -291,6 +291,7 @@ const DOWNLOAD_LOCALES: Record<
   "zh-HK": { lang: "zh-Hant", dir: "ltr", name: "繁體中文" },
   ko: { lang: "ko", dir: "ltr", name: "한국어" },
   fa: { lang: "fa", dir: "rtl", name: "فارسی" },
+  ru: { lang: "ru", dir: "ltr", name: "Русский" },
 };
 
 const DOWNLOAD_STRINGS: Record<DownloadLocale, Record<string, string>> = {
@@ -431,6 +432,34 @@ const DOWNLOAD_STRINGS: Record<DownloadLocale, Record<string, string>> = {
     appleChip: "اپل سیلیکون",
     intelChip: "Intel",
     langAria: "زبان",
+  },
+  ru: {
+    title: "Скачать XBond",
+    lede: "Двухъядерный прокси-клиент для ПК и мобильных устройств — импортируйте подписку и подключайтесь.",
+    dashboard: "Консоль XBond",
+    download: "Скачать",
+    abiHint:
+      "Большинство телефонов используют arm64-v8a. Не уверены? Вариант universal работает на любом устройстве, но больше по размеру.",
+    recommended: "Рекомендуем",
+    mostPhones: "большинство телефонов",
+    iosInvite: "Обратитесь к мейнтейнеру релиза за приглашением в TestFlight.",
+    dockerTitle: "Развёртывание в Docker",
+    modeTun: "Режим шлюза",
+    modePort: "Режим порта",
+    tipTun: "Весь трафик хоста и локальной сети. Только Linux.",
+    tipPort: "Локальный HTTP или SOCKS прокси на любом хосте.",
+    cliHint: "Автономные бинарники — установка не требуется.",
+    releaseInfo: "Информация о релизе",
+    githubRelease: "GitHub Release",
+    officialWebsite: "Официальный сайт",
+    checksums: "Контрольные суммы SHA-256",
+    releaseNotes: "Примечания к релизу",
+    copy: "Копировать",
+    copied: "Скопировано",
+    otherBuilds: "Другие сборки",
+    appleChip: "Apple Silicon",
+    intelChip: "Intel",
+    langAria: "Язык",
   },
 };
 

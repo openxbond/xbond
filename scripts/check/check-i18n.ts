@@ -20,6 +20,7 @@ const LOCALES = [
   { code: "en_US", file: "packages/client-ui/src/i18n/messages/en-us.ts" },
   { code: "ko", file: "packages/client-ui/src/i18n/messages/ko.ts" },
   { code: "fa", file: "packages/client-ui/src/i18n/messages/fa.ts" },
+  { code: "ru", file: "packages/client-ui/src/i18n/messages/ru.ts" },
 ];
 
 /**
@@ -132,7 +133,7 @@ export function checkTrayI18n(rootDir: string): I18nProblem[] {
   if (!fs.existsSync(trayPath)) return problems;
 
   const content = fs.readFileSync(trayPath, "utf8");
-  const requiredLocales = ["ZH_HK", "ZH_CN", "EN_US", "KO", "FA"];
+  const requiredLocales = ["ZH_HK", "ZH_CN", "EN_US", "KO", "FA", "RU"];
 
   for (const loc of requiredLocales) {
     if (
@@ -273,7 +274,7 @@ if (
     process.exitCode = 1;
   } else {
     console.log(
-      `✔ i18n check passed: 5 locales verified across all message keys, tokens, and UI attributes.`,
+      `✔ i18n check passed: ${LOCALES.length} locales verified across all message keys, tokens, and UI attributes.`,
     );
   }
 }

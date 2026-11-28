@@ -30,6 +30,11 @@ enum MobileSupport {
                 ? ("‏VPN XBond قطع شد", "دسترسی یا پیکربندی VPN تغییر کرده است. دوباره متصل شوید.")
                 : ("‏VPN XBond قطع شد", "اتصال در پس‌زمینه به‌طور غیرمنتظره قطع شد.")
         }
+        if lang == "ru" || lang.hasPrefix("ru") {
+            return revoked
+                ? ("XBond VPN отключён", "Разрешение или конфигурация VPN изменились. Нажмите для повторного подключения.")
+                : ("XBond VPN отключён", "Фоновое подключение неожиданно прервалось.")
+        }
         return revoked
             ? ("XBond VPN disconnected", "VPN permission or configuration changed. Tap to reconnect.")
             : ("XBond VPN disconnected", "The background connection stopped unexpectedly.")

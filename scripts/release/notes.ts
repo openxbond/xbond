@@ -43,7 +43,14 @@ export function parseCommits(log: string): ReleaseCommit[] {
   return commits;
 }
 
-export const NOTE_LOCALES = ["zh-hk", "en-us", "zh-cn", "ko", "fa"] as const;
+export const NOTE_LOCALES = [
+  "zh-hk",
+  "en-us",
+  "zh-cn",
+  "ko",
+  "fa",
+  "ru",
+] as const;
 export type NoteLocale = (typeof NOTE_LOCALES)[number];
 
 const NOTE_LABELS: Record<NoteLocale, string> = {
@@ -52,6 +59,7 @@ const NOTE_LABELS: Record<NoteLocale, string> = {
   "zh-cn": "简体中文",
   ko: "한국어",
   fa: "فارسی",
+  ru: "Русский",
 };
 
 const LABEL_TO_LOCALE = new Map<string, NoteLocale>(

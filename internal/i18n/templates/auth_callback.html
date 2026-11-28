@@ -865,6 +865,7 @@
         { code: "en", store: "en", label: "English", dir: "ltr" },
         { code: "ko", store: "ko", label: "한국어", dir: "ltr" },
         { code: "fa", store: "fa", label: "فارسی", dir: "rtl" },
+        { code: "ru", store: "ru", label: "Русский", dir: "ltr" },
       ];
 
       const T = {
@@ -976,6 +977,28 @@
           system: "هماهنگ با سیستم",
           langTrigger: "زبان",
         },
+        ru: {
+          pageTitle: "Авторизация XBond CLI выполнена",
+          title: "Авторизация выполнена",
+          description:
+            "Учётные данные подписки XBond автоматически синхронизированы с локальным терминальным клиентом.",
+          status: "Терминальный клиент готов",
+          meta: "Обмен токенами OAuth 2.0 PKCE завершён",
+          lblMeta: "Авторизация",
+          lblStatus: "Статус",
+          button: "Закрыть вкладку",
+          hint: "Теперь вы можете закрыть эту вкладку и вернуться в терминал.",
+          tagTop: "Каждое подключение —",
+          tagBottom: "быстро, стабильно, надёжно",
+          p1: "Выделенные BGP-линии с доступом к ИИ и стримингу",
+          p2: "Полная поддержка macOS, Windows, iOS и Android",
+          p3: "Прозрачный расход и отмена продления в любой момент",
+          themeTrigger: "Тема",
+          light: "Светлая",
+          dark: "Тёмная",
+          system: "Системная",
+          langTrigger: "Язык",
+        },
       };
 
       const ICON_ATTR =
@@ -996,6 +1019,7 @@
         if (lower.startsWith("zh")) return "zh-HK";
         if (lower.startsWith("ko")) return "ko";
         if (lower.startsWith("fa")) return "fa";
+        if (lower.startsWith("ru")) return "ru";
         if (lower.startsWith("en")) return "en";
         return "zh-HK";
       }

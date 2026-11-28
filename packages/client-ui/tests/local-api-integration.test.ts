@@ -15,6 +15,7 @@ test("subscription render language maps UI locales to the API vocabulary", () =>
   assert.equal(subscriptionLang("en_US"), "en");
   assert.equal(subscriptionLang("ko"), "ko");
   assert.equal(subscriptionLang("fa"), "fa");
+  assert.equal(subscriptionLang("ru"), "ru");
 });
 
 test("Capability Sensing correctly identifies presence vs absence of LocalAPI", () => {

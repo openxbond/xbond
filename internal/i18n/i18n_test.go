@@ -29,6 +29,8 @@ func TestNormalize(t *testing.T) {
 		{"ko-KR", "ko"},
 		{"fa", "fa"},
 		{"fa-IR", "fa"},
+		{"ru", "ru"},
+		{"ru-RU", "ru"},
 		{"", "zh-HK"},
 		{"unknown", "zh-HK"},
 	}
@@ -45,7 +47,7 @@ func TestDir(t *testing.T) {
 	if Dir("fa") != "rtl" {
 		t.Errorf("Dir(fa) = %q; want rtl", Dir("fa"))
 	}
-	for _, l := range []string{"en", "zh-CN", "zh-HK", "ko"} {
+	for _, l := range []string{"en", "zh-CN", "zh-HK", "ko", "ru"} {
 		if Dir(l) != "ltr" {
 			t.Errorf("Dir(%q) = %q; want ltr", l, Dir(l))
 		}

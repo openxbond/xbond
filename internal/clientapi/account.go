@@ -78,7 +78,7 @@ type AccountOverview struct {
 }
 
 // NormalizeLanguageHeader maps client UI / locale tags onto Cloud API's
-// x-app-language header values ("zh", "zh-HK", "en", "ko", "fa"). Empty or
+// x-app-language header values ("zh", "zh-HK", "en", "ko", "fa", "ru"). Empty or
 // unrecognized values return "" so the request leaves the header unset.
 func NormalizeLanguageHeader(lang string) string {
 	switch strings.ToLower(strings.TrimSpace(lang)) {
@@ -92,6 +92,8 @@ func NormalizeLanguageHeader(lang string) string {
 		return "ko"
 	case "fa", "fa-ir", "fa_ir":
 		return "fa"
+	case "ru", "ru-ru", "ru_ru":
+		return "ru"
 	default:
 		return ""
 	}

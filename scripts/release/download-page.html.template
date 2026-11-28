@@ -778,6 +778,7 @@
         <option value="zh-HK">繁體中文</option>
         <option value="ko">한국어</option>
         <option value="fa">فارسی</option>
+        <option value="ru">Русский</option>
       </select>
       <a
         class="btn top-link"
@@ -876,7 +877,7 @@
     const LOCALES = @@localesJson@@;
     const NOTES_BY_LOCALE = @@notesByLocaleJson@@;
     const FULL_NOTES = @@fullNotesJson@@;
-    const NOTE_KEYS = { en: "en-us", zh: "zh-cn", "zh-HK": "zh-hk", ko: "ko", fa: "fa" };
+    const NOTE_KEYS = { en: "en-us", zh: "zh-cn", "zh-HK": "zh-hk", ko: "ko", fa: "fa", ru: "ru" };
     const select = document.getElementById("lang");
     let currentLocale = "zh-HK";
     function randomDockerSecret() {
@@ -969,6 +970,7 @@
       if (lower.startsWith("zh")) return "zh";
       if (lower === "ko" || lower.startsWith("ko-")) return "ko";
       if (lower === "fa" || lower.startsWith("fa-")) return "fa";
+      if (lower === "ru" || lower.startsWith("ru-")) return "ru";
       return null;
     }
     function detect() {

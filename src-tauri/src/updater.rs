@@ -31,6 +31,7 @@ const LOCALE_HEADINGS: &[(&str, &str)] = &[
     ("简体中文", "zh-cn"),
     ("한국어", "ko"),
     ("فارسی", "fa"),
+    ("Русский", "ru"),
 ];
 
 #[derive(Default)]

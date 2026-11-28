@@ -69,7 +69,7 @@ export interface ThreeTierStatus {
 }
 
 /** Render languages accepted by /api/subscription/config. */
-export type SubscriptionLang = "zh-HK" | "zh" | "en" | "ko" | "fa";
+export type SubscriptionLang = "zh-HK" | "zh" | "en" | "ko" | "fa" | "ru";
 
 const SUBSCRIPTION_LANGS: Record<Lang, SubscriptionLang> = {
   en_US: "en",
@@ -77,6 +77,7 @@ const SUBSCRIPTION_LANGS: Record<Lang, SubscriptionLang> = {
   zh_HK: "zh-HK",
   ko: "ko",
   fa: "fa",
+  ru: "ru",
 };
 
 /** Subscription names are frozen per render language: map the UI locale once. */

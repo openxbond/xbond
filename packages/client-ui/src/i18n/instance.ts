@@ -7,6 +7,7 @@ import { type Infer } from "./message-key-paths";
 import en_US from "./messages/en-us";
 import fa from "./messages/fa";
 import ko from "./messages/ko";
+import ru from "./messages/ru";
 import zh_CN from "./messages/zh-cn";
 import zh_HK from "./messages/zh-hk";
 
@@ -31,6 +32,8 @@ export function getDefaultLanguage(): Lang {
       return "ko";
     } else if (l.includes("fa") || l.includes("prs")) {
       return "fa";
+    } else if (l.includes("ru")) {
+      return "ru";
     } else if (l.includes("us") || l.includes("en")) {
       return "en_US";
     }
@@ -70,6 +73,7 @@ type _parityEN = TrueGuard<IsEqual<KeyPaths, Infer<typeof en_US>>>;
 type _parityCN = TrueGuard<IsEqual<KeyPaths, Infer<typeof zh_CN>>>;
 type _parityKO = TrueGuard<IsEqual<KeyPaths, Infer<typeof ko>>>;
 type _parityFA = TrueGuard<IsEqual<KeyPaths, Infer<typeof fa>>>;
+type _parityRU = TrueGuard<IsEqual<KeyPaths, Infer<typeof ru>>>;
 
 declare module "i18next" {
   interface CustomTypeOptions {
@@ -102,6 +106,7 @@ void i18next.use(initReactI18next).init({
     en_US: en_US,
     ko: ko,
     fa: fa,
+    ru: ru,
   },
   lng: getStoredLanguage(),
   fallbackLng: "zh_HK",
@@ -127,6 +132,7 @@ export function setAppLanguage(lang: Lang) {
     zh_HK: "zh-HK",
     ko: "ko",
     fa: "fa",
+    ru: "ru",
   } satisfies Record<Lang, string>;
   document.documentElement.lang = intl[lang];
   // The shell is composed LTR (fixed rail, physical margins), so Persian

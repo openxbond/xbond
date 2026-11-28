@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/fa";
 import "dayjs/locale/ko";
+import "dayjs/locale/ru";
 import "dayjs/locale/zh-cn";
 import "dayjs/locale/zh-hk";
 
@@ -15,6 +16,7 @@ const dayjsLocales = {
   zh_HK: "zh-hk",
   ko: "ko",
   fa: "fa",
+  ru: "ru",
 } as const satisfies Record<Lang, string>;
 
 export function fromNow(date: Date, lang: Lang): string {
