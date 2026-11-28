@@ -1,0 +1,3 @@
+- Added full Russian (`ru`) localization across desktop and mobile UI, system tray menu, update dialogs, CLI terminal & OAuth callback page, and Android/iOS native notifications.
+- Added `ru` subscription render language mapping so XBond Cloud 3.2.0 delivers Russian node and policy group names automatically.
+- Added Russian language support on the release download page along with updated package manager release manifests.

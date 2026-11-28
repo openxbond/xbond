@@ -1,7 +1,7 @@
 declare const __APP_VERSION__: string | undefined;
 
 export const DASHBOARD_VERSION =
-  typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "1.1.2";
+  typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "1.2.0";
 
 export interface ClientInfo {
   type: string;
