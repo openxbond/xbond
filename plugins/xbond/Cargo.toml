@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-xbond"
-version = "1.1.2"
+version = "1.2.0"
 description = "XBond mobile native capabilities: LocalAPI config, split tunnel, self-hosted updates, preferences, system bars, account callbacks."
 authors = ["openxbond <no-reply@xbond.net>"]
 edition = "2021"
