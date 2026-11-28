@@ -73,7 +73,14 @@ function git(...args: string[]) {
   return execFileSync("git", args, { encoding: "utf8" }).trim();
 }
 
-const REQUIRED_NOTE_LOCALES = ["zh-hk", "en-us", "zh-cn", "ko", "fa"] as const;
+const REQUIRED_NOTE_LOCALES = [
+  "zh-hk",
+  "en-us",
+  "zh-cn",
+  "ko",
+  "fa",
+  "ru",
+] as const;
 
 export function missingNoteLocales(
   notes: { locale: string }[] | undefined,

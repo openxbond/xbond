@@ -312,6 +312,7 @@ internal class AppUpdates(private val activity: Activity) {
             lang == "zh" -> "zh-cn"
             lang == "ko" -> "ko"
             lang == "fa" -> "fa"
+            lang == "ru" -> "ru"
             else -> "en-us"
         }
     }
@@ -540,6 +541,7 @@ internal class AppUpdates(private val activity: Activity) {
             "zh-cn" to "简体中文",
             "ko" to "한국어",
             "fa" to "فارسی",
+            "ru" to "Русский",
         )
         private val SEMVER = Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)")
     }

@@ -90,20 +90,21 @@ test("checkTrayI18n catches missing tray locales", (t) => {
   const trayDir = path.join(tempDir, "src-tauri/src");
   fs.mkdirSync(trayDir, { recursive: true });
 
-  // Missing FA
+  // Missing RU
   fs.writeFileSync(
     path.join(trayDir, "tray.rs"),
     `pub const ZH_HK: TrayI18n = TrayI18n {};
 pub const ZH_CN: TrayI18n = TrayI18n {};
 pub const EN_US: TrayI18n = TrayI18n {};
-pub const KO: TrayI18n = TrayI18n {};`,
+pub const KO: TrayI18n = TrayI18n {};
+pub const FA: TrayI18n = TrayI18n {};`,
   );
 
   const problems = checkTrayI18n(tempDir);
   assert.equal(problems.length, 1);
   assert.match(
     problems[0].message,
-    /Missing tray i18n definition for locale 'FA'/,
+    /Missing tray i18n definition for locale 'RU'/,
   );
 });
 

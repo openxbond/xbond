@@ -414,6 +414,7 @@ class XBondVpnService : VpnService() {
             "en_US" -> Locale.Builder().setLanguage("en").setRegion("US").build()
             "ko" -> Locale.Builder().setLanguage("ko").build()
             "fa" -> Locale.Builder().setLanguage("fa").build()
+            "ru" -> Locale.Builder().setLanguage("ru").build()
             else -> return this
         }
         val config = Configuration(resources.configuration)

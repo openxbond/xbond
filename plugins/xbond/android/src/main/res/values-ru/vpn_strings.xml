@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tile_connected">Подключено</string>
+    <string name="tile_disconnected">Отключено</string>
+    <string name="notification_establishing">Запуск XBond VPN…</string>
+    <string name="notification_needs_permission">XBond VPN требуется разрешение</string>
+    <string name="notification_active">XBond VPN активен</string>
+    <string name="notification_active_split_allow">XBond VPN активен · разрешено приложений: %1$d</string>
+    <string name="notification_active_split_disallow">XBond VPN активен · в обход: %1$d</string>
+    <string name="notification_revoked">VPN отключён. Нажмите для повторной авторизации.</string>
+    <string name="notification_disconnect">Отключить</string>
+    <string name="notification_channel_name">Статус VPN</string>
+    <string name="notification_channel_desc">Текущий статус VPN и быстрое отключение</string>
+    <string name="notification_alert_channel_name">Уведомления VPN</string>
+    <string name="notification_alert_channel_desc">Уведомления при отзыве разрешения VPN или неожиданном разрыве</string>
+</resources>

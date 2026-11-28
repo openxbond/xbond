@@ -128,6 +128,8 @@ func TestBuildXBondURLNormalizesRenderLang(t *testing.T) {
 		"en_US": "en",
 		"ko":    "ko",
 		"fa":    "fa",
+		"ru":    "ru",
+		"ru-RU": "ru",
 		"fr":    "zh-HK",
 	}
 	for input, want := range cases {

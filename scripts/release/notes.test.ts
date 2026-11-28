@@ -177,6 +177,7 @@ test("extractNotesByLocale splits localized sections and ignores non-locale head
       { locale: "zh-hk", body: "- 新增鏡像回退。" },
       { locale: "ko", body: "- 미러 폴백 추가." },
       { locale: "fa", body: "- افزودن آینه جایگزین." },
+      { locale: "ru", body: "- Добавлен резерв зеркал." },
     ],
   });
   assert.deepEqual(extractNotesByLocale(combined), {
@@ -185,6 +186,7 @@ test("extractNotesByLocale splits localized sections and ignores non-locale head
     "zh-cn": "- 新增镜像回退。",
     ko: "- 미러 폴백 추가.",
     fa: "- افزودن آینه جایگزین.",
+    ru: "- Добавлен резерв зеркал.",
   });
   assert.deepEqual(extractNotesByLocale("## Features\n\n- Something"), {});
 });

@@ -29,7 +29,7 @@ const (
 	langRTL     = "fa"
 )
 
-var locales = []string{"en", "zh-CN", "zh-HK", "ko", "fa"}
+var locales = []string{"en", "zh-CN", "zh-HK", "ko", "fa", "ru"}
 
 var bundle = newBundle()
 
@@ -66,6 +66,9 @@ func Normalize(code string) string {
 	}
 	if strings.HasPrefix(raw, "fa") {
 		return "fa"
+	}
+	if strings.HasPrefix(raw, "ru") {
+		return "ru"
 	}
 	if strings.HasPrefix(raw, "en") {
 		return "en"

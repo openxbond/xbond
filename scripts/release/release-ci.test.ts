@@ -40,19 +40,21 @@ test("platform subsets keep core and reject unknown families", () => {
   assert.throws(() => normalizePlatforms("nightly"), /Unknown platform/);
 });
 
-test("real tags require all five release note locales", () => {
+test("real tags require all six release note locales", () => {
   assert.deepEqual(missingNoteLocales(undefined), [
     "zh-hk",
     "en-us",
     "zh-cn",
     "ko",
     "fa",
+    "ru",
   ]);
   assert.deepEqual(missingNoteLocales([{ locale: "zh-hk" }]), [
     "en-us",
     "zh-cn",
     "ko",
     "fa",
+    "ru",
   ]);
   assert.deepEqual(
     missingNoteLocales([
@@ -61,6 +63,7 @@ test("real tags require all five release note locales", () => {
       { locale: "zh-cn" },
       { locale: "ko" },
       { locale: "fa" },
+      { locale: "ru" },
     ]),
     [],
   );

@@ -38,10 +38,15 @@ test("selectLocalizedReleaseNote picks matching locale and falls back to en-us",
     "en-us": "- English changes",
     "zh-cn": "- 简体中文更新",
     "zh-hk": "- 繁體中文更新",
+    ru: "- Обновление на русском",
   };
   assert.equal(selectLocalizedReleaseNote(notes, "zh-CN"), "- 简体中文更新");
   assert.equal(selectLocalizedReleaseNote(notes, "zh-HK"), "- 繁體中文更新");
   assert.equal(selectLocalizedReleaseNote(notes, "zh-TW"), "- 繁體中文更新");
+  assert.equal(
+    selectLocalizedReleaseNote(notes, "ru"),
+    "- Обновление на русском",
+  );
   assert.equal(selectLocalizedReleaseNote(notes, "ko"), "- English changes");
   assert.equal(selectLocalizedReleaseNote(undefined, "zh-CN"), null);
 });

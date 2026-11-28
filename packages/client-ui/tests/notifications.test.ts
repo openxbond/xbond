@@ -6,6 +6,7 @@ import test from "node:test";
 import EN from "../src/i18n/messages/en-us.ts";
 import FA from "../src/i18n/messages/fa.ts";
 import KO from "../src/i18n/messages/ko.ts";
+import RU from "../src/i18n/messages/ru.ts";
 import CN from "../src/i18n/messages/zh-cn.ts";
 import HK from "../src/i18n/messages/zh-hk.ts";
 import {
@@ -159,8 +160,8 @@ test("desktop notification helpers use desktop commands and skip mobile plugin",
   ]);
 });
 
-test("notification settings keys exist across all 5 locale dictionaries", () => {
-  const dicts = [HK, CN, EN, KO, FA];
+test("notification settings keys exist across all 6 locale dictionaries", () => {
+  const dicts = [HK, CN, EN, KO, FA, RU];
   for (const dict of dicts) {
     assert.ok(dict.settings.desktop.notifications);
     assert.ok(dict.settings.desktop.notificationsDesc);
@@ -176,7 +177,7 @@ test("notification settings keys exist across all 5 locale dictionaries", () => 
   }
 });
 
-test("android vpn_strings.xml covers all 5 locales with identical string keys", () => {
+test("android vpn_strings.xml covers all 6 locales with identical string keys", () => {
   const resRoot = path.resolve(
     import.meta.dirname,
     "../../../plugins/xbond/android/src/main/res",
@@ -193,6 +194,7 @@ test("android vpn_strings.xml covers all 5 locales with identical string keys", 
     "values-zh-rHK",
     "values-ko",
     "values-fa",
+    "values-ru",
   ]) {
     assert.deepEqual(
       extractNames(path.join(resRoot, dir, "vpn_strings.xml")),
